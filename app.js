@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await renderInventoryTable();
     await renderPricingTable();
     await renderEHRView();
-    renderUsersTable();
+    await renderUsersTable();
 
     // 7. Global Event Listeners & Modals
     initGlobalEvents();
@@ -108,18 +108,6 @@ function updateCurrencyBadge(rate, isLive) {
     } else {
         currencyBtn.innerHTML = `<i class="fa-solid fa-dollar-sign text-amber"></i> BCV: <strong>Bs. ${formattedRate}</strong>`;
     }
-}
-
-function getUsers() {
-    return JSON.parse(localStorage.getItem('dental_users')) || [];
-}
-
-function saveUsers(users) {
-    localStorage.setItem('dental_users', JSON.stringify(users));
-}
-
-function getPatients() {
-    return JSON.parse(localStorage.getItem('dental_patients')) || [];
 }
 
 function getActivePatientId() {
@@ -241,8 +229,8 @@ function applyRolePermissionsUI(role) {
     }
 }
 
-function login(email, password) {
-    const users = getUsers();
+async function login(email, password) {
+    const users = await SupabaseDataService.getUsers();
     const match = users.find(u => u.email.toLowerCase() === email.toLowerCase().trim() && u.password === password.trim());
     const errorMsg = document.getElementById('login-error-msg');
 
@@ -302,7 +290,7 @@ function initNavigation() {
             } else if (tabName === 'pricing') {
                 await renderPricingTable();
             } else if (tabName === 'users') {
-                renderUsersTable();
+                await renderUsersTable();
             }
         });
     });
@@ -1285,12 +1273,12 @@ window.deletePricingService = async function(code) {
 // ==========================================
 // GESTIÓN DE USUARIOS (USER MANAGEMENT)
 // ==========================================
-function renderUsersTable() {
+async function renderUsersTable() {
     const tbody = document.getElementById('users-table-body');
     if (!tbody) return;
 
     tbody.innerHTML = '';
-    const users = getUsers();
+    const users = await SupabaseDataService.getUsers();
 
     users.forEach(u => {
         const tr = document.createElement('tr');
@@ -1309,14 +1297,14 @@ function renderUsersTable() {
     });
 }
 
-window.deleteUser = function(userId) {
+window.deleteUser = async function(userId) {
     const user = getCurrentUser();
     if (user && user.role.toLowerCase().includes('asistente')) {
         Swal.fire({ icon: 'warning', title: 'Acción denegada', text: 'Solo el Odontólogo Principal puede gestionar o eliminar cuentas de usuario.' });
         return;
     }
 
-    let users = getUsers();
+    const users = await SupabaseDataService.getUsers();
     if (users.length <= 1) {
         Swal.fire({ icon: 'error', title: 'Acción denegada', text: 'Debe existir al menos un usuario registrado en el sistema.' });
         return;
@@ -1330,11 +1318,10 @@ window.deleteUser = function(userId) {
         cancelButtonColor: '#64748b',
         confirmButtonText: 'Sí, eliminar',
         cancelButtonText: 'Cancelar'
-    }).then((result) => {
+    }).then(async (result) => {
         if (result.isConfirmed) {
-            users = users.filter(u => u.id !== userId);
-            saveUsers(users);
-            renderUsersTable();
+            await SupabaseDataService.deleteUser(userId);
+            await renderUsersTable();
             Swal.fire({ icon: 'success', title: 'Usuario eliminado', timer: 1800, showConfirmButton: false });
         }
     });
@@ -1670,7 +1657,7 @@ function initGlobalEvents() {
 
     const saveUserBtn = document.getElementById('btn-save-user');
     if (saveUserBtn) {
-        saveUserBtn.onclick = (e) => {
+        saveUserBtn.onclick = async (e) => {
             e.preventDefault();
             const fullname = document.getElementById('u-fullname').value.trim();
             const email = document.getElementById('u-email').value.trim();
@@ -1694,13 +1681,11 @@ function initGlobalEvents() {
                 createdAt: new Date().toISOString().split('T')[0]
             };
 
-            const users = getUsers();
-            users.push(newUser);
-            saveUsers(users);
+            await SupabaseDataService.saveUser(newUser);
 
             closeModal('modal-user');
-            renderUsersTable();
-            Swal.fire({ icon: 'success', title: '¡Usuario Registrado!', text: `Se creó la cuenta para ${fullname}`, timer: 2000, showConfirmButton: false });
+            await renderUsersTable();
+            Swal.fire({ icon: 'success', title: '¡Usuario Registrado!', text: `Se creó la cuenta para ${fullname} en la nube de Supabase`, timer: 2000, showConfirmButton: false });
         };
     }
 

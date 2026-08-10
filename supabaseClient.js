@@ -1,6 +1,6 @@
 /* ==========================================================================
    DENTALCARE PRO - SUPABASE LIVE DATABASE CLIENT CONNECTOR
-   Realtime Cloud Persistence for Patients, EHR, Appointments, Inventory & Baremo
+   Realtime Cloud Persistence for Patients, EHR, Appointments, Inventory, Baremo & Users
    ========================================================================== */
 
 const SUPABASE_URL = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url) || 'https://tudymiytiwcyrjtptfvi.supabase.co';
@@ -23,7 +23,76 @@ class SupabaseDataService {
     }
 
     // ==========================================
-    // 1. BAREMO SERVICES
+    // 1. SYSTEM USERS
+    // ==========================================
+    static async getUsers() {
+        if (!this.isCloudConnected()) {
+            return JSON.parse(localStorage.getItem('dental_users')) || INITIAL_USERS;
+        }
+        try {
+            const { data, error } = await supabaseClient.from('users').select('*');
+            if (error) throw error;
+            if (data && data.length > 0) {
+                const mapped = data.map(u => ({
+                    id: u.id,
+                    fullname: u.fullname,
+                    email: u.email,
+                    password: u.password,
+                    role: u.role,
+                    license: u.license || '',
+                    status: u.status || 'Activo',
+                    createdAt: u.created_at ? u.created_at.split('T')[0] : '2026-01-10'
+                }));
+                localStorage.setItem('dental_users', JSON.stringify(mapped));
+                return mapped;
+            }
+            return JSON.parse(localStorage.getItem('dental_users')) || INITIAL_USERS;
+        } catch (err) {
+            console.error('Supabase getUsers Error:', err);
+            return JSON.parse(localStorage.getItem('dental_users')) || INITIAL_USERS;
+        }
+    }
+
+    static async saveUser(userObj) {
+        let localUsers = JSON.parse(localStorage.getItem('dental_users')) || INITIAL_USERS;
+        const idx = localUsers.findIndex(u => u.id === userObj.id || u.email.toLowerCase() === userObj.email.toLowerCase());
+        if (idx >= 0) localUsers[idx] = userObj;
+        else localUsers.push(userObj);
+        localStorage.setItem('dental_users', JSON.stringify(localUsers));
+
+        if (this.isCloudConnected()) {
+            try {
+                await supabaseClient.from('users').upsert({
+                    id: userObj.id,
+                    fullname: userObj.fullname,
+                    email: userObj.email,
+                    password: userObj.password,
+                    role: userObj.role,
+                    license: userObj.license || null,
+                    status: userObj.status || 'Activo'
+                });
+            } catch (err) {
+                console.error('Supabase saveUser Error:', err);
+            }
+        }
+    }
+
+    static async deleteUser(userId) {
+        let localUsers = JSON.parse(localStorage.getItem('dental_users')) || INITIAL_USERS;
+        localUsers = localUsers.filter(u => u.id !== userId);
+        localStorage.setItem('dental_users', JSON.stringify(localUsers));
+
+        if (this.isCloudConnected()) {
+            try {
+                await supabaseClient.from('users').delete().eq('id', userId);
+            } catch (err) {
+                console.error('Supabase deleteUser Error:', err);
+            }
+        }
+    }
+
+    // ==========================================
+    // 2. BAREMO SERVICES
     // ==========================================
     static async getBaremo() {
         if (!this.isCloudConnected()) {
@@ -89,7 +158,7 @@ class SupabaseDataService {
     }
 
     // ==========================================
-    // 2. PATIENTS & EHR
+    // 3. PATIENTS & EHR
     // ==========================================
     static async getPatients() {
         if (!this.isCloudConnected()) {
@@ -170,7 +239,7 @@ class SupabaseDataService {
     }
 
     // ==========================================
-    // 3. APPOINTMENTS
+    // 4. APPOINTMENTS
     // ==========================================
     static async getAppointments() {
         if (!this.isCloudConnected()) {
@@ -236,7 +305,7 @@ class SupabaseDataService {
     }
 
     // ==========================================
-    // 4. KARDEX INVENTORY
+    // 5. KARDEX INVENTORY
     // ==========================================
     static async getInventory() {
         if (!this.isCloudConnected()) {
