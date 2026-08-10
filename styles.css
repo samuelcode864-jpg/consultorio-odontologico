@@ -1595,6 +1595,52 @@ html, body {
 }
 
 /* Odontogram & Budget Responsive Layout Fixes */
+.odontogram-vertical-layout {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 14px 0;
+}
+
+.tooth-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.odontogram-divider-line {
+    width: 85%;
+    height: 1px;
+    background: var(--border-color);
+    margin: 8px 0;
+}
+
+.odontogram-major-divider {
+    width: 100%;
+    margin: 16px 0;
+    text-align: center;
+    border-top: 2px dashed var(--border-highlight);
+    position: relative;
+    padding-top: 10px;
+}
+
+.odontogram-major-divider span {
+    background: var(--bg-card);
+    color: var(--primary-cyan);
+    font-weight: 700;
+    font-size: 0.78rem;
+    padding: 4px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--border-highlight);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
 .odontogram-layout {
     display: grid;
     grid-template-columns: 1fr 420px;

@@ -1,17 +1,35 @@
 /* ==========================================================================
    DENTALCARE PRO - SVG ODONTOGRAM INTERACTIVE ENGINE
-   Supports Adult Dentition (32 teeth) & Pediatric Dentition (20 teeth)
+   Vertical Quadrant Specification Layout (Exact User Directive)
    ========================================================================== */
 
-const ADULT_UPPER_RIGHT = [18, 17, 16, 15, 14, 13, 12, 11];
-const ADULT_UPPER_LEFT  = [21, 22, 23, 24, 25, 26, 27, 28];
-const ADULT_LOWER_RIGHT = [48, 47, 46, 45, 44, 43, 42, 41];
-const ADULT_LOWER_LEFT  = [31, 32, 33, 34, 35, 36, 37, 38];
+const VERTICAL_LAYOUT_ROWS = [
+    // Arcada Superior - Cuadrante 1
+    { type: 'row', teeth: [18, 17, 16, 15] },
+    { type: 'row', teeth: [14, 13, 12, 11] },
+    { type: 'row', teeth: [55, 54, 53, 52, 51] }, // (excepcion de 5)
 
-const PEDIATRIC_UPPER_RIGHT = [55, 54, 53, 52, 51];
-const PEDIATRIC_UPPER_LEFT  = [61, 62, 63, 64, 65];
-const PEDIATRIC_LOWER_RIGHT = [85, 84, 83, 82, 81];
-const PEDIATRIC_LOWER_LEFT  = [71, 72, 73, 74, 75];
+    { type: 'divider' },
+
+    // Arcada Superior - Cuadrante 2
+    { type: 'row', teeth: [21, 22, 23, 24] },
+    { type: 'row', teeth: [25, 26, 27, 28] },
+    { type: 'row', teeth: [61, 62, 63, 64, 65] }, // (excepcion de 5)
+
+    { type: 'major_divider', label: 'DIVISIÓN ARCADA SUPERIOR / INFERIOR' },
+
+    // Arcada Inferior - Cuadrante 4 & 8
+    { type: 'row', teeth: [85, 84, 83, 82, 81] }, // (excepcion de 5)
+    { type: 'row', teeth: [48, 47, 46, 45] },
+    { type: 'row', teeth: [44, 43, 42, 41] },
+
+    { type: 'divider' },
+
+    // Arcada Inferior - Cuadrante 3 & 7
+    { type: 'row', teeth: [71, 72, 73, 74, 75] }, // (excepcion de 5)
+    { type: 'row', teeth: [31, 32, 33, 34] },
+    { type: 'row', teeth: [35, 36, 37, 38] }
+];
 
 class OdontogramEngine {
     constructor(containerId, options = {}) {
@@ -45,49 +63,27 @@ class OdontogramEngine {
         this.container.innerHTML = '';
 
         const wrapper = document.createElement('div');
-        wrapper.className = 'odontogram-grid-wrapper';
-        wrapper.style.display = 'flex';
-        wrapper.style.flexDirection = 'column';
-        wrapper.style.gap = '20px';
-        wrapper.style.width = '100%';
-        wrapper.style.alignItems = 'center';
+        wrapper.className = 'odontogram-vertical-layout';
 
-        if (!this.isPediatric) {
-            // Upper Maxilla (Adult)
-            const upperArch = document.createElement('div');
-            upperArch.className = 'dental-arch';
-            const upperTeeth = [...ADULT_UPPER_RIGHT, ...ADULT_UPPER_LEFT];
-            upperTeeth.forEach(num => upperArch.appendChild(this.createToothElement(num)));
-            
-            // Lower Mandible (Adult)
-            const lowerArch = document.createElement('div');
-            lowerArch.className = 'dental-arch';
-            const lowerTeeth = [...ADULT_LOWER_RIGHT, ...ADULT_LOWER_LEFT];
-            lowerTeeth.forEach(num => lowerArch.appendChild(this.createToothElement(num)));
-
-            wrapper.appendChild(upperArch);
-            
-            // Divider label
-            const divider = document.createElement('div');
-            divider.style.height = '1px';
-            divider.style.width = '90%';
-            divider.style.background = 'var(--border-color)';
-            wrapper.appendChild(divider);
-
-            wrapper.appendChild(lowerArch);
-        } else {
-            // Pediatric Arch
-            const upperPedi = document.createElement('div');
-            upperPedi.className = 'dental-arch';
-            [...PEDIATRIC_UPPER_RIGHT, ...PEDIATRIC_UPPER_LEFT].forEach(num => upperPedi.appendChild(this.createToothElement(num)));
-
-            const lowerPedi = document.createElement('div');
-            lowerPedi.className = 'dental-arch';
-            [...PEDIATRIC_LOWER_RIGHT, ...PEDIATRIC_LOWER_LEFT].forEach(num => lowerPedi.appendChild(this.createToothElement(num)));
-
-            wrapper.appendChild(upperPedi);
-            wrapper.appendChild(lowerPedi);
-        }
+        VERTICAL_LAYOUT_ROWS.forEach(item => {
+            if (item.type === 'row') {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'tooth-row';
+                item.teeth.forEach(num => {
+                    rowDiv.appendChild(this.createToothElement(num));
+                });
+                wrapper.appendChild(rowDiv);
+            } else if (item.type === 'divider') {
+                const div = document.createElement('div');
+                div.className = 'odontogram-divider-line';
+                wrapper.appendChild(div);
+            } else if (item.type === 'major_divider') {
+                const div = document.createElement('div');
+                div.className = 'odontogram-major-divider';
+                div.innerHTML = `<span><i class="fa-solid fa-arrows-up-down"></i> ${item.label}</span>`;
+                wrapper.appendChild(div);
+            }
+        });
 
         this.container.appendChild(wrapper);
     }
@@ -155,7 +151,9 @@ class OdontogramEngine {
         }
 
         if (this.onFaceClickCallback) {
-            this.onFaceClickCallback(toothNumber, faceId, this.currentMode, key, this.toothData);
+            this.onFaceClickCallback(toothNumber, faceId, this.currentMode, this.toothData);
         }
     }
 }
+
+window.OdontogramEngine = OdontogramEngine;
