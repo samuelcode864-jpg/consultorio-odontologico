@@ -4,7 +4,7 @@
    ========================================================================== */
 
 const SUPABASE_URL = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url) || 'https://tudymiytiwcyrjtptfvi.supabase.co';
-const SUPABASE_ANON_KEY = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.key) || 'sb_publishable_W6jtz60qq9OItHaRxDKtag_65DoMEKv';
+const SUPABASE_ANON_KEY = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.key) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR1ZHltaXl0aXdjeXJqdHB0ZnZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzMjMxNzQsImV4cCI6MjEwMTg5OTE3NH0.wP-vsBmc7ezIx8Uq_hTqye44Gxl75jkGZSxDDg-3Aj8';
 
 let supabaseClient = null;
 
@@ -62,7 +62,7 @@ class SupabaseDataService {
 
         if (this.isCloudConnected()) {
             try {
-                await supabaseClient.from('users').upsert({
+                const { error } = await supabaseClient.from('users').upsert({
                     id: userObj.id,
                     fullname: userObj.fullname,
                     email: userObj.email,
@@ -71,8 +71,9 @@ class SupabaseDataService {
                     license: userObj.license || null,
                     status: userObj.status || 'Activo'
                 });
+                if (error) console.error('Supabase saveUser Cloud Error:', error);
             } catch (err) {
-                console.error('Supabase saveUser Error:', err);
+                console.error('Supabase saveUser Exception:', err);
             }
         }
     }
@@ -129,7 +130,7 @@ class SupabaseDataService {
 
         if (this.isCloudConnected()) {
             try {
-                await supabaseClient.from('baremo_services').upsert({
+                const { error } = await supabaseClient.from('baremo_services').upsert({
                     code: srvObj.code,
                     category: srvObj.category,
                     name: srvObj.name,
@@ -137,8 +138,9 @@ class SupabaseDataService {
                     chair_time_min: srvObj.chairTimeMin,
                     materials: srvObj.materials || []
                 });
+                if (error) console.error('Supabase saveBaremoService Cloud Error:', error);
             } catch (err) {
-                console.error('Supabase saveBaremoService Error:', err);
+                console.error('Supabase saveBaremoService Exception:', err);
             }
         }
     }
@@ -204,7 +206,7 @@ class SupabaseDataService {
 
         if (this.isCloudConnected()) {
             try {
-                await supabaseClient.from('patients').upsert({
+                const { error } = await supabaseClient.from('patients').upsert({
                     id: patientObj.id,
                     fullname: patientObj.fullname,
                     birthdate: patientObj.birthdate,
@@ -218,8 +220,9 @@ class SupabaseDataService {
                     status: patientObj.status || 'Activo',
                     odontogram_data: patientObj.odontogramData || {}
                 });
+                if (error) console.error('Supabase savePatient Cloud Error:', error);
             } catch (err) {
-                console.error('Supabase savePatient Error:', err);
+                console.error('Supabase savePatient Exception:', err);
             }
         }
     }
@@ -275,7 +278,7 @@ class SupabaseDataService {
 
         if (this.isCloudConnected()) {
             try {
-                await supabaseClient.from('appointments').upsert({
+                const { error } = await supabaseClient.from('appointments').upsert({
                     id: appointmentObj.id,
                     patient_id: appointmentObj.patientId || null,
                     patient_name: appointmentObj.patientName,
@@ -284,8 +287,9 @@ class SupabaseDataService {
                     status: appointmentObj.status || 'Programada',
                     is_tomorrow: appointmentObj.isTomorrow || false
                 });
+                if (error) console.error('Supabase saveAppointment Cloud Error:', error);
             } catch (err) {
-                console.error('Supabase saveAppointment Error:', err);
+                console.error('Supabase saveAppointment Exception:', err);
             }
         }
     }
@@ -343,7 +347,7 @@ class SupabaseDataService {
 
         if (this.isCloudConnected()) {
             try {
-                await supabaseClient.from('kardex_inventory').upsert({
+                const { error } = await supabaseClient.from('kardex_inventory').upsert({
                     code: itemObj.code,
                     name: itemObj.name,
                     category: itemObj.category,
@@ -352,8 +356,9 @@ class SupabaseDataService {
                     unit: itemObj.unit,
                     expiry_date: itemObj.expiryDate || null
                 });
+                if (error) console.error('Supabase saveInventoryItem Cloud Error:', error);
             } catch (err) {
-                console.error('Supabase saveInventoryItem Error:', err);
+                console.error('Supabase saveInventoryItem Exception:', err);
             }
         }
     }
