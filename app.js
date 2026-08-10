@@ -1930,3 +1930,37 @@ function closeModal(id) {
     const el = document.getElementById(id);
     if (el) el.classList.add('hidden');
 }
+
+// Mobile Sidebar Drawer Controller
+document.addEventListener('DOMContentLoaded', () => {
+    const mobileToggleBtn = document.getElementById('btn-mobile-menu-toggle');
+    const sidebar = document.querySelector('.sidebar');
+    const mobileBackdrop = document.getElementById('mobile-sidebar-backdrop');
+
+    function closeMobileSidebar() {
+        if (sidebar) sidebar.classList.remove('mobile-open');
+        if (mobileBackdrop) mobileBackdrop.classList.add('hidden');
+    }
+
+    if (mobileToggleBtn && sidebar && mobileBackdrop) {
+        mobileToggleBtn.onclick = () => {
+            const isOpen = sidebar.classList.contains('mobile-open');
+            if (isOpen) {
+                closeMobileSidebar();
+            } else {
+                sidebar.classList.add('mobile-open');
+                mobileBackdrop.classList.remove('hidden');
+            }
+        };
+
+        mobileBackdrop.onclick = () => {
+            closeMobileSidebar();
+        };
+    }
+
+    document.querySelectorAll('.nav-menu .nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+            closeMobileSidebar();
+        });
+    });
+});

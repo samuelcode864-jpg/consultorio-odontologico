@@ -1428,3 +1428,211 @@ body.dark-theme .demo-credentials-box code {
     gap: 12px;
     font-size: 0.88rem;
 }
+
+/* ==========================================
+   SUPER MEGA RESPONSIVE DESIGN SYSTEM
+   Supports Mobile (320px - 480px), Tablet (768px), Laptop (1024px) & Retina
+   ========================================== */
+
+.mobile-toggle-btn {
+    display: none;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-sm);
+    font-size: 1.1rem;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.mobile-toggle-btn:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--primary-cyan);
+}
+
+.mobile-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 9998;
+    transition: opacity 0.3s ease;
+}
+
+/* TABLET & MOBILE BREAKPOINT (<= 1024px) */
+@media (max-width: 1024px) {
+    .app-container {
+        grid-template-columns: 1fr;
+    }
+
+    .mobile-toggle-btn {
+        display: inline-flex;
+    }
+
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 280px;
+        z-index: 9999;
+        transform: translateX(-100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 10px 0 25px rgba(0, 0, 0, 0.3);
+    }
+
+    .sidebar.mobile-open {
+        transform: translateX(0);
+    }
+
+    .main-content {
+        padding: 16px;
+    }
+
+    .top-header {
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .header-search {
+        order: 2;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .header-actions {
+        order: 1;
+        margin-left: auto;
+    }
+}
+
+/* MOBILE MEDIUM BREAKPOINT (<= 768px) */
+@media (max-width: 768px) {
+    .metrics-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .view-header-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .view-actions-group {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .view-actions-group .btn {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+
+    .ehr-container {
+        grid-template-columns: 1fr;
+    }
+
+    .ehr-sidebar-list {
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-color);
+    }
+
+    .table-container table {
+        min-width: 650px;
+    }
+
+    th, td {
+        padding: 10px 12px;
+        font-size: 0.82rem;
+    }
+
+    .odontogram-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .toolbar-group {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .od-canvas-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 12px 6px;
+    }
+
+    .budget-summary-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .modal-container {
+        width: 95vw;
+        max-height: 92vh;
+        padding: 20px 16px;
+        margin: 10px;
+    }
+
+    .form-grid-2, .form-grid-3 {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* MOBILE SMALL BREAKPOINT (<= 480px) */
+@media (max-width: 480px) {
+    .metrics-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .header-actions {
+        gap: 6px;
+    }
+
+    .theme-toggle-btn span {
+        display: none;
+    }
+
+    .currency-pill span {
+        font-size: 0.75rem;
+    }
+
+    .login-card {
+        padding: 30px 20px;
+        border-radius: 16px;
+    }
+
+    .login-logo {
+        width: 52px;
+        height: 52px;
+        font-size: 1.8rem;
+    }
+
+    .login-card h2 {
+        font-size: 1.4rem;
+    }
+
+    .actions-cell-group {
+        flex-direction: column;
+        gap: 4px;
+    }
+}
