@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DentalCare ERP/EHR - Consultorio Odontológico Unipersonal</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SweetAlert2 CSS & JS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- html2pdf.js CDN for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link rel="stylesheet" href="styles.css?v=12">
+</head>
+<body class="light-theme">
+
+    <!-- FULLSCREEN LOGIN OVERLAY (CLEAN, BEAUTIFUL & LIGHT BY DEFAULT) -->
+    <div id="login-screen" class="login-overlay hidden">
+        <div class="login-card">
+            <div class="login-logo">
+                <i class="fa-solid fa-tooth"></i>
+            </div>
+            <h2>DentalCare Pro</h2>
+            <p>Sistema de Gestión Clínica & ERP Odontológico</p>
+
+            <form id="form-login" class="login-form">
+                <div class="form-group">
+                    <label><i class="fa-solid fa-envelope"></i> Correo Electrónico:</label>
+                    <input type="email" id="login-email" required value="doctor@dentalcare.com" placeholder="ej: doctor@dentalcare.com">
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fa-solid fa-lock"></i> Contraseña:</label>
+                    <input type="password" id="login-password" required value="123456" placeholder="••••••••">
+                </div>
+
+                <div id="login-error-msg" class="text-red hidden" style="font-size: 0.82rem; margin-top: 4px;">
+                    <i class="fa-solid fa-circle-exclamation"></i> Correo o contraseña incorrectos.
+                </div>
+
+                <button type="submit" class="btn btn-primary login-btn">
+                    <i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-tooth"></i>
+                </div>
+                <div class="brand-info">
+                    <h2>DentalCare Pro</h2>
+                    <span class="badge">ERP/EHR Single-Dentist</span>
+                </div>
+            </div>
+
+            <nav class="nav-menu">
+                <a href="#dashboard" class="nav-item active" data-tab="dashboard">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#patients" class="nav-item" data-tab="patients">
+                    <i class="fa-solid fa-hospital-user"></i>
+                    <span>Pacientes & BBDD</span>
+                </a>
+                <a href="#odontogram" class="nav-item" data-tab="odontogram">
+                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                    <span>Odontograma & Presupuesto</span>
+                </a>
+                <a href="#ehr" class="nav-item" data-tab="ehr">
+                    <i class="fa-solid fa-notes-medical"></i>
+                    <span>Historia Clínica (EHR)</span>
+                </a>
+                <a href="#inventory" class="nav-item" data-tab="inventory">
+                    <i class="fa-solid fa-boxes-stacked"></i>
+                    <span>Insumos & Kardex</span>
+                </a>
+                <a href="#pricing" class="nav-item" data-tab="pricing">
+                    <i class="fa-solid fa-tags"></i>
+                    <span>Baremo de Precios</span>
+                </a>
+                <a href="#users" class="nav-item" data-tab="users">
+                    <i class="fa-solid fa-users-gear"></i>
+                    <span>Gestión de Usuarios</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="doctor-profile">
+                    <div class="avatar">
+                        <i class="fa-solid fa-user-md"></i>
+                    </div>
+                    <div class="profile-info">
+                        <strong id="dr-name-display">Dr. Alejandro Silva</strong>
+                        <small id="dr-role-display">Odontólogo Principal</small>
+                    </div>
+                </div>
+                <button class="btn-logout" id="btn-logout" title="Cerrar Sesión">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i> Cerrar Sesión
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Top Header -->
+            <header class="top-header">
+                <div class="header-search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="global-search" placeholder="Buscar paciente por Cédula, Nombre o Teléfono...">
+                    <div id="search-results-dropdown" class="dropdown-results hidden"></div>
+                </div>
+
+                <div class="header-actions">
+                    <!-- Light / Dark Theme Switcher Button -->
+                    <button id="btn-theme-toggle" class="theme-toggle-btn" title="Cambiar Tema (Modo Claro / Modo Oscuro)">
+                        <i class="fa-solid fa-moon" id="theme-icon"></i>
+                        <span id="theme-text">Modo Oscuro</span>
+                    </button>
+
+                    <!-- Live DolarApi Exchange Rate Badge -->
+                    <div class="currency-toggle">
+                        <span class="label">Tasa BCV:</span>
+                        <button id="currency-btn" class="badge-btn" title="Haga clic para actualizar la tasa oficial desde ve.dolarapi.com">
+                            <i class="fa-solid fa-arrows-rotate fa-spin"></i> Cargando...
+                        </button>
+                    </div>
+
+                    <button class="btn btn-primary" id="btn-quick-patient">
+                        <i class="fa-solid fa-user-plus"></i> Nuevo Paciente
+                    </button>
+
+                    <div class="current-patient-pill hidden" id="active-patient-bar">
+                        <i class="fa-solid fa-user-check"></i>
+                        <span>Paciente Activo: <strong id="active-patient-name">Ninguno</strong></span>
+                        <button id="btn-clear-active-patient" title="Deseleccionar"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Dynamic Views Container -->
+            <div class="content-body">
+                
+                <!-- VIEW 1: DASHBOARD -->
+                <section id="view-dashboard" class="tab-view active">
+                    <div class="view-header">
+                        <div>
+                            <h1>Dashboard de Control Clínico</h1>
+                            <p class="subtitle">Resumen ejecutivo del consultorio, métricas financieras y agenda activa.</p>
+                        </div>
+                        <div class="date-badge" id="current-date-badge">Sábado, 8 de Agosto de 2026</div>
+                    </div>
+
+                    <!-- Metrics Grid -->
+                    <div class="stats-grid">
+                        <div class="stat-card border-cyan">
+                            <div class="stat-header">
+                                <span>Ingresos del Día</span>
+                                <div class="stat-icon cyan"><i class="fa-solid fa-dollar-sign"></i></div>
+                            </div>
+                            <h2 id="metric-today-income">$420.00</h2>
+                            <small class="trend up"><i class="fa-solid fa-arrow-trend-up"></i> +15% vs ayer</small>
+                        </div>
+
+                        <div class="stat-card border-green">
+                            <div class="stat-header">
+                                <span>Ingresos del Mes</span>
+                                <div class="stat-icon green"><i class="fa-solid fa-vault"></i></div>
+                            </div>
+                            <h2 id="metric-month-income">$4,850.00</h2>
+                            <small class="text-muted">Meta mensual: $6,000</small>
+                        </div>
+
+                        <div class="stat-card border-purple">
+                            <div class="stat-header">
+                                <span>Conversión Presupuestos</span>
+                                <div class="stat-icon purple"><i class="fa-solid fa-chart-line"></i></div>
+                            </div>
+                            <h2 id="metric-conversion">78%</h2>
+                            <small class="text-muted">14 Aprobados de 18 Emitidos</small>
+                        </div>
+
+                        <div class="stat-card border-red">
+                            <div class="stat-header">
+                                <span>Cuentas por Cobrar</span>
+                                <div class="stat-icon red"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+                            </div>
+                            <h2 id="metric-receivables">$640.00</h2>
+                            <small class="text-muted">4 pacientes con saldo pendiente</small>
+                        </div>
+                    </div>
+
+                    <!-- Main Dashboard Sections -->
+                    <div class="grid-2-col">
+                        <!-- Agenda del Día -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3><i class="fa-solid fa-calendar-day"></i> Agenda de Citas</h3>
+                                <div style="display:flex; gap:8px;">
+                                    <button class="btn btn-sm btn-success" id="btn-send-reminders-all" title="Enviar recordatorio de cita por WhatsApp solo a las citas de mañana">
+                                        <i class="fa-brands fa-whatsapp"></i> Recordatorios de Mañana
+                                    </button>
+                                    <button class="btn btn-sm btn-outline" id="btn-add-appointment">+ Agregar Cita</button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="timeline" id="dashboard-agenda-list">
+                                    <!-- Populated dynamically -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Procedimientos Populares y Alertas de Insumos -->
+                        <div class="flex-column gap-20">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3><i class="fa-solid fa-star"></i> Tratamientos Más Solicitados</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="popular-treatments-list" id="popular-treatments-list">
+                                        <!-- Dynamic list -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3><i class="fa-solid fa-triangle-exclamation text-amber"></i> Alertas de Stock Bajo / Caducidad</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div id="dashboard-stock-alerts">
+                                        <!-- Dynamic alerts -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 2: PACIENTES & BBDD -->
+                <section id="view-patients" class="tab-view">
+                    <div class="view-header">
+                        <div>
+                            <h1>Base de Datos de Pacientes</h1>
+                            <p class="subtitle">Gestión unificada de expediente, antecedentes médicos y alertas clínicas rápidas.</p>
+                        </div>
+                        <button class="btn btn-primary" id="btn-new-patient-modal">
+                            <i class="fa-solid fa-plus"></i> Registrar Paciente
+                        </button>
+                    </div>
+
+                    <!-- Filters bar -->
+                    <div class="card filter-card">
+                        <div class="filter-group">
+                            <button class="filter-btn active" data-filter="all">Todos</button>
+                            <button class="filter-btn" data-filter="Activo">Activos</button>
+                            <button class="filter-btn" data-filter="En Tratamiento">En Tratamiento</button>
+                            <button class="filter-btn" data-filter="Presupuesto Pendiente">Presupuesto Pendiente</button>
+                        </div>
+                        <div class="search-box">
+                            <input type="text" id="patient-table-search" placeholder="Filtrar por nombre, cédula o diagnóstico...">
+                        </div>
+                    </div>
+
+                    <!-- Patients Table -->
+                    <div class="card">
+                        <div class="table-responsive">
+                            <table class="table" id="patients-table">
+                                <thead>
+                                    <tr>
+                                        <th>Cédula / ID</th>
+                                        <th>Paciente</th>
+                                        <th>Edad / F. Nac.</th>
+                                        <th>WhatsApp / Contacto</th>
+                                        <th>Alertas Clínicas</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="patients-table-body">
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 3: ODONTOGRAMA & PRESUPUESTO -->
+                <section id="view-odontogram" class="tab-view">
+                    <div class="view-header">
+                        <div>
+                            <h1>Emisión y Envío de Presupuestos</h1>
+                            <p class="subtitle">Núcleo Operativo: Odontograma interactivo por caras, selección de baremos y consentimiento.</p>
+                        </div>
+                        
+                        <!-- DIRECT SELECT DROPDOWN FOR PATIENT -->
+                        <div class="patient-selector-badge">
+                            <i class="fa-solid fa-user-check"></i> Paciente:
+                            <select id="od-patient-select" style="background:transparent; border:none; color:inherit; font-weight:700; font-size:0.9rem; cursor:pointer; outline:none;">
+                                <!-- Filled dynamically -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Header Alert Banner for Patient Medical Head (Ficha de Cabecera) -->
+                    <div class="alert-banner hidden" id="od-medical-header-banner">
+                        <div class="alert-content">
+                            <i class="fa-solid fa-notes-medical text-red"></i>
+                            <div>
+                                <strong>FICHA MÉDICA DE CABECERA:</strong>
+                                <span id="od-patient-alerts-text">Cargando alertas...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Layout 2 Columns: Left Odontogram, Right Budget & Signature -->
+                    <div class="odontogram-layout">
+                        <!-- Left Panel: Interactive Odontogram -->
+                        <div class="card odontogram-card">
+                            <div class="card-header border-bottom">
+                                <div class="odontogram-controls-left">
+                                    <div class="btn-group">
+                                        <button class="btn btn-sm btn-outline active" id="btn-dentition-adult">Dentición Adulta (32)</button>
+                                        <button class="btn btn-sm btn-outline" id="btn-dentition-pediatric">Dentición Pediátrica (20)</button>
+                                    </div>
+                                </div>
+                                
+                                <div class="layer-legend">
+                                    <span class="legend-item"><span class="color-dot blue"></span> Tratado (Azul)</span>
+                                    <span class="legend-item"><span class="color-dot red"></span> Patología (Rojo)</span>
+                                    <span class="legend-item"><span class="color-dot green"></span> Plan Propuesto (Verde)</span>
+                                </div>
+                            </div>
+
+                            <div class="card-body">
+                                <!-- Mode Selector for clicking -->
+                                <div class="tool-mode-bar">
+                                    <span class="tool-label">Modo de Marcado:</span>
+                                    <button class="tool-btn active" data-mode="patology"><i class="fa-solid fa-circle-exclamation text-red"></i> Patología (Rojo)</button>
+                                    <button class="tool-btn" data-mode="treated"><i class="fa-solid fa-circle-check text-blue"></i> Tratado (Azul)</button>
+                                    <button class="tool-btn" data-mode="proposed"><i class="fa-solid fa-square-plus text-green"></i> Plan Propuesto (Verde)</button>
+                                    <button class="tool-btn" data-mode="clear"><i class="fa-solid fa-eraser"></i> Borrar Cara</button>
+                                </div>
+
+                                <!-- SVG Odontogram Canvas Container -->
+                                <div class="odontogram-viewport" id="odontogram-viewport">
+                                    <!-- Rendered dynamically via odontogram.js -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Panel: Budget Summary, Digital Signature & WhatsApp -->
+                        <div class="flex-column gap-20">
+                            <!-- Budget Table -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3><i class="fa-solid fa-calculator"></i> Presupuesto Generado</h3>
+                                    <button class="btn btn-sm btn-secondary" id="btn-add-custom-item">+ Agregar Item</button>
+                                </div>
+                                <div class="card-body p-0">
+                                    <table class="table table-compact" id="budget-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Pieza / Cara</th>
+                                                <th>Tratamiento</th>
+                                                <th>Precio Base</th>
+                                                <th>Dto (%)</th>
+                                                <th>Total</th>
+                                                <th></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="budget-table-body">
+                                            <tr class="empty-row"><td colspan="6" class="text-center text-muted">Haga clic en el odontograma para agregar tratamientos.</td></tr>
+                                        </tbody>
+                                    </table>
+
+                                    <!-- Budget Total & Options -->
+                                    <div class="budget-summary-box">
+                                        <div class="payment-terms">
+                                            <label>Forma de Pago:</label>
+                                            <select id="payment-mode-select">
+                                                <option value="contado">Contado Inmediato (100%)</option>
+                                                <option value="cuotas-2">50% Inicial + 50% al finalizar</option>
+                                                <option value="cuotas-3">3 Cuotas por fase de tratamiento</option>
+                                            </select>
+                                        </div>
+                                        <div class="total-display">
+                                            <span>Monto Total:</span>
+                                            <h2 id="budget-total-amount">$0.00</h2>
+                                            <span class="text-muted" id="budget-total-ves">Bs. 0.00</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Consent, Clinical Notes & Digital Signatures -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3><i class="fa-solid fa-file-signature"></i> Consentimiento & Firmas Digitales</h3>
+                                </div>
+                                <div class="card-body flex-column gap-15">
+                                    <div>
+                                        <label class="form-label">Observaciones Clínicas y Fotografías Iniciales:</label>
+                                        <textarea id="budget-notes" class="form-control" rows="2" placeholder="Diagnóstico complementario, sensibilidad reportada, radiografía periapical inicial..."></textarea>
+                                    </div>
+
+                                    <!-- Signature Canvas Accordion -->
+                                    <div class="signature-section">
+                                        <div class="signatures-grid">
+                                            <!-- Doctor Signature -->
+                                            <div class="sig-box">
+                                                <span class="sig-title"><i class="fa-solid fa-user-doctor"></i> Firma del Médico</span>
+                                                <div class="sig-canvas-wrapper">
+                                                    <canvas id="doctor-sig-canvas" width="220" height="90"></canvas>
+                                                </div>
+                                                <button class="btn btn-xs btn-link" id="btn-clear-doc-sig">Limpiar</button>
+                                            </div>
+
+                                            <!-- Patient Signature -->
+                                            <div class="sig-box">
+                                                <span class="sig-title"><i class="fa-solid fa-pen-nib"></i> Firma del Paciente (Táctil)</span>
+                                                <div class="sig-canvas-wrapper">
+                                                    <canvas id="patient-sig-canvas" width="220" height="90"></canvas>
+                                                </div>
+                                                <button class="btn btn-xs btn-link" id="btn-clear-patient-sig">Limpiar</button>
+                                            </div>
+                                        </div>
+                                        <div class="terms-checkbox">
+                                            <input type="checkbox" id="chk-terms" checked>
+                                            <label for="chk-terms">El paciente acepta el Plan de Tratamiento y autoriza el protocolo clínico.</label>
+                                        </div>
+                                    </div>
+
+                                    <!-- WhatsApp Action Bar -->
+                                    <div class="actions-bar">
+                                        <button class="btn btn-success btn-lg flex-1" id="btn-send-whatsapp">
+                                            <i class="fa-brands fa-whatsapp"></i> Enviar por WhatsApp
+                                        </button>
+                                        <button class="btn btn-outline btn-lg" id="btn-print-budget">
+                                            <i class="fa-solid fa-print"></i> Guardar / Imprimir
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 4: HISTORIA CLÍNICA (EHR) -->
+                <section id="view-ehr" class="tab-view">
+                    <div class="view-header">
+                        <div>
+                            <h1>Historia Clínica Odontológica (EHR)</h1>
+                            <p class="subtitle">Evolución por cita, comparación visual de odontogramas y álbum fotográfico.</p>
+                        </div>
+                        <div style="display:flex; gap:10px;">
+                            <button class="btn btn-success" id="btn-open-payment-modal">
+                                <i class="fa-solid fa-hand-holding-dollar"></i> + Registrar Pago / Abono
+                            </button>
+                            <button class="btn btn-primary" id="btn-export-ehr-pdf">
+                                <i class="fa-solid fa-file-pdf"></i> Exportar Historia Clínica en PDF
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid-30-70">
+                        <!-- Left sidebar patient list -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3><i class="fa-solid fa-users"></i> Seleccionar Paciente</h3>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="list-group" id="ehr-patient-list">
+                                    <!-- Populated dynamically -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right details panel -->
+                        <div class="flex-column gap-20" id="ehr-detail-container">
+                            <div class="card">
+                                <div class="card-header">
+                                    <div class="user-detail-header">
+                                        <div class="avatar-lg"><i class="fa-solid fa-user-injured"></i></div>
+                                        <div>
+                                            <h2 id="ehr-patient-fullname">Seleccione un paciente de la lista</h2>
+                                            <p id="ehr-patient-subinfo" class="text-muted">Cédula, Edad, Teléfono</p>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-primary btn-sm" id="btn-add-clinical-note">+ Nueva Evolución</button>
+                                </div>
+
+                                <div class="card-body">
+                                    <!-- Tabs for EHR Sub-sections -->
+                                    <div class="subtabs">
+                                        <button class="subtab-btn active" data-subtab="notes">Notas Clínicas / Citas</button>
+                                        <button class="subtab-btn" data-subtab="timeline">Odontograma Inicial vs Actual</button>
+                                        <button class="subtab-btn" data-subtab="gallery">Galería "Antes y Después"</button>
+                                        <button class="subtab-btn" data-subtab="consents">Consentimientos & Abonos</button>
+                                    </div>
+
+                                    <!-- SUBTAB 1: Clinical Notes Timeline -->
+                                    <div id="subtab-notes" class="subtab-content active">
+                                        <div class="clinical-timeline" id="ehr-notes-timeline">
+                                            <!-- Dynamic notes -->
+                                        </div>
+                                    </div>
+
+                                    <!-- SUBTAB 2: Odontogram Comparison -->
+                                    <div id="subtab-timeline" class="subtab-content">
+                                        <div class="odontogram-comparison-grid">
+                                            <div class="comparison-box">
+                                                <h4>Odontograma Inicial (Diagnóstico)</h4>
+                                                <div id="ehr-od-initial-view" class="comparison-od-wrapper"></div>
+                                            </div>
+                                            <div class="comparison-box">
+                                                <h4>Odontograma Actualizado (Evolución)</h4>
+                                                <div id="ehr-od-current-view" class="comparison-od-wrapper"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- SUBTAB 3: Photo Gallery -->
+                                    <div id="subtab-gallery" class="subtab-content">
+                                        <div class="gallery-grid" id="ehr-photo-gallery">
+                                            <!-- Photos loaded -->
+                                        </div>
+                                    </div>
+
+                                    <!-- SUBTAB 4: Consents & Payments -->
+                                    <div id="subtab-consents" class="subtab-content">
+                                        <div class="payments-overview">
+                                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                                                <h3 style="margin:0;"><i class="fa-solid fa-receipt"></i> Historial de Abonos y Pagos</h3>
+                                                <button class="btn btn-sm btn-success" onclick="openModal('modal-payment')">+ Registrar Abono</button>
+                                            </div>
+                                            <div class="table-responsive">
+                                                <table class="table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Fecha</th>
+                                                            <th>Concepto / Tratamiento</th>
+                                                            <th>Monto Total</th>
+                                                            <th>Abonado</th>
+                                                            <th>Saldo Pendiente</th>
+                                                            <th>Estado</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="ehr-payments-table-body">
+                                                        <!-- Loaded -->
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 5: INSUMOS & KARDEX -->
+                <section id="view-inventory" class="tab-view">
+                    <div class="view-header">
+                        <div>
+                            <h1>Gestión de Insumos y Materiales (Kardex)</h1>
+                            <p class="subtitle">Control de inventario simple con descuento automático por tratamiento y alertas de caducidad.</p>
+                        </div>
+                        <button class="btn btn-primary" id="btn-add-material">
+                            <i class="fa-solid fa-box-archive"></i> + Nuevo Insumo
+                        </button>
+                    </div>
+
+                    <div class="card">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Código</th>
+                                        <th>Nombre del Insumo</th>
+                                        <th>Categoría</th>
+                                        <th>Stock Actual</th>
+                                        <th>Mínimo Requerido</th>
+                                        <th>Fecha Caducidad</th>
+                                        <th>Estado Stock</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="inventory-table-body">
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 6: BAREMO DE PRECIOS -->
+                <section id="view-pricing" class="tab-view">
+                    <div class="view-header">
+                        <div>
+                            <h1>Baremo Maestro de Servicios y Precios</h1>
+                            <p class="subtitle">Catálogo oficial de procedimientos odontológicos, insumos asociados y tiempos en silla.</p>
+                        </div>
+                        <button class="btn btn-primary" id="btn-add-service">
+                            <i class="fa-solid fa-plus"></i> + Nuevo Servicio
+                        </button>
+                    </div>
+
+                    <div class="card">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Código</th>
+                                        <th>Categoría</th>
+                                        <th>Nombre del Tratamiento</th>
+                                        <th>Precio Base ($ USD)</th>
+                                        <th>Precio (Bs.)</th>
+                                        <th>Tiempo Silla (min)</th>
+                                        <th>Insumos Consumidos</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pricing-table-body">
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 7: GESTIÓN DE USUARIOS -->
+                <section id="view-users" class="tab-view">
+                    <div class="view-header">
+                        <div>
+                            <h1>Gestión de Usuarios del Consultorio</h1>
+                            <p class="subtitle">Administración de médicos, especialistas, asistentes y personal administrativo con acceso al sistema.</p>
+                        </div>
+                        <button class="btn btn-primary" id="btn-new-user-modal">
+                            <i class="fa-solid fa-user-plus"></i> + Crear Nuevo Usuario
+                        </button>
+                    </div>
+
+                    <div class="card">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Nombre Completo</th>
+                                        <th>Correo Electrónico</th>
+                                        <th>Rol / Cargo</th>
+                                        <th>Nº Colegiado / Licencia</th>
+                                        <th>Estado</th>
+                                        <th>Fecha Registro</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="users-table-body">
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL: AGREGAR ITEM AL PRESUPUESTO -->
+    <div class="modal-overlay hidden" id="modal-add-item">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-plus-circle text-cyan"></i> Agregar Item al Presupuesto</h3>
+                <button class="modal-close" data-close="modal-add-item">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group mb-15">
+                    <label><strong>Seleccionar Procedimiento del Baremo:</strong></label>
+                    <select id="item-baremo-select" class="form-control">
+                        <!-- Baremo options loaded dynamically -->
+                    </select>
+                </div>
+                
+                <div style="text-align:center; margin: 15px 0; color:#64748b; font-size:0.85rem; font-weight:700;">— O AGREGAR TRATAMIENTO PERSONALIZADO —</div>
+                
+                <div class="grid-form">
+                    <div class="form-group">
+                        <label>Nombre / Concepto Libre:</label>
+                        <input type="text" id="item-custom-name" placeholder="ej: Consulta Diagnóstica General / Profilaxis">
+                    </div>
+                    <div class="form-group">
+                        <label>Precio ($ USD):</label>
+                        <input type="number" id="item-custom-price" step="0.01" placeholder="40.00">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" data-close="modal-add-item">Cancelar</button>
+                <button class="btn btn-primary" id="btn-confirm-add-item">Añadir al Presupuesto</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: REGISTRAR ABONO / PAGO DE PACIENTE -->
+    <div class="modal-overlay hidden" id="modal-payment">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-hand-holding-dollar text-green"></i> Registrar Pago / Abono de Tratamiento</h3>
+                <button class="modal-close" data-close="modal-payment">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-payment" class="grid-form">
+                    <div class="form-group span-2">
+                        <label>Concepto / Tratamiento Abondado *</label>
+                        <input type="text" id="pay-concept" required placeholder="ej: Abono Inicial Restauraciones Resina / Ortodoncia">
+                    </div>
+                    <div class="form-group">
+                        <label>Monto Total del Tratamiento ($ USD) *</label>
+                        <input type="number" id="pay-total-usd" step="0.01" required value="100.00">
+                    </div>
+                    <div class="form-group">
+                        <label>Monto Abonado en esta fecha ($ USD) *</label>
+                        <input type="number" id="pay-paid-usd" step="0.01" required value="50.00">
+                    </div>
+                    <div class="form-group span-2">
+                        <label>Fecha de Pago *</label>
+                        <input type="date" id="pay-date" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" data-close="modal-payment">Cancelar</button>
+                <button class="btn btn-success" id="btn-save-payment">Guardar Pago</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CREAR NUEVO INSUMO EN KARDEX -->
+    <div class="modal-overlay hidden" id="modal-material">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-box-archive"></i> Registrar Nuevo Insumo en Inventario</h3>
+                <button class="modal-close" data-close="modal-material">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-material" class="grid-form">
+                    <div class="form-group">
+                        <label>Código del Insumo *</label>
+                        <input type="text" id="mat-code" required placeholder="INS-005">
+                    </div>
+                    <div class="form-group">
+                        <label>Nombre del Material *</label>
+                        <input type="text" id="mat-name" required placeholder="ej: Anestesia Lidocaína 2%">
+                    </div>
+                    <div class="form-group">
+                        <label>Categoría *</label>
+                        <select id="mat-category">
+                            <option value="Restauración">Restauración</option>
+                            <option value="Anestesia">Anestesia</option>
+                            <option value="Bioseguridad">Bioseguridad</option>
+                            <option value="Cirugía">Cirugía</option>
+                            <option value="Endodoncia">Endodoncia</option>
+                            <option value="Ortodoncia">Ortodoncia</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Unidad de Medida</label>
+                        <input type="text" id="mat-unit" placeholder="ej: Cartuchos, Cajas, Frascos">
+                    </div>
+                    <div class="form-group">
+                        <label>Stock Inicial *</label>
+                        <input type="number" id="mat-stock" required value="50" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Stock Mínimo Requerido *</label>
+                        <input type="number" id="mat-min-stock" required value="10" min="1">
+                    </div>
+                    <div class="form-group span-2">
+                        <label>Fecha de Caducidad</label>
+                        <input type="date" id="mat-expiry">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" data-close="modal-material">Cancelar</button>
+                <button class="btn btn-primary" id="btn-save-material">Guardar Insumo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CREAR NUEVO SERVICIO EN BAREMO -->
+    <div class="modal-overlay hidden" id="modal-service">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-tags"></i> Registrar Nuevo Servicio en Baremo</h3>
+                <button class="modal-close" data-close="modal-service">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-service" class="grid-form">
+                    <div class="form-group">
+                        <label>Código del Servicio *</label>
+                        <input type="text" id="srv-code" required placeholder="OD-006">
+                    </div>
+                    <div class="form-group">
+                        <label>Nombre del Procedimiento *</label>
+                        <input type="text" id="srv-name" required placeholder="ej: Blanqueamiento Dental LED">
+                    </div>
+                    <div class="form-group">
+                        <label>Categoría *</label>
+                        <select id="srv-category">
+                            <option value="Operatoria">Operatoria</option>
+                            <option value="Prevención">Prevención</option>
+                            <option value="Endodoncia">Endodoncia</option>
+                            <option value="Cirugía">Cirugía</option>
+                            <option value="Estética">Estética</option>
+                            <option value="Protesis">Prótesis</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Precio Base ($ USD) *</label>
+                        <input type="number" id="srv-price" step="0.01" required placeholder="120.00">
+                    </div>
+                    <div class="form-group span-2">
+                        <label>Tiempo Estimado en Silla (Minutos)</label>
+                        <input type="number" id="srv-time" value="45">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" data-close="modal-service">Cancelar</button>
+                <button class="btn btn-primary" id="btn-save-service">Guardar Servicio</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: AGREGAR NUEVA CITA -->
+    <div class="modal-overlay hidden" id="modal-appointment">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-calendar-plus"></i> Agendar Nueva Cita Médica</h3>
+                <button class="modal-close" data-close="modal-appointment">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-appointment" class="grid-form">
+                    <div class="form-group span-2">
+                        <label>Paciente *</label>
+                        <select id="app-patient-select" required>
+                            <!-- Dynamic patient options -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Hora de la Cita *</label>
+                        <input type="text" id="app-time" required placeholder="ej: 09:30 AM / 03:00 PM">
+                    </div>
+                    <div class="form-group">
+                        <label>Día Programado *</label>
+                        <select id="app-day-target">
+                            <option value="tomorrow">Mañana (Enviar Recordatorio)</option>
+                            <option value="today">Hoy (Cita Activa)</option>
+                        </select>
+                    </div>
+                    <div class="form-group span-2">
+                        <label>Procedimiento / Motivo de Consulta *</label>
+                        <input type="text" id="app-treatment" required placeholder="ej: Limpieza Ultrasónica + Restauración Resina 18">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" data-close="modal-appointment">Cancelar</button>
+                <button class="btn btn-primary" id="btn-save-appointment">Guardar Cita</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CREAR/EDITAR USUARIO -->
+    <div class="modal-overlay hidden" id="modal-user">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-user-gear"></i> Registrar Nuevo Usuario del Consultorio</h3>
+                <button class="modal-close" data-close="modal-user">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-user" class="grid-form">
+                    <div class="form-group span-2">
+                        <label>Nombre y Apellido *</label>
+                        <input type="text" id="u-fullname" required placeholder="Dra. Sofía Mendoza">
+                    </div>
+                    <div class="form-group">
+                        <label>Correo Electrónico *</label>
+                        <input type="email" id="u-email" required placeholder="sofia.mendoza@dentalcare.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Contraseña de Acceso *</label>
+                        <input type="password" id="u-password" required placeholder="••••••••">
+                    </div>
+                    <div class="form-group">
+                        <label>Rol / Cargo *</label>
+                        <select id="u-role" required>
+                            <option value="Odontólogo General">Odontólogo General</option>
+                            <option value="Especialista (Endodoncista/Ortodoncista)">Especialista (Endodoncia/Ortodoncia)</option>
+                            <option value="Cirujano Maxilofacial">Cirujano Maxilofacial</option>
+                            <option value="Asistente Dental">Asistente Dental</option>
+                            <option value="Recepcionista / Administración">Recepcionista / Administración</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Nº Colegiado / Matrícula Sanitaria</label>
+                        <input type="text" id="u-license" placeholder="MPPS-98402 / C.O.V-20104">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" data-close="modal-user">Cancelar</button>
+                <button class="btn btn-primary" id="btn-save-user">Guardar Usuario</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: REGISTRO/EDICIÓN DE PACIENTE -->
+    <div class="modal-overlay hidden" id="modal-patient">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 id="modal-patient-title"><i class="fa-solid fa-user-plus"></i> Registrar Nuevo Paciente</h3>
+                <button class="modal-close" data-close="modal-patient">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-patient" class="grid-form">
+                    <div class="form-group">
+                        <label>Cédula / Documento Identidad *</label>
+                        <input type="text" id="p-id" required placeholder="V-18492102">
+                    </div>
+                    <div class="form-group">
+                        <label>Nombres Completos *</label>
+                        <input type="text" id="p-fullname" required placeholder="María Elena Rodríguez">
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha de Nacimiento *</label>
+                        <input type="date" id="p-birthdate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>WhatsApp / Teléfono *</label>
+                        <input type="tel" id="p-phone" required placeholder="+584141234567">
+                    </div>
+                    <div class="form-group">
+                        <label>Correo Electrónico</label>
+                        <input type="email" id="p-email" placeholder="paciente@gmail.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Ocupación</label>
+                        <input type="text" id="p-occupation" placeholder="Docente / Ingeniero">
+                    </div>
+
+                    <!-- Ficha Médica de Cabecera (Antecedentes) -->
+                    <div class="form-section-title span-2">
+                        <i class="fa-solid fa-notes-medical text-red"></i> Ficha Médica de Cabecera & Alergias
+                    </div>
+
+                    <div class="form-group span-2">
+                        <label>Alergias a Medicamentos / Insumos:</label>
+                        <div class="checkbox-group">
+                            <label><input type="checkbox" name="p-allergies" value="Penicilina"> Penicilina</label>
+                            <label><input type="checkbox" name="p-allergies" value="Anestésicos"> Anestésicos Locales</label>
+                            <label><input type="checkbox" name="p-allergies" value="Látex"> Látex</label>
+                            <label><input type="checkbox" name="p-allergies" value="AINEs/Aspirina"> AINEs / Aspirina</label>
+                        </div>
+                    </div>
+
+                    <div class="form-group span-2">
+                        <label>Enfermedades Sistémicas:</label>
+                        <div class="checkbox-group">
+                            <label><input type="checkbox" name="p-systemic" value="Hipertensión"> Hipertensión Arterial</label>
+                            <label><input type="checkbox" name="p-systemic" value="Diabetes"> Diabetes Mellitus</label>
+                            <label><input type="checkbox" name="p-systemic" value="Coagulopatías"> Coagulopatías / Anticoagulado</label>
+                            <label><input type="checkbox" name="p-systemic" value="Inmunosupresión"> Inmunosupresión</label>
+                        </div>
+                    </div>
+
+                    <div class="form-group span-2">
+                        <label>Medicación Actual & Observaciones Especiales:</label>
+                        <textarea id="p-medication" rows="2" placeholder="ej: Enalapril 10mg diario, paciente ansioso..."></textarea>
+                    </div>
+
+                    <div class="form-group span-2">
+                        <label>Contacto de Emergencia:</label>
+                        <input type="text" id="p-emergency" placeholder="Nombre y Teléfono del familiar">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" data-close="modal-patient">Cancelar</button>
+                <button class="btn btn-primary" id="btn-save-patient">Guardar Paciente</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: SELECTOR DE TRATAMIENTO PARA PIEZA DENTAL -->
+    <div class="modal-overlay hidden" id="modal-tooth-treatment">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-tooth text-cyan"></i> Tratamiento para Pieza <span id="modal-tooth-id">18</span> (<span id="modal-face-id">Oclusal</span>)</h3>
+                <button class="modal-close" data-close="modal-tooth-treatment">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-15">Seleccione el procedimiento del Baremo de Precios para asociar directamente a esta cara o diente:</p>
+                <div class="treatment-select-list" id="tooth-treatment-options">
+                    <!-- Dynamic procedure list buttons -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: NUEVA NOTA DE EVOLUCIÓN CLÍNICA -->
+    <div class="modal-overlay hidden" id="modal-note">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-pen-to-square"></i> Nueva Evolución de Cita Clínicas</h3>
+                <button class="modal-close" data-close="modal-note">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-clinical-note">
+                    <div class="form-group">
+                        <label>Fecha y Hora de la Sesión *</label>
+                        <input type="datetime-local" id="note-datetime" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Procedimientos Realizados / Nota Operatoria *</label>
+                        <textarea id="note-content" rows="4" required placeholder="Aislamiento absoluto con grapa #2, eliminación de tejido cariado en pieza 46 oclusal, restauración con resina nanoparticulada..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Abono Realizado en la Cita ($ USD)</label>
+                        <input type="number" id="note-payment" step="0.01" value="0.00">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" data-close="modal-note">Cancelar</button>
+                <button class="btn btn-primary" id="btn-save-note">Guardar Evolución</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application JavaScript Bundles -->
+    <script src="seededData.js?v=12"></script>
+    <script src="odontogram.js?v=12"></script>
+    <script src="signature.js?v=12"></script>
+    <script src="whatsapp.js?v=12"></script>
+    <script src="kardex.js?v=12"></script>
+    <script src="app.js?v=12"></script>
+</body>
+</html>
