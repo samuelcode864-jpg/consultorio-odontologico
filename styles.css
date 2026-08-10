@@ -1594,22 +1594,65 @@ html, body {
     }
 }
 
-/* Odontogram & Budget Responsive Layout Fixes */
-.odontogram-vertical-layout {
+/* 5-Section Sequential Vertical Layout & Centering */
+.patient-select-section-card {
+    border-left: 4px solid var(--primary-cyan) !important;
+}
+
+.patient-select-wrapper {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 10px;
+    gap: 8px;
+}
+
+.patient-dropdown-main {
+    width: 100% !important;
+    font-weight: 600 !important;
+}
+
+.odontogram-vertical-sections-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
     width: 100%;
-    padding: 14px 0;
+}
+
+.odontogram-viewport {
+    width: 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 16px 0 !important;
+    margin: 0 auto !important;
+}
+
+.odontogram-vertical-layout {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    text-align: center !important;
 }
 
 .tooth-row {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 10px !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+}
+
+.tooth-box {
+    margin: 0 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
 .odontogram-divider-line {

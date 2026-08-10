@@ -16,7 +16,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=21">
+    <link rel="stylesheet" href="styles.css?v=22">
 </head>
 <body class="light-theme">
 
@@ -307,20 +307,14 @@
                     </div>
                 </section>
 
-                <!-- VIEW 3: ODONTOGRAMA & PRESUPUESTO -->
+                <!-- VIEW 3: ODONTOGRAMA & PRESUPUESTO (5 SECCIONES VERTICALES) -->
                 <section id="view-odontogram" class="tab-view">
-                    <div class="view-header">
+                    
+                    <!-- SECCIÓN 1: CABECERA -->
+                    <div class="view-header mb-15">
                         <div>
                             <h1>Emisión y Envío de Presupuestos</h1>
                             <p class="subtitle">Núcleo Operativo: Odontograma interactivo por caras, selección de baremos y consentimiento.</p>
-                        </div>
-                        
-                        <!-- DIRECT SELECT DROPDOWN FOR PATIENT -->
-                        <div class="patient-selector-badge">
-                            <i class="fa-solid fa-user-check"></i> Paciente:
-                            <select id="od-patient-select" style="background:transparent; border:none; color:inherit; font-weight:700; font-size:0.9rem; cursor:pointer; outline:none;">
-                                <!-- Filled dynamically -->
-                            </select>
                         </div>
                     </div>
 
@@ -335,18 +329,27 @@
                         </div>
                     </div>
 
-                    <!-- Layout 2 Columns: Left Odontogram, Right Budget & Signature -->
-                    <div class="odontogram-layout">
-                        <!-- Left Panel: Interactive Odontogram -->
+                    <!-- SECCIÓN 2: SELECCIONAR EL PACIENTE -->
+                    <div class="card mb-20 patient-select-section-card">
+                        <div class="card-body">
+                            <div class="patient-select-wrapper">
+                                <label class="form-label" for="od-patient-select">
+                                    <i class="fa-solid fa-user-check text-cyan"></i> <strong>Seleccionar Paciente para Presupuesto:</strong>
+                                </label>
+                                <select id="od-patient-select" class="form-control select-lg patient-dropdown-main">
+                                    <!-- Filled dynamically -->
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CONTENEDOR 1 COLUMNA VERTICAL (NADA AL LADO DE NADA) -->
+                    <div class="odontogram-vertical-sections-stack">
+                        
+                        <!-- SECCIÓN 3: ODONTOGRAMA -->
                         <div class="card odontogram-card">
-                            <div class="card-header border-bottom">
-                                <div class="odontogram-controls-left">
-                                    <div class="btn-group">
-                                        <button class="btn btn-sm btn-outline active" id="btn-dentition-adult">Dentición Adulta (32)</button>
-                                        <button class="btn btn-sm btn-outline" id="btn-dentition-pediatric">Dentición Pediátrica (20)</button>
-                                    </div>
-                                </div>
-                                
+                            <div class="card-header border-bottom flex-wrap">
+                                <h3><i class="fa-solid fa-tooth text-cyan"></i> Odontograma Clínico</h3>
                                 <div class="layer-legend">
                                     <span class="legend-item"><span class="color-dot blue"></span> Tratado (Azul)</span>
                                     <span class="legend-item"><span class="color-dot red"></span> Patología (Rojo)</span>
@@ -355,7 +358,7 @@
                             </div>
 
                             <div class="card-body">
-                                <!-- Mode Selector for clicking -->
+                                <!-- Mode Selector Bar -->
                                 <div class="tool-mode-bar">
                                     <span class="tool-label">Modo de Marcado:</span>
                                     <button class="tool-btn active" data-mode="patology"><i class="fa-solid fa-circle-exclamation text-red"></i> Patología (Rojo)</button>
@@ -364,100 +367,109 @@
                                     <button class="tool-btn" data-mode="clear"><i class="fa-solid fa-eraser"></i> Borrar Cara</button>
                                 </div>
 
-                                <!-- SVG Odontogram Canvas Container -->
+                                <!-- SVG Odontogram Canvas Container (CENTRADOS) -->
                                 <div class="odontogram-viewport" id="odontogram-viewport">
                                     <!-- Rendered dynamically via odontogram.js -->
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Right Panel: Budget Summary, Digital Signature & WhatsApp -->
-                        <div class="flex-column gap-20">
-                            <!-- Budget Table -->
-                            <div class="card">
-                                <div class="card-header">
-                                    <h3><i class="fa-solid fa-calculator"></i> Presupuesto Generado</h3>
-                                    <button class="btn btn-sm btn-secondary" id="btn-add-custom-item">+ Agregar Item</button>
+                        <!-- SECCIÓN 4: PRESUPUESTO GENERADO -->
+                        <div class="card budget-card">
+                            <div class="card-header">
+                                <h3><i class="fa-solid fa-calculator text-green"></i> Presupuesto Generado</h3>
+                                <button class="btn btn-sm btn-secondary" id="btn-add-custom-item">+ Agregar Item</button>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-container">
+                                    <table class="table table-compact" id="budget-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Pieza / Cara</th>
+                                                <th>Tratamiento</th>
+                                                <th>Precio Base</th>
+                                                <th>Dto (%)</th>
+                                                <th>Total</th>
+                                                <th></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="budget-table-body">
+                                            <tr class="empty-row"><td colspan="6" class="text-center text-muted">Haga clic en el odontograma para agregar tratamientos.</td></tr>
+                                        </tbody>
+                                    </table>
                                 </div>
-                                <div class="card-body p-0">
-                                    <div class="table-container">
-                                        <table class="table table-compact" id="budget-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Pieza / Cara</th>
-                                                    <th>Tratamiento</th>
-                                                    <th>Precio Base</th>
-                                                    <th>Dto (%)</th>
-                                                    <th>Total</th>
-                                                    <th></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="budget-table-body">
-                                                <tr class="empty-row"><td colspan="6" class="text-center text-muted">Haga clic en el odontograma para agregar tratamientos.</td></tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
 
-                                    <!-- Budget Total & Options -->
-                                    <div class="budget-summary-box">
-                                        <div class="payment-terms">
-                                            <label>Forma de Pago:</label>
-                                            <select id="payment-mode-select">
-                                                <option value="contado">Contado Inmediato (100%)</option>
-                                                <option value="cuotas-2">50% Inicial + 50% al finalizar</option>
-                                                <option value="cuotas-3">3 Cuotas por fase de tratamiento</option>
-                                            </select>
-                                        </div>
-                                        <div class="total-display">
-                                            <span>Monto Total:</span>
-                                            <h2 id="budget-total-amount">$0.00</h2>
-                                            <span class="text-muted" id="budget-total-ves">Bs. 0.00</span>
-                                        </div>
+                                <!-- Budget Total & Options -->
+                                <div class="budget-summary-box">
+                                    <div class="payment-terms">
+                                        <label>Forma de Pago:</label>
+                                        <select id="payment-mode-select">
+                                            <option value="contado">Contado Inmediato (100%)</option>
+                                            <option value="cuotas-2">50% Inicial + 50% al finalizar</option>
+                                            <option value="cuotas-3">3 Cuotas por fase de tratamiento</option>
+                                        </select>
+                                    </div>
+                                    <div class="total-display">
+                                        <span>Monto Total:</span>
+                                        <h2 id="budget-total-amount">$0.00</h2>
+                                        <span class="text-muted" id="budget-total-ves">Bs. 0.00</span>
                                     </div>
                                 </div>
                             </div>
+                        </div>
 
-                            <!-- Consent, Clinical Notes & Digital Signatures -->
-                            <div class="card">
-                                <div class="card-header">
-                                    <h3><i class="fa-solid fa-file-signature"></i> Consentimiento & Firmas Digitales</h3>
+                        <!-- SECCIÓN 5: CONSENTIMIENTO & FIRMAS DIGITALES -->
+                        <div class="card consent-card">
+                            <div class="card-header">
+                                <h3><i class="fa-solid fa-file-signature text-purple"></i> Consentimiento & Firmas Digitales</h3>
+                            </div>
+                            <div class="card-body flex-column gap-15">
+                                <div>
+                                    <label class="form-label">Observaciones Clínicas y Fotografías Iniciales:</label>
+                                    <textarea id="budget-notes" class="form-control" rows="2" placeholder="Diagnóstico complementario, sensibilidad reportada, radiografía periapical inicial..."></textarea>
                                 </div>
-                                <div class="card-body flex-column gap-15">
-                                    <div>
-                                        <label class="form-label">Observaciones Clínicas y Fotografías Iniciales:</label>
-                                        <textarea id="budget-notes" class="form-control" rows="2" placeholder="Diagnóstico complementario, sensibilidad reportada, radiografía periapical inicial..."></textarea>
-                                    </div>
 
-                                    <!-- Signature Canvas Accordion -->
-                                    <div class="signature-section">
-                                        <div class="signatures-grid">
-                                            <!-- Doctor Signature -->
-                                            <div class="sig-box">
-                                                <span class="sig-title"><i class="fa-solid fa-user-doctor"></i> Firma del Médico</span>
-                                                <div class="sig-canvas-wrapper">
-                                                    <canvas id="doctor-sig-canvas" width="220" height="90"></canvas>
-                                                </div>
-                                                <button class="btn btn-xs btn-link" id="btn-clear-doc-sig">Limpiar</button>
+                                <!-- Signature Canvas Accordion -->
+                                <div class="signature-section">
+                                    <div class="signatures-grid">
+                                        <!-- Doctor Signature -->
+                                        <div class="sig-box">
+                                            <span class="sig-title"><i class="fa-solid fa-user-doctor"></i> Firma del Médico</span>
+                                            <div class="sig-canvas-wrapper">
+                                                <canvas id="doctor-sig-canvas" width="220" height="90"></canvas>
                                             </div>
-
-                                            <!-- Patient Signature -->
-                                            <div class="sig-box">
-                                                <span class="sig-title"><i class="fa-solid fa-pen-nib"></i> Firma del Paciente (Táctil)</span>
-                                                <div class="sig-canvas-wrapper">
-                                                    <canvas id="patient-sig-canvas" width="220" height="90"></canvas>
-                                                </div>
-                                                <button class="btn btn-xs btn-link" id="btn-clear-patient-sig">Limpiar</button>
-                                            </div>
+                                            <button class="btn btn-xs btn-link" id="btn-clear-doc-sig">Limpiar</button>
                                         </div>
-                                        <div class="terms-checkbox">
-                                            <input type="checkbox" id="chk-terms" checked>
-                                            <label for="chk-terms">El paciente acepta el Plan de Tratamiento y autoriza el protocolo clínico.</label>
+
+                                        <!-- Patient Signature -->
+                                        <div class="sig-box">
+                                            <span class="sig-title"><i class="fa-solid fa-pen-nib"></i> Firma del Paciente (Táctil)</span>
+                                            <div class="sig-canvas-wrapper">
+                                                <canvas id="patient-sig-canvas" width="220" height="90"></canvas>
+                                            </div>
+                                            <button class="btn btn-xs btn-link" id="btn-clear-patient-sig">Limpiar</button>
                                         </div>
                                     </div>
+                                    <div class="terms-checkbox">
+                                        <input type="checkbox" id="chk-terms" checked>
+                                        <label for="chk-terms">El paciente acepta el Plan de Tratamiento y autoriza el protocolo clínico.</label>
+                                    </div>
+                                </div>
 
-                                    <!-- WhatsApp Action Bar -->
-                                    <div class="actions-bar">
-                                        <button class="btn btn-success btn-lg flex-1" id="btn-send-whatsapp">
+                                <!-- WhatsApp Action Bar -->
+                                <div class="actions-bar">
+                                    <button class="btn btn-success btn-lg flex-1" id="btn-send-whatsapp">
+                                        <i class="fa-brands fa-whatsapp"></i> Guardar y Enviar Presupuesto por WhatsApp
+                                    </button>
+                                    <button class="btn btn-outline" id="btn-print-pdf">
+                                        <i class="fa-solid fa-file-pdf"></i> PDF
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
                                             <i class="fa-brands fa-whatsapp"></i> Enviar por WhatsApp
                                         </button>
                                         <button class="btn btn-outline btn-lg" id="btn-print-budget">
@@ -1064,12 +1076,12 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=21"></script>
-    <script src="supabaseClient.js?v=21"></script>
-    <script src="odontogram.js?v=21"></script>
-    <script src="signature.js?v=21"></script>
-    <script src="whatsapp.js?v=21"></script>
-    <script src="kardex.js?v=21"></script>
-    <script src="app.js?v=21"></script>
+    <script src="seededData.js?v=22"></script>
+    <script src="supabaseClient.js?v=22"></script>
+    <script src="odontogram.js?v=22"></script>
+    <script src="signature.js?v=22"></script>
+    <script src="whatsapp.js?v=22"></script>
+    <script src="kardex.js?v=22"></script>
+    <script src="app.js?v=22"></script>
 </body>
 </html>
