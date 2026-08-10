@@ -16,7 +16,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=19">
+    <link rel="stylesheet" href="styles.css?v=20">
 </head>
 <body class="light-theme">
 
@@ -380,21 +380,23 @@
                                     <button class="btn btn-sm btn-secondary" id="btn-add-custom-item">+ Agregar Item</button>
                                 </div>
                                 <div class="card-body p-0">
-                                    <table class="table table-compact" id="budget-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Pieza / Cara</th>
-                                                <th>Tratamiento</th>
-                                                <th>Precio Base</th>
-                                                <th>Dto (%)</th>
-                                                <th>Total</th>
-                                                <th></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="budget-table-body">
-                                            <tr class="empty-row"><td colspan="6" class="text-center text-muted">Haga clic en el odontograma para agregar tratamientos.</td></tr>
-                                        </tbody>
-                                    </table>
+                                    <div class="table-container">
+                                        <table class="table table-compact" id="budget-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Pieza / Cara</th>
+                                                    <th>Tratamiento</th>
+                                                    <th>Precio Base</th>
+                                                    <th>Dto (%)</th>
+                                                    <th>Total</th>
+                                                    <th></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="budget-table-body">
+                                                <tr class="empty-row"><td colspan="6" class="text-center text-muted">Haga clic en el odontograma para agregar tratamientos.</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
 
                                     <!-- Budget Total & Options -->
                                     <div class="budget-summary-box">
@@ -1062,12 +1064,12 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=19"></script>
-    <script src="supabaseClient.js?v=19"></script>
-    <script src="odontogram.js?v=19"></script>
-    <script src="signature.js?v=19"></script>
-    <script src="whatsapp.js?v=19"></script>
-    <script src="kardex.js?v=19"></script>
-    <script src="app.js?v=19"></script>
+    <script src="seededData.js?v=20"></script>
+    <script src="supabaseClient.js?v=20"></script>
+    <script src="odontogram.js?v=20"></script>
+    <script src="signature.js?v=20"></script>
+    <script src="whatsapp.js?v=20"></script>
+    <script src="kardex.js?v=20"></script>
+    <script src="app.js?v=20"></script>
 </body>
 </html>

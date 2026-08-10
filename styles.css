@@ -1594,8 +1594,71 @@ html, body {
     }
 }
 
-/* 3. TABLET & MEDIUM MOBILE (max-width: 768px) */
+/* Odontogram & Budget Responsive Layout Fixes */
+.odontogram-layout {
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    gap: 20px;
+}
+
+.signatures-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.sig-box {
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.sig-canvas-wrapper {
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+}
+
+.sig-canvas-wrapper canvas {
+    max-width: 100% !important;
+    height: auto !important;
+}
+
+.budget-summary-box {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+}
+
+/* MOBILE MEDIUM BREAKPOINT (<= 768px) */
 @media (max-width: 768px) {
+    .odontogram-layout {
+        grid-template-columns: 1fr !important;
+    }
+
+    .signatures-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .budget-summary-box {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 12px !important;
+    }
+
+    .payment-terms select {
+        width: 100% !important;
+    }
+
     .view-header {
         flex-direction: column !important;
         align-items: flex-start !important;
