@@ -385,10 +385,15 @@ async function renderOdontogramView() {
     };
 
     document.querySelectorAll('.tool-btn').forEach(btn => {
-        btn.onclick = function() {
+        btn.onclick = function(e) {
+            e.stopPropagation();
+            const targetBtn = e.target.closest('.tool-btn') || this;
+            const mode = targetBtn.getAttribute('data-mode') || targetBtn.dataset.mode;
             document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            window.odontogram.setMode(this.dataset.mode);
+            targetBtn.classList.add('active');
+            if (window.odontogram && mode) {
+                window.odontogram.setMode(mode);
+            }
         };
     });
 
@@ -1962,5 +1967,18 @@ document.addEventListener('DOMContentLoaded', () => {
         item.addEventListener('click', () => {
             closeMobileSidebar();
         });
+    });
+
+    // Global Event Delegation for Odontogram Marking Tool Buttons
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.tool-btn');
+        if (btn) {
+            const mode = btn.getAttribute('data-mode') || btn.dataset.mode;
+            if (mode && window.odontogram) {
+                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                window.odontogram.setMode(mode);
+            }
+        }
     });
 });
