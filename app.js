@@ -3,7 +3,7 @@
    Single-Page Application Router, Auth System, DolarApi & PDF Export Engine
    ========================================================================== */
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // 1. Initialize Persistent State & Live Exchange Rate API
     initStorage();
     fetchLiveExchangeRate();
@@ -26,12 +26,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // 5. UI Navigation & Tab Controller
     initNavigation();
 
-    // 6. Render Initial Views & Data
-    renderDashboard();
-    renderPatientsTable();
-    renderInventoryTable();
-    renderPricingTable();
-    renderEHRView();
+    // 6. Render Initial Views & Data from Supabase Cloud
+    await renderDashboard();
+    await renderPatientsTable();
+    await renderInventoryTable();
+    await renderPricingTable();
+    await renderEHRView();
     renderUsersTable();
 
     // 7. Global Event Listeners & Modals
@@ -50,7 +50,6 @@ function initStorage() {
         localStorage.setItem('dental_baremo', JSON.stringify(INITIAL_BAREMO));
     }
     if (!localStorage.getItem('dental_appointments')) {
-        // Tag initial appointments for tomorrow vs today
         const appointmentsWithDates = INITIAL_APPOINTMENTS.map((app, idx) => ({
             id: `appt-${idx + 1}`,
             time: app.time,
@@ -58,7 +57,7 @@ function initStorage() {
             patientId: app.patientId,
             treatment: app.treatment,
             status: app.status,
-            isTomorrow: idx < 2 // First 2 appointments marked as tomorrow
+            isTomorrow: idx < 2
         }));
         localStorage.setItem('dental_appointments', JSON.stringify(appointmentsWithDates));
     }
@@ -86,9 +85,8 @@ async function fetchLiveExchangeRate() {
             localStorage.setItem('dental_exchange_rate', liveRate.toString());
             updateCurrencyBadge(liveRate, true);
 
-            // Re-render views with new rate
             renderBudgetTable();
-            renderPricingTable();
+            await renderPricingTable();
             return;
         }
     } catch (err) {
@@ -124,10 +122,6 @@ function getPatients() {
     return JSON.parse(localStorage.getItem('dental_patients')) || [];
 }
 
-function savePatients(patients) {
-    localStorage.setItem('dental_patients', JSON.stringify(patients));
-}
-
 function getActivePatientId() {
     return localStorage.getItem('dental_active_patient_id') || null;
 }
@@ -146,15 +140,15 @@ function getExchangeRate() {
 }
 
 // Helper: Persist Active Patient's Odontogram Changes
-function autoSaveActivePatientOdontogram() {
+async function autoSaveActivePatientOdontogram() {
     const activeId = getActivePatientId();
     if (!activeId || !window.odontogram) return;
 
-    const patients = getPatients();
+    const patients = await SupabaseDataService.getPatients();
     const patient = patients.find(p => p.id === activeId);
     if (patient) {
         patient.odontogramData = window.odontogram.getData();
-        savePatients(patients);
+        await SupabaseDataService.savePatient(patient);
     }
 }
 
@@ -213,7 +207,6 @@ function checkAuthSession() {
             const user = JSON.parse(currentSession);
             loginOverlay.classList.add('hidden');
             
-            // Update Sidebar doctor info
             document.getElementById('dr-name-display').innerText = user.fullname;
             document.getElementById('dr-role-display').innerText = user.role;
 
@@ -229,7 +222,6 @@ function checkAuthSession() {
 function applyRolePermissionsUI(role) {
     const isAssistant = role && role.toLowerCase().includes('asistente');
     
-    // Hide Users tab for assistant role
     const usersTab = document.querySelector('.nav-item[data-tab="users"]');
     if (usersTab) {
         if (isAssistant) {
@@ -239,7 +231,6 @@ function applyRolePermissionsUI(role) {
         }
     }
 
-    // Restrict Master Baremo Add Service button for assistant
     const addSrvBtn = document.getElementById('btn-add-service');
     if (addSrvBtn) {
         if (isAssistant) {
@@ -276,7 +267,6 @@ function logout() {
     checkAuthSession();
 }
 
-// Current Budget State in Memory
 let currentBudgetItems = [];
 let pendingToothFaceKey = null;
 
@@ -288,7 +278,7 @@ function initNavigation() {
     const tabViews = document.querySelectorAll('.tab-view');
 
     navItems.forEach(item => {
-        item.addEventListener('click', (e) => {
+        item.addEventListener('click', async (e) => {
             e.preventDefault();
             const tabName = item.dataset.tab;
 
@@ -300,17 +290,17 @@ function initNavigation() {
             if (targetView) targetView.classList.add('active');
 
             if (tabName === 'odontogram') {
-                renderOdontogramView();
+                await renderOdontogramView();
             } else if (tabName === 'patients') {
-                renderPatientsTable();
+                await renderPatientsTable();
             } else if (tabName === 'dashboard') {
-                renderDashboard();
+                await renderDashboard();
             } else if (tabName === 'ehr') {
-                renderEHRView();
+                await renderEHRView();
             } else if (tabName === 'inventory') {
-                renderInventoryTable();
+                await renderInventoryTable();
             } else if (tabName === 'pricing') {
-                renderPricingTable();
+                await renderPricingTable();
             } else if (tabName === 'users') {
                 renderUsersTable();
             }
@@ -318,13 +308,13 @@ function initNavigation() {
     });
 }
 
-function updateActivePatientUI() {
+async function updateActivePatientUI() {
     const activeId = getActivePatientId();
     const activePill = document.getElementById('active-patient-bar');
     const activeName = document.getElementById('active-patient-name');
     const odSelect = document.getElementById('od-patient-select');
 
-    const patients = getPatients();
+    const patients = await SupabaseDataService.getPatients();
 
     if (odSelect) {
         odSelect.innerHTML = '<option value="">-- Seleccionar Paciente --</option>';
@@ -358,15 +348,16 @@ function updateActivePatientUI() {
 // ==========================================
 // ODONTOGRAM & BUDGET VIEW
 // ==========================================
-function renderOdontogramView() {
-    updateActivePatientUI();
+async function renderOdontogramView() {
+    await updateActivePatientUI();
 
     const activeId = getActivePatientId();
     const alertBanner = document.getElementById('od-medical-header-banner');
     const alertsText = document.getElementById('od-patient-alerts-text');
 
     if (activeId) {
-        const patient = getPatients().find(p => p.id === activeId);
+        const patients = await SupabaseDataService.getPatients();
+        const patient = patients.find(p => p.id === activeId);
         if (patient) {
             window.odontogram.setData(patient.odontogramData || {});
             
@@ -416,10 +407,10 @@ function renderOdontogramView() {
     renderBudgetTable();
 }
 
-function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
+async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
     if (mode === 'clear') {
         currentBudgetItems = currentBudgetItems.filter(item => item.key !== key);
-        autoSaveActivePatientOdontogram();
+        await autoSaveActivePatientOdontogram();
         renderBudgetTable();
         return;
     }
@@ -429,7 +420,7 @@ function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
     document.getElementById('modal-tooth-id').innerText = toothNumber;
     document.getElementById('modal-face-id').innerText = faceId;
 
-    const baremo = JSON.parse(localStorage.getItem('dental_baremo')) || INITIAL_BAREMO;
+    const baremo = await SupabaseDataService.getBaremo();
     const listContainer = document.getElementById('tooth-treatment-options');
     listContainer.innerHTML = '';
 
@@ -443,9 +434,9 @@ function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
             </div>
             <span class="badge-tag blue">$${proc.priceUSD.toFixed(2)}</span>
         `;
-        btn.onclick = () => {
+        btn.onclick = async () => {
             addProcedureToBudget(pendingToothFaceKey, proc);
-            autoSaveActivePatientOdontogram();
+            await autoSaveActivePatientOdontogram();
             closeModal('modal-tooth-treatment');
         };
         listContainer.appendChild(btn);
@@ -520,21 +511,21 @@ function renderBudgetTable() {
     document.getElementById('budget-total-ves').innerText = `Bs. ${totalVES}`;
 }
 
-window.removeBudgetItem = function(index) {
+window.removeBudgetItem = async function(index) {
     currentBudgetItems.splice(index, 1);
-    autoSaveActivePatientOdontogram();
+    await autoSaveActivePatientOdontogram();
     renderBudgetTable();
 };
 
 // ==========================================
 // PACIENTES VIEW & HIGH-END BBDD TABLE WITH DELETE
 // ==========================================
-function renderPatientsTable(filter = 'all', searchQuery = '') {
+async function renderPatientsTable(filter = 'all', searchQuery = '') {
     const tbody = document.getElementById('patients-table-body');
     if (!tbody) return;
 
     tbody.innerHTML = '';
-    let patients = getPatients();
+    let patients = await SupabaseDataService.getPatients();
     const currentUser = getCurrentUser();
     const isAssistant = currentUser && currentUser.role.toLowerCase().includes('asistente');
 
@@ -613,7 +604,7 @@ function renderPatientsTable(filter = 'all', searchQuery = '') {
     });
 }
 
-window.deletePatient = function(patientId) {
+window.deletePatient = async function(patientId) {
     const user = getCurrentUser();
     if (user && user.role.toLowerCase().includes('asistente')) {
         Swal.fire({ icon: 'warning', title: 'Acción denegada', text: 'Solo el Odontólogo Principal tiene permisos para eliminar expedientes de pacientes.' });
@@ -629,16 +620,14 @@ window.deletePatient = function(patientId) {
         cancelButtonColor: '#64748b',
         confirmButtonText: 'Sí, eliminar',
         cancelButtonText: 'Cancelar'
-    }).then((result) => {
+    }).then(async (result) => {
         if (result.isConfirmed) {
-            let patients = getPatients();
-            patients = patients.filter(p => p.id !== patientId);
-            savePatients(patients);
+            await SupabaseDataService.deletePatient(patientId);
             if (getActivePatientId() === patientId) {
                 setActivePatientId(null);
             }
-            renderPatientsTable();
-            renderEHRView();
+            await renderPatientsTable();
+            await renderEHRView();
             Swal.fire({ icon: 'success', title: 'Paciente eliminado', timer: 1800, showConfirmButton: false });
         }
     });
@@ -669,12 +658,12 @@ window.openEHRForPatient = function(patientId) {
 // ==========================================
 // HISTORIA CLÍNICA (EHR) VIEW WITH PDF EXPORT
 // ==========================================
-function renderEHRView() {
+async function renderEHRView() {
     const listGroup = document.getElementById('ehr-patient-list');
     if (!listGroup) return;
 
     listGroup.innerHTML = '';
-    const patients = getPatients();
+    const patients = await SupabaseDataService.getPatients();
     const activeId = getActivePatientId() || (patients[0] ? patients[0].id : null);
     const currentUser = getCurrentUser();
     const isAssistant = currentUser && currentUser.role.toLowerCase().includes('asistente');
@@ -690,10 +679,10 @@ function renderEHRView() {
                 <small class="text-muted">${p.id} • Tel: ${p.phone}</small>
             </div>
         `;
-        item.onclick = (e) => {
+        item.onclick = async (e) => {
             e.preventDefault();
             setActivePatientId(p.id);
-            renderEHRView();
+            await renderEHRView();
         };
         listGroup.appendChild(item);
     });
@@ -787,14 +776,15 @@ function renderEHRView() {
 }
 
 // PDF EXPORT ENGINE FOR CLINICAL HISTORY
-function exportEHRToPDF() {
+async function exportEHRToPDF() {
     const activeId = getActivePatientId();
     if (!activeId) {
         Swal.fire({ icon: 'info', title: 'Seleccione un paciente', text: 'Por favor active un paciente para exportar su Historia Clínica en PDF.' });
         return;
     }
 
-    const patient = getPatients().find(p => p.id === activeId);
+    const patients = await SupabaseDataService.getPatients();
+    const patient = patients.find(p => p.id === activeId);
     if (!patient) return;
 
     Swal.fire({
@@ -957,7 +947,7 @@ function exportEHRToPDF() {
     });
 }
 
-window.deleteClinicalNote = function(noteId) {
+window.deleteClinicalNote = async function(noteId) {
     const user = getCurrentUser();
     if (user && user.role.toLowerCase().includes('asistente')) {
         Swal.fire({ icon: 'warning', title: 'Acción denegada', text: 'Solo el Odontólogo Principal puede eliminar notas de evolución clínica.' });
@@ -975,14 +965,14 @@ window.deleteClinicalNote = function(noteId) {
         cancelButtonColor: '#64748b',
         confirmButtonText: 'Sí, eliminar',
         cancelButtonText: 'Cancelar'
-    }).then((result) => {
+    }).then(async (result) => {
         if (result.isConfirmed) {
-            const patients = getPatients();
+            const patients = await SupabaseDataService.getPatients();
             const p = patients.find(pat => pat.id === activeId);
             if (p && p.clinicalNotes) {
                 p.clinicalNotes = p.clinicalNotes.filter(n => n.id !== noteId);
-                savePatients(patients);
-                renderEHRView();
+                await SupabaseDataService.savePatient(p);
+                await renderEHRView();
                 Swal.fire({ icon: 'success', title: 'Evolución eliminada', timer: 1800, showConfirmButton: false });
             }
         }
@@ -992,11 +982,11 @@ window.deleteClinicalNote = function(noteId) {
 // ==========================================
 // DASHBOARD & METRICS VIEW WITH APPOINTMENT DELETE
 // ==========================================
-function renderDashboard() {
+async function renderDashboard() {
     const agendaList = document.getElementById('dashboard-agenda-list');
     if (agendaList) {
         agendaList.innerHTML = '';
-        const appointments = JSON.parse(localStorage.getItem('dental_appointments')) || INITIAL_APPOINTMENTS;
+        const appointments = await SupabaseDataService.getAppointments();
         const currentUser = getCurrentUser();
         const isAssistant = currentUser && currentUser.role.toLowerCase().includes('asistente');
 
@@ -1075,7 +1065,7 @@ function renderDashboard() {
     }
 }
 
-window.deleteAppointment = function(apptId) {
+window.deleteAppointment = async function(apptId) {
     const user = getCurrentUser();
     if (user && user.role.toLowerCase().includes('asistente')) {
         Swal.fire({ icon: 'warning', title: 'Acción denegada', text: 'Solo el Odontólogo Principal tiene permisos para eliminar citas.' });
@@ -1091,24 +1081,21 @@ window.deleteAppointment = function(apptId) {
         cancelButtonColor: '#64748b',
         confirmButtonText: 'Sí, eliminar',
         cancelButtonText: 'Cancelar'
-    }).then((result) => {
+    }).then(async (result) => {
         if (result.isConfirmed) {
-            let appointments = JSON.parse(localStorage.getItem('dental_appointments')) || INITIAL_APPOINTMENTS;
-            appointments = appointments.filter(a => a.id !== apptId);
-            localStorage.setItem('dental_appointments', JSON.stringify(appointments));
-            renderDashboard();
+            await SupabaseDataService.deleteAppointment(apptId);
+            await renderDashboard();
             Swal.fire({ icon: 'success', title: 'Cita eliminada', timer: 1800, showConfirmButton: false });
         }
     });
 };
 
-// Global function to trigger WhatsApp Reminder for single appointment
-window.sendWhatsAppReminderForAppt = function(apptId) {
-    const appointments = JSON.parse(localStorage.getItem('dental_appointments')) || INITIAL_APPOINTMENTS;
+window.sendWhatsAppReminderForAppt = async function(apptId) {
+    const appointments = await SupabaseDataService.getAppointments();
     const appt = appointments.find(a => a.id === apptId);
     if (!appt) return;
 
-    const patients = getPatients();
+    const patients = await SupabaseDataService.getPatients();
     let patient = patients.find(p => p.id === appt.patientId || p.fullname.toLowerCase() === appt.patientName.toLowerCase());
 
     const phone = patient ? patient.phone : prompt(`Ingrese el número de WhatsApp del paciente ${appt.patientName}:`, "+584141234567");
@@ -1120,9 +1107,8 @@ window.sendWhatsAppReminderForAppt = function(apptId) {
     WhatsAppService.sendToPatient(phone, msg);
 };
 
-// Global function to trigger reminders ONLY for appointments scheduled for tomorrow
-window.sendRemindersForAllTomorrow = function() {
-    const appointments = JSON.parse(localStorage.getItem('dental_appointments')) || INITIAL_APPOINTMENTS;
+window.sendRemindersForAllTomorrow = async function() {
+    const appointments = await SupabaseDataService.getAppointments();
     const tomorrowAppts = appointments.filter(a => a.isTomorrow === true || a.date === 'tomorrow');
 
     if (tomorrowAppts.length === 0) {
@@ -1153,12 +1139,12 @@ window.sendRemindersForAllTomorrow = function() {
 // ==========================================
 // INVENTORY KARDEX & PRICING TABLES WITH DELETE
 // ==========================================
-function renderInventoryTable() {
+async function renderInventoryTable() {
     const tbody = document.getElementById('inventory-table-body');
     if (!tbody || !window.kardex) return;
 
     tbody.innerHTML = '';
-    const items = window.kardex.getAllItems();
+    const items = await SupabaseDataService.getInventory();
     const currentUser = getCurrentUser();
     const isAssistant = currentUser && currentUser.role.toLowerCase().includes('asistente');
 
@@ -1190,7 +1176,7 @@ function renderInventoryTable() {
     });
 }
 
-window.adjustStockPrompt = function(code) {
+window.adjustStockPrompt = async function(code) {
     Swal.fire({
         title: 'Ajuste de Insumo',
         text: 'Ingrese la cantidad a ajustar (+ para agregar, - para restar):',
@@ -1199,20 +1185,20 @@ window.adjustStockPrompt = function(code) {
         showCancelButton: true,
         confirmButtonText: 'Aplicar ajuste',
         cancelButtonText: 'Cancelar'
-    }).then((result) => {
+    }).then(async (result) => {
         if (result.isConfirmed && result.value !== '') {
             const qty = parseInt(result.value);
             if (!isNaN(qty)) {
                 window.kardex.updateStock(code, qty);
-                renderInventoryTable();
-                renderDashboard();
+                await renderInventoryTable();
+                await renderDashboard();
                 Swal.fire({ icon: 'success', title: 'Stock actualizado', timer: 1500, showConfirmButton: false });
             }
         }
     });
 };
 
-window.deleteInventoryItem = function(code) {
+window.deleteInventoryItem = async function(code) {
     const user = getCurrentUser();
     if (user && user.role.toLowerCase().includes('asistente')) {
         Swal.fire({ icon: 'warning', title: 'Acción denegada', text: 'Solo el Odontólogo Principal puede eliminar insumos del Kardex.' });
@@ -1228,22 +1214,22 @@ window.deleteInventoryItem = function(code) {
         cancelButtonColor: '#64748b',
         confirmButtonText: 'Sí, eliminar',
         cancelButtonText: 'Cancelar'
-    }).then((result) => {
+    }).then(async (result) => {
         if (result.isConfirmed) {
-            window.kardex.deleteItem(code);
-            renderInventoryTable();
-            renderDashboard();
+            await SupabaseDataService.deleteInventoryItem(code);
+            await renderInventoryTable();
+            await renderDashboard();
             Swal.fire({ icon: 'success', title: 'Insumo eliminado', timer: 1800, showConfirmButton: false });
         }
     });
 };
 
-function renderPricingTable() {
+async function renderPricingTable() {
     const tbody = document.getElementById('pricing-table-body');
     if (!tbody) return;
 
     tbody.innerHTML = '';
-    const baremo = JSON.parse(localStorage.getItem('dental_baremo')) || INITIAL_BAREMO;
+    const baremo = await SupabaseDataService.getBaremo();
     const rate = getExchangeRate();
     const currentUser = getCurrentUser();
     const isAssistant = currentUser && currentUser.role.toLowerCase().includes('asistente');
@@ -1271,7 +1257,7 @@ function renderPricingTable() {
     });
 }
 
-window.deletePricingService = function(code) {
+window.deletePricingService = async function(code) {
     const user = getCurrentUser();
     if (user && user.role.toLowerCase().includes('asistente')) {
         Swal.fire({ icon: 'warning', title: 'Acción denegada', text: 'Solo el Odontólogo Principal puede modificar el Baremo de Precios maestro.' });
@@ -1287,12 +1273,10 @@ window.deletePricingService = function(code) {
         cancelButtonColor: '#64748b',
         confirmButtonText: 'Sí, eliminar',
         cancelButtonText: 'Cancelar'
-    }).then((result) => {
+    }).then(async (result) => {
         if (result.isConfirmed) {
-            let baremo = JSON.parse(localStorage.getItem('dental_baremo')) || INITIAL_BAREMO;
-            baremo = baremo.filter(s => s.code !== code);
-            localStorage.setItem('dental_baremo', JSON.stringify(baremo));
-            renderPricingTable();
+            await SupabaseDataService.deleteBaremoService(code);
+            await renderPricingTable();
             Swal.fire({ icon: 'success', title: 'Servicio eliminado', timer: 1800, showConfirmButton: false });
         }
     });
@@ -1393,16 +1377,16 @@ function initGlobalEvents() {
     // Direct Patient Select Dropdown Listener
     const odPatientSelect = document.getElementById('od-patient-select');
     if (odPatientSelect) {
-        odPatientSelect.onchange = (e) => {
+        odPatientSelect.onchange = async (e) => {
             const val = e.target.value;
             if (val === 'new') {
                 openModal('modal-patient');
             } else if (val) {
                 setActivePatientId(val);
-                renderOdontogramView();
+                await renderOdontogramView();
             } else {
                 setActivePatientId(null);
-                renderOdontogramView();
+                await renderOdontogramView();
             }
         };
     }
@@ -1410,8 +1394,8 @@ function initGlobalEvents() {
     // Modal Add Item Handler (#modal-add-item)
     const btnAddCustom = document.getElementById('btn-add-custom-item');
     if (btnAddCustom) {
-        btnAddCustom.onclick = () => {
-            const baremo = JSON.parse(localStorage.getItem('dental_baremo')) || INITIAL_BAREMO;
+        btnAddCustom.onclick = async () => {
+            const baremo = await SupabaseDataService.getBaremo();
             const selectEl = document.getElementById('item-baremo-select');
             
             if (selectEl) {
@@ -1432,13 +1416,13 @@ function initGlobalEvents() {
 
     const btnConfirmAddItem = document.getElementById('btn-confirm-add-item');
     if (btnConfirmAddItem) {
-        btnConfirmAddItem.onclick = (e) => {
+        btnConfirmAddItem.onclick = async (e) => {
             e.preventDefault();
             const selectEl = document.getElementById('item-baremo-select');
             const customName = document.getElementById('item-custom-name').value.trim();
             const customPrice = parseFloat(document.getElementById('item-custom-price').value) || 0;
 
-            const baremo = JSON.parse(localStorage.getItem('dental_baremo')) || INITIAL_BAREMO;
+            const baremo = await SupabaseDataService.getBaremo();
             const selectedCode = selectEl ? selectEl.value : '';
 
             if (selectedCode) {
@@ -1469,7 +1453,7 @@ function initGlobalEvents() {
                 return;
             }
 
-            autoSaveActivePatientOdontogram();
+            await autoSaveActivePatientOdontogram();
             renderBudgetTable();
             closeModal('modal-add-item');
             Swal.fire({ icon: 'success', title: '¡Item Agregado!', timer: 1500, showConfirmButton: false });
@@ -1492,7 +1476,7 @@ function initGlobalEvents() {
 
     const savePayBtn = document.getElementById('btn-save-payment');
     if (savePayBtn) {
-        savePayBtn.onclick = (e) => {
+        savePayBtn.onclick = async (e) => {
             e.preventDefault();
             const activeId = getActivePatientId();
             if (!activeId) return;
@@ -1510,7 +1494,7 @@ function initGlobalEvents() {
             const balanceUSD = Math.max(0, totalUSD - paidUSD);
             const status = balanceUSD === 0 ? 'Pagado' : 'Pendiente';
 
-            const patients = getPatients();
+            const patients = await SupabaseDataService.getPatients();
             const p = patients.find(pat => pat.id === activeId);
             if (p) {
                 if (!p.payments) p.payments = [];
@@ -1523,9 +1507,9 @@ function initGlobalEvents() {
                     status
                 });
 
-                savePatients(patients);
+                await SupabaseDataService.savePatient(p);
                 closeModal('modal-payment');
-                renderEHRView();
+                await renderEHRView();
                 Swal.fire({ icon: 'success', title: '¡Pago Registrado!', text: `Abono de $${paidUSD.toFixed(2)} cargado a ${p.fullname}.`, timer: 2000, showConfirmButton: false });
             }
         };
@@ -1554,20 +1538,20 @@ function initGlobalEvents() {
 
     // Patient Filters Handler
     document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.onclick = function() {
+        btn.onclick = async function() {
             document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
             const searchVal = document.getElementById('patient-table-search') ? document.getElementById('patient-table-search').value : '';
-            renderPatientsTable(this.dataset.filter, searchVal);
+            await renderPatientsTable(this.dataset.filter, searchVal);
         };
     });
 
     const patientSearchInput = document.getElementById('patient-table-search');
     if (patientSearchInput) {
-        patientSearchInput.addEventListener('input', (e) => {
+        patientSearchInput.addEventListener('input', async (e) => {
             const activeFilterBtn = document.querySelector('.filter-btn.active');
             const activeFilter = activeFilterBtn ? activeFilterBtn.dataset.filter : 'all';
-            renderPatientsTable(activeFilter, e.target.value);
+            await renderPatientsTable(activeFilter, e.target.value);
         });
     }
 
@@ -1577,7 +1561,7 @@ function initGlobalEvents() {
 
     const saveMatBtn = document.getElementById('btn-save-material');
     if (saveMatBtn) {
-        saveMatBtn.onclick = (e) => {
+        saveMatBtn.onclick = async (e) => {
             e.preventDefault();
             const code = document.getElementById('mat-code').value.trim();
             const name = document.getElementById('mat-name').value.trim();
@@ -1592,10 +1576,10 @@ function initGlobalEvents() {
                 return;
             }
 
-            window.kardex.addItem({ code, name, category, unit, currentStock: stock, minStock, expiryDate });
+            await SupabaseDataService.saveInventoryItem({ code, name, category, unit, currentStock: stock, minStock, expiryDate });
             closeModal('modal-material');
-            renderInventoryTable();
-            renderDashboard();
+            await renderInventoryTable();
+            await renderDashboard();
             Swal.fire({ icon: 'success', title: '¡Insumo Guardado!', text: 'El material se registró en el inventario Kardex.', timer: 2000, showConfirmButton: false });
         };
     }
@@ -1606,7 +1590,7 @@ function initGlobalEvents() {
 
     const saveSrvBtn = document.getElementById('btn-save-service');
     if (saveSrvBtn) {
-        saveSrvBtn.onclick = (e) => {
+        saveSrvBtn.onclick = async (e) => {
             e.preventDefault();
             const code = document.getElementById('srv-code').value.trim();
             const name = document.getElementById('srv-name').value.trim();
@@ -1619,28 +1603,26 @@ function initGlobalEvents() {
                 return;
             }
 
-            const baremo = JSON.parse(localStorage.getItem('dental_baremo')) || INITIAL_BAREMO;
-            baremo.push({ code, name, category, priceUSD, chairTimeMin, materials: [] });
-            localStorage.setItem('dental_baremo', JSON.stringify(baremo));
+            await SupabaseDataService.saveBaremoService({ code, name, category, priceUSD, chairTimeMin, materials: [] });
 
             closeModal('modal-service');
-            renderPricingTable();
-            Swal.fire({ icon: 'success', title: '¡Servicio Agregado!', text: 'Registrado en el Baremo de Precios.', timer: 2000, showConfirmButton: false });
+            await renderPricingTable();
+            Swal.fire({ icon: 'success', title: '¡Servicio Agregado!', text: 'Registrado en la nube de Supabase.', timer: 2000, showConfirmButton: false });
         };
     }
 
     // Modal Cita Listener
     const btnAddAppt = document.getElementById('btn-add-appointment');
     if (btnAddAppt) {
-        btnAddAppt.onclick = () => {
-            populateAppointmentPatientSelect();
+        btnAddAppt.onclick = async () => {
+            await populateAppointmentPatientSelect();
             openModal('modal-appointment');
         };
     }
 
     const saveApptBtn = document.getElementById('btn-save-appointment');
     if (saveApptBtn) {
-        saveApptBtn.onclick = (e) => {
+        saveApptBtn.onclick = async (e) => {
             e.preventDefault();
             const patientSelect = document.getElementById('app-patient-select');
             const time = document.getElementById('app-time').value.trim();
@@ -1656,8 +1638,7 @@ function initGlobalEvents() {
             const patientName = selectedOption.dataset.name;
             const patientId = selectedOption.value;
 
-            const appointments = JSON.parse(localStorage.getItem('dental_appointments')) || INITIAL_APPOINTMENTS;
-            appointments.push({
+            await SupabaseDataService.saveAppointment({
                 id: 'appt-' + Date.now(),
                 time,
                 patientName,
@@ -1668,9 +1649,8 @@ function initGlobalEvents() {
                 date: dayTarget
             });
 
-            localStorage.setItem('dental_appointments', JSON.stringify(appointments));
             closeModal('modal-appointment');
-            renderDashboard();
+            await renderDashboard();
             Swal.fire({ icon: 'success', title: '¡Cita Agendada!', text: 'La cita ha sido añadida a la agenda.', timer: 2000, showConfirmButton: false });
         };
     }
@@ -1726,7 +1706,7 @@ function initGlobalEvents() {
 
     const savePatientBtn = document.getElementById('btn-save-patient');
     if (savePatientBtn) {
-        savePatientBtn.onclick = (e) => {
+        savePatientBtn.onclick = async (e) => {
             e.preventDefault();
             const id = document.getElementById('p-id').value.trim();
             const fullname = document.getElementById('p-fullname').value.trim();
@@ -1762,14 +1742,12 @@ function initGlobalEvents() {
                 payments: []
             };
 
-            const patients = getPatients();
-            patients.push(newPatient);
-            savePatients(patients);
+            await SupabaseDataService.savePatient(newPatient);
 
             closeModal('modal-patient');
             setActivePatientId(id);
-            renderPatientsTable();
-            Swal.fire({ icon: 'success', title: '¡Paciente Registrado!', text: `${fullname} ha sido agregado al sistema.`, timer: 2000, showConfirmButton: false });
+            await renderPatientsTable();
+            Swal.fire({ icon: 'success', title: '¡Paciente Registrado!', text: `${fullname} ha sido agregado en la nube de Supabase.`, timer: 2000, showConfirmButton: false });
         };
     }
 
@@ -1788,13 +1766,14 @@ function initGlobalEvents() {
 
     const sendWpBtn = document.getElementById('btn-send-whatsapp');
     if (sendWpBtn) {
-        sendWpBtn.onclick = () => {
+        sendWpBtn.onclick = async () => {
             const activeId = getActivePatientId();
             if (!activeId) {
                 Swal.fire({ icon: 'info', title: 'Seleccione un paciente', text: 'Por favor active un paciente antes de enviar el presupuesto.' });
                 return;
             }
-            const patient = getPatients().find(p => p.id === activeId);
+            const patients = await SupabaseDataService.getPatients();
+            const patient = patients.find(p => p.id === activeId);
             if (!patient) return;
 
             let totalUSD = 0;
@@ -1812,7 +1791,6 @@ function initGlobalEvents() {
                 }
             });
 
-            // Save budget as a clinical note evolution automatically
             if (!patient.clinicalNotes) patient.clinicalNotes = [];
             patient.clinicalNotes.unshift({
                 id: 'note-' + Date.now(),
@@ -1820,7 +1798,7 @@ function initGlobalEvents() {
                 content: `Presupuesto emitido y enviado por WhatsApp ($${totalUSD.toFixed(2)}). Forma de pago: ${paymentModeText}. ${notes}`,
                 paymentUSD: 0
             });
-            savePatients(getPatients());
+            await SupabaseDataService.savePatient(patient);
 
             const msg = WhatsAppService.generateBudgetMessage(patient, currentBudgetItems, totalUSD, paymentModeText, notes);
             WhatsAppService.sendToPatient(patient.phone, msg);
@@ -1829,8 +1807,8 @@ function initGlobalEvents() {
 
     const printBtn = document.getElementById('btn-print-budget');
     if (printBtn) {
-        printBtn.onclick = () => {
-            autoSaveActivePatientOdontogram();
+        printBtn.onclick = async () => {
+            await autoSaveActivePatientOdontogram();
             Swal.fire({
                 icon: 'success',
                 title: '¡Odontograma Guardado!',
@@ -1847,23 +1825,24 @@ function initGlobalEvents() {
     const dropdown = document.getElementById('search-results-dropdown');
 
     if (searchInput && dropdown) {
-        searchInput.addEventListener('input', (e) => {
+        searchInput.addEventListener('input', async (e) => {
             const val = e.target.value.toLowerCase().trim();
             if (!val) {
                 dropdown.classList.add('hidden');
                 return;
             }
 
-            const patients = getPatients().filter(p => 
+            const patients = await SupabaseDataService.getPatients();
+            const filtered = patients.filter(p => 
                 p.fullname.toLowerCase().includes(val) || 
                 p.id.toLowerCase().includes(val) || 
                 p.phone.includes(val)
             );
 
             dropdown.innerHTML = '';
-            if (patients.length > 0) {
+            if (filtered.length > 0) {
                 dropdown.classList.remove('hidden');
-                patients.forEach(p => {
+                filtered.forEach(p => {
                     const item = document.createElement('div');
                     item.className = 'dropdown-item';
                     item.innerHTML = `
@@ -1872,7 +1851,7 @@ function initGlobalEvents() {
                         </div>
                         <span class="badge-tag blue">Seleccionar</span>
                     `;
-                    item.onclick = () => {
+                    item.onclick = async () => {
                         setActivePatientId(p.id);
                         dropdown.classList.add('hidden');
                         searchInput.value = '';
@@ -1896,7 +1875,7 @@ function initGlobalEvents() {
 
     const saveNoteBtn = document.getElementById('btn-save-note');
     if (saveNoteBtn) {
-        saveNoteBtn.onclick = (e) => {
+        saveNoteBtn.onclick = async (e) => {
             e.preventDefault();
             const activeId = getActivePatientId();
             if (!activeId) return;
@@ -1910,7 +1889,7 @@ function initGlobalEvents() {
                 return;
             }
 
-            const patients = getPatients();
+            const patients = await SupabaseDataService.getPatients();
             const p = patients.find(pat => pat.id === activeId);
             if (p) {
                 if (!p.clinicalNotes) p.clinicalNotes = [];
@@ -1933,21 +1912,21 @@ function initGlobalEvents() {
                     });
                 }
 
-                savePatients(patients);
+                await SupabaseDataService.savePatient(p);
                 closeModal('modal-note');
-                renderEHRView();
-                Swal.fire({ icon: 'success', title: '¡Evolución Registrada!', text: 'Guardada en la historia clínica del paciente.', timer: 2000, showConfirmButton: false });
+                await renderEHRView();
+                Swal.fire({ icon: 'success', title: '¡Evolución Registrada!', text: 'Guardada en la nube de Supabase.', timer: 2000, showConfirmButton: false });
             }
         };
     }
 }
 
-function populateAppointmentPatientSelect() {
+async function populateAppointmentPatientSelect() {
     const select = document.getElementById('app-patient-select');
     if (!select) return;
 
     select.innerHTML = '';
-    const patients = getPatients();
+    const patients = await SupabaseDataService.getPatients();
     patients.forEach(p => {
         const opt = document.createElement('option');
         opt.value = p.id;
