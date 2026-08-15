@@ -1907,3 +1907,112 @@ html, body {
         font-size: 1.35rem !important;
     }
 }
+
+/* ==========================================================================
+   REFACTORIZACIÓN DE ACCESIBILIDAD Y ADAPTABILIDAD RESPONSIVE (MOBILE-FIRST)
+   ========================================================================== */
+
+/* --- 1. Evitar estados Hover pegajosos en dispositivos táctiles --- */
+@media (hover: hover) {
+    .nav-item:hover {
+        background-color: var(--bg-card-hover) !important;
+        color: var(--text-heading) !important;
+    }
+    .mobile-toggle-btn:hover {
+        background: var(--bg-card-hover) !important;
+        border-color: var(--primary-cyan) !important;
+        color: var(--primary-cyan) !important;
+    }
+    .theme-toggle-btn:hover {
+        border-color: var(--primary-cyan) !important;
+        background: var(--bg-card-hover) !important;
+        color: var(--primary-cyan) !important;
+    }
+    .btn:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+    }
+}
+
+/* --- 2. Correcciones de Accesibilidad Táctil para el Odontograma --- */
+.tooth-svg {
+    width: 46px !important;  /* Ajuste a estándar ergonómico de 48px */
+    height: 46px !important;
+    margin: 2px !important;
+}
+
+.tooth-box {
+    padding: 4px !important; /* Incremento de target zone */
+}
+
+/* --- 3. REGLAS COMPORTAMIENTO MÓVIL (< 640px) --- */
+@media (max-width: 640px) {
+    /* Prevención de Zoom automático en iOS */
+    .form-control, 
+    input, 
+    select, 
+    textarea {
+        font-size: 16px !important;
+        padding: 12px 14px !important; /* Más cómodo para pulsar con el dedo */
+    }
+
+    /* Transformación de modales a "Bottom Sheets" nativas */
+    .modal-overlay {
+        align-items: flex-end !important;
+        padding: 0 !important;
+    }
+
+    .modal-dialog {
+        width: 100% !important;
+        max-width: 100% !important;
+        border-radius: 24px 24px 0 0 !important;
+        margin: 0 !important;
+        max-height: 85vh !important;
+        box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.2) !important;
+        animation: modalSlideUp 0.32s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+
+    @keyframes modalSlideUp {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
+    }
+
+    .modal-header {
+        padding: 20px 20px 12px !important;
+        border-bottom: 1px solid var(--border-color) !important;
+    }
+
+    .modal-body {
+        padding: 16px 20px 30px !important;
+    }
+
+    /* Mejora de visualización de tablas en móviles */
+    .table-container {
+        border-radius: 12px !important;
+        box-shadow: inset 0 0 10px rgba(0,0,0,0.02) !important;
+        -webkit-overflow-scrolling: touch !important; /* Desplazamiento nativo inercial */
+    }
+
+    /* Tarjetas de estadísticas de Dashboard en móviles */
+    .stats-grid {
+        grid-template-columns: 1fr !important; /* Apilado ordenado */
+        gap: 14px !important;
+    }
+
+    /* Secciones del Odontograma completamente verticales */
+    .odontogram-vertical-sections-stack {
+        gap: 16px !important;
+    }
+
+    /* Formulario en cuadricula de una sola columna en movil */
+    .grid-form,
+    .form-grid-2,
+    .form-grid-3 {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+    
+    .span-2 {
+        grid-column: span 1 !important;
+    }
+}
