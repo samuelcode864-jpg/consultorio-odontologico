@@ -16,7 +16,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=25">
+    <link rel="stylesheet" href="styles.css?v=26">
 </head>
 <body class="light-theme">
 
@@ -69,31 +69,35 @@
             <nav class="nav-menu">
                 <a href="#dashboard" class="nav-item active" data-tab="dashboard">
                     <i class="fa-solid fa-chart-pie"></i>
-                    <span>Dashboard</span>
+                    <span>Home</span>
                 </a>
                 <a href="#patients" class="nav-item" data-tab="patients">
                     <i class="fa-solid fa-hospital-user"></i>
-                    <span>Pacientes & BBDD</span>
+                    <span>Pacientes</span>
+                </a>
+                <a href="#agenda" class="nav-item" data-tab="agenda">
+                    <i class="fa-solid fa-calendar-day"></i>
+                    <span>Agenda</span>
                 </a>
                 <a href="#odontogram" class="nav-item" data-tab="odontogram">
                     <i class="fa-solid fa-file-invoice-dollar"></i>
-                    <span>Odontograma & Presupuesto</span>
+                    <span>Presupuesto</span>
                 </a>
                 <a href="#ehr" class="nav-item" data-tab="ehr">
                     <i class="fa-solid fa-notes-medical"></i>
-                    <span>Historia Clínica (EHR)</span>
+                    <span>Historias</span>
                 </a>
                 <a href="#inventory" class="nav-item" data-tab="inventory">
                     <i class="fa-solid fa-boxes-stacked"></i>
-                    <span>Insumos & Kardex</span>
+                    <span>Insumos</span>
                 </a>
                 <a href="#pricing" class="nav-item" data-tab="pricing">
                     <i class="fa-solid fa-tags"></i>
-                    <span>Baremo de Precios</span>
+                    <span>Servicios</span>
                 </a>
                 <a href="#users" class="nav-item" data-tab="users">
                     <i class="fa-solid fa-users-gear"></i>
-                    <span>Gestión de Usuarios</span>
+                    <span>Personal</span>
                 </a>
             </nav>
 
@@ -303,6 +307,33 @@
                                     <!-- Populated dynamically -->
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW: AGENDA -->
+                <section id="view-agenda" class="tab-view">
+                    <div class="view-header">
+                        <div>
+                            <h1>Agenda de Citas del Consultorio</h1>
+                            <p class="subtitle">Planificación diaria y recordatorios automatizados de citas por WhatsApp.</p>
+                        </div>
+                        <div style="display:flex; gap:10px;">
+                            <button class="btn btn-success" id="btn-send-reminders-all-agenda" title="Enviar recordatorios de mañana por WhatsApp">
+                                <i class="fa-brands fa-whatsapp"></i> Recordatorios de Mañana
+                            </button>
+                            <button class="btn btn-primary" id="btn-add-appointment-agenda">+ Agregar Cita</button>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-calendar-day"></i> Citas Programadas</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="timeline" id="agenda-list-main">
+                                <!-- Populated dynamically -->
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -1065,12 +1096,12 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=25"></script>
-    <script src="supabaseClient.js?v=25"></script>
-    <script src="odontogram.js?v=25"></script>
-    <script src="signature.js?v=25"></script>
-    <script src="whatsapp.js?v=25"></script>
-    <script src="kardex.js?v=25"></script>
-    <script src="app.js?v=25"></script>
+    <script src="seededData.js?v=26"></script>
+    <script src="supabaseClient.js?v=26"></script>
+    <script src="odontogram.js?v=26"></script>
+    <script src="signature.js?v=26"></script>
+    <script src="whatsapp.js?v=26"></script>
+    <script src="kardex.js?v=26"></script>
+    <script src="app.js?v=26"></script>
 </body>
 </html>

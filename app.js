@@ -281,6 +281,8 @@ function initNavigation() {
                 await renderOdontogramView();
             } else if (tabName === 'patients') {
                 await renderPatientsTable();
+            } else if (tabName === 'agenda') {
+                await renderAgendaView();
             } else if (tabName === 'dashboard') {
                 await renderDashboard();
             } else if (tabName === 'ehr') {
@@ -1078,10 +1080,77 @@ window.deleteAppointment = async function(apptId) {
         if (result.isConfirmed) {
             await SupabaseDataService.deleteAppointment(apptId);
             await renderDashboard();
+            await renderAgendaView();
             Swal.fire({ icon: 'success', title: 'Cita eliminada', timer: 1800, showConfirmButton: false });
         }
     });
 };
+
+async function renderAgendaView() {
+    const agendaListMain = document.getElementById('agenda-list-main');
+    if (!agendaListMain) return;
+
+    agendaListMain.innerHTML = '';
+    const appointments = await SupabaseDataService.getAppointments();
+    const currentUser = getCurrentUser();
+    const isAssistant = currentUser && currentUser.role.toLowerCase().includes('asistente');
+
+    if (appointments.length === 0) {
+        agendaListMain.innerHTML = `<div style="text-align:center; padding:30px; color:var(--text-muted);"><i class="fa-solid fa-calendar-xmark" style="font-size:2rem; margin-bottom:10px; display:block;"></i>No hay citas registradas en la agenda.</div>`;
+        return;
+    }
+
+    appointments.forEach(app => {
+        const isTomorrowAppt = app.isTomorrow === true || app.date === 'tomorrow';
+        
+        let whatsappBtnHtml = '';
+        if (isTomorrowAppt) {
+            whatsappBtnHtml = `
+                <button class="btn btn-xs btn-success" style="margin-left: 6px;" onclick="sendWhatsAppReminderForAppt('${app.id}')" title="Enviar recordatorio de cita para mañana">
+                    <i class="fa-brands fa-whatsapp"></i> Recordar (Mañana)
+                </button>
+            `;
+        } else {
+            whatsappBtnHtml = `<span class="badge-tag green" style="margin-left:6px; font-size:0.7rem;">Cita de Hoy</span>`;
+        }
+
+        const deleteApptBtn = isAssistant ? '' : `<button class="btn btn-xs btn-outline text-red" style="margin-left: 6px;" onclick="deleteAppointment('${app.id}')" title="Eliminar Cita"><i class="fa-solid fa-trash"></i></button>`;
+
+        const div = document.createElement('div');
+        div.className = 'timeline-item';
+        div.style.marginBottom = '12px';
+        div.innerHTML = `
+            <div class="timeline-meta">
+                <strong><i class="fa-solid fa-clock"></i> ${app.time}</strong>
+                <div>
+                    <span class="badge-tag blue">${app.status}</span>
+                    ${whatsappBtnHtml}
+                    ${deleteApptBtn}
+                </div>
+            </div>
+            <strong>${app.patientName}</strong> (${app.patientId})<br>
+            <small class="text-muted">Procedimiento: ${app.treatment}</small>
+        `;
+        agendaListMain.appendChild(div);
+    });
+
+    // Bind action buttons for Agenda view
+    const sendRemindersBtn = document.getElementById('btn-send-reminders-all-agenda');
+    if (sendRemindersBtn) {
+        sendRemindersBtn.onclick = () => {
+            window.sendRemindersForAllTomorrow();
+        };
+    }
+
+    const addAppointmentBtn = document.getElementById('btn-add-appointment-agenda');
+    if (addAppointmentBtn) {
+        addAppointmentBtn.onclick = async () => {
+            await populateAppointmentPatientSelect();
+            openModal('modal-appointment');
+        };
+    }
+}
+window.renderAgendaView = renderAgendaView;
 
 window.sendWhatsAppReminderForAppt = async function(apptId) {
     const appointments = await SupabaseDataService.getAppointments();
@@ -1643,6 +1712,7 @@ function initGlobalEvents() {
 
             closeModal('modal-appointment');
             await renderDashboard();
+            await renderAgendaView();
             Swal.fire({ icon: 'success', title: '¡Cita Agendada!', text: 'La cita ha sido añadida a la agenda.', timer: 2000, showConfirmButton: false });
         };
     }
