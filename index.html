@@ -16,7 +16,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=26">
+    <link rel="stylesheet" href="styles.css?v=27">
 </head>
 <body class="light-theme">
 
@@ -133,7 +133,7 @@
 
                 <div class="header-search">
                     <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" id="global-search" placeholder="Buscar paciente por Cédula, Nombre o Teléfono...">
+                    <input type="text" id="global-search" placeholder="C.I, Tlf, Nombre...">
                     <div id="search-results-dropdown" class="dropdown-results hidden"></div>
                 </div>
 
@@ -220,14 +220,9 @@
                     <div class="grid-2-col">
                         <!-- Agenda del Día -->
                         <div class="card">
-                            <div class="card-header">
+                            <div class="card-header" style="flex-direction: column; align-items: flex-start; gap: 8px;">
                                 <h3><i class="fa-solid fa-calendar-day"></i> Agenda de Citas</h3>
-                                <div style="display:flex; gap:8px;">
-                                    <button class="btn btn-sm btn-success" id="btn-send-reminders-all" title="Enviar recordatorio de cita por WhatsApp solo a las citas de mañana">
-                                        <i class="fa-brands fa-whatsapp"></i> Recordatorios de Mañana
-                                    </button>
-                                    <button class="btn btn-sm btn-outline" id="btn-add-appointment">+ Agregar Cita</button>
-                                </div>
+                                <button class="btn btn-sm btn-outline" id="btn-add-appointment" style="width: auto;">+ Agregar Cita</button>
                             </div>
                             <div class="card-body">
                                 <div class="timeline" id="dashboard-agenda-list">
@@ -313,17 +308,12 @@
 
                 <!-- VIEW: AGENDA -->
                 <section id="view-agenda" class="tab-view">
-                    <div class="view-header">
+                    <div class="view-header" style="flex-direction: column; align-items: flex-start; gap: 8px;">
                         <div>
                             <h1>Agenda de Citas del Consultorio</h1>
                             <p class="subtitle">Planificación diaria y recordatorios automatizados de citas por WhatsApp.</p>
                         </div>
-                        <div style="display:flex; gap:10px;">
-                            <button class="btn btn-success" id="btn-send-reminders-all-agenda" title="Enviar recordatorios de mañana por WhatsApp">
-                                <i class="fa-brands fa-whatsapp"></i> Recordatorios de Mañana
-                            </button>
-                            <button class="btn btn-primary" id="btn-add-appointment-agenda">+ Agregar Cita</button>
-                        </div>
+                        <button class="btn btn-primary" id="btn-add-appointment-agenda">+ Agregar Cita</button>
                     </div>
 
                     <div class="card">
@@ -1096,12 +1086,12 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=26"></script>
-    <script src="supabaseClient.js?v=26"></script>
-    <script src="odontogram.js?v=26"></script>
-    <script src="signature.js?v=26"></script>
-    <script src="whatsapp.js?v=26"></script>
-    <script src="kardex.js?v=26"></script>
-    <script src="app.js?v=26"></script>
+    <script src="seededData.js?v=27"></script>
+    <script src="supabaseClient.js?v=27"></script>
+    <script src="odontogram.js?v=27"></script>
+    <script src="signature.js?v=27"></script>
+    <script src="whatsapp.js?v=27"></script>
+    <script src="kardex.js?v=27"></script>
+    <script src="app.js?v=27"></script>
 </body>
 </html>

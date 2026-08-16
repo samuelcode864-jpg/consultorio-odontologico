@@ -335,7 +335,7 @@ h4 { font-size: 1rem; }
 
 .header-search i {
     position: absolute;
-    left: 14px;
+    right: 16px;
     top: 50%;
     transform: translateY(-50%);
     color: var(--text-dim);
@@ -346,7 +346,7 @@ h4 { font-size: 1rem; }
     background: var(--bg-input);
     border: 1px solid var(--border-color);
     border-radius: 20px;
-    padding: 9px 16px 9px 40px;
+    padding: 9px 40px 9px 16px;
     color: var(--text-main);
     font-size: 0.88rem;
     transition: all 0.2s;
@@ -1880,7 +1880,7 @@ html, body {
 /* 4. SMALL MOBILE (max-width: 480px) */
 @media (max-width: 480px) {
     .stats-grid {
-        grid-template-columns: 1fr !important;
+        grid-template-columns: repeat(2, 1fr) !important;
     }
 
     .theme-toggle-btn #theme-text {
@@ -1995,7 +1995,7 @@ html, body {
 
     /* Tarjetas de estadísticas de Dashboard en móviles */
     .stats-grid {
-        grid-template-columns: 1fr !important; /* Apilado ordenado */
+        grid-template-columns: repeat(2, 1fr) !important;
         gap: 14px !important;
     }
 
@@ -2015,4 +2015,54 @@ html, body {
     .span-2 {
         grid-column: span 1 !important;
     }
+}
+
+/* Custom Timeline Items styling */
+.timeline-item {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-color) !important;
+    border-left: 4px solid var(--primary-cyan) !important;
+    border-radius: var(--radius-sm) !important;
+    padding: 14px 18px !important;
+    margin-bottom: 12px !important;
+}
+
+.timeline-meta {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    margin-bottom: 8px !important;
+}
+
+.timeline-time {
+    font-weight: 700 !important;
+    color: var(--text-heading) !important;
+    font-size: 0.88rem !important;
+}
+
+.timeline-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+
+.timeline-patient-name {
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    color: var(--text-heading) !important;
+    margin-bottom: 2px !important;
+    text-align: left !important;
+}
+
+.timeline-patient-id {
+    font-size: 0.82rem !important;
+    color: var(--text-muted) !important;
+    margin-bottom: 4px !important;
+    text-align: left !important;
+}
+
+.timeline-treatment {
+    font-size: 0.82rem !important;
+    color: var(--text-muted) !important;
+    text-align: left !important;
 }

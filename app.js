@@ -1006,15 +1006,16 @@ async function renderDashboard() {
             div.style.marginBottom = '12px';
             div.innerHTML = `
                 <div class="timeline-meta">
-                    <strong><i class="fa-solid fa-clock"></i> ${app.time}</strong>
-                    <div>
+                    <span class="timeline-time"><i class="fa-solid fa-clock"></i> ${app.time}</span>
+                    <div class="timeline-actions">
                         <span class="badge-tag blue">${app.status}</span>
                         ${whatsappBtnHtml}
                         ${deleteApptBtn}
                     </div>
                 </div>
-                <strong>${app.patientName}</strong> (${app.patientId})<br>
-                <small class="text-muted">Procedimiento: ${app.treatment}</small>
+                <div class="timeline-patient-name"><strong>${app.patientName}</strong></div>
+                <div class="timeline-patient-id"><small class="text-muted">C.I: ${app.patientId}</small></div>
+                <div class="timeline-treatment"><small class="text-muted">Procedimiento: ${app.treatment}</small></div>
             `;
             agendaList.appendChild(div);
         });
@@ -1121,15 +1122,16 @@ async function renderAgendaView() {
         div.style.marginBottom = '12px';
         div.innerHTML = `
             <div class="timeline-meta">
-                <strong><i class="fa-solid fa-clock"></i> ${app.time}</strong>
-                <div>
+                <span class="timeline-time"><i class="fa-solid fa-clock"></i> ${app.time}</span>
+                <div class="timeline-actions">
                     <span class="badge-tag blue">${app.status}</span>
                     ${whatsappBtnHtml}
                     ${deleteApptBtn}
                 </div>
             </div>
-            <strong>${app.patientName}</strong> (${app.patientId})<br>
-            <small class="text-muted">Procedimiento: ${app.treatment}</small>
+            <div class="timeline-patient-name"><strong>${app.patientName}</strong></div>
+            <div class="timeline-patient-id"><small class="text-muted">C.I: ${app.patientId}</small></div>
+            <div class="timeline-treatment"><small class="text-muted">Procedimiento: ${app.treatment}</small></div>
         `;
         agendaListMain.appendChild(div);
     });
