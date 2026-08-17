@@ -1220,7 +1220,7 @@ h4 { font-size: 1rem; }
 }
 
 /* ==========================================
-   AUTHENTICATION & LOGIN SCREEN (BULLETPROOF FIXED POSITIONING)
+   AUTHENTICATION & LOGIN SCREEN (SPLIT SCREEN REPLICA)
    ========================================== */
 .login-overlay {
     position: fixed !important;
@@ -1230,107 +1230,178 @@ h4 { font-size: 1rem; }
     bottom: 0 !important;
     width: 100vw !important;
     height: 100vh !important;
-    background: linear-gradient(135deg, #e0f2fe 0%, #f1f5f9 50%, #e2e8f0 100%) !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
+    background: #ffffff !important;
     z-index: 999999 !important;
-    padding: 20px;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
 }
 
 body.dark-theme .login-overlay {
-    background: linear-gradient(135deg, #090d16 0%, #111827 50%, #0f172a 100%) !important;
+    background: #0b101c !important;
 }
 
-.login-card {
+.login-split-container {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    width: 100%;
+    height: 100%;
+}
+
+.login-image-side {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    width: 100%;
+    height: 100%;
+}
+
+.login-form-side {
     background: #ffffff;
-    color: #0f172a;
-    border: 1px solid #e2e8f0;
-    border-radius: 20px;
-    width: 440px;
-    max-width: 100%;
-    padding: 45px 38px;
-    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
-    text-align: center;
-    position: relative;
-    animation: loginScale 0.35s ease-out;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 40px;
+    height: 100%;
+    overflow-y: auto;
 }
 
-body.dark-theme .login-card {
+body.dark-theme .login-form-side {
     background: #121824;
-    color: #ffffff;
-    border-color: rgba(255, 255, 255, 0.12);
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
 }
 
-@keyframes loginScale {
-    from { opacity: 0; transform: scale(0.95) translateY(12px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
+.login-mobile-top-image {
+    display: none;
+    width: 100%;
+    height: 250px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
 }
 
-.login-logo {
-    width: 64px;
-    height: 64px;
-    background: linear-gradient(135deg, #0284c7, #2563eb);
-    border-radius: 18px;
+.login-form-content {
+    width: 100%;
+    max-width: 360px;
+    display: flex;
+    flex-direction: column;
+}
+
+.login-brand-logo {
     display: flex;
     align-items: center;
-    justify-content: center;
-    font-size: 2.2rem;
+    gap: 8px;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #0284c7;
+    margin-bottom: 24px;
+    justify-content: flex-start;
+}
+
+.login-brand-logo i {
+    font-size: 1.6rem;
+}
+
+.login-welcome-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 24px;
+    text-align: left;
+}
+
+body.dark-theme .login-welcome-title {
     color: #ffffff;
-    margin: 0 auto 18px;
-    box-shadow: 0 10px 25px rgba(2, 132, 199, 0.3);
-}
-
-.login-card h2 {
-    font-size: 1.7rem;
-    margin-bottom: 6px;
-    color: inherit;
-}
-
-.login-card p {
-    color: #64748b;
-    font-size: 0.9rem;
-    margin-bottom: 28px;
-}
-
-body.dark-theme .login-card p {
-    color: #94a3b8;
 }
 
 .login-form {
     display: flex;
     flex-direction: column;
-    gap: 18px;
-    text-align: left;
+    gap: 16px;
+    width: 100%;
+}
+
+.login-form .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
 .login-form .form-group label {
+    font-size: 0.85rem;
     font-weight: 600;
-    font-size: 0.84rem;
-    color: inherit;
+    color: #1e293b;
+    text-align: left;
+}
+
+body.dark-theme .login-form .form-group label {
+    color: #cbd5e1;
 }
 
 .login-form input {
-    background: #f8fafc;
+    background: #ffffff;
     border: 1px solid #cbd5e1;
     color: #0f172a;
-    padding: 11px 14px;
+    padding: 10px 14px;
     border-radius: 8px;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 body.dark-theme .login-form input {
     background: #1a2333;
-    border-color: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.12);
     color: #ffffff;
+}
+
+.login-form input:focus {
+    border-color: #0284c7;
+}
+
+.login-forgot-wrapper {
+    text-align: right;
+    margin-top: -4px;
+}
+
+.login-forgot-link {
+    font-size: 0.78rem;
+    color: #0284c7;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.login-forgot-link:hover {
+    text-decoration: underline;
 }
 
 .login-btn {
     width: 100%;
-    padding: 13px;
-    font-size: 1rem;
+    padding: 12px;
+    font-size: 0.95rem;
+    font-weight: 600;
     margin-top: 8px;
     border-radius: 8px;
+    box-sizing: border-box;
+}
+
+.login-signup-wrapper {
+    text-align: center;
+    margin-top: 24px;
+}
+
+.login-signup-link {
+    font-size: 0.82rem;
+    color: #0284c7;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.login-signup-link:hover {
+    text-decoration: underline;
 }
 
 .demo-credentials-box {
@@ -1346,7 +1417,7 @@ body.dark-theme .login-form input {
 
 body.dark-theme .demo-credentials-box {
     background: #1a2333;
-    border-color: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.12);
     color: #94a3b8;
 }
 
@@ -1372,6 +1443,25 @@ body.dark-theme .demo-credentials-box strong {
 body.dark-theme .demo-credentials-box code {
     background: rgba(255, 255, 255, 0.15);
     color: #ffffff;
+}
+
+/* Response/Adaptation breakpoints */
+@media (max-width: 900px) {
+    .login-split-container {
+        grid-template-columns: 1fr;
+    }
+    .login-image-side {
+        display: none;
+    }
+    .login-mobile-top-image {
+        display: block;
+        border-radius: 12px;
+        margin-bottom: 24px;
+    }
+    .login-form-side {
+        padding: 24px;
+        justify-content: flex-start;
+    }
 }
 
 /* Patient Selector Badge Interactive Styling */
