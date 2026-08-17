@@ -2171,24 +2171,66 @@ html, body {
 }
 
 @media print {
-    body * {
-        visibility: hidden !important;
+    /* Hide all main layout containers and interactive controls */
+    .sidebar,
+    .top-header,
+    .mobile-toggle-btn,
+    .header-actions,
+    .header-search,
+    .btn,
+    button,
+    .modal-overlay,
+    .nav-menu,
+    .sidebar-footer,
+    .currency-toggle,
+    .view-header,
+    .card-header,
+    .tool-mode-bar,
+    .patient-select-section-card,
+    #mobile-sidebar-backdrop,
+    .no-print {
+        display: none !important;
     }
-    .print-section, .print-section * {
-        visibility: visible !important;
+
+    /* Reset background and main layout structures for printing */
+    body, html, .main-content, .app-container {
+        background: #ffffff !important;
+        color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
     }
+
+    /* Hide all view containers */
+    .tab-view {
+        display: none !important;
+    }
+
+    /* Show only the active view or view containing the print section */
+    .tab-view.active,
+    .tab-view:has(.print-section) {
+        display: block !important;
+        width: 100% !important;
+    }
+
+    /* Print section styling */
     .print-section {
+        display: block !important;
         position: absolute !important;
         left: 0 !important;
         top: 0 !important;
         width: 100% !important;
         height: auto !important;
+        margin: 0 !important;
+        padding: 20px !important;
+        background: #ffffff !important;
+        color: #000000 !important;
         border: none !important;
         box-shadow: none !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        background: white !important;
-        color: black !important;
+        z-index: 9999999 !important;
+        overflow: visible !important;
     }
 }
 

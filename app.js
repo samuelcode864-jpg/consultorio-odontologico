@@ -1068,7 +1068,9 @@ async function exportEHRToPDF() {
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
+    document.body.appendChild(container);
     html2pdf().set(opt).from(container).save().then(() => {
+        document.body.removeChild(container);
         Swal.fire({
             icon: 'success',
             title: '¡PDF Generado!',
@@ -1077,6 +1079,7 @@ async function exportEHRToPDF() {
             showConfirmButton: false
         });
     }).catch(err => {
+        document.body.removeChild(container);
         console.error(err);
         Swal.fire({ icon: 'error', title: 'Error al exportar', text: 'No se pudo generar el documento PDF.' });
     });
@@ -2189,22 +2192,17 @@ function initGlobalEvents() {
     if (printBtn) {
         printBtn.onclick = async () => {
             await autoSaveActivePatientOdontogram();
-            Swal.fire({
-                icon: 'success',
-                title: '¡Odontograma Guardado!',
-                text: 'Presupuesto registrado en la ficha. Preparando impresión...',
-                timer: 1800,
-                showConfirmButton: false
-            }).then(() => {
-                const odontStack = document.querySelector('.odontogram-vertical-sections-stack');
-                if (odontStack) {
-                    odontStack.classList.add('print-section');
-                    window.print();
-                    odontStack.classList.remove('print-section');
-                } else {
-                    window.print();
-                }
-            });
+            const printContainer = await generateBudgetHTMLContainer();
+            if (!printContainer) {
+                Swal.fire({ icon: 'info', title: 'Seleccione un paciente', text: 'Por favor active un paciente para imprimir su Presupuesto.' });
+                return;
+            }
+            
+            document.body.appendChild(printContainer);
+            printContainer.classList.add('print-section');
+            window.print();
+            printContainer.classList.remove('print-section');
+            document.body.removeChild(printContainer);
         };
     }
 
@@ -2392,15 +2390,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // 8. BILLING, FINANCE & STATIONERY MODULE CONTROLLERS
 // ==========================================================================
 
-async function downloadBudgetPDF() {
+async function generateBudgetHTMLContainer() {
     const activeId = getActivePatientId();
-    if (!activeId) {
-        Swal.fire({ icon: 'info', title: 'Seleccione un paciente', text: 'Por favor active un paciente para exportar su Presupuesto en PDF.' });
-        return;
-    }
+    if (!activeId) return null;
     const patients = await SupabaseDataService.getPatients();
     const patient = patients.find(p => p.id === activeId);
-    if (!patient) return;
+    if (!patient) return null;
 
     let totalUSD = 0;
     currentBudgetItems.forEach(item => {
@@ -2481,6 +2476,21 @@ async function downloadBudgetPDF() {
             <pre style="margin: 0; font-family: inherit; white-space: pre-wrap;">${stationery.footerText}</pre>
         </div>
     `;
+    return container;
+}
+
+async function downloadBudgetPDF() {
+    const activeId = getActivePatientId();
+    if (!activeId) {
+        Swal.fire({ icon: 'info', title: 'Seleccione un paciente', text: 'Por favor active un paciente para exportar su Presupuesto en PDF.' });
+        return;
+    }
+    const patients = await SupabaseDataService.getPatients();
+    const patient = patients.find(p => p.id === activeId);
+    if (!patient) return;
+
+    const container = await generateBudgetHTMLContainer();
+    if (!container) return;
 
     const opt = {
         margin:       10,
@@ -2490,8 +2500,13 @@ async function downloadBudgetPDF() {
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
+    document.body.appendChild(container);
     html2pdf().set(opt).from(container).save().then(() => {
+        document.body.removeChild(container);
         Swal.fire({ icon: 'success', title: '¡PDF Descargado!', text: 'Se ha descargado el presupuesto.', timer: 2000, showConfirmButton: false });
+    }).catch(err => {
+        document.body.removeChild(container);
+        console.error(err);
     });
 }
 
