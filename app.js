@@ -3451,18 +3451,15 @@ function toDataURL(url) {
     });
 }
 
-function generatePDFFromElement(element, filename) {
-    // Style the element so it renders inside the viewport but behind the Swal loader overlay
-    element.style.position = 'absolute';
-    element.style.left = '0';
-    element.style.top = window.scrollY + 'px';
+async function generatePDFFromElement(element, filename) {
+    // Style the element so it has a normal relative layout at the bottom of the body
+    element.style.position = 'relative';
     element.style.width = '750px';
-    element.style.zIndex = '1';
+    element.style.margin = '40px auto';
     element.style.backgroundColor = '#ffffff';
     element.style.color = '#000000';
     element.style.display = 'block';
     element.style.visibility = 'visible';
-    element.style.margin = '0';
     element.style.padding = '30px';
 
     document.body.appendChild(element);
@@ -3471,10 +3468,10 @@ function generatePDFFromElement(element, filename) {
         title: 'Generando Documento PDF...',
         html: `
             <div style="margin-bottom: 10px; font-weight: bold; color: #0284c7;">
-                <i class="fa-solid fa-circle-notch fa-spin"></i> Compilando lienzo, imágenes y firmas...
+                <i class="fa-solid fa-circle-notch fa-spin"></i> Compilando firmas, logos y tratamientos...
             </div>
             <div style="font-size: 0.8rem; color: #64748b;">
-                Por favor espere, esto tomará unos segundos.
+                Generando lienzo de alta resolución. Por favor espere.
             </div>
         `,
         showConfirmButton: false,
@@ -3482,30 +3479,104 @@ function generatePDFFromElement(element, filename) {
         didOpen: () => {
             Swal.showLoading();
 
-            setTimeout(() => {
-                const opt = {
-                    margin:       10,
-                    filename:     filename,
-                    image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { scale: 2, useCORS: false, logging: true },
-                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-                };
+            setTimeout(async () => {
+                try {
+                    const jsPDFClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+                    if (!jsPDFClass) {
+                        throw new Error("Librería jsPDF no encontrada.");
+                    }
+                    if (!window.html2canvas) {
+                        throw new Error("Librería html2canvas no encontrada.");
+                    }
 
-                html2pdf().set(opt).from(element).save().then(() => {
+                    // Render using html2canvas directly to inspect the output canvas
+                    const canvas = await window.html2canvas(element, {
+                        scale: 2,
+                        useCORS: false,
+                        backgroundColor: '#ffffff',
+                        logging: true
+                    });
+
+                    // Verify if canvas has any non-white/non-transparent pixels
+                    const ctx = canvas.getContext('2d');
+                    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+                    let hasColor = false;
+                    for (let i = 0; i < imgData.length; i += 4) {
+                        if (imgData[i+3] !== 0 && (imgData[i] !== 255 || imgData[i+1] !== 255 || imgData[i+2] !== 255)) {
+                            hasColor = true;
+                            break;
+                        }
+                    }
+
+                    if (!hasColor) {
+                        throw new Error("El motor de dibujo devolvió un lienzo vacío (blanco).");
+                    }
+
+                    // Convert canvas to image and add to PDF
+                    const imgString = canvas.toDataURL('image/jpeg', 0.95);
+                    const pdf = new jsPDFClass('p', 'mm', 'a4');
+                    const imgWidth = 210; // A4 width
+                    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                    
+                    pdf.addImage(imgString, 'JPEG', 0, 0, imgWidth, imgHeight);
+                    pdf.save(filename);
+
+                    // Clean up and close modal
                     document.body.removeChild(element);
                     Swal.close();
                     Swal.fire({ icon: 'success', title: '¡PDF Descargado!', text: 'El archivo se ha guardado en tu dispositivo.', timer: 2000, showConfirmButton: false });
-                }).catch(err => {
-                    document.body.removeChild(element);
-                    console.error("html2pdf processing error:", err);
+
+                } catch (err) {
+                    console.error("PDF generation failure:", err);
+                    try {
+                        document.body.removeChild(element);
+                    } catch (e) {}
                     Swal.close();
+
+                    // Fallback to Native Print/Save Window
                     Swal.fire({
-                        icon: 'error',
-                        title: 'Error de Renderizado',
-                        text: `No se pudo compilar el PDF. Detalle: ${err.message || err}`
+                        icon: 'warning',
+                        title: 'Fallo en Generador local',
+                        text: `${err.message || err}. Abriendo ventana de impresión alternativa para que puedas guardarlo como PDF de forma nativa...`,
+                        confirmButtonText: 'Abrir Ventana'
+                    }).then(() => {
+                        const printWindow = window.open('', '_blank');
+                        if (printWindow) {
+                            printWindow.document.write(`
+                                <html>
+                                    <head>
+                                        <title>${filename}</title>
+                                        <style>
+                                            body { margin: 30px; font-family: monospace; background: #fff; color: #000; }
+                                            table { width: 100%; border-collapse: collapse; }
+                                            th, td { padding: 8px; text-align: left; border-bottom: 1px dashed #ccc; }
+                                            @media print {
+                                                body { margin: 0; }
+                                            }
+                                        </style>
+                                    </head>
+                                    <body>
+                                        ${element.innerHTML}
+                                        <script>
+                                            window.onload = function() {
+                                                window.print();
+                                                window.close();
+                                            };
+                                        </script>
+                                    </body>
+                                </html>
+                            `);
+                            printWindow.document.close();
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Bloqueador de Ventanas Activo',
+                                text: 'Por favor permite las ventanas emergentes en este sitio para imprimir.'
+                            });
+                        }
                     });
-                });
-            }, 600); // 600ms delay to let the browser paint the DOM fully
+                }
+            }, 600);
         }
     });
 }
