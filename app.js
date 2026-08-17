@@ -1068,10 +1068,11 @@ async function exportEHRToPDF() {
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    container.style.position = 'absolute';
-    container.style.left = '-9999px';
+    container.style.position = 'fixed';
+    container.style.left = '0';
     container.style.top = '0';
     container.style.width = '800px';
+    container.style.zIndex = '-9999';
     container.style.display = 'block';
 
     document.body.appendChild(container);
@@ -2506,10 +2507,11 @@ async function downloadBudgetPDF() {
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    container.style.position = 'absolute';
-    container.style.left = '-9999px';
+    container.style.position = 'fixed';
+    container.style.left = '0';
     container.style.top = '0';
     container.style.width = '800px';
+    container.style.zIndex = '-9999';
     container.style.display = 'block';
 
     document.body.appendChild(container);
@@ -2787,10 +2789,11 @@ async function renderBillingView() {
         };
 
         const printClone = previewEl.cloneNode(true);
-        printClone.style.position = 'absolute';
-        printClone.style.left = '-9999px';
+        printClone.style.position = 'fixed';
+        printClone.style.left = '0';
         printClone.style.top = '0';
         printClone.style.width = '800px';
+        printClone.style.zIndex = '-9999';
         printClone.style.display = 'block';
 
         document.body.appendChild(printClone);
@@ -3327,10 +3330,11 @@ async function renderStationeryView() {
         };
 
         const printClone = previewEl.cloneNode(true);
-        printClone.style.position = 'absolute';
-        printClone.style.left = '-9999px';
+        printClone.style.position = 'fixed';
+        printClone.style.left = '0';
         printClone.style.top = '0';
         printClone.style.width = '800px';
+        printClone.style.zIndex = '-9999';
         printClone.style.display = 'block';
 
         document.body.appendChild(printClone);
