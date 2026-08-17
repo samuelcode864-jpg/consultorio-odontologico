@@ -62,7 +62,6 @@
                 </div>
                 <div class="brand-info">
                     <h2>DentalCare Pro</h2>
-                    <span class="badge">ERP/EHR Single-Dentist</span>
                 </div>
             </div>
 
@@ -75,25 +74,37 @@
                     <i class="fa-solid fa-hospital-user"></i>
                     <span>Pacientes</span>
                 </a>
+                <a href="#odontogram" class="nav-item" data-tab="odontogram">
+                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                    <span>Presupuesto</span>
+                </a>
                 <a href="#agenda" class="nav-item" data-tab="agenda">
                     <i class="fa-solid fa-calendar-day"></i>
                     <span>Agenda</span>
                 </a>
-                <a href="#odontogram" class="nav-item" data-tab="odontogram">
-                    <i class="fa-solid fa-file-invoice-dollar"></i>
-                    <span>Presupuesto</span>
+                <a href="#billing" class="nav-item" data-tab="billing">
+                    <i class="fa-solid fa-receipt"></i>
+                    <span>Facturación</span>
                 </a>
                 <a href="#ehr" class="nav-item" data-tab="ehr">
                     <i class="fa-solid fa-notes-medical"></i>
                     <span>Historias</span>
                 </a>
+                <a href="#pricing" class="nav-item" data-tab="pricing">
+                    <i class="fa-solid fa-tags"></i>
+                    <span>Servicios</span>
+                </a>
                 <a href="#inventory" class="nav-item" data-tab="inventory">
                     <i class="fa-solid fa-boxes-stacked"></i>
                     <span>Insumos</span>
                 </a>
-                <a href="#pricing" class="nav-item" data-tab="pricing">
-                    <i class="fa-solid fa-tags"></i>
-                    <span>Servicios</span>
+                <a href="#finance" class="nav-item" data-tab="finance">
+                    <i class="fa-solid fa-wallet"></i>
+                    <span>Finanzas</span>
+                </a>
+                <a href="#stationery" class="nav-item" data-tab="stationery">
+                    <i class="fa-solid fa-file-signature"></i>
+                    <span>Papelería</span>
                 </a>
                 <a href="#users" class="nav-item" data-tab="users">
                     <i class="fa-solid fa-users-gear"></i>
@@ -117,12 +128,13 @@
             </div>
         </aside>
 
-        <!-- Main Content Area -->
+        <!-- MAIN LAYOUT WRAPPER -->
         <main class="main-content">
-            <!-- Top Header -->
+            
+            <!-- TOP BAR HEADER (STAY COMPACT & CLEAN) -->
             <header class="top-header">
                 <div class="top-header-left">
-                    <button class="mobile-toggle-btn" id="btn-mobile-menu-toggle" title="Abrir Menú">
+                    <button class="mobile-toggle-btn" id="btn-mobile-menu-toggle">
                         <i class="fa-solid fa-bars"></i>
                     </button>
                     <div class="mobile-brand-title">
@@ -140,7 +152,6 @@
                 <div class="header-actions">
                     <!-- Live DolarApi Exchange Rate Badge -->
                     <div class="currency-toggle">
-                        <span class="label">Tasa BCV:</span>
                         <button id="currency-btn" class="badge-btn" title="Haga clic para actualizar la tasa oficial desde ve.dolarapi.com">
                             <i class="fa-solid fa-arrows-rotate fa-spin"></i> Cargando...
                         </button>
@@ -369,12 +380,18 @@
                         
                         <!-- SECCIÓN 3: ODONTOGRAMA -->
                         <div class="card odontogram-card">
-                            <div class="card-header border-bottom flex-wrap">
-                                <h3><i class="fa-solid fa-tooth text-cyan"></i> Odontograma Clínico</h3>
-                                <div class="layer-legend">
-                                    <span class="legend-item"><span class="color-dot blue"></span> Tratado (Azul)</span>
-                                    <span class="legend-item"><span class="color-dot red"></span> Patología (Rojo)</span>
-                                    <span class="legend-item"><span class="color-dot green"></span> Plan Propuesto (Verde)</span>
+                            <div class="card-header border-bottom flex-wrap" style="justify-content: space-between; align-items: center; display: flex; width: 100%;">
+                                <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                                    <h3><i class="fa-solid fa-tooth text-cyan"></i> Odontograma Clínico</h3>
+                                    <div class="layer-legend">
+                                        <span class="legend-item"><span class="color-dot blue"></span> Tratado (Azul)</span>
+                                        <span class="legend-item"><span class="color-dot red"></span> Patología (Rojo)</span>
+                                        <span class="legend-item"><span class="color-dot green"></span> Plan Propuesto (Verde)</span>
+                                    </div>
+                                </div>
+                                <div class="dentition-toggle" style="display: flex; gap: 10px;">
+                                    <button id="btn-dentition-adult" class="btn btn-sm btn-outline active">Dentición Adulto</button>
+                                    <button id="btn-dentition-pediatric" class="btn btn-sm btn-outline">Dentición Infantil</button>
                                 </div>
                             </div>
 
@@ -450,6 +467,11 @@
                                     <textarea id="budget-notes" class="form-control" rows="2" placeholder="Diagnóstico complementario, sensibilidad reportada, radiografía periapical inicial..."></textarea>
                                 </div>
 
+                                <div>
+                                    <label class="form-label">Texto del Consentimiento Informado (Editable):</label>
+                                    <textarea id="consent-text" class="form-control" rows="4">Por la presente declaro que he sido informado(a) detalladamente sobre el plan de tratamiento propuesto, incluyendo sus beneficios, riesgos, costos y alternativas. Doy mi consentimiento libre y voluntario para la ejecución de los procedimientos odontológicos indicados.</textarea>
+                                </div>
+
                                 <!-- Signature Canvas Accordion -->
                                 <div class="signature-section">
                                     <div class="signatures-grid">
@@ -482,7 +504,10 @@
                                     <button class="btn btn-success btn-lg flex-1" id="btn-send-whatsapp">
                                         <i class="fa-brands fa-whatsapp"></i> Guardar y Enviar Presupuesto por WhatsApp
                                     </button>
-                                    <button class="btn btn-outline" id="btn-print-pdf">
+                                    <button class="btn btn-outline" id="btn-print-budget" title="Imprimir Presupuesto">
+                                        <i class="fa-solid fa-print"></i> Imprimir
+                                    </button>
+                                    <button class="btn btn-outline" id="btn-pdf-budget" title="Descargar PDF Presupuesto">
                                         <i class="fa-solid fa-file-pdf"></i> PDF
                                     </button>
                                 </div>
@@ -540,9 +565,17 @@
                                     <!-- Tabs for EHR Sub-sections -->
                                     <div class="subtabs">
                                         <button class="subtab-btn active" data-subtab="notes">Notas Clínicas / Citas</button>
+                                        <button class="subtab-btn" data-subtab="clinical-details">Ficha Detallada</button>
                                         <button class="subtab-btn" data-subtab="timeline">Odontograma Inicial vs Actual</button>
                                         <button class="subtab-btn" data-subtab="gallery">Galería "Antes y Después"</button>
                                         <button class="subtab-btn" data-subtab="consents">Consentimientos & Abonos</button>
+                                    </div>
+
+                                    <!-- SUBTAB: Clinical Details (Ficha Detallada) -->
+                                    <div id="subtab-clinical-details" class="subtab-content">
+                                        <div id="ehr-clinical-details-content" style="max-height: 500px; overflow-y: auto;">
+                                            <!-- Dynamically populated details -->
+                                        </div>
                                     </div>
 
                                     <!-- SUBTAB 1: Clinical Notes Timeline -->
@@ -662,6 +695,7 @@
                                         <th>Nombre del Tratamiento</th>
                                         <th>Precio Base ($ USD)</th>
                                         <th>Precio (Bs.)</th>
+                                        <th>Bonif. Higienista ($)</th>
                                         <th>Tiempo Silla (min)</th>
                                         <th>Insumos Consumidos</th>
                                         <th>Acciones</th>
@@ -708,6 +742,417 @@
                         </div>
                     </div>
                 </section>
+
+                <!-- VIEW 8: FACTURACIÓN -->
+                <section id="view-billing" class="tab-view">
+                    <div class="view-header">
+                        <div>
+                            <h1>Módulo de Facturación</h1>
+                            <p class="subtitle">Emisión de facturas clínicas en Bs. o Ref/Dólares, con métodos de pago y descarga de PDF.</p>
+                        </div>
+                    </div>
+
+                    <div class="grid-2-col">
+                        <!-- Invoice Creator Form -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3><i class="fa-solid fa-file-invoice-dollar text-cyan"></i> Crear Factura</h3>
+                            </div>
+                            <div class="card-body flex-column gap-15">
+                                <div class="form-group">
+                                    <label class="form-label" for="bill-patient-select">Seleccionar Paciente *</label>
+                                    <select id="bill-patient-select" class="form-control select-lg">
+                                        <!-- Patients loaded dynamically -->
+                                    </select>
+                                </div>
+
+                                <div class="grid-form">
+                                    <div class="form-group">
+                                        <label class="form-label" for="bill-currency">Moneda de Facturación</label>
+                                        <select id="bill-currency" class="form-control">
+                                            <option value="REF">REF (Dólares)</option>
+                                            <option value="BS">Bs (Bolívares)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="bill-terms">Términos de Pago</label>
+                                        <select id="bill-terms" class="form-control">
+                                            <option value="Contado">Contado</option>
+                                            <option value="Crédito">Crédito</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="bill-method">Método de Pago</label>
+                                        <select id="bill-method" class="form-control">
+                                            <option value="Dólares">Dólares (Efectivo)</option>
+                                            <option value="Bs">Bs (Pago Móvil/Transferencia)</option>
+                                            <option value="Zelle">Zelle</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="bill-assistant">Asistente Dental *</label>
+                                        <select id="bill-assistant" class="form-control">
+                                            <!-- Assistants loaded dynamically -->
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label">Cargar Items a Facturar:</label>
+                                    <div style="display: flex; gap: 10px;">
+                                        <button class="btn btn-sm btn-outline flex-1" id="btn-load-budget-items">
+                                            <i class="fa-solid fa-upload"></i> Cargar Presupuesto Activo
+                                        </button>
+                                        <button class="btn btn-sm btn-outline flex-1" id="btn-add-baremo-item-billing">
+                                            <i class="fa-solid fa-plus"></i> Añadir de Baremo
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Items List -->
+                                <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+                                    <table class="table table-compact" id="billing-items-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Código</th>
+                                                <th>Descripción</th>
+                                                <th>Precio (REF)</th>
+                                                <th>Bonif. Hig.</th>
+                                                <th>Cant.</th>
+                                                <th>Total (REF)</th>
+                                                <th></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="billing-items-tbody">
+                                            <tr class="empty-row"><td colspan="7" class="text-center text-muted">Cargue items del presupuesto o del baremo.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label" for="bill-footer-note">Nota de Pie de Página Personalizable</label>
+                                    <textarea id="bill-footer-note" class="form-control" rows="2" placeholder="ej: Garantía de 6 meses sobre resinas. Todo tratamiento requiere control periódico."></textarea>
+                                </div>
+
+                                <div class="flex-column gap-10" style="background: var(--bg-dark); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                                    <div style="display: flex; justify-content: space-between;">
+                                        <span>Total REF:</span>
+                                        <strong id="bill-total-ref">$0.00</strong>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between;">
+                                        <span>Tasa de Cambio BCV:</span>
+                                        <strong id="bill-exchange-rate">Bs. 36.50</strong>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; font-size: 1.1rem; color: var(--primary-cyan);">
+                                        <span>Total a Cobrar:</span>
+                                        <strong id="bill-total-final">$0.00</strong>
+                                    </div>
+                                </div>
+
+                                <button class="btn btn-primary btn-lg" id="btn-process-invoice">
+                                    <i class="fa-solid fa-check-circle"></i> Procesar y Generar Factura
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Live Stationery Print Preview & Actions -->
+                        <div class="card flex-column">
+                            <div class="card-header">
+                                <h3><i class="fa-solid fa-eye text-green"></i> Previsualización & Acciones</h3>
+                            </div>
+                            <div class="card-body flex-column gap-15">
+                                <div id="invoice-processed-actions" class="hidden flex-row gap-10 mb-15">
+                                    <button class="btn btn-success flex-1" id="btn-print-invoice-final">
+                                        <i class="fa-solid fa-print"></i> Imprimir Factura
+                                    </button>
+                                    <button class="btn btn-primary flex-1" id="btn-pdf-invoice-final">
+                                        <i class="fa-solid fa-file-pdf"></i> Descargar PDF
+                                    </button>
+                                </div>
+
+                                <!-- Actual invoice paper preview container -->
+                                <div id="invoice-paper-preview" class="invoice-paper-container" style="background: white; color: black; border: 1px solid #cbd5e1; border-radius: 4px; padding: 20px; font-family: monospace; font-size: 0.8rem; box-shadow: var(--shadow-soft); overflow-y: auto; max-height: 500px;">
+                                    <div style="text-align: center; color: #64748b; padding: 40px 0;">
+                                        <i class="fa-solid fa-receipt" style="font-size: 3rem; margin-bottom: 10px; display: block;"></i>
+                                        Elabore y procese la factura para ver la previsualización clínica oficial.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 9: FINANZAS -->
+                <section id="view-finance" class="tab-view">
+                    <div class="view-header">
+                        <div>
+                            <h1>Módulo de Finanzas</h1>
+                            <p class="subtitle">Gestión de Cuentas por Pagar, Cuentas por Cobrar de pacientes y Flujo de Caja en tiempo real.</p>
+                        </div>
+                    </div>
+
+                    <!-- Finance Tabs -->
+                    <div class="card mb-20">
+                        <div class="subtabs">
+                            <button class="subtab-btn active" data-subtab="bills-payable">Cuentas por Pagar</button>
+                            <button class="subtab-btn" data-subtab="receivables">Cuentas por Cobrar</button>
+                            <button class="subtab-btn" data-subtab="cash-flow">Flujo de Caja</button>
+                        </div>
+                    </div>
+
+                    <!-- SUBTAB: Cuentas por Pagar -->
+                    <div id="subtab-bills-payable" class="subtab-content active">
+                        <div class="grid-2-col">
+                            <!-- Registrar Gasto / Proveedor -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3 id="payable-form-title"><i class="fa-solid fa-plus-circle text-cyan"></i> Registrar Gasto / Cuenta por Pagar</h3>
+                                </div>
+                                <div class="card-body">
+                                    <form id="form-payable" class="grid-form">
+                                        <input type="hidden" id="payable-id">
+                                        <div class="form-group span-2">
+                                            <label class="form-label" for="pay-provider">Proveedor / Concepto *</label>
+                                            <input type="text" id="pay-provider" class="form-control" required placeholder="ej: Corpoelec, Cantv, Agua de Mérida, etc.">
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label" for="pay-service">Servicio / Descripción *</label>
+                                            <input type="text" id="pay-service" class="form-control" required placeholder="ej: Electricidad del consultorio, Internet de fibra">
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label" for="pay-amount">Monto ($ USD) *</label>
+                                            <input type="number" id="pay-amount" class="form-control" step="0.01" required placeholder="50.00">
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label" for="pay-due-date">Fecha de Vencimiento *</label>
+                                            <input type="date" id="pay-due-date" class="form-control" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label" for="pay-status">Estado</label>
+                                            <select id="pay-status" class="form-control">
+                                                <option value="Pendiente">Pendiente</option>
+                                                <option value="Pagado">Pagado</option>
+                                            </select>
+                                        </div>
+                                        <div class="span-2 flex-row gap-10 mt-10">
+                                            <button type="submit" class="btn btn-primary flex-1" id="btn-save-payable">Guardar Registro</button>
+                                            <button type="button" class="btn btn-outline" id="btn-cancel-payable" style="display: none;">Cancelar</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+
+                            <!-- Listado de Cuentas por Pagar -->
+                            <div class="card">
+                                <div class="card-header border-bottom">
+                                    <h3><i class="fa-solid fa-list text-purple"></i> Gastos y Facturas de Proveedores</h3>
+                                </div>
+                                <div class="card-body p-0">
+                                    <!-- Alert notifications for due dates -->
+                                    <div id="payable-reminders" style="padding: 10px; background: rgba(239, 68, 68, 0.08); border-bottom: 1px solid var(--border-color);">
+                                        <!-- Filled dynamically -->
+                                    </div>
+                                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                        <table class="table table-compact">
+                                            <thead>
+                                                <tr>
+                                                    <th>Proveedor</th>
+                                                    <th>Servicio</th>
+                                                    <th>Monto</th>
+                                                    <th>Vence</th>
+                                                    <th>Estado</th>
+                                                    <th>Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="finance-payables-tbody">
+                                                <!-- Dynamic bills list -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SUBTAB: Cuentas por Cobrar (Pacientes con saldo pendiente) -->
+                    <div id="subtab-receivables" class="subtab-content">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3><i class="fa-solid fa-user-clock text-amber"></i> Pacientes con Deudas Pendientes</h3>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Cédula / ID</th>
+                                                <th>Paciente</th>
+                                                <th>Contacto WhatsApp</th>
+                                                <th>Concepto Pendiente</th>
+                                                <th>Total Histórico</th>
+                                                <th>Total Abonado</th>
+                                                <th>Monto Pendiente ($ USD)</th>
+                                                <th>Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="finance-receivables-tbody">
+                                            <!-- Dynamic accounts receivable -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SUBTAB: Flujo de Caja (Cash Flow) -->
+                    <div id="subtab-cash-flow" class="subtab-content">
+                        <div class="stats-grid mb-20">
+                            <div class="stat-card border-green">
+                                <div class="stat-header">
+                                    <span>Ingresos Acumulados</span>
+                                    <div class="stat-icon green"><i class="fa-solid fa-arrow-trend-up"></i></div>
+                                </div>
+                                <h2 id="cf-total-inflows">$0.00</h2>
+                                <small class="text-muted" id="cf-inflows-details">0 transacciones registradas</small>
+                            </div>
+                            <div class="stat-card border-red">
+                                <div class="stat-header">
+                                    <span>Egresos / Gastos</span>
+                                    <div class="stat-icon red"><i class="fa-solid fa-arrow-trend-down"></i></div>
+                                </div>
+                                <h2 id="cf-total-outflows">$0.00</h2>
+                                <small class="text-muted" id="cf-outflows-details">0 facturas de proveedores</small>
+                            </div>
+                            <div class="stat-card border-cyan">
+                                <div class="stat-header">
+                                    <span>Balance Netos</span>
+                                    <div class="stat-icon cyan"><i class="fa-solid fa-wallet"></i></div>
+                                </div>
+                                <h2 id="cf-net-balance">$0.00</h2>
+                                <small id="cf-balance-status" class="trend up">Estado Financiero Positivo</small>
+                            </div>
+                        </div>
+
+                        <!-- Statement of Flows -->
+                        <div class="card">
+                            <div class="card-header border-bottom">
+                                <h3><i class="fa-solid fa-chart-line text-cyan"></i> Historial Detallado de Flujo de Caja</h3>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-compact">
+                                        <thead>
+                                            <tr>
+                                                <th>Fecha</th>
+                                                <th>Concepto / Descripción</th>
+                                                <th>Tipo</th>
+                                                <th>Moneda/Método</th>
+                                                <th>Monto ($ USD)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="finance-cashflow-tbody">
+                                            <!-- Dynamic flow records -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 10: PAPELERÍA -->
+                <section id="view-stationery" class="tab-view">
+                    <div class="view-header">
+                        <div>
+                            <h1>Configuración de Papelería</h1>
+                            <p class="subtitle">Defina el membrete clínico predeterminado, logo de la clínica y previsualice en tiempo real.</p>
+                        </div>
+                    </div>
+
+                    <div class="grid-2-col">
+                        <!-- Customization Panel -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3><i class="fa-solid fa-sliders text-cyan"></i> Membrete y Datos Clínicos</h3>
+                            </div>
+                            <div class="card-body flex-column gap-15">
+                                <div class="form-group">
+                                    <label class="form-label" for="stat-logo-upload">Logo de la Clínica (Base64)</label>
+                                    <div style="display: flex; gap: 10px; align-items: center;">
+                                        <input type="file" id="stat-logo-upload" class="form-control" accept="image/*" style="padding: 4px;">
+                                        <button class="btn btn-xs btn-outline text-red" id="btn-clear-stat-logo" title="Eliminar Logo"><i class="fa-solid fa-trash"></i></button>
+                                    </div>
+                                    <div id="stat-logo-preview-img-container" class="mt-5 hidden" style="border: 1px solid var(--border-color); padding: 5px; border-radius: var(--radius-sm); width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
+                                        <img id="stat-logo-preview-img" src="" alt="Clinic Logo" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label" for="stat-header-text">Texto del Encabezado (Membrete)</label>
+                                    <textarea id="stat-header-text" class="form-control" rows="3" placeholder="DentalCare Pro - Clínica Odontológica Especializada&#10;Dr. Alejandro Silva - C.O.V-14920&#10;Av. Principal, Mérida - WhatsApp: +584141234567"></textarea>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label" for="stat-footer-text">Texto de Pie de Página Predeterminado</label>
+                                    <textarea id="stat-footer-text" class="form-control" rows="2" placeholder="Gracias por su confianza. Todo tratamiento dental requiere control periódico cada 6 meses."></textarea>
+                                </div>
+
+                                <button class="btn btn-primary" id="btn-save-stationery-config">
+                                    <i class="fa-solid fa-save"></i> Guardar Configuración
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Live Preview and Document Templates -->
+                        <div class="card flex-column">
+                            <div class="card-header border-bottom" style="flex-wrap: wrap;">
+                                <h3><i class="fa-solid fa-eye text-green"></i> Previsualización en Tiempo Real</h3>
+                                <div class="subtabs" style="margin-left: auto;">
+                                    <button class="subtab-btn active" data-preview-template="factura">Factura</button>
+                                    <button class="subtab-btn" data-preview-template="cotizacion">Cotización</button>
+                                    <button class="subtab-btn" data-preview-template="recibo">Recibo</button>
+                                </div>
+                            </div>
+                            <div class="card-body flex-column gap-15">
+                                <div class="flex-row gap-10">
+                                    <button class="btn btn-sm btn-success flex-1" id="btn-print-preview-stationery">
+                                        <i class="fa-solid fa-print"></i> Imprimir Documento
+                                    </button>
+                                    <button class="btn btn-sm btn-primary flex-1" id="btn-pdf-preview-stationery">
+                                        <i class="fa-solid fa-file-pdf"></i> Descargar PDF
+                                    </button>
+                                </div>
+
+                                <!-- Previsualizador en vivo -->
+                                <div id="stationery-live-paper" style="background: white; color: black; border: 1px solid #cbd5e1; border-radius: 4px; padding: 25px; font-family: monospace; font-size: 0.85rem; box-shadow: var(--shadow-soft); overflow-y: auto; height: 450px;">
+                                    <!-- Dynamic content based on selected template and fields -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- MODAL: AGREGAR ITEM A FACTURACIÓN -->
+                <div class="modal-overlay hidden" id="modal-add-item-billing">
+                    <div class="modal-dialog">
+                        <div class="modal-header">
+                            <h3><i class="fa-solid fa-plus-circle text-cyan"></i> Agregar Procedimiento del Baremo</h3>
+                            <button class="modal-close" data-close="modal-add-item-billing">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="form-group mb-15">
+                                <label><strong>Seleccionar Procedimiento del Baremo:</strong></label>
+                                <select id="item-baremo-select-billing" class="form-control">
+                                    <!-- Baremo options loaded dynamically -->
+                                </select>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-outline" data-close="modal-add-item-billing">Cancelar</button>
+                            <button class="btn btn-primary" id="btn-confirm-add-item-billing">Añadir a la Factura</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
@@ -866,6 +1311,10 @@
                         <label>Precio Base ($ USD) *</label>
                         <input type="number" id="srv-price" step="0.01" required placeholder="120.00">
                     </div>
+                    <div class="form-group">
+                        <label>Bonificación Higienista ($ USD)</label>
+                        <input type="number" id="srv-hygienist-bonus" step="0.01" value="0.00" placeholder="0.00">
+                    </div>
                     <div class="form-group span-2">
                         <label>Tiempo Estimado en Silla (Minutos)</label>
                         <input type="number" id="srv-time" value="45">
@@ -953,6 +1402,30 @@
                         <label>Nº Colegiado / Matrícula Sanitaria</label>
                         <input type="text" id="u-license" placeholder="MPPS-98402 / C.O.V-20104">
                     </div>
+                    <div id="doctor-profile-fields" class="span-2 hidden" style="border: 1px solid var(--border-color); padding: 12px; border-radius: 6px; background-color: rgba(0,0,0,0.02); margin-top: 10px;">
+                        <h4 style="margin-top: 0; margin-bottom: 10px; color: var(--primary-cyan);"><i class="fa-solid fa-user-md"></i> Perfil Clínico / Datos de Médico</h4>
+                        <div class="grid-form" style="grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div class="form-group span-2">
+                                <label>Asignación de Servicios (Seleccione múltiples del Baremo) *</label>
+                                <select id="u-services" class="form-control" multiple style="height: 100px;">
+                                    <!-- Populated dynamically from baremo -->
+                                </select>
+                                <small class="text-muted">Mantenga presionado Ctrl (o Cmd) para seleccionar múltiples servicios.</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Horario / Turnos Asignados *</label>
+                                <input type="text" id="u-schedule" placeholder="ej: Lunes a Viernes 8:00 AM - 1:00 PM">
+                            </div>
+                            <div class="form-group">
+                                <label>Porcentaje de Comisión (%) *</label>
+                                <input type="number" id="u-commission" min="0" max="100" placeholder="ej: 30" step="0.5">
+                            </div>
+                            <div class="form-group span-2">
+                                <label>Disponibilidad por Servicio / Observaciones:</label>
+                                <input type="text" id="u-availability" placeholder="ej: Solo disponible para Endodoncias los Miércoles por la tarde">
+                            </div>
+                        </div>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -970,12 +1443,19 @@
                 <button class="modal-close" data-close="modal-patient">&times;</button>
             </div>
             <div class="modal-body">
-                <form id="form-patient" class="grid-form">
+                <form id="form-patient" class="grid-form" style="max-height: 60vh; overflow-y: auto; padding-right: 5px;">
+                    <div class="form-group">
+                        <label>Tipo de Paciente *</label>
+                        <select id="p-type" required>
+                            <option value="Adulto" selected>Adulto</option>
+                            <option value="Infantil">Infantil (Menor de Edad)</option>
+                        </select>
+                    </div>
                     <div class="form-group">
                         <label>Cédula / Documento Identidad *</label>
                         <input type="text" id="p-id" required placeholder="V-18492102">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group span-2">
                         <label>Nombres Completos *</label>
                         <input type="text" id="p-fullname" required placeholder="María Elena Rodríguez">
                     </div>
@@ -984,25 +1464,247 @@
                         <input type="date" id="p-birthdate" required>
                     </div>
                     <div class="form-group">
-                        <label>WhatsApp / Teléfono *</label>
-                        <input type="tel" id="p-phone" required placeholder="+584141234567">
+                        <label>Edad *</label>
+                        <input type="number" id="p-age" min="0" required placeholder="ej: 28">
+                    </div>
+                    <div class="form-group">
+                        <label>Sexo *</label>
+                        <select id="p-gender" required>
+                            <option value="Femenino">Femenino</option>
+                            <option value="Masculino">Masculino</option>
+                            <option value="Otro">Otro</option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label>Correo Electrónico</label>
                         <input type="email" id="p-email" placeholder="paciente@gmail.com">
                     </div>
                     <div class="form-group">
-                        <label>Ocupación</label>
-                        <input type="text" id="p-occupation" placeholder="Docente / Ingeniero">
+                        <label>Profesión / Ocupación *</label>
+                        <input type="text" id="p-profession" required placeholder="ej: Docente / Ingeniero">
+                    </div>
+                    <div class="form-group">
+                        <label>Telf. Celular (WhatsApp) *</label>
+                        <input type="tel" id="p-mobile-phone" required placeholder="+584141234567">
+                    </div>
+                    <div class="form-group">
+                        <label>Telf. Local</label>
+                        <input type="tel" id="p-local-phone" placeholder="0212-1234567">
+                    </div>
+                    <div class="form-group">
+                        <label>Telf. Trabajo</label>
+                        <input type="tel" id="p-work-phone" placeholder="0212-7654321">
+                    </div>
+                    <div class="form-group span-2">
+                        <label>Dirección Habitación *</label>
+                        <input type="text" id="p-address" required placeholder="Av. Principal, Edificio X, Apto Y">
+                    </div>
+                    <div class="form-group span-2">
+                        <label>Motivo de Consulta *</label>
+                        <textarea id="p-consult-reason" required rows="2" placeholder="Dolor en molar inferior derecho, limpieza general, etc."></textarea>
                     </div>
 
-                    <!-- Ficha Médica de Cabecera (Antecedentes) -->
-                    <div class="form-section-title span-2">
-                        <i class="fa-solid fa-notes-medical text-red"></i> Ficha Médica de Cabecera & Alergias
+                    <!-- Representante (Condicional para Infantil) -->
+                    <div id="representative-fields" class="span-2 hidden" style="border: 1px solid var(--border-color); padding: 12px; border-radius: 6px; background-color: rgba(0,0,0,0.02); margin-top: 10px;">
+                        <h4 style="margin-top:0; margin-bottom:10px; color: var(--primary-cyan);"><i class="fa-solid fa-user-shield"></i> Datos del Representante Legal</h4>
+                        <div class="grid-form">
+                            <div class="form-group">
+                                <label>Nombre del Representante *</label>
+                                <input type="text" id="p-rep-name" placeholder="ej: Juan Pérez">
+                            </div>
+                            <div class="form-group">
+                                <label>C.I. del Representante *</label>
+                                <input type="text" id="p-rep-id" placeholder="ej: V-12345678">
+                            </div>
+                            <div class="form-group">
+                                <label>Teléfono del Representante *</label>
+                                <input type="text" id="p-rep-phone" placeholder="ej: +584121234567">
+                            </div>
+                            <div class="form-group">
+                                <label>Parentesco *</label>
+                                <input type="text" id="p-rep-relation" placeholder="ej: Padre / Madre / Tutor">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ANAMNESIS CLÍNICA -->
+                    <div class="form-section-title span-2" style="margin-top: 15px;">
+                        <i class="fa-solid fa-notes-medical text-red"></i> Anamnesis / Historia Médica
+                    </div>
+
+                    <div class="form-group">
+                        <label>¿Bajo tratamiento médico actualmente? *</label>
+                        <select id="p-medical-treatment" required>
+                            <option value="NO">NO</option>
+                            <option value="SI">SI</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Detalles del tratamiento:</label>
+                        <input type="text" id="p-medical-treatment-details" placeholder="Especifique tratamiento o medicación">
                     </div>
 
                     <div class="form-group span-2">
-                        <label>Alergias a Medicamentos / Insumos:</label>
+                        <label>Enfermedades de la Niñez:</label>
+                        <input type="text" id="p-child-diseases" placeholder="ej: Varicela, sarampión, rubéola, parotiditis...">
+                    </div>
+
+                    <div class="form-group">
+                        <label>¿Alergias a sustancias/medicamentos? *</label>
+                        <select id="p-has-allergies" required>
+                            <option value="NO">NO</option>
+                            <option value="SI">SI</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Detalles de Alergias:</label>
+                        <input type="text" id="p-allergies-details" placeholder="Especifique alergias">
+                    </div>
+
+                    <div class="form-group span-2">
+                        <label>Intervenciones Quirúrgicas (Qx):</label>
+                        <input type="text" id="p-surgeries" placeholder="Especifique cirugías previas y fechas aproximadas">
+                    </div>
+
+                    <div class="form-group">
+                        <label>¿Sangra mucho al cortarse o extraer un diente? *</label>
+                        <select id="p-bleeding-issue" required>
+                            <option value="NO">NO</option>
+                            <option value="SI">SI</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Trastornos respiratorios (Adenoides/Amígdalas) *</label>
+                        <select id="p-respiratory-issues" required>
+                            <option value="NO">NO</option>
+                            <option value="SI">SI</option>
+                        </select>
+                    </div>
+                    <div class="form-group span-2">
+                        <label>Detalles trastornos respiratorios:</label>
+                        <input type="text" id="p-respiratory-issues-details" placeholder="Especifique si padece amígdalas, adenoides u otros">
+                    </div>
+
+                    <div class="form-group">
+                        <label>¿Reacción anormal a anestesia dental? *</label>
+                        <select id="p-anesthesia-reaction" required>
+                            <option value="NO">NO</option>
+                            <option value="SI">SI</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Detalles reacción anestesia:</label>
+                        <input type="text" id="p-anesthesia-reaction-details" placeholder="Especifique síntomas presentados">
+                    </div>
+
+                    <div class="form-group">
+                        <label>¿Alérgico a la Penicilina? *</label>
+                        <select id="p-penicillin-allergy" required>
+                            <option value="NO">NO</option>
+                            <option value="SI">SI</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Detalles alergia penicilina:</label>
+                        <input type="text" id="p-penicillin-allergy-details" placeholder="Reacción experimentada">
+                    </div>
+
+                    <div class="form-group">
+                        <label>¿Problemas del corazón / Cardiopatías? *</label>
+                        <select id="p-heart-issues" required>
+                            <option value="NO">NO</option>
+                            <option value="SI">SI</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Detalles problemas del corazón:</label>
+                        <input type="text" id="p-heart-issues-details" placeholder="ej: Soplos, arritmias, hipertensión severa...">
+                    </div>
+
+                    <!-- EXAMEN EXTRAORAL -->
+                    <div class="form-section-title span-2" style="margin-top: 15px;">
+                        <i class="fa-solid fa-face-smile text-cyan"></i> Examen Extraoral & Hábitos Bucales
+                    </div>
+
+                    <div class="span-2" style="font-weight: 600; font-size: 0.85rem; color: var(--text-heading);">1- Condición de Tejidos Bucales:</div>
+                    <div class="form-group">
+                        <label>Paladar Duro:</label>
+                        <input type="text" id="p-tissue-hard-palate" placeholder="Normal / Observaciones">
+                    </div>
+                    <div class="form-group">
+                        <label>Paladar Blando:</label>
+                        <input type="text" id="p-tissue-soft-palate" placeholder="Normal / Observaciones">
+                    </div>
+                    <div class="form-group">
+                        <label>Piso de Boca:</label>
+                        <input type="text" id="p-tissue-mouth-floor" placeholder="Normal / Observaciones">
+                    </div>
+                    <div class="form-group">
+                        <label>Mejillas:</label>
+                        <input type="text" id="p-tissue-cheeks" placeholder="Normal / Observaciones">
+                    </div>
+                    <div class="form-group">
+                        <label>Lengua:</label>
+                        <input type="text" id="p-tissue-tongue" placeholder="Normal / Observaciones">
+                    </div>
+                    <div class="form-group">
+                        <label>Frenillo:</label>
+                        <input type="text" id="p-tissue-frenum" placeholder="Normal / Observaciones">
+                    </div>
+
+                    <div class="span-2" style="font-weight: 600; font-size: 0.85rem; color: var(--text-heading); margin-top: 5px;">2- Hábitos Bucales:</div>
+                    <div class="form-group">
+                        <label>Deglución Anormal *</label>
+                        <select id="p-habit-swallowing" required>
+                            <option value="NO">NO</option>
+                            <option value="SI">SI</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Onicofagia (Morderse las uñas) *</label>
+                        <select id="p-habit-nailbiting" required>
+                            <option value="NO">NO</option>
+                            <option value="SI">SI</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Succión Dedo *</label>
+                        <select id="p-habit-thumbsucking" required>
+                            <option value="NO">NO</option>
+                            <option value="SI">SI</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>¿Cuál dedo?</label>
+                        <input type="text" id="p-habit-thumbsucking-finger" placeholder="ej: Pulgar derecho">
+                    </div>
+                    <div class="form-group">
+                        <label>Respirador Bucal *</label>
+                        <select id="p-habit-mouthbreather" required>
+                            <option value="NO">NO</option>
+                            <option value="SI">SI</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Frecuencia de hábitos:</label>
+                        <input type="text" id="p-habit-frequency" placeholder="ej: Continuo, diurno, nocturno...">
+                    </div>
+                    <div class="form-group">
+                        <label>Intensidad de hábitos:</label>
+                        <input type="text" id="p-habit-intensity" placeholder="ej: Leve, moderada, severa...">
+                    </div>
+                    <div class="form-group span-2">
+                        <label>Otros Hábitos:</label>
+                        <input type="text" id="p-habit-others" placeholder="ej: Bruxismo, empuje lingual, etc.">
+                    </div>
+
+                    <!-- Ficha Médica de Cabecera (Retrocompatibilidad / Alertas de cabecera rápida) -->
+                    <div class="form-section-title span-2" style="margin-top: 15px;">
+                        <i class="fa-solid fa-triangle-exclamation text-amber"></i> Alertas de Cabecera Rápida (Para visualización superior)
+                    </div>
+
+                    <div class="form-group span-2">
+                        <label>Alergias Rápidas (Checkboxes):</label>
                         <div class="checkbox-group">
                             <label><input type="checkbox" name="p-allergies" value="Penicilina"> Penicilina</label>
                             <label><input type="checkbox" name="p-allergies" value="Anestésicos"> Anestésicos Locales</label>
@@ -1012,7 +1714,7 @@
                     </div>
 
                     <div class="form-group span-2">
-                        <label>Enfermedades Sistémicas:</label>
+                        <label>Sistémicas Rápidas (Checkboxes):</label>
                         <div class="checkbox-group">
                             <label><input type="checkbox" name="p-systemic" value="Hipertensión"> Hipertensión Arterial</label>
                             <label><input type="checkbox" name="p-systemic" value="Diabetes"> Diabetes Mellitus</label>
@@ -1022,8 +1724,8 @@
                     </div>
 
                     <div class="form-group span-2">
-                        <label>Medicación Actual & Observaciones Especiales:</label>
-                        <textarea id="p-medication" rows="2" placeholder="ej: Enalapril 10mg diario, paciente ansioso..."></textarea>
+                        <label>Medicación Actual & Observaciones Rápidas:</label>
+                        <textarea id="p-medication" rows="2" placeholder="ej: Enalapril 10mg diario, etc."></textarea>
                     </div>
 
                     <div class="form-group span-2">

@@ -41,7 +41,8 @@ class SupabaseDataService {
                     role: u.role,
                     license: u.license || '',
                     status: u.status || 'Activo',
-                    createdAt: u.created_at ? u.created_at.split('T')[0] : '2026-01-10'
+                    createdAt: u.created_at ? u.created_at.split('T')[0] : '2026-01-10',
+                    doctorProfile: u.doctor_profile || {}
                 }));
                 localStorage.setItem('dental_users', JSON.stringify(mapped));
                 return mapped;
@@ -69,7 +70,8 @@ class SupabaseDataService {
                     password: userObj.password,
                     role: userObj.role,
                     license: userObj.license || null,
-                    status: userObj.status || 'Activo'
+                    status: userObj.status || 'Activo',
+                    doctor_profile: userObj.doctorProfile || {}
                 });
                 if (error) console.error('Supabase saveUser Cloud Error:', error);
             } catch (err) {
@@ -109,7 +111,8 @@ class SupabaseDataService {
                     name: d.name,
                     priceUSD: parseFloat(d.price_usd),
                     chairTimeMin: d.chair_time_min,
-                    materials: d.materials || []
+                    materials: d.materials || [],
+                    hygienistBonus: parseFloat(d.hygienist_bonus || 0)
                 }));
                 localStorage.setItem('dental_baremo', JSON.stringify(mapped));
                 return mapped;
@@ -136,7 +139,8 @@ class SupabaseDataService {
                     name: srvObj.name,
                     price_usd: srvObj.priceUSD,
                     chair_time_min: srvObj.chairTimeMin,
-                    materials: srvObj.materials || []
+                    materials: srvObj.materials || [],
+                    hygienist_bonus: srvObj.hygienistBonus || 0
                 });
                 if (error) console.error('Supabase saveBaremoService Cloud Error:', error);
             } catch (err) {
@@ -185,7 +189,8 @@ class SupabaseDataService {
                     odontogramData: p.odontogram_data || {},
                     clinicalNotes: p.clinical_notes || [],
                     photos: p.photos || [],
-                    payments: p.payments || []
+                    payments: p.payments || [],
+                    metadata: p.metadata || {}
                 }));
                 localStorage.setItem('dental_patients', JSON.stringify(mapped));
                 return mapped;
@@ -218,7 +223,11 @@ class SupabaseDataService {
                     medication: patientObj.medication || null,
                     emergency_contact: patientObj.emergencyContact || null,
                     status: patientObj.status || 'Activo',
-                    odontogram_data: patientObj.odontogramData || {}
+                    odontogram_data: patientObj.odontogramData || {},
+                    clinical_notes: patientObj.clinicalNotes || [],
+                    photos: patientObj.photos || [],
+                    payments: patientObj.payments || [],
+                    metadata: patientObj.metadata || {}
                 });
                 if (error) console.error('Supabase savePatient Cloud Error:', error);
             } catch (err) {
@@ -373,6 +382,201 @@ class SupabaseDataService {
                 await supabaseClient.from('kardex_inventory').delete().eq('code', code);
             } catch (err) {
                 console.error('Supabase deleteInventoryItem Error:', err);
+            }
+        }
+    }
+
+    // ==========================================
+    // 6. INVOICES
+    // ==========================================
+    static async getInvoices() {
+        if (!this.isCloudConnected()) {
+            return JSON.parse(localStorage.getItem('dental_invoices')) || [];
+        }
+        try {
+            const { data, error } = await supabaseClient.from('invoices').select('*');
+            if (error) throw error;
+            if (data && data.length > 0) {
+                const mapped = data.map(i => ({
+                    id: i.id,
+                    patientId: i.patient_id,
+                    invoiceDate: i.invoice_date,
+                    paymentMethod: i.payment_method,
+                    paymentTerms: i.payment_terms,
+                    currency: i.currency,
+                    items: i.items || [],
+                    totalRef: parseFloat(i.total_ref),
+                    totalBcv: parseFloat(i.total_bcv),
+                    status: i.status || 'Emitida',
+                    footerText: i.footer_text
+                }));
+                localStorage.setItem('dental_invoices', JSON.stringify(mapped));
+                return mapped;
+            }
+            return JSON.parse(localStorage.getItem('dental_invoices')) || [];
+        } catch (err) {
+            console.error('Supabase getInvoices Error:', err);
+            return JSON.parse(localStorage.getItem('dental_invoices')) || [];
+        }
+    }
+
+    static async saveInvoice(invoiceObj) {
+        let localInvs = JSON.parse(localStorage.getItem('dental_invoices')) || [];
+        const idx = localInvs.findIndex(i => i.id === invoiceObj.id);
+        if (idx >= 0) localInvs[idx] = invoiceObj;
+        else localInvs.push(invoiceObj);
+        localStorage.setItem('dental_invoices', JSON.stringify(localInvs));
+
+        if (this.isCloudConnected()) {
+            try {
+                const { error } = await supabaseClient.from('invoices').upsert({
+                    id: invoiceObj.id,
+                    patient_id: invoiceObj.patientId,
+                    invoice_date: invoiceObj.invoiceDate,
+                    payment_method: invoiceObj.paymentMethod,
+                    payment_terms: invoiceObj.paymentTerms,
+                    currency: invoiceObj.currency || 'REF',
+                    items: invoiceObj.items || [],
+                    total_ref: invoiceObj.totalRef,
+                    total_bcv: invoiceObj.totalBcv,
+                    status: invoiceObj.status || 'Emitida',
+                    footer_text: invoiceObj.footerText
+                });
+                if (error) console.error('Supabase saveInvoice Cloud Error:', error);
+            } catch (err) {
+                console.error('Supabase saveInvoice Exception:', err);
+            }
+        }
+    }
+
+    static async deleteInvoice(invoiceId) {
+        let localInvs = JSON.parse(localStorage.getItem('dental_invoices')) || [];
+        localInvs = localInvs.filter(i => i.id !== invoiceId);
+        localStorage.setItem('dental_invoices', JSON.stringify(localInvs));
+
+        if (this.isCloudConnected()) {
+            try {
+                await supabaseClient.from('invoices').delete().eq('id', invoiceId);
+            } catch (err) {
+                console.error('Supabase deleteInvoice Error:', err);
+            }
+        }
+    }
+
+    // ==========================================
+    // 7. PROVIDER BILLS (Cuentas por pagar)
+    // ==========================================
+    static async getProviderBills() {
+        if (!this.isCloudConnected()) {
+            return JSON.parse(localStorage.getItem('dental_provider_bills')) || [];
+        }
+        try {
+            const { data, error } = await supabaseClient.from('provider_bills').select('*');
+            if (error) throw error;
+            if (data && data.length > 0) {
+                const mapped = data.map(b => ({
+                    id: b.id,
+                    providerName: b.provider_name,
+                    serviceName: b.service_name,
+                    amount: parseFloat(b.amount),
+                    dueDate: b.due_date,
+                    status: b.status || 'Pendiente'
+                }));
+                localStorage.setItem('dental_provider_bills', JSON.stringify(mapped));
+                return mapped;
+            }
+            return JSON.parse(localStorage.getItem('dental_provider_bills')) || [];
+        } catch (err) {
+            console.error('Supabase getProviderBills Error:', err);
+            return JSON.parse(localStorage.getItem('dental_provider_bills')) || [];
+        }
+    }
+
+    static async saveProviderBill(billObj) {
+        let localBills = JSON.parse(localStorage.getItem('dental_provider_bills')) || [];
+        const idx = localBills.findIndex(b => b.id === billObj.id);
+        if (idx >= 0) localBills[idx] = billObj;
+        else localBills.push(billObj);
+        localStorage.setItem('dental_provider_bills', JSON.stringify(localBills));
+
+        if (this.isCloudConnected()) {
+            try {
+                const { error } = await supabaseClient.from('provider_bills').upsert({
+                    id: billObj.id,
+                    provider_name: billObj.providerName,
+                    service_name: billObj.serviceName,
+                    amount: billObj.amount,
+                    due_date: billObj.dueDate,
+                    status: billObj.status || 'Pendiente'
+                });
+                if (error) console.error('Supabase saveProviderBill Cloud Error:', error);
+            } catch (err) {
+                console.error('Supabase saveProviderBill Exception:', err);
+            }
+        }
+    }
+
+    static async deleteProviderBill(billId) {
+        let localBills = JSON.parse(localStorage.getItem('dental_provider_bills')) || [];
+        localBills = localBills.filter(b => b.id !== billId);
+        localStorage.setItem('dental_provider_bills', JSON.stringify(localBills));
+
+        if (this.isCloudConnected()) {
+            try {
+                await supabaseClient.from('provider_bills').delete().eq('id', billId);
+            } catch (err) {
+                console.error('Supabase deleteProviderBill Error:', err);
+            }
+        }
+    }
+
+    // ==========================================
+    // 8. STATIONERY CONFIG
+    // ==========================================
+    static async getStationeryConfig() {
+        const defaultDoc = {
+            id: 'default',
+            headerText: 'DentalCare Pro - Clínica Odontológica Especializada\nDr. Alejandro Silva - C.O.V-14920\nAv. Principal, Mérida - WhatsApp: +584141234567',
+            footerText: 'Gracias por su confianza. Todo tratamiento dental requiere control periódico cada 6 meses.',
+            logoUrl: ''
+        };
+        if (!this.isCloudConnected()) {
+            return JSON.parse(localStorage.getItem('dental_stationery_config')) || defaultDoc;
+        }
+        try {
+            const { data, error } = await supabaseClient.from('stationery_config').select('*').eq('id', 'default');
+            if (error) throw error;
+            if (data && data.length > 0) {
+                const mapped = {
+                    id: data[0].id,
+                    headerText: data[0].header_text,
+                    footerText: data[0].footer_text,
+                    logoUrl: data[0].logo_url || ''
+                };
+                localStorage.setItem('dental_stationery_config', JSON.stringify(mapped));
+                return mapped;
+            }
+            return JSON.parse(localStorage.getItem('dental_stationery_config')) || defaultDoc;
+        } catch (err) {
+            console.error('Supabase getStationeryConfig Error:', err);
+            return JSON.parse(localStorage.getItem('dental_stationery_config')) || defaultDoc;
+        }
+    }
+
+    static async saveStationeryConfig(configObj) {
+        localStorage.setItem('dental_stationery_config', JSON.stringify(configObj));
+
+        if (this.isCloudConnected()) {
+            try {
+                const { error } = await supabaseClient.from('stationery_config').upsert({
+                    id: 'default',
+                    header_text: configObj.headerText,
+                    footer_text: configObj.footerText,
+                    logo_url: configObj.logoUrl || null
+                });
+                if (error) console.error('Supabase saveStationeryConfig Cloud Error:', error);
+            } catch (err) {
+                console.error('Supabase saveStationeryConfig Exception:', err);
             }
         }
     }

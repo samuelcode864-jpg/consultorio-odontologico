@@ -293,6 +293,12 @@ function initNavigation() {
                 await renderPricingTable();
             } else if (tabName === 'users') {
                 await renderUsersTable();
+            } else if (tabName === 'billing') {
+                await renderBillingView();
+            } else if (tabName === 'finance') {
+                await renderFinanceView();
+            } else if (tabName === 'stationery') {
+                await renderStationeryView();
             }
         });
     });
@@ -754,6 +760,88 @@ async function renderEHRView() {
                 });
             } else {
                 payTbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">Sin registro de pagos o saldos pendientes. Haga clic en "+ Registrar Pago / Abono" arriba.</td></tr>`;
+            }
+
+            // Populate Ficha Detallada Tab
+            const clinicalDetailsContent = document.getElementById('ehr-clinical-details-content');
+            if (clinicalDetailsContent) {
+                const meta = activePatient.metadata || {};
+                
+                let repHtml = '';
+                if (meta.type === 'Infantil') {
+                    repHtml = `
+                        <div class="details-section" style="margin-bottom: 20px; border-top: 1px dashed var(--border-color); padding-top: 10px;">
+                            <h4 style="margin: 0 0 10px 0; color: var(--primary-cyan);"><i class="fa-solid fa-user-shield"></i> Información del Representante</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.88rem;">
+                                <div><strong>Nombre:</strong> ${meta.repName || 'N/A'}</div>
+                                <div><strong>C.I:</strong> ${meta.repId || 'N/A'}</div>
+                                <div><strong>Teléfono:</strong> ${meta.repPhone || 'N/A'}</div>
+                                <div><strong>Parentesco:</strong> ${meta.repRelation || 'N/A'}</div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                clinicalDetailsContent.innerHTML = `
+                    <div style="display: flex; flex-direction: column; gap: 15px; padding: 10px;">
+                        <div class="details-section">
+                            <h4 style="margin: 0 0 10px 0; color: var(--primary-cyan);"><i class="fa-solid fa-circle-info"></i> Datos Clínicos Básicos</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.88rem;">
+                                <div><strong>Tipo de Paciente:</strong> ${meta.type || 'Adulto'}</div>
+                                <div><strong>Edad:</strong> ${meta.age || calculateAge(activePatient.birthdate)} años</div>
+                                <div><strong>Sexo:</strong> ${meta.gender || 'N/A'}</div>
+                                <div><strong>Dirección:</strong> ${meta.address || 'N/A'}</div>
+                                <div><strong>Telf. Celular:</strong> ${meta.mobilePhone || activePatient.phone || 'N/A'}</div>
+                                <div><strong>Telf. Local:</strong> ${meta.localPhone || 'N/A'}</div>
+                                <div><strong>Telf. Trabajo:</strong> ${meta.workPhone || 'N/A'}</div>
+                                <div><strong>Profesión:</strong> ${meta.profession || activePatient.occupation || 'N/A'}</div>
+                                <div style="grid-column: span 2;"><strong>Motivo de Consulta:</strong> ${meta.consultReason || 'N/A'}</div>
+                            </div>
+                        </div>
+
+                        ${repHtml}
+
+                        <div class="details-section" style="border-top: 1px dashed var(--border-color); padding-top: 10px;">
+                            <h4 style="margin: 0 0 10px 0; color: #dc2626;"><i class="fa-solid fa-notes-medical"></i> Anamnesis / Historia Médica</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.88rem;">
+                                <div><strong>¿Bajo tratamiento médico?:</strong> ${meta.medicalTreatment || 'NO'} ${meta.medicalTreatmentDetails ? `(${meta.medicalTreatmentDetails})` : ''}</div>
+                                <div><strong>Enfermedades de la Niñez:</strong> ${meta.childDiseases || 'Ninguna'}</div>
+                                <div><strong>¿Alergias?:</strong> ${meta.hasAllergies || 'NO'} ${meta.allergiesDetails ? `(${meta.allergiesDetails})` : ''}</div>
+                                <div><strong>Intervenciones Quirúrgicas:</strong> ${meta.surgeries || 'Ninguna'}</div>
+                                <div><strong>¿Sangra mucho al cortarse/extraer?:</strong> ${meta.bleedingIssue || 'NO'}</div>
+                                <div><strong>Trastornos respiratorios:</strong> ${meta.respiratoryIssues || 'NO'} ${meta.respiratoryIssuesDetails ? `(${meta.respiratoryIssuesDetails})` : ''}</div>
+                                <div><strong>¿Reacción anormal a anestesia?:</strong> ${meta.anesthesiaReaction || 'NO'} ${meta.anesthesiaReactionDetails ? `(${meta.anesthesiaReactionDetails})` : ''}</div>
+                                <div><strong>¿Alérgico a la Penicilina?:</strong> ${meta.penicillinAllergy || 'NO'} ${meta.penicillinAllergyDetails ? `(${meta.penicillinAllergyDetails})` : ''}</div>
+                                <div style="grid-column: span 2;"><strong>¿Problemas del corazón?:</strong> ${meta.heartIssues || 'NO'} ${meta.heartIssuesDetails ? `(${meta.heartIssuesDetails})` : ''}</div>
+                            </div>
+                        </div>
+
+                        <div class="details-section" style="border-top: 1px dashed var(--border-color); padding-top: 10px;">
+                            <h4 style="margin: 0 0 10px 0; color: var(--primary-cyan);"><i class="fa-solid fa-face-smile"></i> Examen Extraoral (Tejidos Bucales)</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.88rem;">
+                                <div><strong>Paladar Duro:</strong> ${meta.tissueHardPalate || 'Normal'}</div>
+                                <div><strong>Paladar Blando:</strong> ${meta.tissueSoftPalate || 'Normal'}</div>
+                                <div><strong>Piso de Boca:</strong> ${meta.tissueMouthFloor || 'Normal'}</div>
+                                <div><strong>Mejillas:</strong> ${meta.tissueCheeks || 'Normal'}</div>
+                                <div><strong>Lengua:</strong> ${meta.tissueTongue || 'Normal'}</div>
+                                <div><strong>Frenillo:</strong> ${meta.tissueFrenum || 'Normal'}</div>
+                            </div>
+                        </div>
+
+                        <div class="details-section" style="border-top: 1px dashed var(--border-color); padding-top: 10px;">
+                            <h4 style="margin: 0 0 10px 0; color: var(--primary-cyan);"><i class="fa-solid fa-hand-holding-hand"></i> Hábitos Bucales</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.88rem;">
+                                <div><strong>Deglución Anormal:</strong> ${meta.habitSwallowing || 'NO'}</div>
+                                <div><strong>Onicofagia:</strong> ${meta.habitNailbiting || 'NO'}</div>
+                                <div><strong>Succión Dedo:</strong> ${meta.habitThumbsucking || 'NO'} ${meta.habitThumbsuckingFinger ? `(${meta.habitThumbsuckingFinger})` : ''}</div>
+                                <div><strong>Respirador Bucal:</strong> ${meta.habitMouthbreather || 'NO'}</div>
+                                <div><strong>Frecuencia:</strong> ${meta.habitFrequency || 'N/A'}</div>
+                                <div><strong>Intensidad:</strong> ${meta.habitIntensity || 'N/A'}</div>
+                                <div style="grid-column: span 2;"><strong>Otros Hábitos:</strong> ${meta.habitOthers || 'Ninguno'}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
             }
         }
     }
@@ -1309,6 +1397,7 @@ async function renderPricingTable() {
             <td>${p.name}</td>
             <td class="text-cyan"><strong>$${p.priceUSD.toFixed(2)}</strong></td>
             <td>Bs. ${priceVES}</td>
+            <td><strong>$${(p.hygienistBonus || 0).toFixed(2)}</strong></td>
             <td>${p.chairTimeMin} min</td>
             <td>${p.materials ? p.materials.length : 0} insumos</td>
             <td>
@@ -1407,6 +1496,70 @@ window.deleteUser = async function(userId) {
 // GLOBAL EVENTS & MODALS BINDING
 // ==========================================
 function initGlobalEvents() {
+    // Conditional display for Infantil in Patient Modal
+    const pTypeSelect = document.getElementById('p-type');
+    const repFieldsDiv = document.getElementById('representative-fields');
+    if (pTypeSelect && repFieldsDiv) {
+        pTypeSelect.onchange = () => {
+            const isChild = pTypeSelect.value === 'Infantil';
+            if (isChild) {
+                repFieldsDiv.classList.remove('hidden');
+                document.getElementById('p-rep-name').setAttribute('required', 'true');
+                document.getElementById('p-rep-id').setAttribute('required', 'true');
+                document.getElementById('p-rep-phone').setAttribute('required', 'true');
+                document.getElementById('p-rep-relation').setAttribute('required', 'true');
+            } else {
+                repFieldsDiv.classList.add('hidden');
+                document.getElementById('p-rep-name').removeAttribute('required');
+                document.getElementById('p-rep-id').removeAttribute('required');
+                document.getElementById('p-rep-phone').removeAttribute('required');
+                document.getElementById('p-rep-relation').removeAttribute('required');
+            }
+        };
+    }
+
+    // Conditional display for Doctor role in User Modal
+    const uRoleSelect = document.getElementById('u-role');
+    const docFieldsDiv = document.getElementById('doctor-profile-fields');
+    if (uRoleSelect && docFieldsDiv) {
+        // Populating doctor services select on opening
+        const btnNewUM = document.getElementById('btn-new-user-modal');
+        if (btnNewUM) {
+            const originalClick = btnNewUM.onclick;
+            btnNewUM.onclick = async (e) => {
+                if (originalClick) originalClick(e);
+                await populateDoctorServicesSelect();
+            };
+        }
+
+        uRoleSelect.onchange = () => {
+            const role = uRoleSelect.value;
+            const isDoctor = role.includes('Odontólogo') || role.includes('Especialista') || role.includes('Cirujano');
+            if (isDoctor) {
+                docFieldsDiv.classList.remove('hidden');
+                document.getElementById('u-schedule').setAttribute('required', 'true');
+                document.getElementById('u-commission').setAttribute('required', 'true');
+            } else {
+                docFieldsDiv.classList.add('hidden');
+                document.getElementById('u-schedule').removeAttribute('required');
+                document.getElementById('u-commission').removeAttribute('required');
+            }
+        };
+    }
+
+    async function populateDoctorServicesSelect() {
+        const select = document.getElementById('u-services');
+        if (!select) return;
+        select.innerHTML = '';
+        const baremo = await SupabaseDataService.getBaremo();
+        baremo.forEach(proc => {
+            const opt = document.createElement('option');
+            opt.value = proc.code;
+            opt.innerText = `${proc.name} ($${proc.priceUSD})`;
+            select.appendChild(opt);
+        });
+    }
+
     const loginForm = document.getElementById('form-login');
     if (loginForm) {
         loginForm.onsubmit = (e) => {
@@ -1659,6 +1812,7 @@ function initGlobalEvents() {
             const name = document.getElementById('srv-name').value.trim();
             const category = document.getElementById('srv-category').value;
             const priceUSD = parseFloat(document.getElementById('srv-price').value) || 0;
+            const hygienistBonus = parseFloat(document.getElementById('srv-hygienist-bonus').value) || 0;
             const chairTimeMin = parseInt(document.getElementById('srv-time').value) || 30;
 
             if (!code || !name || priceUSD <= 0) {
@@ -1666,7 +1820,7 @@ function initGlobalEvents() {
                 return;
             }
 
-            await SupabaseDataService.saveBaremoService({ code, name, category, priceUSD, chairTimeMin, materials: [] });
+            await SupabaseDataService.saveBaremoService({ code, name, category, priceUSD, chairTimeMin, materials: [], hygienistBonus });
 
             closeModal('modal-service');
             await renderPricingTable();
@@ -1747,6 +1901,23 @@ function initGlobalEvents() {
                 return;
             }
 
+            const isDoctor = role.includes('Odontólogo') || role.includes('Especialista') || role.includes('Cirujano');
+            let doctorProfile = null;
+
+            if (isDoctor) {
+                const assignedServices = Array.from(document.getElementById('u-services').selectedOptions).map(opt => opt.value);
+                const schedule = document.getElementById('u-schedule').value.trim();
+                const commission = parseFloat(document.getElementById('u-commission').value) || 0;
+                const availability = document.getElementById('u-availability').value.trim();
+
+                doctorProfile = {
+                    assignedServices,
+                    schedule,
+                    commission,
+                    availability
+                };
+            }
+
             const newUser = {
                 id: 'usr-' + Date.now(),
                 fullname,
@@ -1755,7 +1926,9 @@ function initGlobalEvents() {
                 role,
                 license,
                 status: 'Activo',
-                createdAt: new Date().toISOString().split('T')[0]
+                createdAt: new Date().toISOString().split('T')[0],
+                doctorProfile: doctorProfile || {},
+                doctor_profile: doctorProfile || {}
             };
 
             await SupabaseDataService.saveUser(newUser);
@@ -1773,7 +1946,7 @@ function initGlobalEvents() {
             const id = document.getElementById('p-id').value.trim();
             const fullname = document.getElementById('p-fullname').value.trim();
             const birthdate = document.getElementById('p-birthdate').value;
-            const phone = document.getElementById('p-phone').value.trim();
+            const phone = document.getElementById('p-mobile-phone').value.trim();
 
             if (!id || !fullname || !birthdate || !phone) {
                 Swal.fire({ icon: 'warning', title: 'Campos requeridos', text: 'Por favor complete los campos obligatorios (*)' });
@@ -1785,13 +1958,61 @@ function initGlobalEvents() {
             const medication = document.getElementById('p-medication').value.trim();
             const emergencyContact = document.getElementById('p-emergency').value.trim();
 
+            // Extract all detailed metadata fields
+            const type = document.getElementById('p-type').value;
+            const age = parseInt(document.getElementById('p-age').value) || 0;
+            const gender = document.getElementById('p-gender').value;
+            const address = document.getElementById('p-address').value.trim();
+            const mobilePhone = document.getElementById('p-mobile-phone').value.trim();
+            const localPhone = document.getElementById('p-local-phone').value.trim();
+            const workPhone = document.getElementById('p-work-phone').value.trim();
+            const profession = document.getElementById('p-profession').value.trim();
+            const consultReason = document.getElementById('p-consult-reason').value.trim();
+
+            const repName = document.getElementById('p-rep-name').value.trim();
+            const repId = document.getElementById('p-rep-id').value.trim();
+            const repPhone = document.getElementById('p-rep-phone').value.trim();
+            const repRelation = document.getElementById('p-rep-relation').value.trim();
+
+            const medicalTreatment = document.getElementById('p-medical-treatment').value;
+            const medicalTreatmentDetails = document.getElementById('p-medical-treatment-details').value.trim();
+            const childDiseases = document.getElementById('p-child-diseases').value.trim();
+            const hasAllergies = document.getElementById('p-has-allergies').value;
+            const allergiesDetails = document.getElementById('p-allergies-details').value.trim();
+            const surgeries = document.getElementById('p-surgeries').value.trim();
+            const bleedingIssue = document.getElementById('p-bleeding-issue').value;
+            const respiratoryIssues = document.getElementById('p-respiratory-issues').value;
+            const respiratoryIssuesDetails = document.getElementById('p-respiratory-issues-details').value.trim();
+            const anesthesiaReaction = document.getElementById('p-anesthesia-reaction').value;
+            const anesthesiaReactionDetails = document.getElementById('p-anesthesia-reaction-details').value.trim();
+            const penicillinAllergy = document.getElementById('p-penicillin-allergy').value;
+            const penicillinAllergyDetails = document.getElementById('p-penicillin-allergy-details').value.trim();
+            const heartIssues = document.getElementById('p-heart-issues').value;
+            const heartIssuesDetails = document.getElementById('p-heart-issues-details').value.trim();
+
+            const tissueHardPalate = document.getElementById('p-tissue-hard-palate').value.trim();
+            const tissueSoftPalate = document.getElementById('p-tissue-soft-palate').value.trim();
+            const tissueMouthFloor = document.getElementById('p-tissue-mouth-floor').value.trim();
+            const tissueCheeks = document.getElementById('p-tissue-cheeks').value.trim();
+            const tissueTongue = document.getElementById('p-tissue-tongue').value.trim();
+            const tissueFrenum = document.getElementById('p-tissue-frenum').value.trim();
+
+            const habitSwallowing = document.getElementById('p-habit-swallowing').value;
+            const habitNailbiting = document.getElementById('p-habit-nailbiting').value;
+            const habitThumbsucking = document.getElementById('p-habit-thumbsucking').value;
+            const habitThumbsuckingFinger = document.getElementById('p-habit-thumbsucking-finger').value.trim();
+            const habitOthers = document.getElementById('p-habit-others').value.trim();
+            const habitMouthbreather = document.getElementById('p-habit-mouthbreather').value;
+            const habitFrequency = document.getElementById('p-habit-frequency').value.trim();
+            const habitIntensity = document.getElementById('p-habit-intensity').value.trim();
+
             const newPatient = {
                 id,
                 fullname,
                 birthdate,
                 phone,
                 email: document.getElementById('p-email').value.trim(),
-                occupation: document.getElementById('p-occupation').value.trim(),
+                occupation: profession,
                 allergies,
                 systemic,
                 medication,
@@ -1801,7 +2022,51 @@ function initGlobalEvents() {
                 odontogramData: {},
                 clinicalNotes: [],
                 photos: [],
-                payments: []
+                payments: [],
+                metadata: {
+                    type,
+                    age,
+                    gender,
+                    address,
+                    mobilePhone,
+                    localPhone,
+                    workPhone,
+                    profession,
+                    consultReason,
+                    repName,
+                    repId,
+                    repPhone,
+                    repRelation,
+                    medicalTreatment,
+                    medicalTreatmentDetails,
+                    childDiseases,
+                    hasAllergies,
+                    allergiesDetails,
+                    surgeries,
+                    bleedingIssue,
+                    respiratoryIssues,
+                    respiratoryIssuesDetails,
+                    anesthesiaReaction,
+                    anesthesiaReactionDetails,
+                    penicillinAllergy,
+                    penicillinAllergyDetails,
+                    heartIssues,
+                    heartIssuesDetails,
+                    tissueHardPalate,
+                    tissueSoftPalate,
+                    tissueMouthFloor,
+                    tissueCheeks,
+                    tissueTongue,
+                    tissueFrenum,
+                    habitSwallowing,
+                    habitNailbiting,
+                    habitThumbsucking,
+                    habitThumbsuckingFinger,
+                    habitOthers,
+                    habitMouthbreather,
+                    habitFrequency,
+                    habitIntensity
+                }
             };
 
             await SupabaseDataService.savePatient(newPatient);
@@ -1837,37 +2102,38 @@ function initGlobalEvents() {
             const patients = await SupabaseDataService.getPatients();
             const patient = patients.find(p => p.id === activeId);
             if (!patient) return;
-
+ 
             let totalUSD = 0;
             currentBudgetItems.forEach(item => {
                 totalUSD += item.price * (1 - (item.discount || 0) / 100);
             });
-
+ 
             const paymentModeSelect = document.getElementById('payment-mode-select');
             const paymentModeText = paymentModeSelect.options[paymentModeSelect.selectedIndex].text;
             const notes = document.getElementById('budget-notes').value;
-
+            const consentText = document.getElementById('consent-text').value; // Retrieve edited consent text
+ 
             currentBudgetItems.forEach(item => {
                 if (item.serviceCode) {
                     window.kardex.deductForTreatment(item.serviceCode);
                 }
             });
-
+ 
             if (!patient.clinicalNotes) patient.clinicalNotes = [];
             patient.clinicalNotes.unshift({
                 id: 'note-' + Date.now(),
                 datetime: new Date().toISOString().slice(0, 16).replace('T', ' '),
-                content: `Presupuesto emitido y enviado por WhatsApp ($${totalUSD.toFixed(2)}). Forma de pago: ${paymentModeText}. ${notes}`,
+                content: `Presupuesto emitido y enviado por WhatsApp ($${totalUSD.toFixed(2)}). Forma de pago: ${paymentModeText}. Consentimiento: ${consentText}. Observaciones: ${notes}`,
                 paymentUSD: 0
             });
             await SupabaseDataService.savePatient(patient);
-
-            const msg = WhatsAppService.generateBudgetMessage(patient, currentBudgetItems, totalUSD, paymentModeText, notes);
+ 
+            const msg = WhatsAppService.generateBudgetMessage(patient, currentBudgetItems, totalUSD, paymentModeText, notes, consentText);
             WhatsAppService.sendToPatient(patient.phone, msg);
         };
     }
-
-    const printBtn = document.getElementById('btn-print-budget');
+ 
+    const printBtn = document.getElementById('btn-print-budget') || document.getElementById('btn-print-pdf');
     if (printBtn) {
         printBtn.onclick = async () => {
             await autoSaveActivePatientOdontogram();
@@ -1878,8 +2144,23 @@ function initGlobalEvents() {
                 timer: 1800,
                 showConfirmButton: false
             }).then(() => {
-                window.print();
+                const odontStack = document.querySelector('.odontogram-vertical-sections-stack');
+                if (odontStack) {
+                    odontStack.classList.add('print-section');
+                    window.print();
+                    odontStack.classList.remove('print-section');
+                } else {
+                    window.print();
+                }
             });
+        };
+    }
+
+    const pdfBtn = document.getElementById('btn-pdf-budget');
+    if (pdfBtn) {
+        pdfBtn.onclick = async () => {
+            await autoSaveActivePatientOdontogram();
+            await downloadBudgetPDF();
         };
     }
 
@@ -2054,3 +2335,1049 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+// ==========================================================================
+// 8. BILLING, FINANCE & STATIONERY MODULE CONTROLLERS
+// ==========================================================================
+
+async function downloadBudgetPDF() {
+    const activeId = getActivePatientId();
+    if (!activeId) {
+        Swal.fire({ icon: 'info', title: 'Seleccione un paciente', text: 'Por favor active un paciente para exportar su Presupuesto en PDF.' });
+        return;
+    }
+    const patients = await SupabaseDataService.getPatients();
+    const patient = patients.find(p => p.id === activeId);
+    if (!patient) return;
+
+    let totalUSD = 0;
+    currentBudgetItems.forEach(item => {
+        totalUSD += item.price * (1 - (item.discount || 0) / 100);
+    });
+
+    const paymentModeSelect = document.getElementById('payment-mode-select');
+    const paymentModeText = paymentModeSelect ? paymentModeSelect.options[paymentModeSelect.selectedIndex].text : 'Contado';
+    const notes = document.getElementById('budget-notes') ? document.getElementById('budget-notes').value : '';
+
+    const rate = getExchangeRate();
+    const totalVES = (totalUSD * rate).toFixed(2);
+
+    let itemsHtml = '';
+    currentBudgetItems.forEach(item => {
+        const itemTotal = item.price * (1 - (item.discount || 0) / 100);
+        itemsHtml += `
+            <tr style="border-bottom: 1px dashed #cbd5e1;">
+                <td style="padding: 8px 0;">Pieza ${item.tooth || 'Gnl'} (${item.face || 'Gnl'})</td>
+                <td style="padding: 8px 0;">${item.name}</td>
+                <td style="padding: 8px 0;">$${item.price.toFixed(2)}</td>
+                <td style="padding: 8px 0; text-align: center;">${item.discount || 0}%</td>
+                <td style="padding: 8px 0; text-align: right;">$${itemTotal.toFixed(2)}</td>
+            </tr>
+        `;
+    });
+
+    const stationery = await SupabaseDataService.getStationeryConfig();
+
+    const container = document.createElement('div');
+    container.style.padding = '30px';
+    container.style.fontFamily = 'monospace';
+    container.style.color = '#000';
+    container.style.backgroundColor = '#fff';
+
+    container.innerHTML = `
+        <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px;">
+            ${stationery.logoUrl ? `<img src="${stationery.logoUrl}" style="max-height: 60px; margin-bottom: 10px; display: block; margin-left: auto; margin-right: auto;">` : ''}
+            <pre style="margin: 0; font-family: inherit; font-size: 0.9rem; white-space: pre-wrap;">${stationery.headerText}</pre>
+        </div>
+        <div style="text-align: center; font-weight: bold; font-size: 1.2rem; margin-bottom: 20px;">PRESUPUESTO ODONTOLÓGICO</div>
+        <div style="margin-bottom: 20px; font-size: 0.9rem;">
+            <strong>Paciente:</strong> ${patient.fullname}<br>
+            <strong>Cédula:</strong> ${patient.id}<br>
+            <strong>Fecha:</strong> ${new Date().toLocaleDateString('es-ES')}<br>
+            <strong>Términos de Pago:</strong> ${paymentModeText}
+        </div>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.85rem;">
+            <thead>
+                <tr style="border-bottom: 2px solid #000; font-weight: bold;">
+                    <th style="padding: 8px 0; text-align: left;">Pieza/Cara</th>
+                    <th style="padding: 8px 0; text-align: left;">Tratamiento</th>
+                    <th style="padding: 8px 0; text-align: left;">Precio</th>
+                    <th style="padding: 8px 0; text-align: center; width: 50px;">Dto</th>
+                    <th style="padding: 8px 0; text-align: right; width: 90px;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${itemsHtml}
+            </tbody>
+        </table>
+        <div style="text-align: right; margin-bottom: 20px; font-size: 1rem; font-weight: bold;">
+            Total USD (REF): $${totalUSD.toFixed(2)}<br>
+            Total Bs (BCV @ ${rate}): Bs. ${totalVES}
+        </div>
+        ${notes ? `<div style="margin-bottom: 25px; border: 1px solid #000; padding: 10px; font-size: 0.85rem;"><strong>Observaciones:</strong><br>${notes}</div>` : ''}
+        <div style="margin-top: 40px; display: flex; justify-content: space-between; font-size: 0.85rem; text-align: center;">
+            <div style="width: 200px;">
+                <div style="border-bottom: 1px solid #000; height: 40px; margin-bottom: 5px;"></div>
+                Firma del Médico
+            </div>
+            <div style="width: 200px;">
+                <div style="border-bottom: 1px solid #000; height: 40px; margin-bottom: 5px;"></div>
+                Firma del Paciente
+            </div>
+        </div>
+        <div style="text-align: center; margin-top: 30px; font-size: 0.8rem; border-top: 1px solid #000; padding-top: 10px; color: #555;">
+            <pre style="margin: 0; font-family: inherit; white-space: pre-wrap;">${stationery.footerText}</pre>
+        </div>
+    `;
+
+    const opt = {
+        margin:       10,
+        filename:     `Presupuesto_${patient.id}_${patient.fullname.replace(/\s+/g, '_')}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(container).save().then(() => {
+        Swal.fire({ icon: 'success', title: '¡PDF Descargado!', text: 'Se ha descargado el presupuesto.', timer: 2000, showConfirmButton: false });
+    });
+}
+
+// --- FACTURACIÓN ---
+
+let billingItems = [];
+let activeBillingInvoice = null;
+
+async function renderBillingView() {
+    const patientSelect = document.getElementById('bill-patient-select');
+    const assistantSelect = document.getElementById('bill-assistant');
+    if (!patientSelect) return;
+
+    // Load patients
+    const patients = await SupabaseDataService.getPatients();
+    const activeId = getActivePatientId();
+    patientSelect.innerHTML = '<option value="">-- Seleccionar Paciente --</option>';
+    patients.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.innerText = `${p.fullname} (${p.id})`;
+        if (p.id === activeId) opt.selected = true;
+        patientSelect.appendChild(opt);
+    });
+
+    // Load assistants (users whose role includes "asistente")
+    const users = await SupabaseDataService.getUsers();
+    assistantSelect.innerHTML = '<option value="">-- Seleccionar Asistente --</option>';
+    users.forEach(u => {
+        if (u.role.toLowerCase().includes('asistente')) {
+            const opt = document.createElement('option');
+            opt.value = u.id;
+            opt.innerText = u.fullname;
+            assistantSelect.appendChild(opt);
+        }
+    });
+    // Auto-select first assistant if available
+    if (assistantSelect.options.length > 1) {
+        assistantSelect.selectedIndex = 1;
+    }
+
+    // Load BCV Rate
+    const rate = getExchangeRate();
+    document.getElementById('bill-exchange-rate').innerText = `Bs. ${rate.toFixed(2)}`;
+
+    // Reset list and draw table
+    billingItems = [];
+    renderBillingItemsTable();
+
+    // Event listener for loading budget items
+    document.getElementById('btn-load-budget-items').onclick = async () => {
+        const pId = patientSelect.value;
+        if (!pId) {
+            Swal.fire({ icon: 'warning', title: 'Paciente no seleccionado', text: 'Por favor seleccione un paciente.' });
+            return;
+        }
+        const activePatient = patients.find(p => p.id === pId);
+        if (pId === activeId && currentBudgetItems.length > 0) {
+            billingItems = currentBudgetItems.map(item => ({
+                code: item.serviceCode || 'CUSTOM',
+                name: item.name,
+                price: item.price * (1 - (item.discount || 0) / 100),
+                hygienistBonus: 0,
+                qty: 1
+            }));
+            // Look up hygienist bonus from baremo
+            const baremo = await SupabaseDataService.getBaremo();
+            billingItems.forEach(bi => {
+                const srv = baremo.find(b => b.code === bi.code);
+                if (srv) bi.hygienistBonus = srv.hygienistBonus || 0;
+            });
+            Swal.fire({ icon: 'success', title: 'Items cargados', text: 'Se cargaron los items del presupuesto activo.', timer: 1500, showConfirmButton: false });
+        } else if (activePatient && activePatient.payments && activePatient.payments.length > 0) {
+            const pendingPayments = activePatient.payments.filter(pay => pay.status === 'Pendiente');
+            if (pendingPayments.length > 0) {
+                billingItems = pendingPayments.map(pay => ({
+                    code: 'DEUDA',
+                    name: pay.concept,
+                    price: pay.balanceUSD,
+                    hygienistBonus: 0,
+                    qty: 1
+                }));
+                Swal.fire({ icon: 'success', title: 'Deuda cargada', text: 'Se cargaron los saldos pendientes del paciente.', timer: 1500, showConfirmButton: false });
+            } else {
+                Swal.fire({ icon: 'info', title: 'Sin presupuesto activo', text: 'El paciente no tiene tratamientos pendientes por facturar.' });
+            }
+        } else {
+            Swal.fire({ icon: 'info', title: 'Sin presupuesto activo', text: 'El paciente no tiene tratamientos pendientes por facturar.' });
+        }
+        renderBillingItemsTable();
+    };
+
+    // Open add baremo item modal
+    document.getElementById('btn-add-baremo-item-billing').onclick = async () => {
+        const baremo = await SupabaseDataService.getBaremo();
+        const select = document.getElementById('item-baremo-select-billing');
+        select.innerHTML = '<option value="">-- Seleccionar Procedimiento --</option>';
+        baremo.forEach(srv => {
+            const opt = document.createElement('option');
+            opt.value = srv.code;
+            opt.innerText = `${srv.name} - $${srv.priceUSD.toFixed(2)} (Bonif: $${(srv.hygienistBonus || 0).toFixed(2)})`;
+            select.appendChild(opt);
+        });
+        openModal('modal-add-item-billing');
+    };
+
+    // Confirm add baremo item
+    document.getElementById('btn-confirm-add-item-billing').onclick = async () => {
+        const select = document.getElementById('item-baremo-select-billing');
+        const code = select.value;
+        if (!code) {
+            Swal.fire({ icon: 'warning', text: 'Seleccione un procedimiento' });
+            return;
+        }
+        const baremo = await SupabaseDataService.getBaremo();
+        const srv = baremo.find(b => b.code === code);
+        if (srv) {
+            const existing = billingItems.find(bi => bi.code === code);
+            if (existing) {
+                existing.qty += 1;
+            } else {
+                billingItems.push({
+                    code: srv.code,
+                    name: srv.name,
+                    price: srv.priceUSD,
+                    hygienistBonus: srv.hygienistBonus || 0,
+                    qty: 1
+                });
+            }
+            closeModal('modal-add-item-billing');
+            renderBillingItemsTable();
+            Swal.fire({ icon: 'success', title: 'Item agregado', timer: 1200, showConfirmButton: false });
+        }
+    };
+
+    // Listeners for selectors to update live preview
+    document.getElementById('bill-currency').onchange = () => updateBillingTotals();
+    document.getElementById('bill-terms').onchange = () => updateBillingTotals();
+    document.getElementById('bill-method').onchange = () => updateBillingTotals();
+
+    // Process Invoice
+    document.getElementById('btn-process-invoice').onclick = async () => {
+        const pId = patientSelect.value;
+        const assistantId = assistantSelect.value;
+        if (!pId) {
+            Swal.fire({ icon: 'warning', title: 'Paciente requerido', text: 'Debe seleccionar un paciente para emitir la factura.' });
+            return;
+        }
+        if (!assistantId) {
+            Swal.fire({ icon: 'warning', title: 'Asistente requerido', text: 'Debe seleccionar el asistente de turno.' });
+            return;
+        }
+        if (billingItems.length === 0) {
+            Swal.fire({ icon: 'warning', title: 'Sin items', text: 'Debe cargar al menos un tratamiento para facturar.' });
+            return;
+        }
+
+        const activePatient = patients.find(p => p.id === pId);
+        const selectedAssistant = users.find(u => u.id === assistantId);
+
+        const currency = document.getElementById('bill-currency').value;
+        const terms = document.getElementById('bill-terms').value;
+        const method = document.getElementById('bill-method').value;
+        const footerNote = document.getElementById('bill-footer-note').value;
+
+        let totalRef = 0;
+        let totalHygienistBonus = 0;
+        billingItems.forEach(item => {
+            totalRef += item.price * item.qty;
+            totalHygienistBonus += (item.hygienistBonus || 0) * item.qty;
+        });
+
+        const rate = getExchangeRate();
+        const totalBcv = totalRef * rate;
+
+        // Process hygienist bonus
+        if (totalHygienistBonus > 0 && selectedAssistant) {
+            if (!selectedAssistant.doctorProfile) selectedAssistant.doctorProfile = {};
+            selectedAssistant.doctorProfile.accumulatedBonus = (selectedAssistant.doctorProfile.accumulatedBonus || 0) + totalHygienistBonus;
+            await SupabaseDataService.saveUser(selectedAssistant);
+            await renderUsersTable();
+        }
+
+        // Generate invoice ID
+        const invoiceId = 'FAC-' + Date.now().toString().slice(-6);
+
+        // Save invoice obj
+        const invoiceObj = {
+            id: invoiceId,
+            patientId: pId,
+            invoiceDate: new Date().toISOString().split('T')[0],
+            paymentMethod: method,
+            paymentTerms: terms,
+            currency: currency,
+            items: billingItems,
+            totalRef: totalRef,
+            totalBcv: totalBcv,
+            status: 'Emitida',
+            footerText: footerNote
+        };
+
+        // Save in DB
+        await SupabaseDataService.saveInvoice(invoiceObj);
+
+        // Handle credit invoice outstanding balance
+        if (terms === 'Crédito') {
+            if (!activePatient.payments) activePatient.payments = [];
+            activePatient.payments.unshift({
+                date: invoiceObj.invoiceDate,
+                concept: `Factura a Crédito ${invoiceId}`,
+                totalUSD: totalRef,
+                paidUSD: 0,
+                balanceUSD: totalRef,
+                status: 'Pendiente'
+            });
+            await SupabaseDataService.savePatient(activePatient);
+        } else {
+            if (!activePatient.payments) activePatient.payments = [];
+            activePatient.payments.unshift({
+                date: invoiceObj.invoiceDate,
+                concept: `Pago Factura ${invoiceId}`,
+                totalUSD: totalRef,
+                paidUSD: totalRef,
+                balanceUSD: 0,
+                status: 'Pagado'
+            });
+            await SupabaseDataService.savePatient(activePatient);
+        }
+
+        activeBillingInvoice = invoiceObj;
+
+        // Build preview
+        await generateInvoicePreviewHTML(invoiceObj, activePatient, selectedAssistant);
+
+        // Show action buttons
+        document.getElementById('invoice-processed-actions').classList.remove('hidden');
+
+        Swal.fire({
+            icon: 'success',
+            title: '¡Factura Procesada!',
+            text: `Factura ${invoiceId} registrada. Comisiones higienista aplicadas: $${totalHygienistBonus.toFixed(2)}.`,
+            confirmButtonText: 'Ver Factura'
+        });
+    };
+
+    // Final Action Buttons
+    document.getElementById('btn-print-invoice-final').onclick = () => {
+        const previewEl = document.getElementById('invoice-paper-preview');
+        if (previewEl) {
+            previewEl.classList.add('print-section');
+            window.print();
+            previewEl.classList.remove('print-section');
+        }
+    };
+
+    document.getElementById('btn-pdf-invoice-final').onclick = () => {
+        const previewEl = document.getElementById('invoice-paper-preview');
+        if (!previewEl || !activeBillingInvoice) return;
+
+        const opt = {
+            margin:       10,
+            filename:     `Factura_${activeBillingInvoice.id}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        html2pdf().set(opt).from(previewEl).save();
+    };
+}
+
+function renderBillingItemsTable() {
+    const tbody = document.getElementById('billing-items-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (billingItems.length === 0) {
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="7" class="text-center text-muted">Cargue items del presupuesto o del baremo.</td></tr>';
+        updateBillingTotals();
+        return;
+    }
+
+    billingItems.forEach((item, index) => {
+        const total = item.price * item.qty;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${item.code}</strong></td>
+            <td>${item.name}</td>
+            <td>$${item.price.toFixed(2)}</td>
+            <td>$${(item.hygienistBonus || 0).toFixed(2)}</td>
+            <td><input type="number" class="form-control btn-xs" style="width: 50px;" value="${item.qty}" min="1" data-idx="${index}"></td>
+            <td><strong>$${total.toFixed(2)}</strong></td>
+            <td><button class="btn btn-xs btn-outline text-red" onclick="removeBillingItem(${index})"><i class="fa-solid fa-trash"></i></button></td>
+        `;
+        const input = tr.querySelector('input');
+        input.onchange = (e) => {
+            const val = parseInt(e.target.value) || 1;
+            billingItems[index].qty = Math.max(1, val);
+            renderBillingItemsTable();
+        };
+        tbody.appendChild(tr);
+    });
+
+    updateBillingTotals();
+}
+
+window.removeBillingItem = function(index) {
+    billingItems.splice(index, 1);
+    renderBillingItemsTable();
+};
+
+function updateBillingTotals() {
+    let totalRef = 0;
+    billingItems.forEach(item => {
+        totalRef += item.price * item.qty;
+    });
+
+    const rate = getExchangeRate();
+    const totalBcv = totalRef * rate;
+
+    const currency = document.getElementById('bill-currency') ? document.getElementById('bill-currency').value : 'REF';
+
+    document.getElementById('bill-total-ref').innerText = `$${totalRef.toFixed(2)}`;
+    if (currency === 'REF') {
+        document.getElementById('bill-total-final').innerText = `$${totalRef.toFixed(2)} REF`;
+    } else {
+        document.getElementById('bill-total-final').innerText = `Bs. ${totalBcv.toFixed(2)} BS`;
+    }
+}
+
+async function generateInvoicePreviewHTML(invoice, patient, assistant) {
+    const container = document.getElementById('invoice-paper-preview');
+    if (!container) return;
+
+    const stationery = await SupabaseDataService.getStationeryConfig();
+    const rate = getExchangeRate();
+
+    let itemsHtml = '';
+    invoice.items.forEach(item => {
+        const itemTotal = item.price * item.qty;
+        const priceFinal = invoice.currency === 'REF' ? `$${item.price.toFixed(2)}` : `Bs. ${(item.price * rate).toFixed(2)}`;
+        const totalFinal = invoice.currency === 'REF' ? `$${itemTotal.toFixed(2)}` : `Bs. ${(itemTotal * rate).toFixed(2)}`;
+        itemsHtml += `
+            <tr style="border-bottom: 1px dashed #ccc;">
+                <td style="padding: 6px 0;">${item.name} (${item.code})</td>
+                <td style="padding: 6px 0; text-align: center;">${item.qty}</td>
+                <td style="padding: 6px 0; text-align: right;">${priceFinal}</td>
+                <td style="padding: 6px 0; text-align: right;">${totalFinal}</td>
+            </tr>
+        `;
+    });
+
+    const displayTotal = invoice.currency === 'REF' 
+        ? `$${invoice.totalRef.toFixed(2)} REF` 
+        : `Bs. ${invoice.totalBcv.toFixed(2)} BS`;
+
+    container.innerHTML = `
+        <div style="font-family: monospace; line-height: 1.4; color: #000; background: #fff; padding: 10px;">
+            <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
+                ${stationery.logoUrl ? `<img src="${stationery.logoUrl}" style="max-height: 50px; margin-bottom: 8px; display: block; margin-left: auto; margin-right: auto;">` : ''}
+                <pre style="margin: 0; font-family: inherit; font-size: 0.8rem; white-space: pre-wrap;">${stationery.headerText}</pre>
+            </div>
+            
+            <div style="text-align: center; font-weight: bold; font-size: 1.1rem; margin-bottom: 15px;">FACTURA CLÍNICA: ${invoice.id}</div>
+            
+            <div style="margin-bottom: 15px; font-size: 0.8rem; border-bottom: 1px solid #000; padding-bottom: 10px;">
+                <strong>Fecha:</strong> ${invoice.invoiceDate}<br>
+                <strong>Paciente:</strong> ${patient.fullname}<br>
+                <strong>Cédula:</strong> ${patient.id}<br>
+                <strong>WhatsApp:</strong> ${patient.phone}<br>
+                <strong>Términos:</strong> ${invoice.paymentTerms} | <strong>Método:</strong> ${invoice.paymentMethod}<br>
+                <strong>Asistente:</strong> ${assistant ? assistant.fullname : 'N/A'}
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-bottom: 15px;">
+                <thead>
+                    <tr style="border-bottom: 1px solid #000; font-weight: bold;">
+                        <th style="padding: 4px 0; text-align: left;">Descripción</th>
+                        <th style="padding: 4px 0; text-align: center; width: 40px;">Cant</th>
+                        <th style="padding: 4px 0; text-align: right; width: 80px;">P. Unit</th>
+                        <th style="padding: 4px 0; text-align: right; width: 90px;">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itemsHtml}
+                </tbody>
+            </table>
+
+            <div style="text-align: right; font-size: 0.9rem; font-weight: bold; border-top: 1px solid #000; padding-top: 8px; margin-bottom: 15px;">
+                Total REF: $${invoice.totalRef.toFixed(2)} USD<br>
+                Tasa BCV: Bs. ${rate.toFixed(2)}<br>
+                <span style="font-size: 1rem; color: #0284c7;">TOTAL A PAGAR: ${displayTotal}</span>
+            </div>
+
+            ${invoice.footerText || stationery.footerText ? `
+                <div style="font-size: 0.75rem; text-align: center; border-top: 1px dashed #ccc; padding-top: 10px; color: #555;">
+                    <pre style="margin: 0; font-family: inherit; white-space: pre-wrap;">${invoice.footerText || stationery.footerText}</pre>
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
+
+// --- FINANZAS ---
+
+let activePayableId = null;
+
+async function renderFinanceView() {
+    const subtabs = document.querySelectorAll('#view-finance .subtab-btn');
+    const subcontents = document.querySelectorAll('#view-finance .subtab-content');
+
+    subtabs.forEach(btn => {
+        btn.onclick = () => {
+            subtabs.forEach(b => b.classList.remove('active'));
+            subcontents.forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            const target = document.getElementById(`subtab-${btn.dataset.subtab}`);
+            if (target) target.classList.add('active');
+        };
+    });
+
+    await renderProviderBills();
+    await renderReceivables();
+    await renderCashFlow();
+
+    const formPayable = document.getElementById('form-payable');
+    formPayable.onsubmit = async (e) => {
+        e.preventDefault();
+        const providerName = document.getElementById('pay-provider').value.trim();
+        const serviceName = document.getElementById('pay-service').value.trim();
+        const amount = parseFloat(document.getElementById('pay-amount').value) || 0;
+        const dueDate = document.getElementById('pay-due-date').value;
+        const status = document.getElementById('pay-status').value;
+
+        if (!providerName || !serviceName || amount <= 0 || !dueDate) {
+            Swal.fire({ icon: 'warning', text: 'Por favor, complete todos los campos obligatorios.' });
+            return;
+        }
+
+        const billId = activePayableId || 'BILL-' + Date.now().toString().slice(-6);
+
+        await SupabaseDataService.saveProviderBill({
+            id: billId,
+            providerName,
+            serviceName,
+            amount,
+            dueDate,
+            status
+        });
+
+        formPayable.reset();
+        activePayableId = null;
+        document.getElementById('payable-id').value = '';
+        document.getElementById('payable-form-title').innerHTML = `<i class="fa-solid fa-plus-circle text-cyan"></i> Registrar Gasto / Cuenta por Pagar`;
+        document.getElementById('btn-cancel-payable').style.display = 'none';
+
+        await renderProviderBills();
+        await renderCashFlow();
+
+        Swal.fire({ icon: 'success', title: 'Cuenta por pagar guardada', timer: 1500, showConfirmButton: false });
+    };
+
+    document.getElementById('btn-cancel-payable').onclick = () => {
+        formPayable.reset();
+        activePayableId = null;
+        document.getElementById('payable-id').value = '';
+        document.getElementById('payable-form-title').innerHTML = `<i class="fa-solid fa-plus-circle text-cyan"></i> Registrar Gasto / Cuenta por Pagar`;
+        document.getElementById('btn-cancel-payable').style.display = 'none';
+    };
+}
+
+async function renderProviderBills() {
+    const tbody = document.getElementById('finance-payables-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    const bills = await SupabaseDataService.getProviderBills();
+    const remindersBox = document.getElementById('payable-reminders');
+    remindersBox.innerHTML = '';
+
+    let alertMessages = [];
+    const today = new Date();
+
+    if (bills.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted" style="padding: 15px;">No hay gastos ni cuentas por pagar registradas.</td></tr>';
+        remindersBox.innerHTML = '<span class="text-muted" style="font-size:0.8rem;"><i class="fa-solid fa-bell-slash"></i> Sin recordatorios de vencimiento pendientes.</span>';
+        return;
+    }
+
+    bills.forEach(bill => {
+        const dueDateObj = new Date(bill.dueDate);
+        const timeDiff = dueDateObj.getTime() - today.getTime();
+        const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+        let statusClass = 'green';
+        if (bill.status === 'Pendiente') {
+            if (daysDiff < 0) {
+                statusClass = 'red';
+                alertMessages.push(`<div style="color: #ef4444; font-weight: 600; margin-bottom: 4px;"><i class="fa-solid fa-triangle-exclamation"></i> GASTO VENCIDO: ${bill.providerName} (${bill.serviceName}) venció hace ${Math.abs(daysDiff)} días ($${bill.amount.toFixed(2)})</div>`);
+            } else if (daysDiff <= 3) {
+                statusClass = 'amber';
+                alertMessages.push(`<div style="color: #d97706; font-weight: 600; margin-bottom: 4px;"><i class="fa-solid fa-clock"></i> POR VENCER: ${bill.providerName} (${bill.serviceName}) vence en ${daysDiff} días ($${bill.amount.toFixed(2)})</div>`);
+            } else {
+                statusClass = 'blue';
+            }
+        }
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${bill.providerName}</strong></td>
+            <td>${bill.serviceName}</td>
+            <td>$${bill.amount.toFixed(2)}</td>
+            <td>${bill.dueDate}</td>
+            <td><span class="badge-tag ${statusClass}">${bill.status}</span></td>
+            <td>
+                <div class="actions-cell-group">
+                    <button class="btn btn-xs btn-outline" onclick="editProviderBill('${bill.id}')" title="Editar"><i class="fa-solid fa-edit"></i></button>
+                    <button class="btn btn-xs btn-outline text-red" onclick="deleteProviderBill('${bill.id}')" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    if (alertMessages.length > 0) {
+        remindersBox.innerHTML = alertMessages.join('');
+    } else {
+        remindersBox.innerHTML = '<span class="text-green" style="font-size:0.8rem; font-weight: 600;"><i class="fa-solid fa-circle-check"></i> Todos los servicios al día. Sin alertas de vencimiento inmediato.</span>';
+    }
+}
+
+window.editProviderBill = async function(id) {
+    const bills = await SupabaseDataService.getProviderBills();
+    const bill = bills.find(b => b.id === id);
+    if (!bill) return;
+
+    activePayableId = bill.id;
+    document.getElementById('payable-id').value = bill.id;
+    document.getElementById('pay-provider').value = bill.providerName;
+    document.getElementById('pay-service').value = bill.serviceName;
+    document.getElementById('pay-amount').value = bill.amount;
+    document.getElementById('pay-due-date').value = bill.dueDate;
+    document.getElementById('pay-status').value = bill.status;
+
+    document.getElementById('payable-form-title').innerHTML = `<i class="fa-solid fa-edit text-cyan"></i> Editar Gasto / Proveedor`;
+    document.getElementById('btn-cancel-payable').style.display = 'inline-block';
+};
+
+window.deleteProviderBill = async function(id) {
+    Swal.fire({
+        title: '¿Eliminar registro?',
+        text: '¿Está seguro de que desea eliminar esta cuenta por pagar?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            await SupabaseDataService.deleteProviderBill(id);
+            await renderProviderBills();
+            await renderCashFlow();
+            Swal.fire({ icon: 'success', title: 'Registro eliminado', timer: 1500, showConfirmButton: false });
+        }
+    });
+};
+
+async function renderReceivables() {
+    const tbody = document.getElementById('finance-receivables-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    const patients = await SupabaseDataService.getPatients();
+    let count = 0;
+
+    patients.forEach(p => {
+        let pendingPayments = (p.payments || []).filter(pay => pay.status === 'Pendiente' || pay.balanceUSD > 0);
+        if (pendingPayments.length > 0) {
+            pendingPayments.forEach(pay => {
+                count++;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong class="badge-tag blue">${p.id}</strong></td>
+                    <td><strong>${p.fullname}</strong></td>
+                    <td>
+                        <a href="https://wa.me/${p.phone.replace(/[^0-9]/g,'')}" target="_blank" class="whatsapp-pill-link">
+                            <i class="fa-brands fa-whatsapp"></i> ${p.phone}
+                        </a>
+                    </td>
+                    <td>${pay.concept}</td>
+                    <td>$${pay.totalUSD.toFixed(2)}</td>
+                    <td class="text-green">$${pay.paidUSD.toFixed(2)}</td>
+                    <td class="text-red"><strong>$${pay.balanceUSD.toFixed(2)}</strong></td>
+                    <td>
+                        <div class="actions-cell-group">
+                            <button class="btn btn-xs btn-success" onclick="openEHRForPatient('${p.id}')" title="Abonar en EHR"><i class="fa-solid fa-hand-holding-dollar"></i> Cobrar / EHR</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    });
+
+    if (count === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding: 15px;">No hay pacientes con saldos pendientes.</td></tr>';
+    }
+}
+
+async function renderCashFlow() {
+    const tbody = document.getElementById('finance-cashflow-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    const patients = await SupabaseDataService.getPatients();
+    const bills = await SupabaseDataService.getProviderBills();
+
+    let inflows = 0;
+    let outflows = 0;
+    let transactions = [];
+
+    patients.forEach(p => {
+        (p.payments || []).forEach(pay => {
+            if (pay.paidUSD > 0) {
+                inflows += pay.paidUSD;
+                transactions.push({
+                    date: pay.date,
+                    concept: `Abono de Paciente: ${p.fullname} (${pay.concept})`,
+                    type: 'Ingreso',
+                    method: 'USD',
+                    amount: pay.paidUSD
+                });
+            }
+        });
+    });
+
+    bills.forEach(bill => {
+        if (bill.status === 'Pagado') {
+            outflows += bill.amount;
+            transactions.push({
+                date: bill.dueDate,
+                concept: `Pago a Proveedor: ${bill.providerName} (${bill.serviceName})`,
+                type: 'Egreso',
+                method: 'USD',
+                amount: bill.amount
+            });
+        }
+    });
+
+    transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    document.getElementById('cf-total-inflows').innerText = `$${inflows.toFixed(2)}`;
+    document.getElementById('cf-total-outflows').innerText = `$${outflows.toFixed(2)}`;
+    
+    const netBalance = inflows - outflows;
+    document.getElementById('cf-net-balance').innerText = `$${netBalance.toFixed(2)}`;
+    
+    const balanceStatus = document.getElementById('cf-balance-status');
+    if (netBalance >= 0) {
+        balanceStatus.className = 'trend up';
+        balanceStatus.innerHTML = '<i class="fa-solid fa-arrow-trend-up"></i> Balance Neto Positivo';
+    } else {
+        balanceStatus.className = 'trend down';
+        balanceStatus.innerHTML = '<i class="fa-solid fa-arrow-trend-down"></i> Balance Neto Negativo';
+    }
+
+    document.getElementById('cf-inflows-details').innerText = `${transactions.filter(t => t.type === 'Ingreso').length} abonos recibidos`;
+    document.getElementById('cf-outflows-details').innerText = `${bills.filter(b => b.status === 'Pagado').length} facturas liquidadas`;
+
+    if (transactions.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted" style="padding: 15px;">No hay historial financiero registrado.</td></tr>';
+        return;
+    }
+
+    transactions.forEach(t => {
+        const typeClass = t.type === 'Ingreso' ? 'text-green' : 'text-red';
+        const typeBadge = t.type === 'Ingreso' ? '<span class="badge-tag green">Ingreso</span>' : '<span class="badge-tag red">Egreso</span>';
+        
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${t.date}</td>
+            <td><strong>${t.concept}</strong></td>
+            <td>${typeBadge}</td>
+            <td>${t.method}</td>
+            <td class="${typeClass}"><strong>${t.type === 'Ingreso' ? '+' : '-'}$${t.amount.toFixed(2)}</strong></td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+// --- CONFIGURACIÓN DE PAPELERÍA ---
+
+let currentPreviewTemplate = 'factura';
+
+async function renderStationeryView() {
+    const headerTextarea = document.getElementById('stat-header-text');
+    const footerTextarea = document.getElementById('stat-footer-text');
+    const logoUpload = document.getElementById('stat-logo-upload');
+    const clearLogoBtn = document.getElementById('btn-clear-stat-logo');
+
+    if (!headerTextarea) return;
+
+    const config = await SupabaseDataService.getStationeryConfig();
+    headerTextarea.value = config.headerText || '';
+    footerTextarea.value = config.footerText || '';
+
+    const previewImg = document.getElementById('stat-logo-preview-img');
+    const previewContainer = document.getElementById('stat-logo-preview-img-container');
+    if (config.logoUrl) {
+        previewImg.src = config.logoUrl;
+        previewContainer.classList.remove('hidden');
+    } else {
+        previewImg.src = '';
+        previewContainer.classList.add('hidden');
+    }
+
+    await refreshStationeryLivePreview();
+
+    headerTextarea.oninput = () => refreshStationeryLivePreview();
+    footerTextarea.oninput = () => refreshStationeryLivePreview();
+
+    logoUpload.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const base64 = event.target.result;
+                previewImg.src = base64;
+                previewContainer.classList.remove('hidden');
+                config.logoUrl = base64;
+                await refreshStationeryLivePreview();
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    clearLogoBtn.onclick = async () => {
+        logoUpload.value = '';
+        previewImg.src = '';
+        previewContainer.classList.add('hidden');
+        config.logoUrl = '';
+        await refreshStationeryLivePreview();
+    };
+
+    document.getElementById('btn-save-stationery-config').onclick = async () => {
+        const headerText = headerTextarea.value.trim();
+        const footerText = footerTextarea.value.trim();
+        const logoUrl = previewImg.src || '';
+
+        await SupabaseDataService.saveStationeryConfig({
+            id: 'default',
+            headerText,
+            footerText,
+            logoUrl
+        });
+
+        renderBudgetTable();
+
+        Swal.fire({ icon: 'success', title: 'Papelería guardada', text: 'Se actualizó la plantilla oficial del consultorio.', timer: 2000, showConfirmButton: false });
+    };
+
+    const templateBtns = document.querySelectorAll('#view-stationery .subtab-btn');
+    templateBtns.forEach(btn => {
+        btn.onclick = async () => {
+            templateBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentPreviewTemplate = btn.dataset.previewTemplate;
+            await refreshStationeryLivePreview();
+        };
+    });
+
+    document.getElementById('btn-print-preview-stationery').onclick = () => {
+        const previewEl = document.getElementById('stationery-live-paper');
+        if (previewEl) {
+            previewEl.classList.add('print-section');
+            window.print();
+            previewEl.classList.remove('print-section');
+        }
+    };
+
+    document.getElementById('btn-pdf-preview-stationery').onclick = () => {
+        const previewEl = document.getElementById('stationery-live-paper');
+        if (!previewEl) return;
+
+        const opt = {
+            margin:       10,
+            filename:     `Papeleria_${currentPreviewTemplate}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        html2pdf().set(opt).from(previewEl).save();
+    };
+}
+
+async function refreshStationeryLivePreview() {
+    const container = document.getElementById('stationery-live-paper');
+    if (!container) return;
+
+    const logoSrc = document.getElementById('stat-logo-preview-img').src || '';
+    const headerText = document.getElementById('stat-header-text').value;
+    const footerText = document.getElementById('stat-footer-text').value;
+
+    let contentHtml = '';
+
+    if (currentPreviewTemplate === 'factura') {
+        contentHtml = `
+            <div style="font-family: monospace; font-size: 0.8rem; color: #000; line-height: 1.4;">
+                <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
+                    ${logoSrc ? `<img src="${logoSrc}" style="max-height: 50px; margin-bottom: 8px; display: block; margin-left: auto; margin-right: auto;">` : ''}
+                    <pre style="margin: 0; font-family: inherit; font-size: 0.8rem; white-space: pre-wrap;">${headerText}</pre>
+                </div>
+                <div style="text-align: center; font-weight: bold; font-size: 1.1rem; margin-bottom: 15px;">FACTURA CLÍNICA MOCK: FAC-001</div>
+                
+                <div style="margin-bottom: 15px; font-size: 0.8rem; border-bottom: 1px solid #000; padding-bottom: 8px;">
+                    <strong>Fecha:</strong> ${new Date().toISOString().split('T')[0]}<br>
+                    <strong>Paciente:</strong> María Elena Rodríguez<br>
+                    <strong>Cédula:</strong> V-18492102<br>
+                    <strong>Términos:</strong> Contado | <strong>Método:</strong> Dólares
+                </div>
+
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-bottom: 15px;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid #000; font-weight: bold;">
+                            <th style="padding: 4px 0; text-align: left;">Descripción</th>
+                            <th style="padding: 4px 0; text-align: center; width: 40px;">Cant</th>
+                            <th style="padding: 4px 0; text-align: right; width: 80px;">P. Unit</th>
+                            <th style="padding: 4px 0; text-align: right; width: 90px;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom: 1px dashed #ccc;">
+                            <td style="padding: 6px 0;">Limpieza Ultrasonica + Profilaxis</td>
+                            <td style="padding: 6px 0; text-align: center;">1</td>
+                            <td style="padding: 6px 0; text-align: right;">$40.00</td>
+                            <td style="padding: 6px 0; text-align: right;">$40.00</td>
+                        </tr>
+                        <tr style="border-bottom: 1px dashed #ccc;">
+                            <td style="padding: 6px 0;">Restauración Resina Clase I</td>
+                            <td style="padding: 6px 0; text-align: center;">2</td>
+                            <td style="padding: 6px 0; text-align: right;">$45.00</td>
+                            <td style="padding: 6px 0; text-align: right;">$90.00</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div style="text-align: right; font-size: 0.9rem; font-weight: bold; border-top: 1px solid #000; padding-top: 8px; margin-bottom: 15px;">
+                    Total REF: $130.00 USD<br>
+                    Tasa BCV: Bs. 36.50<br>
+                    <span style="font-size: 1rem; color: #0284c7;">TOTAL A PAGAR: $130.00 REF</span>
+                </div>
+
+                <div style="font-size: 0.75rem; text-align: center; border-top: 1px dashed #ccc; padding-top: 10px; color: #555;">
+                    <pre style="margin: 0; font-family: inherit; white-space: pre-wrap;">${footerText}</pre>
+                </div>
+            </div>
+        `;
+    } else if (currentPreviewTemplate === 'cotizacion') {
+        contentHtml = `
+            <div style="font-family: monospace; font-size: 0.8rem; color: #000; line-height: 1.4;">
+                <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
+                    ${logoSrc ? `<img src="${logoSrc}" style="max-height: 50px; margin-bottom: 8px; display: block; margin-left: auto; margin-right: auto;">` : ''}
+                    <pre style="margin: 0; font-family: inherit; font-size: 0.8rem; white-space: pre-wrap;">${headerText}</pre>
+                </div>
+                <div style="text-align: center; font-weight: bold; font-size: 1.1rem; margin-bottom: 15px;">PRESUPUESTO / COTIZACIÓN: COT-001</div>
+                
+                <div style="margin-bottom: 15px; font-size: 0.8rem; border-bottom: 1px solid #000; padding-bottom: 8px;">
+                    <strong>Fecha:</strong> ${new Date().toISOString().split('T')[0]}<br>
+                    <strong>Paciente:</strong> María Elena Rodríguez<br>
+                    <strong>Cédula:</strong> V-18492102<br>
+                    <strong>Validez:</strong> 15 días a partir de la emisión
+                </div>
+
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-bottom: 15px;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid #000; font-weight: bold;">
+                            <th style="padding: 4px 0; text-align: left;">Tratamiento</th>
+                            <th style="padding: 4px 0; text-align: center; width: 40px;">Cant</th>
+                            <th style="padding: 4px 0; text-align: right; width: 80px;">Precio</th>
+                            <th style="padding: 4px 0; text-align: right; width: 90px;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom: 1px dashed #ccc;">
+                            <td style="padding: 6px 0;">Tratamiento Conducto Multirradicular (Pieza 36)</td>
+                            <td style="padding: 6px 0; text-align: center;">1</td>
+                            <td style="padding: 6px 0; text-align: right;">$180.00</td>
+                            <td style="padding: 6px 0; text-align: right;">$180.00</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div style="text-align: right; font-size: 0.9rem; font-weight: bold; border-top: 1px solid #000; padding-top: 8px; margin-bottom: 15px;">
+                    Subtotal: $180.00 USD<br>
+                    <span style="font-size: 1rem; color: #10b981;">TOTAL PRESUPUESTADO: $180.00 USD</span>
+                </div>
+
+                <div style="font-size: 0.75rem; text-align: center; border-top: 1px dashed #ccc; padding-top: 10px; color: #555;">
+                    <pre style="margin: 0; font-family: inherit; white-space: pre-wrap;">${footerText}</pre>
+                </div>
+            </div>
+        `;
+    } else if (currentPreviewTemplate === 'recibo') {
+        contentHtml = `
+            <div style="font-family: monospace; font-size: 0.8rem; color: #000; line-height: 1.4;">
+                <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
+                    ${logoSrc ? `<img src="${logoSrc}" style="max-height: 50px; margin-bottom: 8px; display: block; margin-left: auto; margin-right: auto;">` : ''}
+                    <pre style="margin: 0; font-family: inherit; font-size: 0.8rem; white-space: pre-wrap;">${headerText}</pre>
+                </div>
+                <div style="text-align: center; font-weight: bold; font-size: 1.1rem; margin-bottom: 15px;">RECIBO DE ABONO / PAGO: REC-001</div>
+                
+                <div style="margin-bottom: 15px; font-size: 0.82rem; border-bottom: 1px solid #000; padding-bottom: 8px; line-height: 1.6;">
+                    <strong>Fecha:</strong> ${new Date().toISOString().split('T')[0]}<br>
+                    <strong>Paciente:</strong> María Elena Rodríguez (C.I: V-18492102)<br>
+                    <strong>Abono Recibido:</strong> $50.00 USD<br>
+                    <strong>Concepto:</strong> Abono Inicial Corona Zirconio<br>
+                    <strong>Saldo Restante:</strong> $200.00 USD
+                </div>
+
+                <div style="margin-top: 30px; display: flex; justify-content: space-between; font-size: 0.8rem; text-align: center;">
+                    <div style="width: 180px;">
+                        <div style="border-bottom: 1px solid #000; height: 35px; margin-bottom: 5px;"></div>
+                        Recibido por (Firma)
+                    </div>
+                    <div style="width: 180px;">
+                        <div style="border-bottom: 1px solid #000; height: 35px; margin-bottom: 5px;"></div>
+                        Paciente (Firma)
+                    </div>
+                </div>
+
+                <div style="font-size: 0.75rem; text-align: center; border-top: 1px dashed #ccc; padding-top: 10px; color: #555; margin-top: 25px;">
+                    <pre style="margin: 0; font-family: inherit; white-space: pre-wrap;">${footerText}</pre>
+                </div>
+            </div>
+        `;
+    }
+
+    container.innerHTML = contentHtml;
+}
