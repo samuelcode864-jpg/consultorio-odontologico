@@ -2429,6 +2429,10 @@ async function generateBudgetHTMLContainer() {
     });
 
     const stationery = await SupabaseDataService.getStationeryConfig();
+    const logoBase64 = await toDataURL(stationery.logoUrl);
+
+    const docSig = (window.doctorSigPad && !window.doctorSigPad.isEmpty()) ? window.doctorSigPad.toDataURL() : '';
+    const patSig = (window.patientSigPad && !window.patientSigPad.isEmpty()) ? window.patientSigPad.toDataURL() : '';
 
     const container = document.createElement('div');
     container.style.padding = '30px';
@@ -2438,7 +2442,7 @@ async function generateBudgetHTMLContainer() {
 
     container.innerHTML = `
         <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px;">
-            ${stationery.logoUrl ? `<img src="${stationery.logoUrl}" style="max-height: 60px; margin-bottom: 10px; display: block; margin-left: auto; margin-right: auto;">` : ''}
+            ${logoBase64 ? `<img src="${logoBase64}" style="max-height: 60px; margin-bottom: 10px; display: block; margin-left: auto; margin-right: auto;">` : ''}
             <pre style="margin: 0; font-family: inherit; font-size: 0.9rem; white-space: pre-wrap;">${stationery.headerText}</pre>
         </div>
         <div style="text-align: center; font-weight: bold; font-size: 1.2rem; margin-bottom: 20px;">PRESUPUESTO ODONTOLÓGICO</div>
@@ -2469,15 +2473,19 @@ async function generateBudgetHTMLContainer() {
         ${notes ? `<div style="margin-bottom: 25px; border: 1px solid #000; padding: 10px; font-size: 0.85rem;"><strong>Observaciones:</strong><br>${notes}</div>` : ''}
         <div style="margin-top: 40px; display: flex; justify-content: space-between; font-size: 0.85rem; text-align: center;">
             <div style="width: 200px;">
-                <div style="border-bottom: 1px solid #000; height: 40px; margin-bottom: 5px;"></div>
-                Firma del Médico
+                ${docSig ? `<img src="${docSig}" style="max-height: 50px; display: block; margin-left: auto; margin-right: auto; margin-bottom: 5px;">` : '<div style="height: 55px;"></div>'}
+                <div style="border-top: 1px solid #000; padding-top: 5px;">Firma del Médico</div>
             </div>
             <div style="width: 200px;">
-                <div style="border-bottom: 1px solid #000; height: 40px; margin-bottom: 5px;"></div>
-                Firma del Paciente
+                ${patSig ? `<img src="${patSig}" style="max-height: 50px; display: block; margin-left: auto; margin-right: auto; margin-bottom: 5px;">` : '<div style="height: 55px;"></div>'}
+                <div style="border-top: 1px solid #000; padding-top: 5px;">Firma del Paciente</div>
             </div>
         </div>
         <div style="text-align: center; margin-top: 30px; font-size: 0.8rem; border-top: 1px solid #000; padding-top: 10px; color: #555;">
+            <pre style="margin: 0; font-family: inherit; white-space: pre-wrap;">${stationery.footerText}</pre>
+        </div>
+    `;
+    return container;x; color: #555;">
             <pre style="margin: 0; font-family: inherit; white-space: pre-wrap;">${stationery.footerText}</pre>
         </div>
     `;
@@ -2856,6 +2864,7 @@ async function generateInvoicePreviewHTML(invoice, patient, assistant) {
     if (!container) return;
 
     const stationery = await SupabaseDataService.getStationeryConfig();
+    const logoBase64 = await toDataURL(stationery.logoUrl);
     const rate = getExchangeRate();
 
     let itemsHtml = '';
@@ -2880,7 +2889,7 @@ async function generateInvoicePreviewHTML(invoice, patient, assistant) {
     container.innerHTML = `
         <div style="font-family: monospace; line-height: 1.4; color: #000; background: #fff; padding: 10px;">
             <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
-                ${stationery.logoUrl ? `<img src="${stationery.logoUrl}" style="max-height: 50px; margin-bottom: 8px; display: block; margin-left: auto; margin-right: auto;">` : ''}
+                ${logoBase64 ? `<img src="${logoBase64}" style="max-height: 50px; margin-bottom: 8px; display: block; margin-left: auto; margin-right: auto;">` : ''}
                 <pre style="margin: 0; font-family: inherit; font-size: 0.8rem; white-space: pre-wrap;">${stationery.headerText}</pre>
             </div>
             
@@ -3468,4 +3477,26 @@ async function refreshStationeryLivePreview() {
     }
 
     container.innerHTML = contentHtml;
+}
+
+function toDataURL(url) {
+    return new Promise((resolve) => {
+        if (!url) return resolve('');
+        if (url.startsWith('data:')) return resolve(url);
+        
+        const xhr = new XMLHttpRequest();
+        xhr.onload = function() {
+            const reader = new FileReader();
+            reader.onloadend = function() {
+                resolve(reader.result);
+            };
+            reader.readAsDataURL(xhr.response);
+        };
+        xhr.onerror = function() {
+            resolve('');
+        };
+        xhr.open('GET', url);
+        xhr.responseType = 'blob';
+        xhr.send();
+    });
 }
