@@ -3422,64 +3422,87 @@ async function refreshStationeryLivePreview() {
 
 function toDataURL(url) {
     return new Promise((resolve) => {
-        if (!url) return resolve('');
-        if (url.startsWith('data:')) return resolve(url);
-        
-        const xhr = new XMLHttpRequest();
-        xhr.onload = function() {
-            const reader = new FileReader();
-            reader.onloadend = function() {
-                resolve(reader.result);
+        try {
+            if (!url) return resolve('');
+            if (url.startsWith('data:')) return resolve(url);
+            
+            const xhr = new XMLHttpRequest();
+            xhr.onload = function() {
+                try {
+                    const reader = new FileReader();
+                    reader.onloadend = function() {
+                        resolve(reader.result);
+                    };
+                    reader.readAsDataURL(xhr.response);
+                } catch (e) {
+                    resolve('');
+                }
             };
-            reader.readAsDataURL(xhr.response);
-        };
-        xhr.onerror = function() {
+            xhr.onerror = function() {
+                resolve('');
+            };
+            xhr.open('GET', url);
+            xhr.responseType = 'blob';
+            xhr.send();
+        } catch (err) {
+            console.error("toDataURL error:", err);
             resolve('');
-        };
-        xhr.open('GET', url);
-        xhr.responseType = 'blob';
-        xhr.send();
+        }
     });
 }
 
 function generatePDFFromElement(element, filename) {
-    const opt = {
-        margin:       10,
-        filename:     filename,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-
-    element.style.position = 'fixed';
-    element.style.left = '0';
-    element.style.top = '0';
-    element.style.width = '800px';
-    element.style.zIndex = '1';
+    // Basic settings to make sure it displays correctly in the modal
+    element.style.position = 'relative';
+    element.style.width = '100%';
+    element.style.maxWidth = '680px';
+    element.style.margin = '0 auto';
     element.style.backgroundColor = '#ffffff';
     element.style.color = '#000000';
     element.style.display = 'block';
-
-    document.body.appendChild(element);
+    element.style.padding = '20px';
 
     Swal.fire({
-        title: 'Generando PDF...',
-        text: 'Por favor espere un momento.',
+        title: 'Generando Documento PDF...',
+        html: `
+            <div style="margin-bottom: 15px; font-weight: bold; color: #0284c7;">
+                <i class="fa-solid fa-circle-notch fa-spin"></i> Procesando imágenes y firmas...
+            </div>
+            <div id="pdf-rendering-sandbox" style="border: 1px solid #cbd5e1; max-height: 350px; overflow-y: auto; background: #ffffff; padding: 10px; text-align: left; border-radius: 4px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);">
+                <!-- Element gets appended here so it is fully painted in DOM viewport -->
+            </div>
+        `,
+        width: '740px',
+        showConfirmButton: false,
         allowOutsideClick: false,
         didOpen: () => {
-            Swal.showLoading();
+            const sandbox = document.getElementById('pdf-rendering-sandbox');
+            if (sandbox) {
+                sandbox.appendChild(element);
+            }
+
+            setTimeout(() => {
+                const opt = {
+                    margin:       10,
+                    filename:     filename,
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { scale: 2, useCORS: true, logging: true },
+                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+
+                html2pdf().set(opt).from(element).save().then(() => {
+                    Swal.close();
+                    Swal.fire({ icon: 'success', title: '¡PDF Descargado!', text: 'El archivo se ha guardado en tu dispositivo.', timer: 2000, showConfirmButton: false });
+                }).catch(err => {
+                    console.error("html2pdf processing error:", err);
+                    Swal.close();
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error de Renderizado',
+                        text: `No se pudo compilar el PDF. Detalle: ${err.message || err}`
+                    });
+                });
+            }, 600); // 600ms delay to let the browser paint the DOM fully
         }
     });
-
-    setTimeout(() => {
-        html2pdf().set(opt).from(element).save().then(() => {
-            document.body.removeChild(element);
-            Swal.close();
-        }).catch(err => {
-            document.body.removeChild(element);
-            Swal.close();
-            console.error(err);
-            Swal.fire({ icon: 'error', title: 'Error al exportar', text: 'No se pudo generar el documento PDF.' });
-        });
-    }, 150);
 }
