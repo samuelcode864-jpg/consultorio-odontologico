@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 3. Check Authentication & Session
     checkAuthSession();
+    initInactivityTracker();
 
     // 4. Instantiate Sub-Systems
     window.kardex = new KardexInventory();
@@ -182,12 +183,12 @@ function applyTheme(theme) {
 // AUTHENTICATION & ROLE-BASED PERMISSIONS (RBAC)
 // ==========================================
 function getCurrentUser() {
-    const session = localStorage.getItem('dental_current_user');
+    const session = sessionStorage.getItem('dental_current_user');
     return session ? JSON.parse(session) : null;
 }
 
 function checkAuthSession() {
-    const currentSession = localStorage.getItem('dental_current_user');
+    const currentSession = sessionStorage.getItem('dental_current_user');
     const loginOverlay = document.getElementById('login-screen');
 
     if (currentSession) {
@@ -199,9 +200,12 @@ function checkAuthSession() {
             document.getElementById('dr-role-display').innerText = user.role;
 
             applyRolePermissionsUI(user.role);
+            
+            // Start/reset timer upon validation
+            resetInactivityTimer();
             return;
         } catch(e) {
-            localStorage.removeItem('dental_current_user');
+            sessionStorage.removeItem('dental_current_user');
         }
     }
     loginOverlay.classList.remove('hidden');
@@ -236,8 +240,12 @@ async function login(email, password) {
 
     if (match) {
         if (errorMsg) errorMsg.classList.add('hidden');
-        localStorage.setItem('dental_current_user', JSON.stringify(match));
+        sessionStorage.setItem('dental_current_user', JSON.stringify(match));
         checkAuthSession();
+        
+        // Initialize inactivity tracker upon successful login
+        resetInactivityTimer();
+        
         Swal.fire({
             icon: 'success',
             title: '¡Bienvenido(a)!',
@@ -251,8 +259,52 @@ async function login(email, password) {
 }
 
 function logout() {
-    localStorage.removeItem('dental_current_user');
+    sessionStorage.removeItem('dental_current_user');
     checkAuthSession();
+}
+
+// ==========================================
+// INACTIVITY TIMEOUT DETECTOR (5 MINUTES)
+// ==========================================
+let inactivityTimer = null;
+const INACTIVITY_LIMIT = 5 * 60 * 1000; // 5 minutos de inactividad
+
+function resetInactivityTimer() {
+    if (inactivityTimer) {
+        clearTimeout(inactivityTimer);
+    }
+    
+    // Solo activar si hay un usuario logueado en la pestaña actual
+    if (sessionStorage.getItem('dental_current_user')) {
+        inactivityTimer = setTimeout(handleInactivityTimeout, INACTIVITY_LIMIT);
+    }
+}
+
+function handleInactivityTimeout() {
+    // Limpiar sesión por inactividad
+    sessionStorage.removeItem('dental_current_user');
+    checkAuthSession();
+    
+    // Ocultar modales activos
+    const openModals = document.querySelectorAll('.modal-overlay:not(.hidden)');
+    openModals.forEach(m => {
+        m.classList.add('hidden');
+    });
+
+    Swal.fire({
+        icon: 'warning',
+        title: 'Sesión Expirada',
+        text: 'Tu sesión ha sido cerrada automáticamente por inactividad.',
+        confirmButtonText: 'Volver a iniciar'
+    });
+}
+
+function initInactivityTracker() {
+    const events = ['mousemove', 'mousedown', 'keypress', 'touchstart', 'scroll', 'click'];
+    events.forEach(name => {
+        document.addEventListener(name, resetInactivityTimer, true);
+    });
+    resetInactivityTimer();
 }
 
 let currentBudgetItems = [];
