@@ -2485,10 +2485,6 @@ async function generateBudgetHTMLContainer() {
             <pre style="margin: 0; font-family: inherit; white-space: pre-wrap;">${stationery.footerText}</pre>
         </div>
     `;
-    return container;x; color: #555;">
-            <pre style="margin: 0; font-family: inherit; white-space: pre-wrap;">${stationery.footerText}</pre>
-        </div>
-    `;
     return container;
 }
 
