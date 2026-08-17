@@ -1060,34 +1060,8 @@ async function exportEHRToPDF() {
         </div>
     `;
 
-    const opt = {
-        margin:       10,
-        filename:     `Historia_Clinica_${patient.id}_${patient.fullname.replace(/\s+/g, '_')}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-
-    const htmlString = `
-        <div style="padding: 30px; font-family: Arial, sans-serif; color: #0f172a; background-color: #ffffff; width: 700px;">
-            ${container.innerHTML}
-        </div>
-    `;
-
-    html2pdf().set(opt).from(htmlString).save().then(() => {
-        Swal.close();
-        Swal.fire({
-            icon: 'success',
-            title: '¡PDF Generado!',
-            text: `Se ha descargado la Historia Clínica de ${patient.fullname}.`,
-            timer: 2500,
-            showConfirmButton: false
-        });
-    }).catch(err => {
-        Swal.close();
-        console.error(err);
-        Swal.fire({ icon: 'error', title: 'Error al exportar', text: 'No se pudo generar el documento PDF.' });
-    });
+    const filename = `Historia_Clinica_${patient.id}_${patient.fullname.replace(/\s+/g, '_')}.pdf`;
+    generatePDFFromElement(container, filename);
 }
 
 window.deleteClinicalNote = async function(noteId) {
@@ -2501,25 +2475,8 @@ async function downloadBudgetPDF() {
     const container = await generateBudgetHTMLContainer();
     if (!container) return;
 
-    const opt = {
-        margin:       10,
-        filename:     `Presupuesto_${patient.id}_${patient.fullname.replace(/\s+/g, '_')}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-
-    const htmlString = `
-        <div style="padding: 30px; font-family: monospace; color: #000; background-color: #fff; width: 700px;">
-            ${container.innerHTML}
-        </div>
-    `;
-
-    html2pdf().set(opt).from(htmlString).save().then(() => {
-        Swal.fire({ icon: 'success', title: '¡PDF Descargado!', text: 'Se ha descargado el presupuesto.', timer: 2000, showConfirmButton: false });
-    }).catch(err => {
-        console.error(err);
-    });
+    const filename = `Presupuesto_${patient.id}_${patient.fullname.replace(/\s+/g, '_')}.pdf`;
+    generatePDFFromElement(container, filename);
 }
 
 // --- FACTURACIÓN ---
@@ -2778,21 +2735,15 @@ async function renderBillingView() {
         const previewEl = document.getElementById('invoice-paper-preview');
         if (!previewEl || !activeBillingInvoice) return;
 
-        const opt = {
-            margin:       10,
-            filename:     `Factura_${activeBillingInvoice.id}.pdf`,
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
+        const printClone = previewEl.cloneNode(true);
+        const wrapper = document.createElement('div');
+        wrapper.style.padding = '25px';
+        wrapper.style.fontFamily = "'Courier New', Courier, monospace";
+        wrapper.style.lineHeight = '1.4';
+        wrapper.appendChild(printClone);
 
-        const htmlString = `
-            <div style="padding: 25px; font-family: 'Courier New', Courier, monospace; color: #000; background-color: #fff; width: 700px; line-height: 1.4; border: 1px solid #cbd5e1;">
-                ${previewEl.innerHTML}
-            </div>
-        `;
-
-        html2pdf().set(opt).from(htmlString).save();
+        const filename = `Factura_${activeBillingInvoice.id}.pdf`;
+        generatePDFFromElement(wrapper, filename);
     };
 }
 
@@ -3312,21 +3263,15 @@ async function renderStationeryView() {
         const previewEl = document.getElementById('stationery-live-paper');
         if (!previewEl) return;
 
-        const opt = {
-            margin:       10,
-            filename:     `Papeleria_${currentPreviewTemplate}.pdf`,
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
+        const printClone = previewEl.cloneNode(true);
+        const wrapper = document.createElement('div');
+        wrapper.style.padding = '25px';
+        wrapper.style.fontFamily = "'Courier New', Courier, monospace";
+        wrapper.style.lineHeight = '1.4';
+        wrapper.appendChild(printClone);
 
-        const htmlString = `
-            <div style="padding: 25px; font-family: 'Courier New', Courier, monospace; color: #000; background-color: #fff; width: 700px; line-height: 1.4; border: 1px solid #cbd5e1;">
-                ${previewEl.innerHTML}
-            </div>
-        `;
-
-        html2pdf().set(opt).from(htmlString).save();
+        const filename = `Papeleria_${currentPreviewTemplate}.pdf`;
+        generatePDFFromElement(wrapper, filename);
     };
 }
 
@@ -3495,4 +3440,46 @@ function toDataURL(url) {
         xhr.responseType = 'blob';
         xhr.send();
     });
+}
+
+function generatePDFFromElement(element, filename) {
+    const opt = {
+        margin:       10,
+        filename:     filename,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    element.style.position = 'fixed';
+    element.style.left = '0';
+    element.style.top = '0';
+    element.style.width = '800px';
+    element.style.zIndex = '1';
+    element.style.backgroundColor = '#ffffff';
+    element.style.color = '#000000';
+    element.style.display = 'block';
+
+    document.body.appendChild(element);
+
+    Swal.fire({
+        title: 'Generando PDF...',
+        text: 'Por favor espere un momento.',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+
+    setTimeout(() => {
+        html2pdf().set(opt).from(element).save().then(() => {
+            document.body.removeChild(element);
+            Swal.close();
+        }).catch(err => {
+            document.body.removeChild(element);
+            Swal.close();
+            console.error(err);
+            Swal.fire({ icon: 'error', title: 'Error al exportar', text: 'No se pudo generar el documento PDF.' });
+        });
+    }, 150);
 }
