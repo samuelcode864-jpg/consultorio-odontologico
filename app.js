@@ -1070,9 +1070,9 @@ async function exportEHRToPDF() {
 
     container.style.position = 'fixed';
     container.style.left = '0';
-    container.style.top = '0';
+    container.style.top = '100vh';
     container.style.width = '800px';
-    container.style.zIndex = '-9999';
+    container.style.zIndex = '99999';
     container.style.display = 'block';
 
     document.body.appendChild(container);
@@ -2509,9 +2509,9 @@ async function downloadBudgetPDF() {
 
     container.style.position = 'fixed';
     container.style.left = '0';
-    container.style.top = '0';
+    container.style.top = '100vh';
     container.style.width = '800px';
-    container.style.zIndex = '-9999';
+    container.style.zIndex = '99999';
     container.style.display = 'block';
 
     document.body.appendChild(container);
@@ -2791,9 +2791,9 @@ async function renderBillingView() {
         const printClone = previewEl.cloneNode(true);
         printClone.style.position = 'fixed';
         printClone.style.left = '0';
-        printClone.style.top = '0';
+        printClone.style.top = '100vh';
         printClone.style.width = '800px';
-        printClone.style.zIndex = '-9999';
+        printClone.style.zIndex = '99999';
         printClone.style.display = 'block';
 
         document.body.appendChild(printClone);
@@ -3332,9 +3332,9 @@ async function renderStationeryView() {
         const printClone = previewEl.cloneNode(true);
         printClone.style.position = 'fixed';
         printClone.style.left = '0';
-        printClone.style.top = '0';
+        printClone.style.top = '100vh';
         printClone.style.width = '800px';
-        printClone.style.zIndex = '-9999';
+        printClone.style.zIndex = '99999';
         printClone.style.display = 'block';
 
         document.body.appendChild(printClone);
