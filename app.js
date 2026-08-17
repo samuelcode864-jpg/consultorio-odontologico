@@ -1068,16 +1068,14 @@ async function exportEHRToPDF() {
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    container.style.position = 'fixed';
-    container.style.left = '0';
-    container.style.top = '100vh';
-    container.style.width = '800px';
-    container.style.zIndex = '99999';
-    container.style.display = 'block';
+    const htmlString = `
+        <div style="padding: 30px; font-family: Arial, sans-serif; color: #0f172a; background-color: #ffffff; width: 700px;">
+            ${container.innerHTML}
+        </div>
+    `;
 
-    document.body.appendChild(container);
-    html2pdf().set(opt).from(container).save().then(() => {
-        document.body.removeChild(container);
+    html2pdf().set(opt).from(htmlString).save().then(() => {
+        Swal.close();
         Swal.fire({
             icon: 'success',
             title: '¡PDF Generado!',
@@ -1086,7 +1084,7 @@ async function exportEHRToPDF() {
             showConfirmButton: false
         });
     }).catch(err => {
-        document.body.removeChild(container);
+        Swal.close();
         console.error(err);
         Swal.fire({ icon: 'error', title: 'Error al exportar', text: 'No se pudo generar el documento PDF.' });
     });
@@ -2507,19 +2505,15 @@ async function downloadBudgetPDF() {
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    container.style.position = 'fixed';
-    container.style.left = '0';
-    container.style.top = '100vh';
-    container.style.width = '800px';
-    container.style.zIndex = '99999';
-    container.style.display = 'block';
+    const htmlString = `
+        <div style="padding: 30px; font-family: monospace; color: #000; background-color: #fff; width: 700px;">
+            ${container.innerHTML}
+        </div>
+    `;
 
-    document.body.appendChild(container);
-    html2pdf().set(opt).from(container).save().then(() => {
-        document.body.removeChild(container);
+    html2pdf().set(opt).from(htmlString).save().then(() => {
         Swal.fire({ icon: 'success', title: '¡PDF Descargado!', text: 'Se ha descargado el presupuesto.', timer: 2000, showConfirmButton: false });
     }).catch(err => {
-        document.body.removeChild(container);
         console.error(err);
     });
 }
@@ -2788,21 +2782,13 @@ async function renderBillingView() {
             jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
-        const printClone = previewEl.cloneNode(true);
-        printClone.style.position = 'fixed';
-        printClone.style.left = '0';
-        printClone.style.top = '100vh';
-        printClone.style.width = '800px';
-        printClone.style.zIndex = '99999';
-        printClone.style.display = 'block';
+        const htmlString = `
+            <div style="padding: 25px; font-family: 'Courier New', Courier, monospace; color: #000; background-color: #fff; width: 700px; line-height: 1.4; border: 1px solid #cbd5e1;">
+                ${previewEl.innerHTML}
+            </div>
+        `;
 
-        document.body.appendChild(printClone);
-        html2pdf().set(opt).from(printClone).save().then(() => {
-            document.body.removeChild(printClone);
-        }).catch(err => {
-            document.body.removeChild(printClone);
-            console.error(err);
-        });
+        html2pdf().set(opt).from(htmlString).save();
     };
 }
 
@@ -3329,21 +3315,13 @@ async function renderStationeryView() {
             jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
-        const printClone = previewEl.cloneNode(true);
-        printClone.style.position = 'fixed';
-        printClone.style.left = '0';
-        printClone.style.top = '100vh';
-        printClone.style.width = '800px';
-        printClone.style.zIndex = '99999';
-        printClone.style.display = 'block';
+        const htmlString = `
+            <div style="padding: 25px; font-family: 'Courier New', Courier, monospace; color: #000; background-color: #fff; width: 700px; line-height: 1.4; border: 1px solid #cbd5e1;">
+                ${previewEl.innerHTML}
+            </div>
+        `;
 
-        document.body.appendChild(printClone);
-        html2pdf().set(opt).from(printClone).save().then(() => {
-            document.body.removeChild(printClone);
-        }).catch(err => {
-            document.body.removeChild(printClone);
-            console.error(err);
-        });
+        html2pdf().set(opt).from(htmlString).save();
     };
 }
 
