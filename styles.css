@@ -2171,48 +2171,9 @@ html, body {
 }
 
 @media print {
-    /* Hide all main layout containers and interactive controls */
-    .sidebar,
-    .top-header,
-    .mobile-toggle-btn,
-    .header-actions,
-    .header-search,
-    .btn,
-    button,
-    .modal-overlay,
-    .nav-menu,
-    .sidebar-footer,
-    .currency-toggle,
-    .view-header,
-    .card-header,
-    .tool-mode-bar,
-    .patient-select-section-card,
-    #mobile-sidebar-backdrop,
-    .no-print {
+    /* Hide everything on the page except the print-section */
+    body > :not(.print-section) {
         display: none !important;
-    }
-
-    /* Reset background and main layout structures for printing */
-    body, html, .main-content, .app-container {
-        background: #ffffff !important;
-        color: #000000 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        width: 100% !important;
-        height: auto !important;
-        overflow: visible !important;
-    }
-
-    /* Hide all view containers */
-    .tab-view {
-        display: none !important;
-    }
-
-    /* Show only the active view or view containing the print section */
-    .tab-view.active,
-    .tab-view:has(.print-section) {
-        display: block !important;
-        width: 100% !important;
     }
 
     /* Print section styling */

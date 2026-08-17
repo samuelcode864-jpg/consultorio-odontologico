@@ -1068,6 +1068,12 @@ async function exportEHRToPDF() {
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    container.style.top = '0';
+    container.style.width = '800px';
+    container.style.display = 'block';
+
     document.body.appendChild(container);
     html2pdf().set(opt).from(container).save().then(() => {
         document.body.removeChild(container);
@@ -2500,6 +2506,12 @@ async function downloadBudgetPDF() {
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    container.style.top = '0';
+    container.style.width = '800px';
+    container.style.display = 'block';
+
     document.body.appendChild(container);
     html2pdf().set(opt).from(container).save().then(() => {
         document.body.removeChild(container);
@@ -2752,14 +2764,14 @@ async function renderBillingView() {
         });
     };
 
-    // Final Action Buttons
     document.getElementById('btn-print-invoice-final').onclick = () => {
         const previewEl = document.getElementById('invoice-paper-preview');
-        if (previewEl) {
-            previewEl.classList.add('print-section');
-            window.print();
-            previewEl.classList.remove('print-section');
-        }
+        if (!previewEl) return;
+        const printClone = previewEl.cloneNode(true);
+        document.body.appendChild(printClone);
+        printClone.classList.add('print-section');
+        window.print();
+        document.body.removeChild(printClone);
     };
 
     document.getElementById('btn-pdf-invoice-final').onclick = () => {
@@ -2774,7 +2786,20 @@ async function renderBillingView() {
             jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
-        html2pdf().set(opt).from(previewEl).save();
+        const printClone = previewEl.cloneNode(true);
+        printClone.style.position = 'absolute';
+        printClone.style.left = '-9999px';
+        printClone.style.top = '0';
+        printClone.style.width = '800px';
+        printClone.style.display = 'block';
+
+        document.body.appendChild(printClone);
+        html2pdf().set(opt).from(printClone).save().then(() => {
+            document.body.removeChild(printClone);
+        }).catch(err => {
+            document.body.removeChild(printClone);
+            console.error(err);
+        });
     };
 }
 
@@ -3281,11 +3306,12 @@ async function renderStationeryView() {
 
     document.getElementById('btn-print-preview-stationery').onclick = () => {
         const previewEl = document.getElementById('stationery-live-paper');
-        if (previewEl) {
-            previewEl.classList.add('print-section');
-            window.print();
-            previewEl.classList.remove('print-section');
-        }
+        if (!previewEl) return;
+        const printClone = previewEl.cloneNode(true);
+        document.body.appendChild(printClone);
+        printClone.classList.add('print-section');
+        window.print();
+        document.body.removeChild(printClone);
     };
 
     document.getElementById('btn-pdf-preview-stationery').onclick = () => {
@@ -3300,7 +3326,20 @@ async function renderStationeryView() {
             jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
-        html2pdf().set(opt).from(previewEl).save();
+        const printClone = previewEl.cloneNode(true);
+        printClone.style.position = 'absolute';
+        printClone.style.left = '-9999px';
+        printClone.style.top = '0';
+        printClone.style.width = '800px';
+        printClone.style.display = 'block';
+
+        document.body.appendChild(printClone);
+        html2pdf().set(opt).from(printClone).save().then(() => {
+            document.body.removeChild(printClone);
+        }).catch(err => {
+            document.body.removeChild(printClone);
+            console.error(err);
+        });
     };
 }
 
