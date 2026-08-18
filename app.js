@@ -2103,12 +2103,20 @@ function initGlobalEvents() {
                 }
             };
 
-            await SupabaseDataService.savePatient(newPatient);
-
-            closeModal('modal-patient');
-            setActivePatientId(id);
-            await renderPatientsTable();
-            Swal.fire({ icon: 'success', title: '¡Paciente Registrado!', text: `${fullname} ha sido agregado en la nube de Supabase.`, timer: 2000, showConfirmButton: false });
+            try {
+                await SupabaseDataService.savePatient(newPatient);
+                closeModal('modal-patient');
+                setActivePatientId(id);
+                await renderPatientsTable();
+                Swal.fire({ icon: 'success', title: '¡Paciente Registrado!', text: `${fullname} ha sido agregado en la nube de Supabase.`, timer: 2000, showConfirmButton: false });
+            } catch (err) {
+                console.error("Error al registrar paciente en app.js:", err);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error de Servidor / Supabase',
+                    text: `No se pudo guardar el paciente. Detalle del error: ${err.message || err}`
+                });
+            }
         };
     }
 

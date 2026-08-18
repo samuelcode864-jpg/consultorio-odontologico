@@ -211,8 +211,8 @@ class SupabaseDataService {
 
         if (this.isCloudConnected()) {
             try {
-                // Try saving with the full schema first
-                const { error } = await supabaseClient.from('patients').upsert({
+                // Attempt 1: Full columns (including clinical_notes, photos, payments, metadata)
+                const payload1 = {
                     id: patientObj.id,
                     fullname: patientObj.fullname,
                     birthdate: patientObj.birthdate,
@@ -229,14 +229,42 @@ class SupabaseDataService {
                     photos: patientObj.photos || [],
                     payments: patientObj.payments || [],
                     metadata: patientObj.metadata || {}
-                });
+                };
+
+                let { error: err1 } = await supabaseClient.from('patients').upsert(payload1);
                 
-                if (error) {
-                    console.error('Supabase savePatient Cloud Error:', error);
-                    // Fallback: If it's a missing columns error, try saving without the missing columns
-                    if (error.message && error.message.includes('column') && error.message.includes('does not exist')) {
-                        console.warn('Attempting savePatient fallback without clinical_notes/photos/payments columns...');
-                        const fallbackPatient = {
+                if (err1) {
+                    console.warn('Supabase savePatient Attempt 1 failed:', err1.message);
+                    
+                    // Attempt 2: Try without clinical_notes, photos, and payments columns, putting them in metadata
+                    const payload2 = {
+                        id: patientObj.id,
+                        fullname: patientObj.fullname,
+                        birthdate: patientObj.birthdate,
+                        phone: patientObj.phone,
+                        email: patientObj.email || null,
+                        occupation: patientObj.occupation || null,
+                        allergies: patientObj.allergies || [],
+                        systemic: patientObj.systemic || [],
+                        medication: patientObj.medication || null,
+                        emergency_contact: patientObj.emergencyContact || null,
+                        status: patientObj.status || 'Activo',
+                        odontogram_data: patientObj.odontogramData || {},
+                        metadata: {
+                            ...(patientObj.metadata || {}),
+                            _fallback_clinical_notes: patientObj.clinicalNotes || [],
+                            _fallback_photos: patientObj.photos || [],
+                            _fallback_payments: patientObj.payments || []
+                        }
+                    };
+
+                    let { error: err2 } = await supabaseClient.from('patients').upsert(payload2);
+
+                    if (err2) {
+                        console.warn('Supabase savePatient Attempt 2 failed:', err2.message);
+                        
+                        // Attempt 3: Bare minimum (only columns that existed in the original schema.sql)
+                        const payload3 = {
                             id: patientObj.id,
                             fullname: patientObj.fullname,
                             birthdate: patientObj.birthdate,
@@ -250,24 +278,23 @@ class SupabaseDataService {
                             status: patientObj.status || 'Activo',
                             odontogram_data: patientObj.odontogramData || {}
                         };
-                        
-                        fallbackPatient.metadata = {
-                            ...(patientObj.metadata || {}),
-                            _fallback_clinical_notes: patientObj.clinicalNotes || [],
-                            _fallback_photos: patientObj.photos || [],
-                            _fallback_payments: patientObj.payments || []
-                        };
-                        
-                        const { error: fallbackError } = await supabaseClient.from('patients').upsert(fallbackPatient);
-                        if (fallbackError) {
-                            console.error('Supabase savePatient Fallback Error:', fallbackError);
+
+                        let { error: err3 } = await supabaseClient.from('patients').upsert(payload3);
+                        if (err3) {
+                            console.error('Supabase savePatient Attempt 3 failed:', err3.message);
+                            throw new Error(`Fallo total al registrar en la nube. Detalle: ${err3.message}`);
                         } else {
-                            console.log('Patient saved successfully via fallback!');
+                            console.log('Patient saved successfully via Attempt 3 (bare minimum).');
                         }
+                    } else {
+                        console.log('Patient saved successfully via Attempt 2 (metadata fallback).');
                     }
+                } else {
+                    console.log('Patient saved successfully via Attempt 1 (full schema).');
                 }
             } catch (err) {
                 console.error('Supabase savePatient Exception:', err);
+                throw err; // Rethrow so UI can show it
             }
         }
     }
