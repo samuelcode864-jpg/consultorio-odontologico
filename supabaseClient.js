@@ -187,9 +187,9 @@ class SupabaseDataService {
                     emergencyContact: p.emergency_contact || '',
                     status: p.status || 'Activo',
                     odontogramData: p.odontogram_data || {},
-                    clinicalNotes: p.clinical_notes || [],
-                    photos: p.photos || [],
-                    payments: p.payments || [],
+                    clinicalNotes: p.clinical_notes || (p.metadata && p.metadata._fallback_clinical_notes) || [],
+                    photos: p.photos || (p.metadata && p.metadata._fallback_photos) || [],
+                    payments: p.payments || (p.metadata && p.metadata._fallback_payments) || [],
                     metadata: p.metadata || {}
                 }));
                 localStorage.setItem('dental_patients', JSON.stringify(mapped));
@@ -211,6 +211,7 @@ class SupabaseDataService {
 
         if (this.isCloudConnected()) {
             try {
+                // Try saving with the full schema first
                 const { error } = await supabaseClient.from('patients').upsert({
                     id: patientObj.id,
                     fullname: patientObj.fullname,
@@ -229,7 +230,42 @@ class SupabaseDataService {
                     payments: patientObj.payments || [],
                     metadata: patientObj.metadata || {}
                 });
-                if (error) console.error('Supabase savePatient Cloud Error:', error);
+                
+                if (error) {
+                    console.error('Supabase savePatient Cloud Error:', error);
+                    // Fallback: If it's a missing columns error, try saving without the missing columns
+                    if (error.message && error.message.includes('column') && error.message.includes('does not exist')) {
+                        console.warn('Attempting savePatient fallback without clinical_notes/photos/payments columns...');
+                        const fallbackPatient = {
+                            id: patientObj.id,
+                            fullname: patientObj.fullname,
+                            birthdate: patientObj.birthdate,
+                            phone: patientObj.phone,
+                            email: patientObj.email || null,
+                            occupation: patientObj.occupation || null,
+                            allergies: patientObj.allergies || [],
+                            systemic: patientObj.systemic || [],
+                            medication: patientObj.medication || null,
+                            emergency_contact: patientObj.emergencyContact || null,
+                            status: patientObj.status || 'Activo',
+                            odontogram_data: patientObj.odontogramData || {}
+                        };
+                        
+                        fallbackPatient.metadata = {
+                            ...(patientObj.metadata || {}),
+                            _fallback_clinical_notes: patientObj.clinicalNotes || [],
+                            _fallback_photos: patientObj.photos || [],
+                            _fallback_payments: patientObj.payments || []
+                        };
+                        
+                        const { error: fallbackError } = await supabaseClient.from('patients').upsert(fallbackPatient);
+                        if (fallbackError) {
+                            console.error('Supabase savePatient Fallback Error:', fallbackError);
+                        } else {
+                            console.log('Patient saved successfully via fallback!');
+                        }
+                    }
+                }
             } catch (err) {
                 console.error('Supabase savePatient Exception:', err);
             }

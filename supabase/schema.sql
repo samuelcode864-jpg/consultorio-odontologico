@@ -29,6 +29,11 @@ CREATE TABLE IF NOT EXISTS patients (
     emergency_contact TEXT,
     status TEXT DEFAULT 'Activo',
     odontogram_data JSONB DEFAULT '{}'::jsonb,
+    clinical_notes JSONB DEFAULT '[]'::jsonb,
+    photos JSONB DEFAULT '[]'::jsonb,
+    payments JSONB DEFAULT '[]'::jsonb,
+    metadata JSONB DEFAULT '{}'::jsonb,
+    is_minor BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
