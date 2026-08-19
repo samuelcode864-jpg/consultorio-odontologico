@@ -1242,13 +1242,13 @@ h4 { font-size: 1rem; }
 
 .login-card-glass {
     width: 100%;
-    max-width: 420px;
+    max-width: 400px;
     background: rgba(0, 26, 51, 0.45) !important;
     backdrop-filter: blur(16px) saturate(120%) !important;
     -webkit-backdrop-filter: blur(16px) saturate(120%) !important;
     border: 1px solid rgba(255, 255, 255, 0.08) !important;
     border-radius: 24px !important;
-    padding: 50px 35px !important;
+    padding: 35px 30px !important;
     box-sizing: border-box !important;
     box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4) !important;
     display: flex !important;
@@ -1259,7 +1259,7 @@ h4 { font-size: 1rem; }
 .login-logo-container {
     width: 100% !important;
     text-align: center !important;
-    margin-bottom: 45px !important;
+    margin-bottom: 20px !important;
 }
 
 .login-logo-img {
