@@ -1259,13 +1259,15 @@ h4 { font-size: 1rem; }
 .login-logo-container {
     width: 100% !important;
     text-align: center !important;
-    margin-bottom: 20px !important;
+    margin-bottom: 5px !important;
 }
 
 .login-logo-img {
-    max-width: 290px !important;
+    max-width: 280px !important;
     width: 100% !important;
     height: auto !important;
+    margin-top: -35px !important;
+    margin-bottom: -35px !important;
     filter: drop-shadow(0 4px 10px rgba(0, 180, 255, 0.25)) !important;
 }
 
