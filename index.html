@@ -22,38 +22,34 @@
 
     <!-- FULLSCREEN LOGIN OVERLAY (EXACT REPLICA OF THE SPECIFIED IMAGE) -->
     <div id="login-screen" class="login-overlay hidden">
-        <div class="login-container-new">
+        <div class="login-card-glass">
             <div class="login-logo-container">
-                <img src="Logo PNG (rgb)-06.png" alt="Rodrigo Navas Logo" class="login-logo-img">
+                <img src="jjj.png" alt="Rodrigo Navas Logo" class="login-logo-img">
             </div>
             
             <form id="form-login" class="login-form-new">
                 <div class="form-group-new">
                     <label class="form-label-new">Email</label>
-                    <input type="email" id="login-email" required value="doctor@dentalcare.com" placeholder="Email" class="form-input-new">
+                    <div class="input-icon-wrapper">
+                        <i class="fa-regular fa-envelope input-icon"></i>
+                        <input type="email" id="login-email" required value="doctor@dentalcare.com" placeholder="Email" class="form-input-new">
+                    </div>
                 </div>
                 
-                <div class="form-group-new" style="margin-top: 20px;">
+                <div class="form-group-new" style="margin-top: 24px;">
                     <label class="form-label-new">Password</label>
-                    <input type="password" id="login-password" required value="123456" placeholder="Password" class="form-input-new">
+                    <div class="input-icon-wrapper">
+                        <i class="fa-solid fa-lock input-icon"></i>
+                        <input type="password" id="login-password" required value="123456" placeholder="Password" class="form-input-new">
+                    </div>
                 </div>
                 
-                <div id="login-error-msg" class="text-red hidden" style="font-size: 0.85rem; margin: 15px 0 0 0; text-align: center; color: #ff8a8a;">
+                <div id="login-error-msg" class="text-red hidden" style="font-size: 0.85rem; margin-top: 15px; text-align: center; color: #ff6b6b; font-weight: 500;">
                     <i class="fa-solid fa-circle-exclamation"></i> Correo o contraseña incorrectos.
                 </div>
                 
-                <button type="submit" class="login-btn-new" style="margin-top: 30px;">LOGIN</button>
+                <button type="submit" class="login-btn-new" style="margin-top: 35px;">LOGIN</button>
             </form>
-            
-            <div class="login-forgot-wrapper-new" style="margin-top: 20px;">
-                <a href="#" class="login-forgot-link-new" onclick="Swal.fire({title: 'Recuperar Contraseña', text: 'Por favor, contacte al administrador del sistema para restablecer su contraseña.', icon: 'info'})">Forgot Password?</a>
-            </div>
-            
-            <div class="demo-credentials-new">
-                <strong style="color: #ffffff; display: block; margin-bottom: 6px;">🔑 Cuentas Demo:</strong>
-                Doctor: <code>doctor@dentalcare.com</code> / <code>123456</code><br>
-                Asistente: <code>asistente@dentalcare.com</code> / <code>123456</code>
-            </div>
         </div>
     </div>
 
