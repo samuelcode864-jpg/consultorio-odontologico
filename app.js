@@ -527,7 +527,7 @@ function renderBudgetTable() {
     const rate = getExchangeRate();
 
     if (currentBudgetItems.length === 0) {
-        tbody.innerHTML = `<tr class="empty-row"><td colspan="6" class="text-center text-muted">Haga clic en el odontograma o en "+ Agregar Item" para armar el presupuesto.</td></tr>`;
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="6" class="text-center text-muted">Haga clic en el odontodiagrama o en "+ Agregar Item" para armar el presupuesto.</td></tr>`;
         document.getElementById('budget-total-amount').innerText = '$0.00';
         document.getElementById('budget-total-ves').innerText = 'Bs. 0.00';
         return;
