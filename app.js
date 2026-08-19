@@ -1862,6 +1862,212 @@ function initGlobalEvents() {
         };
     }
 
+    // === EXCEL IMPORT/EXPORT MASTER LOGIC ===
+    
+    // 1. SERVICES EXCEL TEMPLATE & IMPORT
+    const btnDownloadSrvTemplate = document.getElementById('btn-download-services-template');
+    if (btnDownloadSrvTemplate) {
+        btnDownloadSrvTemplate.onclick = () => {
+            const data = [
+                {
+                    "Código": "OD-01",
+                    "Categoría": "Diagnóstico",
+                    "Nombre del Servicio": "Consulta y Diagnóstico Clínico + Rx Periapical",
+                    "Precio Base (USD)": 25.00,
+                    "Tiempo en Silla (Minutos)": 20,
+                    "Bono Higienista (USD)": 5.00
+                },
+                {
+                    "Código": "OP-01",
+                    "Categoría": "Operatoria",
+                    "Nombre del Servicio": "Restauración Fotocurada (Resina Clase I)",
+                    "Precio Base (USD)": 45.00,
+                    "Tiempo en Silla (Minutos)": 45,
+                    "Bono Higienista (USD)": 10.00
+                }
+            ];
+            const worksheet = XLSX.utils.json_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Servicios");
+            XLSX.writeFile(workbook, "plantilla_servicios.xlsx");
+        };
+    }
+
+    const btnImportSrv = document.getElementById('btn-import-services');
+    const importSrvFile = document.getElementById('import-services-file');
+    if (btnImportSrv && importSrvFile) {
+        btnImportSrv.onclick = () => importSrvFile.click();
+        importSrvFile.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            Swal.fire({
+                title: 'Cargando Excel...',
+                text: 'Procesando los registros de servicios.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            const reader = new FileReader();
+            reader.onload = async (evt) => {
+                try {
+                    const data = new Uint8Array(evt.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                    if (jsonData.length === 0) {
+                        Swal.fire({ icon: 'warning', title: 'Archivo vacío', text: 'El archivo Excel no contiene filas.' });
+                        return;
+                    }
+
+                    let count = 0;
+                    for (const row of jsonData) {
+                        const code = (row["Código"] || "").toString().trim();
+                        const category = (row["Categoría"] || "General").toString().trim();
+                        const name = (row["Nombre del Servicio"] || row["Nombre del Tratamiento"] || "").toString().trim();
+                        const priceUSD = parseFloat(row["Precio Base (USD)"] || row["Precio Base"] || 0);
+                        const chairTimeMin = parseInt(row["Tiempo en Silla (Minutos)"] || row["Tiempo en Silla"] || 30);
+                        const hygienistBonus = parseFloat(row["Bono Higienista (USD)"] || row["Bono Higienista"] || 0);
+
+                        if (code && name) {
+                            await SupabaseDataService.saveBaremoService({
+                                code,
+                                category,
+                                name,
+                                priceUSD,
+                                chairTimeMin,
+                                materials: [],
+                                hygienistBonus
+                            });
+                            count++;
+                        }
+                    }
+
+                    await renderPricingTable();
+                    Swal.fire({ icon: 'success', title: '¡Importación Completada!', text: `Se cargaron/actualizaron ${count} servicios correctamente.` });
+                } catch (err) {
+                    console.error("Error al importar servicios:", err);
+                    Swal.fire({ icon: 'error', title: 'Error de Lectura', text: `No se pudo procesar el archivo Excel. Detalle: ${err.message || err}` });
+                } finally {
+                    importSrvFile.value = '';
+                }
+            };
+            reader.onerror = () => {
+                Swal.fire({ icon: 'error', title: 'Error de Lectura', text: 'No se pudo leer el archivo físico.' });
+                importSrvFile.value = '';
+            };
+            reader.readAsArrayBuffer(file);
+        };
+    }
+
+    // 2. MATERIALS EXCEL TEMPLATE & IMPORT
+    const btnDownloadMatTemplate = document.getElementById('btn-download-materials-template');
+    if (btnDownloadMatTemplate) {
+        btnDownloadMatTemplate.onclick = () => {
+            const data = [
+                {
+                    "Código": "INS-01",
+                    "Nombre del Insumo": "Resina Nanohíbrida A2 (Jeringa 4g)",
+                    "Categoría": "Material de Restauración",
+                    "Stock Actual": 8,
+                    "Stock Mínimo": 3,
+                    "Unidad de Medida": "Jeringa",
+                    "Fecha de Vencimiento (AAAA-MM-DD)": "2027-05-15"
+                },
+                {
+                    "Código": "INS-02",
+                    "Nombre del Insumo": "Cartuchos Anestesia Lidocaína 2%",
+                    "Categoría": "Anestésicos",
+                    "Stock Actual": 45,
+                    "Stock Mínimo": 20,
+                    "Unidad de Medida": "Cartuchos",
+                    "Fecha de Vencimiento (AAAA-MM-DD)": "2026-11-30"
+                }
+            ];
+            const worksheet = XLSX.utils.json_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Insumos");
+            XLSX.writeFile(workbook, "plantilla_insumos.xlsx");
+        };
+    }
+
+    const btnImportMat = document.getElementById('btn-import-materials');
+    const importMatFile = document.getElementById('import-materials-file');
+    if (btnImportMat && importMatFile) {
+        btnImportMat.onclick = () => importMatFile.click();
+        importMatFile.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            Swal.fire({
+                title: 'Cargando Excel...',
+                text: 'Procesando los registros de insumos y materiales.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            const reader = new FileReader();
+            reader.onload = async (evt) => {
+                try {
+                    const data = new Uint8Array(evt.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                    if (jsonData.length === 0) {
+                        Swal.fire({ icon: 'warning', title: 'Archivo vacío', text: 'El archivo Excel no contiene filas.' });
+                        return;
+                    }
+
+                    let count = 0;
+                    for (const row of jsonData) {
+                        const code = (row["Código"] || "").toString().trim();
+                        const name = (row["Nombre del Insumo"] || "").toString().trim();
+                        const category = (row["Categoría"] || "Materiales").toString().trim();
+                        const currentStock = parseInt(row["Stock Actual"] || 0);
+                        const minStock = parseInt(row["Stock Mínimo"] || 0);
+                        const unit = (row["Unidad de Medida"] || "Unidades").toString().trim();
+                        const expiryDate = row["Fecha de Vencimiento (AAAA-MM-DD)"] || null;
+
+                        if (code && name) {
+                            await SupabaseDataService.saveInventoryItem({
+                                code,
+                                name,
+                                category,
+                                unit,
+                                currentStock,
+                                minStock,
+                                expiryDate
+                            });
+                            count++;
+                        }
+                    }
+
+                    await renderInventoryTable();
+                    await renderDashboard();
+                    Swal.fire({ icon: 'success', title: '¡Importación Completada!', text: `Se cargaron/actualizaron ${count} insumos correctamente.` });
+                } catch (err) {
+                    console.error("Error al importar insumos:", err);
+                    Swal.fire({ icon: 'error', title: 'Error de Lectura', text: `No se pudo procesar el archivo Excel. Detalle: ${err.message || err}` });
+                } finally {
+                    importMatFile.value = '';
+                }
+            };
+            reader.onerror = () => {
+                Swal.fire({ icon: 'error', title: 'Error de Lectura', text: 'No se pudo leer el archivo físico.' });
+                importMatFile.value = '';
+            };
+            reader.readAsArrayBuffer(file);
+        };
+    }
+
     // Modal Cita Listener
     const btnAddAppt = document.getElementById('btn-add-appointment');
     if (btnAddAppt) {

@@ -14,9 +14,11 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- html2pdf.js CDN for PDF export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- SheetJS (xlsx.full.min.js) for Excel import/export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=47">
+    <link rel="stylesheet" href="styles.css?v=48">
 </head>
 <body class="light-theme">
 
@@ -658,9 +660,18 @@
                             <h1>Gestión de Insumos y Materiales (Kardex)</h1>
                             <p class="subtitle">Control de inventario simple con descuento automático por tratamiento y alertas de caducidad.</p>
                         </div>
-                        <button class="btn btn-primary" id="btn-add-material">
-                            <i class="fa-solid fa-box-archive"></i> + Nuevo Insumo
-                        </button>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-outline" id="btn-download-materials-template" title="Descargar Plantilla Excel">
+                                <i class="fa-solid fa-file-excel text-green"></i> Plantilla Excel
+                            </button>
+                            <button class="btn btn-outline" id="btn-import-materials" title="Importar desde Excel">
+                                <i class="fa-solid fa-file-import text-cyan"></i> Importar Excel
+                            </button>
+                            <input type="file" id="import-materials-file" accept=".xlsx, .xls" style="display: none;">
+                            <button class="btn btn-primary" id="btn-add-material">
+                                <i class="fa-solid fa-box-archive"></i> + Nuevo Insumo
+                            </button>
+                        </div>
                     </div>
 
                     <div class="card">
@@ -693,9 +704,18 @@
                             <h1>Baremo Maestro de Servicios y Precios</h1>
                             <p class="subtitle">Catálogo oficial de procedimientos odontológicos, insumos asociados y tiempos en silla.</p>
                         </div>
-                        <button class="btn btn-primary" id="btn-add-service">
-                            <i class="fa-solid fa-plus"></i> + Nuevo Servicio
-                        </button>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-outline" id="btn-download-services-template" title="Descargar Plantilla Excel">
+                                <i class="fa-solid fa-file-excel text-green"></i> Plantilla Excel
+                            </button>
+                            <button class="btn btn-outline" id="btn-import-services" title="Importar desde Excel">
+                                <i class="fa-solid fa-file-import text-cyan"></i> Importar Excel
+                            </button>
+                            <input type="file" id="import-services-file" accept=".xlsx, .xls" style="display: none;">
+                            <button class="btn btn-primary" id="btn-add-service">
+                                <i class="fa-solid fa-plus"></i> + Nuevo Servicio
+                            </button>
+                        </div>
                     </div>
 
                     <div class="card">
@@ -1823,12 +1843,12 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=47"></script>
-    <script src="supabaseClient.js?v=47"></script>
-    <script src="odontogram.js?v=47"></script>
-    <script src="signature.js?v=47"></script>
-    <script src="whatsapp.js?v=47"></script>
-    <script src="kardex.js?v=47"></script>
-    <script src="app.js?v=47"></script>
+    <script src="seededData.js?v=48"></script>
+    <script src="supabaseClient.js?v=48"></script>
+    <script src="odontogram.js?v=48"></script>
+    <script src="signature.js?v=48"></script>
+    <script src="whatsapp.js?v=48"></script>
+    <script src="kardex.js?v=48"></script>
+    <script src="app.js?v=48"></script>
 </body>
 </html>
