@@ -18,7 +18,7 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=48">
+    <link rel="stylesheet" href="styles.css?v=49">
 </head>
 <body class="light-theme">
 
@@ -280,9 +280,18 @@
                             <h1>Base de Datos de Pacientes</h1>
                             <p class="subtitle">Gestión unificada de expediente, antecedentes médicos y alertas clínicas rápidas.</p>
                         </div>
-                        <button class="btn btn-primary" id="btn-new-patient-modal">
-                            <i class="fa-solid fa-plus"></i> Registrar Paciente
-                        </button>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-outline" id="btn-download-patients-template" title="Descargar Plantilla Excel">
+                                <i class="fa-solid fa-file-excel text-green"></i> Plantilla Excel
+                            </button>
+                            <button class="btn btn-outline" id="btn-import-patients" title="Importar desde Excel">
+                                <i class="fa-solid fa-file-import text-cyan"></i> Importar Excel
+                            </button>
+                            <input type="file" id="import-patients-file" accept=".xlsx, .xls" style="display: none;">
+                            <button class="btn btn-primary" id="btn-new-patient-modal">
+                                <i class="fa-solid fa-plus"></i> Registrar Paciente
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Filters bar -->
@@ -1843,12 +1852,12 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=48"></script>
-    <script src="supabaseClient.js?v=48"></script>
-    <script src="odontogram.js?v=48"></script>
-    <script src="signature.js?v=48"></script>
-    <script src="whatsapp.js?v=48"></script>
-    <script src="kardex.js?v=48"></script>
-    <script src="app.js?v=48"></script>
+    <script src="seededData.js?v=49"></script>
+    <script src="supabaseClient.js?v=49"></script>
+    <script src="odontogram.js?v=49"></script>
+    <script src="signature.js?v=49"></script>
+    <script src="whatsapp.js?v=49"></script>
+    <script src="kardex.js?v=49"></script>
+    <script src="app.js?v=49"></script>
 </body>
 </html>

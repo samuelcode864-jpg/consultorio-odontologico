@@ -1864,6 +1864,179 @@ function initGlobalEvents() {
 
     // === EXCEL IMPORT/EXPORT MASTER LOGIC ===
     
+    // 0. PATIENTS EXCEL TEMPLATE & IMPORT
+    const btnDownloadPatTemplate = document.getElementById('btn-download-patients-template');
+    if (btnDownloadPatTemplate) {
+        btnDownloadPatTemplate.onclick = () => {
+            const data = [
+                {
+                    "Cédula / ID": "V-18492102",
+                    "Nombre Completo": "María Elena Rodríguez",
+                    "Fecha Nacimiento (AAAA-MM-DD)": "1988-04-12",
+                    "Teléfono": "+584141234567",
+                    "Correo Electrónico": "maria.rodriguez@gmail.com",
+                    "Ocupación": "Ingeniero de Sistemas",
+                    "Alergias (separadas por comas)": "Penicilina",
+                    "Enfermedades Sistémicas (separadas por comas)": "Hipertensión",
+                    "Medicamentos que Toma": "Enalapril 10mg diario por la mañana",
+                    "Contacto de Emergencia": "Carlos Rodríguez (Esposo) - 0412-9876543",
+                    "Estado (Activo / En Tratamiento / Presupuesto Pendiente)": "Activo"
+                },
+                {
+                    "Cédula / ID": "V-22105894",
+                    "Nombre Completo": "Carlos Eduardo Mendoza",
+                    "Fecha Nacimiento (AAAA-MM-DD)": "1994-09-25",
+                    "Teléfono": "+584249876543",
+                    "Correo Electrónico": "carlos.mendoza@hotmail.com",
+                    "Ocupación": "Diseñador Gráfico",
+                    "Alergias (separadas por comas)": "",
+                    "Enfermedades Sistémicas (separadas por comas)": "",
+                    "Medicamentos que Toma": "Ninguno",
+                    "Contacto de Emergencia": "Ana Mendoza (Madre) - 0416-1112233",
+                    "Estado (Activo / En Tratamiento / Presupuesto Pendiente)": "Presupuesto Pendiente"
+                }
+            ];
+            const worksheet = XLSX.utils.json_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Pacientes");
+            XLSX.writeFile(workbook, "plantilla_pacientes.xlsx");
+        };
+    }
+
+    const btnImportPat = document.getElementById('btn-import-patients');
+    const importPatFile = document.getElementById('import-patients-file');
+    if (btnImportPat && importPatFile) {
+        btnImportPat.onclick = () => importPatFile.click();
+        importPatFile.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            Swal.fire({
+                title: 'Cargando Excel...',
+                text: 'Procesando los registros de pacientes.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            const reader = new FileReader();
+            reader.onload = async (evt) => {
+                try {
+                    const data = new Uint8Array(evt.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                    if (jsonData.length === 0) {
+                        Swal.fire({ icon: 'warning', title: 'Archivo vacío', text: 'El archivo Excel no contiene filas.' });
+                        return;
+                    }
+
+                    let count = 0;
+                    for (const row of jsonData) {
+                        const id = (row["Cédula / ID"] || row["ID"] || "").toString().trim();
+                        const fullname = (row["Nombre Completo"] || "").toString().trim();
+                        const birthdate = (row["Fecha Nacimiento (AAAA-MM-DD)"] || row["Fecha Nacimiento"] || "").toString().trim();
+                        const phone = (row["Teléfono"] || "").toString().trim();
+                        const email = (row["Correo Electrónico"] || row["Email"] || "").toString().trim();
+                        const occupation = (row["Ocupación"] || "").toString().trim();
+                        const allergiesStr = (row["Alergias (separadas por comas)"] || row["Alergias"] || "").toString().trim();
+                        const systemicStr = (row["Enfermedades Sistémicas (separadas por comas)"] || row["Enfermedades Sistémicas"] || "").toString().trim();
+                        const medication = (row["Medicamentos que Toma"] || row["Medicamentos"] || "").toString().trim();
+                        const emergencyContact = (row["Contacto de Emergencia"] || "").toString().trim();
+                        const status = (row["Estado (Activo / En Tratamiento / Presupuesto Pendiente)"] || row["Estado"] || "Activo").toString().trim();
+
+                        if (id && fullname && birthdate && phone) {
+                            const allergies = allergiesStr ? allergiesStr.split(',').map(s => s.trim()) : [];
+                            const systemic = systemicStr ? systemicStr.split(',').map(s => s.trim()) : [];
+
+                            const patientObj = {
+                                id,
+                                fullname,
+                                birthdate,
+                                phone,
+                                email,
+                                occupation,
+                                allergies,
+                                systemic,
+                                medication,
+                                emergencyContact,
+                                status,
+                                createdAt: new Date().toISOString().split('T')[0],
+                                odontogramData: {},
+                                clinicalNotes: [],
+                                photos: [],
+                                payments: [],
+                                metadata: {
+                                    type: 'Adulto',
+                                    age: calculateAge(birthdate),
+                                    gender: 'Masculino',
+                                    address: '',
+                                    mobilePhone: phone,
+                                    localPhone: '',
+                                    workPhone: '',
+                                    profession: occupation,
+                                    consultReason: '',
+                                    repName: '',
+                                    repId: '',
+                                    repPhone: '',
+                                    repRelation: '',
+                                    medicalTreatment: 'No',
+                                    medicalTreatmentDetails: '',
+                                    childDiseases: '',
+                                    hasAllergies: allergiesStr ? 'Sí' : 'No',
+                                    allergiesDetails: allergiesStr,
+                                    surgeries: '',
+                                    bleedingIssue: 'No',
+                                    respiratoryIssues: 'No',
+                                    respiratoryIssuesDetails: '',
+                                    anesthesiaReaction: 'No',
+                                    anesthesiaReactionDetails: '',
+                                    penicillinAllergy: allergiesStr.toLowerCase().includes('penicil') ? 'Sí' : 'No',
+                                    penicillinAllergyDetails: '',
+                                    heartIssues: 'No',
+                                    heartIssuesDetails: '',
+                                    tissueHardPalate: 'Normal',
+                                    tissueSoftPalate: 'Normal',
+                                    tissueMouthFloor: 'Normal',
+                                    tissueCheeks: 'Normal',
+                                    tissueTongue: 'Normal',
+                                    tissueFrenum: 'Normal',
+                                    habitSwallowing: 'No',
+                                    habitNailbiting: 'No',
+                                    habitThumbsucking: 'No',
+                                    habitThumbsuckingFinger: '',
+                                    habitOthers: '',
+                                    habitMouthbreather: 'No',
+                                    habitFrequency: '',
+                                    habitIntensity: ''
+                                }
+                            };
+
+                            await SupabaseDataService.savePatient(patientObj);
+                            count++;
+                        }
+                    }
+
+                    await renderPatientsTable();
+                    Swal.fire({ icon: 'success', title: '¡Importación Completada!', text: `Se cargaron/actualizaron ${count} pacientes correctamente.` });
+                } catch (err) {
+                    console.error("Error al importar pacientes:", err);
+                    Swal.fire({ icon: 'error', title: 'Error de Lectura', text: `No se pudo procesar el archivo Excel. Detalle: ${err.message || err}` });
+                } finally {
+                    importPatFile.value = '';
+                }
+            };
+            reader.onerror = () => {
+                Swal.fire({ icon: 'error', title: 'Error de Lectura', text: 'No se pudo leer el archivo físico.' });
+                importPatFile.value = '';
+            };
+            reader.readAsArrayBuffer(file);
+        };
+    }
+    
     // 1. SERVICES EXCEL TEMPLATE & IMPORT
     const btnDownloadSrvTemplate = document.getElementById('btn-download-services-template');
     if (btnDownloadSrvTemplate) {
