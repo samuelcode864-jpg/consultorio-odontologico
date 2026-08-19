@@ -897,14 +897,14 @@ h4 { font-size: 1rem; }
 }
 
 .tooth-svg {
-    width: 38px;
-    height: 48px;
+    width: 40px !important;
+    height: 40px !important;
 }
 
 .tooth-face {
     fill: var(--tooth-face-bg);
     stroke: var(--tooth-face-stroke);
-    stroke-width: 1.2;
+    stroke-width: 1.0;
     transition: fill 0.15s, stroke 0.15s;
 }
 
@@ -914,9 +914,10 @@ h4 { font-size: 1rem; }
     cursor: pointer;
 }
 
-.tooth-face.treated { fill: var(--status-treated) !important; }
-.tooth-face.patology { fill: var(--status-patology) !important; }
-.tooth-face.proposed { fill: var(--status-proposed) !important; }
+.tooth-face.treated { fill: #2563eb !important; }
+.tooth-face.patology { fill: #ef4444 !important; }
+.tooth-face.proposed { fill: #16a34a !important; }
+.tooth-face.endo { fill: #9333ea !important; }
 
 /* Budget Summary Box */
 .budget-summary-box {
@@ -2084,43 +2085,81 @@ html, body {
 }
 
 /* ==========================================================================
-   ODONTOGRAM RESPONSIVE GRID LAYOUT overrides
+   ODONTOGRAM RESPONSIVE GRID LAYOUT overrides (FDI cruz regulada)
    ========================================================================== */
 .odontogram-grid-layout {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 20px !important;
-    width: 100% !important;
-    align-items: stretch !important;
-}
-
-.odontogram-arcada-row {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
-    gap: 20px !important;
+    gap: 30px !important;
     width: 100% !important;
+    position: relative !important;
+    margin: 20px 0 !important;
+}
+
+/* Lineas en cruz para dividir los cuadrantes en escritorio */
+.odontogram-grid-layout::before {
+    content: '' !important;
+    position: absolute !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 50% !important;
+    width: 2px !important;
+    background-color: var(--border-color) !important;
+    transform: translateX(-50%) !important;
+    z-index: 1 !important;
+}
+
+.odontogram-grid-layout::after {
+    content: '' !important;
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: 50% !important;
+    height: 2px !important;
+    background-color: var(--border-color) !important;
+    transform: translateY(-50%) !important;
+    z-index: 1 !important;
 }
 
 .odontogram-quadrant {
     display: flex !important;
     flex-direction: column !important;
-    gap: 12px !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 15px !important;
+    gap: 16px !important;
+    padding: 20px !important;
     background: var(--bg-card) !important;
     border: 1px solid var(--border-color) !important;
     border-radius: var(--radius-md) !important;
     min-width: 0 !important;
+    box-sizing: border-box !important;
 }
 
 .odontogram-quadrant h4 {
-    font-size: 0.85rem !important;
+    font-size: 0.82rem !important;
     color: var(--primary-cyan) !important;
-    margin-bottom: 5px !important;
+    margin-bottom: 2px !important;
     text-transform: uppercase !important;
     letter-spacing: 0.05em !important;
     font-weight: 700 !important;
+    text-align: center !important;
+}
+
+.tooth-row {
+    display: flex !important;
+    gap: 5px !important;
+    width: 100% !important;
+    flex-wrap: nowrap !important;
+    justify-content: center !important;
+}
+
+/* Alineaciones FDI pedíatricas */
+.tooth-row.infantil-row.align-right {
+    justify-content: flex-end !important;
+    padding-right: 8px !important;
+}
+
+.tooth-row.infantil-row.align-left {
+    justify-content: flex-start !important;
+    padding-left: 8px !important;
 }
 
 .odontogram-grid-layout.adult-only .infantil-row {
@@ -2132,8 +2171,12 @@ html, body {
 }
 
 @media (max-width: 991px) {
-    .odontogram-arcada-row {
+    .odontogram-grid-layout {
         grid-template-columns: 1fr !important;
-        gap: 16px !important;
+        gap: 20px !important;
+    }
+    .odontogram-grid-layout::before,
+    .odontogram-grid-layout::after {
+        display: none !important;
     }
 }

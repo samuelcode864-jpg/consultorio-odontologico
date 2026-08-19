@@ -438,9 +438,9 @@
                                             <tr>
                                                 <th>Pieza / Cara</th>
                                                 <th>Tratamiento</th>
-                                                <th>Precio Base</th>
-                                                <th>Dto (%)</th>
-                                                <th>Total</th>
+                                                <th>Especialista</th>
+                                                <th>Precio (USD)</th>
+                                                <th>Precio (Bs.)</th>
                                                 <th></th>
                                             </tr>
                                         </thead>
@@ -451,32 +451,40 @@
                                 </div>
 
                                 <!-- Budget Total & Options -->
-                                <div class="budget-summary-box">
-                                     <div class="payment-terms-group" style="display: flex; flex-direction: column; gap: 8px;">
-                                         <div class="payment-terms" style="display: flex; align-items: center; gap: 8px;">
-                                             <label style="margin-bottom:0; font-size:0.85rem; font-weight:600; min-width: 100px;">Forma de Pago:</label>
-                                             <select id="payment-mode-select">
-                                                 <option value="contado">Contado Inmediato (100%)</option>
-                                                 <option value="cuotas-2">50% Inicial + 50% al finalizar</option>
-                                                 <option value="cuotas-3">3 Cuotas por fase de tratamiento</option>
-                                             </select>
+                                <div class="budget-summary-box" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap;">
+                                     <div class="payment-terms-group" style="display: flex; flex-direction: column; gap: 12px; min-width: 250px;">
+                                          <div class="payment-terms" style="display: flex; align-items: center; gap: 8px;">
+                                              <label style="margin-bottom:0; font-size:0.85rem; font-weight:600; min-width: 100px;">Forma de Pago:</label>
+                                              <select id="payment-mode-select">
+                                                  <option value="contado">Contado Inmediato (100%)</option>
+                                                  <option value="cuotas-2">50% Inicial + 50% al finalizar</option>
+                                                  <option value="cuotas-3">3 Cuotas por fase de tratamiento</option>
+                                              </select>
+                                          </div>
+                                          <div class="payment-terms" style="display: flex; align-items: center; gap: 8px;">
+                                              <label style="margin-bottom:0; font-size:0.85rem; font-weight:600; min-width: 100px;">Método Pago:</label>
+                                              <select id="budget-payment-method">
+                                                  <option value="pagomovil">Pago Móvil</option>
+                                                  <option value="cash">Efectivo</option>
+                                                  <option value="zelle">Zelle</option>
+                                                  <option value="binance">Binance</option>
+                                              </select>
+                                          </div>
+                                     </div>
+                                     <div class="total-display" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px; text-align: right; min-width: 200px;">
+                                         <div style="font-size: 0.88rem; color: var(--text-muted);">Subtotal: <strong id="budget-subtotal">$0.00</strong> (<span id="budget-subtotal-bs">Bs. 0.00</span>)</div>
+                                         <div style="display: flex; align-items: center; gap: 8px; font-size: 0.88rem;">
+                                             <span>Descuento (%):</span>
+                                             <input type="number" id="budget-discount-input" class="form-input" style="width: 70px; padding: 4px 8px; height: auto;" value="0" min="0" max="100">%
                                          </div>
-                                         <div class="payment-terms" style="display: flex; align-items: center; gap: 8px;">
-                                             <label style="margin-bottom:0; font-size:0.85rem; font-weight:600; min-width: 100px;">Método Pago:</label>
-                                             <select id="budget-payment-method">
-                                                 <option value="cash">Cash (Efectivo)</option>
-                                                 <option value="pagomovil">Pago Móvil</option>
-                                                 <option value="zelle">Zelle</option>
-                                                 <option value="binance">Binance</option>
-                                             </select>
+                                         <div style="font-size: 0.88rem; color: #ff6b6b; font-weight: 600;">Descuento: -<strong id="budget-discount-amount">$0.00</strong> (-<span id="budget-discount-ves">Bs. 0.00</span>)</div>
+                                         <div style="margin-top: 5px; border-top: 1px solid var(--border-color); padding-top: 5px; width: 100%;">
+                                             <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">Total Final Ref.:</span>
+                                             <h2 id="budget-total-amount" style="color: var(--primary-cyan); font-size: 1.8rem; line-height: 1.1; font-weight: 700; margin: 0;">$0.00</h2>
+                                             <span class="text-muted" id="budget-total-ves" style="font-size: 0.85rem; font-weight: 600; display: block; text-align: right; margin-top: 2px;">Bs. 0.00</span>
                                          </div>
                                      </div>
-                                     <div class="total-display">
-                                         <span>Monto Total:</span>
-                                         <h2 id="budget-total-amount">$0.00</h2>
-                                         <span class="text-muted" id="budget-total-ves">Bs. 0.00</span>
-                                     </div>
-                                 </div>
+                                </div>
                             </div>
                         </div>
 
@@ -487,12 +495,12 @@
                             </div>
                             <div class="card-body flex-column gap-15">
                                 <div>
-                                    <label class="form-label">Observaciones Clínicas y Fotografías Iniciales:</label>
-                                    <textarea id="budget-notes" class="form-control" rows="2" placeholder="Diagnóstico complementario, sensibilidad reportada, radiografía periapical inicial..."></textarea>
+                                    <label class="form-label">Observaciones Clínicas (Notas del Médico):</label>
+                                    <textarea id="budget-notes" class="form-control" rows="2" placeholder="Diagnóstico complementario, notas clínicas del médico..."></textarea>
                                 </div>
 
                                 <div>
-                                    <label class="form-label">Texto del Consentimiento Informado (Editable):</label>
+                                    <label class="form-label">Consentimiento Informado (Editable en Vivo):</label>
                                     <textarea id="consent-text" class="form-control" rows="4">Por la presente declaro que he sido informado(a) detalladamente sobre el plan de tratamiento propuesto, incluyendo sus beneficios, riesgos, costos y alternativas. Doy mi consentimiento libre y voluntario para la ejecución de los procedimientos odontológicos indicados.</textarea>
                                 </div>
 
@@ -501,7 +509,7 @@
                                     <div class="signatures-grid">
                                         <!-- Doctor Signature -->
                                         <div class="sig-box">
-                                            <span class="sig-title"><i class="fa-solid fa-user-doctor"></i> Firma del Médico</span>
+                                            <span class="sig-title"><i class="fa-solid fa-user-doctor"></i> Firma del Odontólogo Tratante</span>
                                             <div class="sig-canvas-wrapper">
                                                 <canvas id="doctor-sig-canvas" width="220" height="90"></canvas>
                                             </div>
@@ -510,7 +518,7 @@
 
                                         <!-- Patient Signature -->
                                         <div class="sig-box">
-                                            <span class="sig-title"><i class="fa-solid fa-pen-nib"></i> Firma del Paciente (Táctil)</span>
+                                            <span class="sig-title"><i class="fa-solid fa-pen-nib"></i> Firma del Paciente / Representante</span>
                                             <div class="sig-canvas-wrapper">
                                                 <canvas id="patient-sig-canvas" width="220" height="90"></canvas>
                                             </div>
@@ -523,10 +531,13 @@
                                     </div>
                                 </div>
 
-                                <!-- WhatsApp Action Bar -->
-                                <div class="actions-bar">
-                                    <button class="btn btn-success btn-lg flex-1" id="btn-send-whatsapp">
-                                        <i class="fa-brands fa-whatsapp"></i> Guardar y Enviar Presupuesto por WhatsApp
+                                <!-- Action Bar -->
+                                <div class="actions-bar" style="display: flex; gap: 10px; width: 100%; flex-wrap: wrap; margin-top: 20px;">
+                                    <button class="btn btn-primary btn-lg flex-1" id="btn-approve-budget" style="background: linear-gradient(135deg, #16a34a 0%, #15803d 100%) !important; border: none !important;">
+                                        <i class="fa-solid fa-file-signature"></i> Aprobar y Certificar Presupuesto
+                                    </button>
+                                    <button class="btn btn-success btn-lg" id="btn-send-whatsapp">
+                                        <i class="fa-brands fa-whatsapp"></i> WhatsApp
                                     </button>
                                     <button class="btn btn-outline" id="btn-print-budget" title="Imprimir Presupuesto">
                                         <i class="fa-solid fa-print"></i> Imprimir
@@ -1804,8 +1815,11 @@
                 <button class="modal-close" data-close="modal-tooth-treatment">&times;</button>
             </div>
             <div class="modal-body">
+                <div class="form-group mb-15">
+                    <input type="text" id="tooth-treatment-search" class="form-input" placeholder="Buscar procedimiento (ej: Resina, Limpieza)..." style="width: 100%;">
+                </div>
                 <p class="text-muted mb-15">Seleccione el procedimiento del Baremo de Precios para asociar directamente a esta cara o diente:</p>
-                <div class="treatment-select-list" id="tooth-treatment-options">
+                <div class="treatment-select-list" id="tooth-treatment-options" style="max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
                     <!-- Dynamic procedure list buttons -->
                 </div>
             </div>

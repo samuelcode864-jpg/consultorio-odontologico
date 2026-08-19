@@ -473,28 +473,54 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
     document.getElementById('modal-tooth-id').innerText = toothNumber;
     document.getElementById('modal-face-id').innerText = faceId;
 
+    const searchInput = document.getElementById('tooth-treatment-search');
+    if (searchInput) searchInput.value = '';
+
     const baremo = await SupabaseDataService.getBaremo();
     const listContainer = document.getElementById('tooth-treatment-options');
-    listContainer.innerHTML = '';
 
-    baremo.forEach(proc => {
-        const btn = document.createElement('button');
-        btn.className = 'treatment-opt-btn';
-        btn.innerHTML = `
-            <div>
-                <strong>${proc.name}</strong>
-                <small class="text-muted" style="display:block;">Categoría: ${proc.category} (${proc.chairTimeMin} min)</small>
-            </div>
-            <span class="badge-tag blue">$${proc.priceUSD.toFixed(2)}</span>
-        `;
-        btn.onclick = async () => {
-            addProcedureToBudget(pendingToothFaceKey, proc);
-            await autoSaveActivePatientOdontogram();
-            closeModal('modal-tooth-treatment');
+    function filterAndRenderOptions(query = '') {
+        if (!listContainer) return;
+        listContainer.innerHTML = '';
+        const normalizedQuery = query.toLowerCase().trim();
+        
+        const filtered = baremo.filter(proc => 
+            proc.name.toLowerCase().includes(normalizedQuery) ||
+            proc.category.toLowerCase().includes(normalizedQuery) ||
+            proc.code.toLowerCase().includes(normalizedQuery)
+        );
+
+        if (filtered.length === 0) {
+            listContainer.innerHTML = '<div class="text-center text-muted p-10" style="width: 100%;">No se encontraron procedimientos</div>';
+            return;
+        }
+
+        filtered.forEach(proc => {
+            const btn = document.createElement('button');
+            btn.className = 'treatment-opt-btn';
+            btn.innerHTML = `
+                <div style="text-align: left;">
+                    <strong>${proc.name}</strong>
+                    <small class="text-muted" style="display:block;">Categoría: ${proc.category} (${proc.chairTimeMin} min)</small>
+                </div>
+                <span class="badge-tag blue">$${proc.priceUSD.toFixed(2)}</span>
+            `;
+            btn.onclick = async () => {
+                addProcedureToBudget(pendingToothFaceKey, proc);
+                await autoSaveActivePatientOdontogram();
+                closeModal('modal-tooth-treatment');
+            };
+            listContainer.appendChild(btn);
+        });
+    }
+
+    if (searchInput) {
+        searchInput.oninput = (e) => {
+            filterAndRenderOptions(e.target.value);
         };
-        listContainer.appendChild(btn);
-    });
+    }
 
+    filterAndRenderOptions('');
     openModal('modal-tooth-treatment');
 }
 
@@ -519,47 +545,106 @@ function addProcedureToBudget(toothKeyObj, procedure) {
     renderBudgetTable();
 }
 
-function renderBudgetTable() {
+async function getDoctorsList() {
+    try {
+        const users = await SupabaseDataService.getUsers();
+        const doctors = users.filter(u => u.role && (u.role.toLowerCase().includes('odont') || u.role.toLowerCase().includes('médic') || u.role.toLowerCase().includes('doctor')));
+        if (doctors.length === 0) {
+            return [{ fullname: 'Dr. Alejandro Silva' }, { fullname: 'Dr. Rodrigo Navas' }];
+        }
+        return doctors;
+    } catch (err) {
+        return [{ fullname: 'Dr. Alejandro Silva' }, { fullname: 'Dr. Rodrigo Navas' }];
+    }
+}
+
+async function renderBudgetTable() {
     const tbody = document.getElementById('budget-table-body');
     if (!tbody) return;
 
     tbody.innerHTML = '';
     const rate = getExchangeRate();
+    const doctors = await getDoctorsList();
+
+    // Setup global discount listener once
+    const discInput = document.getElementById('budget-discount-input');
+    if (discInput && !discInput.dataset.hasListener) {
+        discInput.dataset.hasListener = 'true';
+        discInput.addEventListener('input', () => {
+            renderBudgetTable();
+        });
+    }
 
     if (currentBudgetItems.length === 0) {
         tbody.innerHTML = `<tr class="empty-row"><td colspan="6" class="text-center text-muted">Haga clic en el odontodiagrama o en "+ Agregar Item" para armar el presupuesto.</td></tr>`;
+        document.getElementById('budget-subtotal').innerText = '$0.00';
+        document.getElementById('budget-subtotal-bs').innerText = 'Bs. 0.00';
+        document.getElementById('budget-discount-amount').innerText = '$0.00';
+        document.getElementById('budget-discount-ves').innerText = 'Bs. 0.00';
         document.getElementById('budget-total-amount').innerText = '$0.00';
         document.getElementById('budget-total-ves').innerText = 'Bs. 0.00';
         return;
     }
 
-    let totalUSD = 0;
+    let subtotalUSD = 0;
 
     currentBudgetItems.forEach((item, index) => {
-        const itemTotal = item.price * (1 - (item.discount || 0) / 100);
-        totalUSD += itemTotal;
+        if (item.price === undefined) item.price = 0;
+        if (!item.specialist) {
+            item.specialist = doctors[0] ? doctors[0].fullname : 'Dr. Alejandro Silva';
+        }
+
+        subtotalUSD += item.price;
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td><strong>Pieza ${item.tooth || '-'}</strong> (${item.face || 'General'})</td>
             <td>${item.name}</td>
-            <td>$${item.price.toFixed(2)}</td>
-            <td><input type="number" class="form-control btn-xs" style="width: 55px;" value="${item.discount || 0}" min="0" max="100" data-idx="${index}">%</td>
-            <td class="text-cyan"><strong>$${itemTotal.toFixed(2)}</strong></td>
-            <td><button class="btn btn-xs btn-outline text-red" onclick="removeBudgetItem(${index})"><i class="fa-solid fa-trash"></i></button></td>
+            <td>
+                <select class="form-control btn-xs srv-specialist-select" style="width: 130px; font-size: 0.8rem; padding: 2px 4px;" data-idx="${index}">
+                    ${doctors.map(doc => `<option value="${doc.fullname}" ${item.specialist === doc.fullname ? 'selected' : ''}>${doc.fullname}</option>`).join('')}
+                </select>
+            </td>
+            <td>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    $<input type="number" class="form-control btn-xs srv-price-input" style="width: 70px; padding: 2px 4px; height: auto;" value="${item.price}" step="0.01" data-idx="${index}">
+                </div>
+            </td>
+            <td class="text-muted" style="font-size: 0.82rem;">Bs. ${(item.price * rate).toFixed(2)}</td>
+            <td>
+                <button class="btn btn-xs btn-outline text-red" onclick="removeBudgetItem(${index})"><i class="fa-solid fa-trash"></i></button>
+            </td>
         `;
 
-        const discInput = tr.querySelector('input');
-        discInput.addEventListener('change', (e) => {
+        // Handle specialist select change
+        const specSelect = tr.querySelector('.srv-specialist-select');
+        specSelect.addEventListener('change', (e) => {
+            currentBudgetItems[index].specialist = e.target.value;
+        });
+
+        // Handle price input edit
+        const priceIn = tr.querySelector('.srv-price-input');
+        priceIn.addEventListener('change', (e) => {
             const val = parseFloat(e.target.value) || 0;
-            currentBudgetItems[index].discount = Math.min(100, Math.max(0, val));
+            currentBudgetItems[index].price = Math.max(0, val);
             renderBudgetTable();
         });
 
         tbody.appendChild(tr);
     });
 
+    const discountPct = parseFloat(document.getElementById('budget-discount-input').value) || 0;
+    const discountAmountUSD = subtotalUSD * (discountPct / 100);
+    const totalUSD = subtotalUSD - discountAmountUSD;
+
+    const subtotalVES = (subtotalUSD * rate).toFixed(2);
+    const discountVES = (discountAmountUSD * rate).toFixed(2);
     const totalVES = (totalUSD * rate).toFixed(2);
+
+    document.getElementById('budget-subtotal').innerText = `$${subtotalUSD.toFixed(2)}`;
+    document.getElementById('budget-subtotal-bs').innerText = `Bs. ${subtotalVES}`;
+    document.getElementById('budget-discount-amount').innerText = `$${discountAmountUSD.toFixed(2)}`;
+    document.getElementById('budget-discount-ves').innerText = `Bs. ${discountVES}`;
     document.getElementById('budget-total-amount').innerText = `$${totalUSD.toFixed(2)}`;
     document.getElementById('budget-total-ves').innerText = `Bs. ${totalVES}`;
 }
@@ -2512,6 +2597,113 @@ function initGlobalEvents() {
     const clearPatSigBtn = document.getElementById('btn-clear-patient-sig');
     if (clearPatSigBtn) clearPatSigBtn.onclick = () => window.patientSigPad.clear();
 
+    const approveBudgetBtn = document.getElementById('btn-approve-budget');
+    if (approveBudgetBtn) {
+        approveBudgetBtn.onclick = async () => {
+            const activeId = getActivePatientId();
+            if (!activeId) {
+                Swal.fire({ icon: 'info', title: 'Seleccione un paciente', text: 'Por favor active un paciente antes de aprobar el presupuesto.' });
+                return;
+            }
+            const patients = await SupabaseDataService.getPatients();
+            const patient = patients.find(p => p.id === activeId);
+            if (!patient) return;
+
+            if (currentBudgetItems.length === 0) {
+                Swal.fire({ icon: 'warning', title: 'Presupuesto vacío', text: 'Agregue al menos un tratamiento al presupuesto.' });
+                return;
+            }
+
+            // Deduct materials from Kardex
+            currentBudgetItems.forEach(item => {
+                if (item.serviceCode) {
+                    window.kardex.deductForTreatment(item.serviceCode);
+                }
+            });
+
+            // Calculate totals
+            const rate = getExchangeRate();
+            let subtotalUSD = 0;
+            currentBudgetItems.forEach(item => {
+                subtotalUSD += item.price;
+            });
+            const discountPct = parseFloat(document.getElementById('budget-discount-input').value) || 0;
+            const discountAmountUSD = subtotalUSD * (discountPct / 100);
+            const totalUSD = subtotalUSD - discountAmountUSD;
+            const totalVES = (totalUSD * rate).toFixed(2);
+            const discountVES = (discountAmountUSD * rate).toFixed(2);
+
+            const paymentModeSelect = document.getElementById('payment-mode-select');
+            const paymentModeText = paymentModeSelect.options[paymentModeSelect.selectedIndex].text;
+            const paymentMethodSelect = document.getElementById('budget-payment-method');
+            const paymentMethod = paymentMethodSelect.value;
+            const paymentMethodLabel = paymentMethodSelect.options[paymentMethodSelect.selectedIndex].text;
+            
+            const notes = document.getElementById('budget-notes').value;
+            const consentText = document.getElementById('consent-text').value;
+
+            // Generate budget invoice record
+            const invoiceId = `PRE-${Date.now().toString().slice(-6)}`;
+            const invoiceObj = {
+                id: invoiceId,
+                patientId: patient.id,
+                invoiceDate: new Date().toISOString().split('T')[0],
+                paymentMethod: paymentMethod,
+                paymentTerms: paymentModeText,
+                currency: 'REF',
+                items: currentBudgetItems.map(item => ({
+                    code: item.serviceCode,
+                    name: item.name,
+                    price: item.price,
+                    specialist: item.specialist || ''
+                })),
+                totalRef: totalUSD,
+                totalBcv: parseFloat(totalVES),
+                status: 'Aprobado',
+                footerText: `Descuento global del ${discountPct}% aplicado. Ahorro: $${discountAmountUSD.toFixed(2)}.`
+            };
+
+            try {
+                // Save Invoice
+                await SupabaseDataService.saveInvoice(invoiceObj);
+
+                // Save in patient clinical notes
+                if (!patient.clinicalNotes) patient.clinicalNotes = [];
+                patient.clinicalNotes.unshift({
+                    id: 'note-' + Date.now(),
+                    datetime: new Date().toISOString().slice(0, 16).replace('T', ' '),
+                    content: `Presupuesto Aprobado y Certificado (${invoiceObj.id}). Subtotal: $${subtotalUSD.toFixed(2)}, Descuento: ${discountPct}% (-$${discountAmountUSD.toFixed(2)}), Total: $${totalUSD.toFixed(2)}. Método de pago: ${paymentMethodLabel}. Consentimiento: ${consentText}. Observaciones: ${notes}`,
+                    paymentUSD: 0
+                });
+
+                // Save in patient payments history
+                if (!patient.payments) patient.payments = [];
+                patient.payments.unshift({
+                    date: invoiceObj.invoiceDate,
+                    concept: `Presupuesto Aprobado ${invoiceObj.id}`,
+                    totalUSD: totalUSD,
+                    paidUSD: totalUSD,
+                    balanceUSD: 0,
+                    status: 'Pagado',
+                    method: paymentMethod
+                });
+
+                await SupabaseDataService.savePatient(patient);
+
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Presupuesto Aprobado y Certificado!',
+                    text: `Se registró la transacción ${invoiceId} en el historial financiero y clínico del paciente.`,
+                    timer: 3500,
+                    showConfirmButton: true
+                });
+            } catch (err) {
+                console.error("Error al aprobar presupuesto:", err);
+                Swal.fire({ icon: 'error', title: 'Error de Guardado', text: 'No se pudo guardar la aprobación en la base de datos.' });
+            }
+        };
+    }
+
     const sendWpBtn = document.getElementById('btn-send-whatsapp');
     if (sendWpBtn) {
         sendWpBtn.onclick = async () => {
@@ -2523,33 +2715,30 @@ function initGlobalEvents() {
             const patients = await SupabaseDataService.getPatients();
             const patient = patients.find(p => p.id === activeId);
             if (!patient) return;
- 
-            let totalUSD = 0;
+
+            if (currentBudgetItems.length === 0) {
+                Swal.fire({ icon: 'warning', title: 'Presupuesto vacío', text: 'Agregue al menos un tratamiento al presupuesto.' });
+                return;
+            }
+
+            // Calculate totals
+            let subtotalUSD = 0;
             currentBudgetItems.forEach(item => {
-                totalUSD += item.price * (1 - (item.discount || 0) / 100);
+                subtotalUSD += item.price;
             });
- 
+            const discountPct = parseFloat(document.getElementById('budget-discount-input').value) || 0;
+            const discountAmountUSD = subtotalUSD * (discountPct / 100);
+            const totalUSD = subtotalUSD - discountAmountUSD;
+
             const paymentModeSelect = document.getElementById('payment-mode-select');
             const paymentModeText = paymentModeSelect.options[paymentModeSelect.selectedIndex].text;
+            const paymentMethodSelect = document.getElementById('budget-payment-method');
+            const paymentMethodLabel = paymentMethodSelect.options[paymentMethodSelect.selectedIndex].text;
+            
             const notes = document.getElementById('budget-notes').value;
-            const consentText = document.getElementById('consent-text').value; // Retrieve edited consent text
- 
-            currentBudgetItems.forEach(item => {
-                if (item.serviceCode) {
-                    window.kardex.deductForTreatment(item.serviceCode);
-                }
-            });
- 
-            if (!patient.clinicalNotes) patient.clinicalNotes = [];
-            patient.clinicalNotes.unshift({
-                id: 'note-' + Date.now(),
-                datetime: new Date().toISOString().slice(0, 16).replace('T', ' '),
-                content: `Presupuesto emitido y enviado por WhatsApp ($${totalUSD.toFixed(2)}). Forma de pago: ${paymentModeText}. Consentimiento: ${consentText}. Observaciones: ${notes}`,
-                paymentUSD: 0
-            });
-            await SupabaseDataService.savePatient(patient);
- 
-            const msg = WhatsAppService.generateBudgetMessage(patient, currentBudgetItems, totalUSD, paymentModeText, notes, consentText);
+            const consentText = document.getElementById('consent-text').value;
+
+            const msg = WhatsAppService.generateBudgetMessage(patient, currentBudgetItems, totalUSD, paymentModeText, notes, subtotalUSD, discountPct, paymentMethodLabel);
             WhatsAppService.sendToPatient(patient.phone, msg);
         };
     }
@@ -2765,30 +2954,36 @@ async function generateBudgetHTMLContainer() {
     const patient = patients.find(p => p.id === activeId);
     if (!patient) return null;
 
-    let totalUSD = 0;
+    let subtotalUSD = 0;
     currentBudgetItems.forEach(item => {
-        totalUSD += item.price * (1 - (item.discount || 0) / 100);
+        subtotalUSD += item.price || 0;
     });
+
+    const discountPct = parseFloat(document.getElementById('budget-discount-input').value) || 0;
+    const discountAmountUSD = subtotalUSD * (discountPct / 100);
+    const totalUSD = subtotalUSD - discountAmountUSD;
 
     const paymentModeSelect = document.getElementById('payment-mode-select');
     const paymentModeText = paymentModeSelect ? paymentModeSelect.options[paymentModeSelect.selectedIndex].text : 'Contado';
     const budgetPaymentMethod = document.getElementById('budget-payment-method');
-    const budgetPaymentMethodText = budgetPaymentMethod ? budgetPaymentMethod.options[budgetPaymentMethod.selectedIndex].text : 'Cash (Efectivo)';
+    const budgetPaymentMethodText = budgetPaymentMethod ? budgetPaymentMethod.options[budgetPaymentMethod.selectedIndex].text : 'Pago Móvil';
     const notes = document.getElementById('budget-notes') ? document.getElementById('budget-notes').value : '';
+    const consentText = document.getElementById('consent-text') ? document.getElementById('consent-text').value : '';
 
     const rate = getExchangeRate();
+    const subtotalVES = (subtotalUSD * rate).toFixed(2);
+    const discountVES = (discountAmountUSD * rate).toFixed(2);
     const totalVES = (totalUSD * rate).toFixed(2);
 
     let itemsHtml = '';
     currentBudgetItems.forEach(item => {
-        const itemTotal = item.price * (1 - (item.discount || 0) / 100);
         itemsHtml += `
             <tr style="border-bottom: 1px dashed #cbd5e1;">
                 <td style="padding: 8px 0;">Pieza ${item.tooth || 'Gnl'} (${item.face || 'Gnl'})</td>
                 <td style="padding: 8px 0;">${item.name}</td>
+                <td style="padding: 8px 0;">${item.specialist || '-'}</td>
                 <td style="padding: 8px 0;">$${item.price.toFixed(2)}</td>
-                <td style="padding: 8px 0; text-align: center;">${item.discount || 0}%</td>
-                <td style="padding: 8px 0; text-align: right;">$${itemTotal.toFixed(2)}</td>
+                <td style="padding: 8px 0; text-align: right;">Bs. ${(item.price * rate).toFixed(2)}</td>
             </tr>
         `;
     });
@@ -2811,40 +3006,43 @@ async function generateBudgetHTMLContainer() {
             <pre style="margin: 0; font-family: inherit; font-size: 0.9rem; white-space: pre-wrap;">${stationery.headerText}</pre>
         </div>
         <div style="text-align: center; font-weight: bold; font-size: 1.2rem; margin-bottom: 20px;">PRESUPUESTO ODONTOLÓGICO</div>
-        <div style="margin-bottom: 20px; font-size: 0.9rem;">
+        <div style="margin-bottom: 20px; font-size: 0.9rem; line-height: 1.4;">
             <strong>Paciente:</strong> ${patient.fullname}<br>
             <strong>Cédula:</strong> ${patient.id}<br>
             <strong>Fecha:</strong> ${new Date().toLocaleDateString('es-ES')}<br>
             <strong>Forma de Pago:</strong> ${paymentModeText}<br>
-            <strong>Método de Pago Sugerido:</strong> ${budgetPaymentMethodText}
+            <strong>Método de Pago Sugerido:</strong> ${budgetPaymentMethodText}<br>
+            <strong>Tasa de Cambio BCV:</strong> Bs. ${rate.toFixed(2)}
         </div>
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.85rem;">
             <thead>
                 <tr style="border-bottom: 2px solid #000; font-weight: bold;">
                     <th style="padding: 8px 0; text-align: left;">Pieza/Cara</th>
                     <th style="padding: 8px 0; text-align: left;">Tratamiento</th>
-                    <th style="padding: 8px 0; text-align: left;">Precio</th>
-                    <th style="padding: 8px 0; text-align: center; width: 50px;">Dto</th>
-                    <th style="padding: 8px 0; text-align: right; width: 90px;">Total</th>
+                    <th style="padding: 8px 0; text-align: left;">Especialista</th>
+                    <th style="padding: 8px 0; text-align: left;">Precio (USD)</th>
+                    <th style="padding: 8px 0; text-align: right; width: 110px;">Precio (Bs.)</th>
                 </tr>
             </thead>
             <tbody>
                 ${itemsHtml}
             </tbody>
         </table>
-        <div style="text-align: right; margin-bottom: 20px; font-size: 1rem; font-weight: bold;">
-            Total USD (REF): $${totalUSD.toFixed(2)}<br>
-            Total Bs (BCV @ ${rate}): Bs. ${totalVES}
+        <div style="text-align: right; margin-bottom: 25px; font-size: 0.92rem; line-height: 1.5; border-bottom: 1px solid #cbd5e1; padding-bottom: 10px;">
+            Subtotal Bruto: $${subtotalUSD.toFixed(2)} (Bs. ${subtotalVES})<br>
+            Descuento Global (${discountPct}%): -$${discountAmountUSD.toFixed(2)} (Bs. -${discountVES})<br>
+            <strong style="font-size: 1.1rem; color: #000;">Total Final Ref.: $${totalUSD.toFixed(2)} (Bs. ${totalVES})</strong>
         </div>
-        ${notes ? `<div style="margin-bottom: 25px; border: 1px solid #000; padding: 10px; font-size: 0.85rem;"><strong>Observaciones:</strong><br>${notes}</div>` : ''}
+        ${notes ? `<div style="margin-bottom: 15px; border: 1px solid #cbd5e1; padding: 10px; font-size: 0.82rem; border-radius: 4px; line-height: 1.4; background-color: #fafafa;"><strong>Observaciones Clínicas (Notas del Médico):</strong><br>${notes}</div>` : ''}
+        ${consentText ? `<div style="margin-bottom: 25px; border: 1px solid #cbd5e1; padding: 10px; font-size: 0.80rem; border-radius: 4px; line-height: 1.4; color: #444; background-color: #fafafa;"><strong>Consentimiento Informado:</strong><br>${consentText}</div>` : ''}
         <div style="margin-top: 40px; display: flex; justify-content: space-between; font-size: 0.85rem; text-align: center;">
-            <div style="width: 200px;">
+            <div style="width: 230px;">
                 ${docSig ? `<img src="${docSig}" style="max-height: 50px; display: block; margin-left: auto; margin-right: auto; margin-bottom: 5px;">` : '<div style="height: 55px;"></div>'}
-                <div style="border-top: 1px solid #000; padding-top: 5px;">Firma del Médico</div>
+                <div style="border-top: 1px solid #000; padding-top: 5px;">Firma del Odontólogo Tratante</div>
             </div>
-            <div style="width: 200px;">
+            <div style="width: 230px;">
                 ${patSig ? `<img src="${patSig}" style="max-height: 50px; display: block; margin-left: auto; margin-right: auto; margin-bottom: 5px;">` : '<div style="height: 55px;"></div>'}
-                <div style="border-top: 1px solid #000; padding-top: 5px;">Firma del Paciente</div>
+                <div style="border-top: 1px solid #000; padding-top: 5px;">Firma del Paciente / Representante</div>
             </div>
         </div>
         <div style="text-align: center; margin-top: 30px; font-size: 0.8rem; border-top: 1px solid #000; padding-top: 10px; color: #555;">

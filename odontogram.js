@@ -1,14 +1,13 @@
 /* ==========================================================================
-   DENTALCARE PRO - SVG ODONTOGRAM INTERACTIVE ENGINE
-   4-Quadrant Layout Specification (Exact User Directive)
+   DENTALCARE PRO - SVG ODONTODIAGRAMA INTERACTIVE ENGINE (FDI REGULADO)
    ========================================================================== */
 
 class OdontogramEngine {
     constructor(containerId, options = {}) {
         this.container = document.getElementById(containerId);
-        this.currentMode = 'patology'; // 'patology', 'treated', 'proposed', 'clear'
+        this.currentMode = 'patology'; // 'patology', 'treated', 'proposed', 'endo', 'clear'
         this.isPediatric = false;
-        this.toothData = options.initialData || {}; // e.g. { "18-Oclusal": "patology" }
+        this.toothData = options.initialData || {}; // e.g. { "18-top": "patology" }
         this.onFaceClickCallback = options.onFaceClick || null;
     }
 
@@ -42,118 +41,101 @@ class OdontogramEngine {
             wrapper.classList.add('adult-only');
         }
 
-        // --- UPPER ARCADA ROW ---
-        const upperRow = document.createElement('div');
-        upperRow.className = 'odontogram-arcada-row upper-arcada';
-
-        // Quadrant Upper Left (q-upper-left): Adult 18-12, Infantil 55-51
-        const qUpperLeft = document.createElement('div');
-        qUpperLeft.className = 'odontogram-quadrant q-upper-left';
+        // --- CUADRANTE 1 (Superior Izquierdo de pantalla / Derecho de paciente) ---
+        const q1 = document.createElement('div');
+        q1.className = 'odontogram-quadrant q-upper-left';
         
-        const qUlTitle = document.createElement('h4');
-        qUlTitle.innerText = 'Izquierdo Superior';
-        qUpperLeft.appendChild(qUlTitle);
+        const q1Title = document.createElement('h4');
+        q1Title.innerText = 'Cuadrante 1 (Sup. Derecho de Paciente)';
+        q1.appendChild(q1Title);
 
-        const adultRowUL = document.createElement('div');
-        adultRowUL.className = 'tooth-row adult-row';
-        [18, 17, 16, 15, 14, 13, 12].forEach(num => {
-            adultRowUL.appendChild(this.createToothElement(num));
+        const adultRow1 = document.createElement('div');
+        adultRow1.className = 'tooth-row adult-row';
+        [18, 17, 16, 15, 14, 13, 12, 11].forEach(num => {
+            adultRow1.appendChild(this.createToothElement(num));
         });
-        qUpperLeft.appendChild(adultRowUL);
+        q1.appendChild(adultRow1);
 
-        const childRowUL = document.createElement('div');
-        childRowUL.className = 'tooth-row infantil-row';
+        const childRow1 = document.createElement('div');
+        childRow1.className = 'tooth-row infantil-row align-right';
         [55, 54, 53, 52, 51].forEach(num => {
-            childRowUL.appendChild(this.createToothElement(num));
+            childRow1.appendChild(this.createToothElement(num));
         });
-        qUpperLeft.appendChild(childRowUL);
+        q1.appendChild(childRow1);
 
-        upperRow.appendChild(qUpperLeft);
+        wrapper.appendChild(q1);
 
-        // Quadrant Upper Right (q-upper-right): Adult 21-28, Infantil 61-65
-        const qUpperRight = document.createElement('div');
-        qUpperRight.className = 'odontogram-quadrant q-upper-right';
+        // --- CUADRANTE 2 (Superior Derecho de pantalla / Izquierdo de paciente) ---
+        const q2 = document.createElement('div');
+        q2.className = 'odontogram-quadrant q-upper-right';
         
-        const qUrTitle = document.createElement('h4');
-        qUrTitle.innerText = 'Derecho Superior';
-        qUpperRight.appendChild(qUrTitle);
+        const q2Title = document.createElement('h4');
+        q2Title.innerText = 'Cuadrante 2 (Sup. Izquierdo de Paciente)';
+        q2.appendChild(q2Title);
 
-        const adultRowUR = document.createElement('div');
-        adultRowUR.className = 'tooth-row adult-row';
+        const adultRow2 = document.createElement('div');
+        adultRow2.className = 'tooth-row adult-row';
         [21, 22, 23, 24, 25, 26, 27, 28].forEach(num => {
-            adultRowUR.appendChild(this.createToothElement(num));
+            adultRow2.appendChild(this.createToothElement(num));
         });
-        qUpperRight.appendChild(adultRowUR);
+        q2.appendChild(adultRow2);
 
-        const childRowUR = document.createElement('div');
-        childRowUR.className = 'tooth-row infantil-row';
+        const childRow2 = document.createElement('div');
+        childRow2.className = 'tooth-row infantil-row align-left';
         [61, 62, 63, 64, 65].forEach(num => {
-            childRowUR.appendChild(this.createToothElement(num));
+            childRow2.appendChild(this.createToothElement(num));
         });
-        qUpperRight.appendChild(childRowUR);
+        q2.appendChild(childRow2);
 
-        upperRow.appendChild(qUpperRight);
+        wrapper.appendChild(q2);
 
-        wrapper.appendChild(upperRow);
-
-        // --- DIVIDER LINE ---
-        const divider = document.createElement('div');
-        divider.className = 'odontogram-divider-line';
-        wrapper.appendChild(divider);
-
-        // --- LOWER ARCADA ROW ---
-        const lowerRow = document.createElement('div');
-        lowerRow.className = 'odontogram-arcada-row lower-arcada';
-
-        // Quadrant Lower Left (q-lower-left): Infantil 85-81, Adult 48-41
-        const qLowerLeft = document.createElement('div');
-        qLowerLeft.className = 'odontogram-quadrant q-lower-left';
+        // --- CUADRANTE 4 (Inferior Izquierdo de pantalla / Derecho de paciente) ---
+        const q4 = document.createElement('div');
+        q4.className = 'odontogram-quadrant q-lower-left';
         
-        const qLlTitle = document.createElement('h4');
-        qLlTitle.innerText = 'Izquierdo Inferior';
-        qLowerLeft.appendChild(qLlTitle);
+        const q4Title = document.createElement('h4');
+        q4Title.innerText = 'Cuadrante 4 (Inf. Derecho de Paciente)';
+        q4.appendChild(q4Title);
 
-        const childRowLL = document.createElement('div');
-        childRowLL.className = 'tooth-row infantil-row';
+        const childRow4 = document.createElement('div');
+        childRow4.className = 'tooth-row infantil-row align-right';
         [85, 84, 83, 82, 81].forEach(num => {
-            childRowLL.appendChild(this.createToothElement(num));
+            childRow4.appendChild(this.createToothElement(num));
         });
-        qLowerLeft.appendChild(childRowLL);
+        q4.appendChild(childRow4);
 
-        const adultRowLL = document.createElement('div');
-        adultRowLL.className = 'tooth-row adult-row';
+        const adultRow4 = document.createElement('div');
+        adultRow4.className = 'tooth-row adult-row';
         [48, 47, 46, 45, 44, 43, 42, 41].forEach(num => {
-            adultRowLL.appendChild(this.createToothElement(num));
+            adultRow4.appendChild(this.createToothElement(num));
         });
-        qLowerLeft.appendChild(adultRowLL);
+        q4.appendChild(adultRow4);
 
-        lowerRow.appendChild(qLowerLeft);
+        wrapper.appendChild(q4);
 
-        // Quadrant Lower Right (q-lower-right): Infantil 71-75, Adult 31-38
-        const qLowerRight = document.createElement('div');
-        qLowerRight.className = 'odontogram-quadrant q-lower-right';
+        // --- CUADRANTE 3 (Inferior Derecho de pantalla / Izquierdo de paciente) ---
+        const q3 = document.createElement('div');
+        q3.className = 'odontogram-quadrant q-lower-right';
         
-        const qLrTitle = document.createElement('h4');
-        qLrTitle.innerText = 'Derecho Inferior';
-        qLowerRight.appendChild(qLrTitle);
+        const q3Title = document.createElement('h4');
+        q3Title.innerText = 'Cuadrante 3 (Inf. Izquierdo de Paciente)';
+        q3.appendChild(q3Title);
 
-        const childRowLR = document.createElement('div');
-        childRowLR.className = 'tooth-row infantil-row';
+        const childRow3 = document.createElement('div');
+        childRow3.className = 'tooth-row infantil-row align-left';
         [71, 72, 73, 74, 75].forEach(num => {
-            childRowLR.appendChild(this.createToothElement(num));
+            childRow3.appendChild(this.createToothElement(num));
         });
-        qLowerRight.appendChild(childRowLR);
+        q3.appendChild(childRow3);
 
-        const adultRowLR = document.createElement('div');
-        adultRowLR.className = 'tooth-row adult-row';
+        const adultRow3 = document.createElement('div');
+        adultRow3.className = 'tooth-row adult-row';
         [31, 32, 33, 34, 35, 36, 37, 38].forEach(num => {
-            adultRowLR.appendChild(this.createToothElement(num));
+            adultRow3.appendChild(this.createToothElement(num));
         });
-        qLowerRight.appendChild(adultRowLR);
+        q3.appendChild(adultRow3);
 
-        lowerRow.appendChild(qLowerRight);
-
-        wrapper.appendChild(lowerRow);
+        wrapper.appendChild(q3);
 
         this.container.appendChild(wrapper);
     }
@@ -163,65 +145,83 @@ class OdontogramEngine {
         box.className = 'tooth-box';
         box.dataset.tooth = toothNumber;
 
-        // Label Top
-        const labelTop = document.createElement('span');
-        labelTop.className = 'tooth-number';
-        labelTop.innerText = toothNumber;
-        box.appendChild(labelTop);
+        // Label Top/Bottom depending on upper/lower row
+        const label = document.createElement('span');
+        label.className = 'tooth-number';
+        label.innerText = toothNumber;
+        
+        const isUpper = (toothNumber >= 11 && toothNumber <= 28) || (toothNumber >= 51 && toothNumber <= 65);
+        
+        if (isUpper) {
+            box.appendChild(label);
+        }
 
         // SVG Diagram (Geometric 5-Face Tooth representation)
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.setAttribute('viewBox', '0 0 50 50');
+        svg.setAttribute('viewBox', '0 0 40 40');
         svg.setAttribute('class', 'tooth-svg');
 
-        // 5 Faces Coordinates:
-        // Vestibular (Top polygon), Distal (Right polygon), Palatina/Lingual (Bottom polygon), Mesial (Left polygon), Oclusal (Center square)
+        // 5 Faces coordinates (Vestibular/top, Distal/right, Lingual/bottom, Mesial/left, Oclusal/center)
         const faces = [
-            { id: 'Vestibular', points: '0,0 50,0 35,15 15,15' },
-            { id: 'Distal',     points: '50,0 50,50 35,35 35,15' },
-            { id: 'Lingual',    points: '50,50 0,50 15,35 35,35' },
-            { id: 'Mesial',     points: '0,50 0,0 15,15 15,35' },
-            { id: 'Oclusal',    points: '15,15 35,15 35,35 15,35' }
+            { id: 'top',    type: 'polygon', points: '0,0 40,0 28,12 12,12' },
+            { id: 'right',  type: 'polygon', points: '40,0 40,40 28,28 28,12' },
+            { id: 'bottom', type: 'polygon', points: '40,40 0,40 12,28 28,28' },
+            { id: 'left',   type: 'polygon', points: '0,40 0,0 12,12 12,28' },
+            { id: 'center', type: 'rect',    x: 12, y: 12, width: 16, height: 16 }
         ];
 
         faces.forEach(face => {
-            const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-            polygon.setAttribute('points', face.points);
+            let el;
+            if (face.type === 'polygon') {
+                el = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                el.setAttribute('points', face.points);
+            } else {
+                el = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                el.setAttribute('x', face.x);
+                el.setAttribute('y', face.y);
+                el.setAttribute('width', face.width);
+                el.setAttribute('height', face.height);
+            }
             
             const key = `${toothNumber}-${face.id}`;
             const state = this.toothData[key];
             
             let classList = 'tooth-face';
             if (state) classList += ` ${state}`;
-            polygon.setAttribute('class', classList);
-            polygon.dataset.key = key;
-            polygon.dataset.tooth = toothNumber;
-            polygon.dataset.face = face.id;
+            el.setAttribute('class', classList);
+            el.dataset.key = key;
+            el.dataset.tooth = toothNumber;
+            el.dataset.face = face.id;
 
             // Click listener
-            polygon.addEventListener('click', (e) => {
+            el.addEventListener('click', (e) => {
                 e.stopPropagation();
-                this.handleFaceClick(toothNumber, face.id, key, polygon);
+                this.handleFaceClick(toothNumber, face.id, key, el);
             });
 
-            svg.appendChild(polygon);
+            svg.appendChild(el);
         });
 
         box.appendChild(svg);
+        
+        if (!isUpper) {
+            box.appendChild(label);
+        }
+
         return box;
     }
 
-    handleFaceClick(toothNumber, faceId, key, polygonEl) {
+    handleFaceClick(toothNumber, faceId, key, el) {
         if (this.currentMode === 'clear') {
             delete this.toothData[key];
-            polygonEl.setAttribute('class', 'tooth-face');
+            el.setAttribute('class', 'tooth-face');
         } else {
             this.toothData[key] = this.currentMode;
-            polygonEl.setAttribute('class', `tooth-face ${this.currentMode}`);
+            el.setAttribute('class', `tooth-face ${this.currentMode}`);
         }
 
         if (this.onFaceClickCallback) {
-            this.onFaceClickCallback(toothNumber, faceId, this.currentMode, this.toothData);
+            this.onFaceClickCallback(toothNumber, faceId, this.currentMode, key);
         }
     }
 }
