@@ -2263,6 +2263,7 @@ function initGlobalEvents() {
             const content = document.getElementById('note-content').value.trim();
             const paymentUSD = parseFloat(document.getElementById('note-payment').value) || 0;
             const datetime = document.getElementById('note-datetime').value;
+            const paymentMethod = document.getElementById('note-payment-method') ? document.getElementById('note-payment-method').value : 'cash';
 
             if (!content) {
                 Swal.fire({ icon: 'warning', title: 'Campos requeridos', text: 'Debe ingresar la nota de la evolución.' });
@@ -2288,7 +2289,8 @@ function initGlobalEvents() {
                         totalUSD: paymentUSD,
                         paidUSD: paymentUSD,
                         balanceUSD: 0.00,
-                        status: 'Pagado'
+                        status: 'Pagado',
+                        method: paymentMethod
                     });
                 }
 
@@ -2391,6 +2393,8 @@ async function generateBudgetHTMLContainer() {
 
     const paymentModeSelect = document.getElementById('payment-mode-select');
     const paymentModeText = paymentModeSelect ? paymentModeSelect.options[paymentModeSelect.selectedIndex].text : 'Contado';
+    const budgetPaymentMethod = document.getElementById('budget-payment-method');
+    const budgetPaymentMethodText = budgetPaymentMethod ? budgetPaymentMethod.options[budgetPaymentMethod.selectedIndex].text : 'Cash (Efectivo)';
     const notes = document.getElementById('budget-notes') ? document.getElementById('budget-notes').value : '';
 
     const rate = getExchangeRate();
@@ -2432,7 +2436,8 @@ async function generateBudgetHTMLContainer() {
             <strong>Paciente:</strong> ${patient.fullname}<br>
             <strong>Cédula:</strong> ${patient.id}<br>
             <strong>Fecha:</strong> ${new Date().toLocaleDateString('es-ES')}<br>
-            <strong>Términos de Pago:</strong> ${paymentModeText}
+            <strong>Forma de Pago:</strong> ${paymentModeText}<br>
+            <strong>Método de Pago Sugerido:</strong> ${budgetPaymentMethodText}
         </div>
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.85rem;">
             <thead>
@@ -2708,7 +2713,8 @@ async function renderBillingView() {
                 totalUSD: totalRef,
                 paidUSD: totalRef,
                 balanceUSD: 0,
-                status: 'Pagado'
+                status: 'Pagado',
+                method: method
             });
             await SupabaseDataService.savePatient(activePatient);
         }
@@ -2855,7 +2861,7 @@ async function generateInvoicePreviewHTML(invoice, patient, assistant) {
                 <strong>Paciente:</strong> ${patient.fullname}<br>
                 <strong>Cédula:</strong> ${patient.id}<br>
                 <strong>WhatsApp:</strong> ${patient.phone}<br>
-                <strong>Términos:</strong> ${invoice.paymentTerms} | <strong>Método:</strong> ${invoice.paymentMethod}<br>
+                <strong>Términos:</strong> ${invoice.paymentTerms} | <strong>Método:</strong> ${getPaymentMethodLabel(invoice.paymentMethod)}<br>
                 <strong>Asistente:</strong> ${assistant ? assistant.fullname : 'N/A'}
             </div>
 
@@ -3107,15 +3113,40 @@ async function renderCashFlow() {
     let outflows = 0;
     let transactions = [];
 
+    const methodTotals = {
+        'pagomovil': 0,
+        'cash': 0,
+        'zelle': 0,
+        'binance': 0
+    };
+
     patients.forEach(p => {
         (p.payments || []).forEach(pay => {
             if (pay.paidUSD > 0) {
                 inflows += pay.paidUSD;
+                
+                // Map and track breakdown totals
+                const m = pay.method ? pay.method.toLowerCase() : 'cash';
+                if (methodTotals[m] !== undefined) {
+                    methodTotals[m] += pay.paidUSD;
+                } else {
+                    // Backwards compatibility mapping for old records
+                    if (m.includes('dólar') || m.includes('usd') || m.includes('efectivo') || m === 'dólares') {
+                        methodTotals['cash'] += pay.paidUSD;
+                    } else if (m.includes('bs') || m.includes('pago') || m.includes('transferencia')) {
+                        methodTotals['pagomovil'] += pay.paidUSD;
+                    } else if (m.includes('zelle')) {
+                        methodTotals['zelle'] += pay.paidUSD;
+                    } else {
+                        methodTotals['cash'] += pay.paidUSD;
+                    }
+                }
+
                 transactions.push({
                     date: pay.date,
                     concept: `Abono de Paciente: ${p.fullname} (${pay.concept})`,
                     type: 'Ingreso',
-                    method: 'USD',
+                    method: pay.method ? getPaymentMethodLabel(pay.method) : 'Cash (Efectivo)',
                     amount: pay.paidUSD
                 });
             }
@@ -3129,7 +3160,7 @@ async function renderCashFlow() {
                 date: bill.dueDate,
                 concept: `Pago a Proveedor: ${bill.providerName} (${bill.serviceName})`,
                 type: 'Egreso',
-                method: 'USD',
+                method: 'Cash (Efectivo)',
                 amount: bill.amount
             });
         }
@@ -3139,6 +3170,14 @@ async function renderCashFlow() {
 
     document.getElementById('cf-total-inflows').innerText = `$${inflows.toFixed(2)}`;
     document.getElementById('cf-total-outflows').innerText = `$${outflows.toFixed(2)}`;
+    
+    // Update payment method breakdown display cards
+    if (document.getElementById('cf-total-pagomovil')) {
+        document.getElementById('cf-total-pagomovil').innerText = `$${methodTotals['pagomovil'].toFixed(2)}`;
+        document.getElementById('cf-total-cash').innerText = `$${methodTotals['cash'].toFixed(2)}`;
+        document.getElementById('cf-total-zelle').innerText = `$${methodTotals['zelle'].toFixed(2)}`;
+        document.getElementById('cf-total-binance').innerText = `$${methodTotals['binance'].toFixed(2)}`;
+    }
     
     const netBalance = inflows - outflows;
     document.getElementById('cf-net-balance').innerText = `$${netBalance.toFixed(2)}`;
@@ -3457,6 +3496,18 @@ function toDataURL(url) {
             resolve('');
         }
     });
+}
+
+function getPaymentMethodLabel(method) {
+    const map = {
+        'pagomovil': 'Pago Móvil',
+        'cash': 'Cash (Efectivo)',
+        'zelle': 'Zelle',
+        'binance': 'Binance'
+    };
+    if (!method) return 'Cash (Efectivo)';
+    const m = method.toLowerCase();
+    return map[m] || method;
 }
 
 async function generatePDFFromElement(element, filename) {

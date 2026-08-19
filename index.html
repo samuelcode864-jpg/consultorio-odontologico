@@ -16,7 +16,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=43">
+    <link rel="stylesheet" href="styles.css?v=44">
 </head>
 <body class="light-theme">
 
@@ -456,20 +456,31 @@
 
                                 <!-- Budget Total & Options -->
                                 <div class="budget-summary-box">
-                                    <div class="payment-terms">
-                                        <label>Forma de Pago:</label>
-                                        <select id="payment-mode-select">
-                                            <option value="contado">Contado Inmediato (100%)</option>
-                                            <option value="cuotas-2">50% Inicial + 50% al finalizar</option>
-                                            <option value="cuotas-3">3 Cuotas por fase de tratamiento</option>
-                                        </select>
-                                    </div>
-                                    <div class="total-display">
-                                        <span>Monto Total:</span>
-                                        <h2 id="budget-total-amount">$0.00</h2>
-                                        <span class="text-muted" id="budget-total-ves">Bs. 0.00</span>
-                                    </div>
-                                </div>
+                                     <div class="payment-terms-group" style="display: flex; flex-direction: column; gap: 8px;">
+                                         <div class="payment-terms" style="display: flex; align-items: center; gap: 8px;">
+                                             <label style="margin-bottom:0; font-size:0.85rem; font-weight:600; min-width: 100px;">Forma de Pago:</label>
+                                             <select id="payment-mode-select">
+                                                 <option value="contado">Contado Inmediato (100%)</option>
+                                                 <option value="cuotas-2">50% Inicial + 50% al finalizar</option>
+                                                 <option value="cuotas-3">3 Cuotas por fase de tratamiento</option>
+                                             </select>
+                                         </div>
+                                         <div class="payment-terms" style="display: flex; align-items: center; gap: 8px;">
+                                             <label style="margin-bottom:0; font-size:0.85rem; font-weight:600; min-width: 100px;">Método Pago:</label>
+                                             <select id="budget-payment-method">
+                                                 <option value="cash">Cash (Efectivo)</option>
+                                                 <option value="pagomovil">Pago Móvil</option>
+                                                 <option value="zelle">Zelle</option>
+                                                 <option value="binance">Binance</option>
+                                             </select>
+                                         </div>
+                                     </div>
+                                     <div class="total-display">
+                                         <span>Monto Total:</span>
+                                         <h2 id="budget-total-amount">$0.00</h2>
+                                         <span class="text-muted" id="budget-total-ves">Bs. 0.00</span>
+                                     </div>
+                                 </div>
                             </div>
                         </div>
 
@@ -801,9 +812,10 @@
                                     <div class="form-group">
                                         <label class="form-label" for="bill-method">Método de Pago</label>
                                         <select id="bill-method" class="form-control">
-                                            <option value="Dólares">Dólares (Efectivo)</option>
-                                            <option value="Bs">Bs (Pago Móvil/Transferencia)</option>
-                                            <option value="Zelle">Zelle</option>
+                                            <option value="pagomovil">Pago Móvil</option>
+                                            <option value="cash">Cash (Efectivo)</option>
+                                            <option value="zelle">Zelle</option>
+                                            <option value="binance">Binance</option>
                                         </select>
                                     </div>
                                     <div class="form-group">
@@ -1047,6 +1059,18 @@
                                 </div>
                                 <h2 id="cf-net-balance">$0.00</h2>
                                 <small id="cf-balance-status" class="trend up">Estado Financiero Positivo</small>
+                            </div>
+                            <div class="stat-card border-purple">
+                                <div class="stat-header">
+                                    <span>Ingresos por Método</span>
+                                    <div class="stat-icon purple"><i class="fa-solid fa-list-check"></i></div>
+                                </div>
+                                <div id="cf-method-breakdown" style="font-size: 0.8rem; margin-top: 8px; line-height: 1.45; color: var(--text-main);">
+                                    <div style="display: flex; justify-content: space-between;"><span>Pago Móvil:</span><strong id="cf-total-pagomovil">$0.00</strong></div>
+                                    <div style="display: flex; justify-content: space-between;"><span>Cash (Efectivo):</span><strong id="cf-total-cash">$0.00</strong></div>
+                                    <div style="display: flex; justify-content: space-between;"><span>Zelle:</span><strong id="cf-total-zelle">$0.00</strong></div>
+                                    <div style="display: flex; justify-content: space-between;"><span>Binance:</span><strong id="cf-total-binance">$0.00</strong></div>
+                                </div>
                             </div>
                         </div>
 
@@ -1795,6 +1819,15 @@
                         <label>Abono Realizado en la Cita ($ USD)</label>
                         <input type="number" id="note-payment" step="0.01" value="0.00">
                     </div>
+                    <div class="form-group">
+                        <label>Método de Pago del Abono</label>
+                        <select id="note-payment-method" class="form-control">
+                            <option value="cash">Cash (Efectivo)</option>
+                            <option value="pagomovil">Pago Móvil</option>
+                            <option value="zelle">Zelle</option>
+                            <option value="binance">Binance</option>
+                        </select>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -1805,12 +1838,12 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=43"></script>
-    <script src="supabaseClient.js?v=43"></script>
-    <script src="odontogram.js?v=43"></script>
-    <script src="signature.js?v=43"></script>
-    <script src="whatsapp.js?v=43"></script>
-    <script src="kardex.js?v=43"></script>
-    <script src="app.js?v=43"></script>
+    <script src="seededData.js?v=44"></script>
+    <script src="supabaseClient.js?v=44"></script>
+    <script src="odontogram.js?v=44"></script>
+    <script src="signature.js?v=44"></script>
+    <script src="whatsapp.js?v=44"></script>
+    <script src="kardex.js?v=44"></script>
+    <script src="app.js?v=44"></script>
 </body>
 </html>
