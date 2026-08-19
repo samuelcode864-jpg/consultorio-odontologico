@@ -16,54 +16,43 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=44">
+    <link rel="stylesheet" href="styles.css?v=45">
 </head>
 <body class="light-theme">
 
     <!-- FULLSCREEN LOGIN OVERLAY (EXACT REPLICA OF THE SPECIFIED IMAGE) -->
     <div id="login-screen" class="login-overlay hidden">
-        <div class="login-split-container">
-            <!-- Left image panel (Desktop only) -->
-            <div class="login-image-side" style="background-image: url('foto.jpeg');"></div>
+        <div class="login-container-new">
+            <div class="login-logo-container">
+                <img src="Logo PNG (rgb)-06.png" alt="Rodrigo Navas Logo" class="login-logo-img">
+            </div>
             
-            <!-- Right form panel (Desktop & Mobile) -->
-            <div class="login-form-side">
-                <!-- Mobile top image (Shown only on Mobile, matches the iPhone screenshot in the photo) -->
-                <div class="login-mobile-top-image" style="background-image: url('foto.jpeg');"></div>
-                
-                <div class="login-form-content">
-                    <div class="login-brand-logo">
-                        <i class="fa-solid fa-tooth"></i>
-                        <span>DentalCare</span>
-                    </div>
-                    
-                    <h2 class="login-welcome-title">Bienvenido a DentalCare</h2>
-                    
-                    <form id="form-login" class="login-form">
-                        <div class="form-group">
-                            <label>Correo Electrónico</label>
-                            <input type="email" id="login-email" required value="doctor@dentalcare.com" placeholder="Ingresa tu correo">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Contraseña</label>
-                            <input type="password" id="login-password" required value="123456" placeholder="Ingresa tu contraseña">
-                        </div>
-                        
-                        <div id="login-error-msg" class="text-red hidden" style="font-size: 0.82rem; margin: 8px 0; text-align: left;">
-                            <i class="fa-solid fa-circle-exclamation"></i> Correo o contraseña incorrectos.
-                        </div>
-                        
-                        <button type="submit" class="btn btn-primary login-btn">Iniciar Sesión</button>
-                    </form>
-                    
-                    <!-- Demo Help Box -->
-                    <div class="demo-credentials-box" style="margin-top: 25px; padding: 14px 18px; border: 1px dashed var(--border-color); border-radius: 10px; font-size: 0.8rem; text-align: left; color: var(--text-muted);">
-                        <strong style="color: var(--primary-cyan); display: block; margin-bottom: 6px;">🔑 Cuentas Demo:</strong>
-                        Doctor: <code>doctor@dentalcare.com</code> / <code>123456</code><br>
-                        Asistente: <code>asistente@dentalcare.com</code> / <code>123456</code>
-                    </div>
+            <form id="form-login" class="login-form-new">
+                <div class="form-group-new">
+                    <label class="form-label-new">Email</label>
+                    <input type="email" id="login-email" required value="doctor@dentalcare.com" placeholder="Email" class="form-input-new">
                 </div>
+                
+                <div class="form-group-new" style="margin-top: 20px;">
+                    <label class="form-label-new">Password</label>
+                    <input type="password" id="login-password" required value="123456" placeholder="Password" class="form-input-new">
+                </div>
+                
+                <div id="login-error-msg" class="text-red hidden" style="font-size: 0.85rem; margin: 15px 0 0 0; text-align: center; color: #ff8a8a;">
+                    <i class="fa-solid fa-circle-exclamation"></i> Correo o contraseña incorrectos.
+                </div>
+                
+                <button type="submit" class="login-btn-new" style="margin-top: 30px;">LOGIN</button>
+            </form>
+            
+            <div class="login-forgot-wrapper-new" style="margin-top: 20px;">
+                <a href="#" class="login-forgot-link-new" onclick="Swal.fire({title: 'Recuperar Contraseña', text: 'Por favor, contacte al administrador del sistema para restablecer su contraseña.', icon: 'info'})">Forgot Password?</a>
+            </div>
+            
+            <div class="demo-credentials-new">
+                <strong style="color: #ffffff; display: block; margin-bottom: 6px;">🔑 Cuentas Demo:</strong>
+                Doctor: <code>doctor@dentalcare.com</code> / <code>123456</code><br>
+                Asistente: <code>asistente@dentalcare.com</code> / <code>123456</code>
             </div>
         </div>
     </div>
@@ -1838,12 +1827,12 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=44"></script>
-    <script src="supabaseClient.js?v=44"></script>
-    <script src="odontogram.js?v=44"></script>
-    <script src="signature.js?v=44"></script>
-    <script src="whatsapp.js?v=44"></script>
-    <script src="kardex.js?v=44"></script>
-    <script src="app.js?v=44"></script>
+    <script src="seededData.js?v=45"></script>
+    <script src="supabaseClient.js?v=45"></script>
+    <script src="odontogram.js?v=45"></script>
+    <script src="signature.js?v=45"></script>
+    <script src="whatsapp.js?v=45"></script>
+    <script src="kardex.js?v=45"></script>
+    <script src="app.js?v=45"></script>
 </body>
 </html>
