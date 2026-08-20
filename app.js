@@ -2310,6 +2310,94 @@ function initGlobalEvents() {
         };
     }
 
+    const saveSessionBtn = document.getElementById('btn-save-session');
+    if (saveSessionBtn) {
+        saveSessionBtn.onclick = async (e) => {
+            e.preventDefault();
+            const activeId = getActivePatientId();
+            if (!activeId) return;
+
+            const sessionNum = parseInt(document.getElementById('s-num').value);
+            const datetime = document.getElementById('s-datetime').value.replace('T', ' ');
+            const procedure = document.getElementById('s-procedure').value.trim();
+            const indications = document.getElementById('s-next-notes').value.trim();
+
+            if (!procedure) {
+                Swal.fire({ icon: 'warning', title: 'Campos Vacíos', text: 'Por favor describa la evolución o procedimiento de la sesión.' });
+                return;
+            }
+
+            if (window.sessionSigPad && window.sessionSigPad.isEmpty()) {
+                Swal.fire({ icon: 'warning', title: 'Firma Requerida', text: 'El paciente debe firmar digitalmente la sesión para constatar conformidad.' });
+                return;
+            }
+
+            const signatureData = window.sessionSigPad ? window.sessionSigPad.getDataURL() : '';
+
+            // Extract materials used
+            const materials = [];
+            const checkboxes = document.querySelectorAll('.session-mat-checkbox:checked');
+            for (const chk of checkboxes) {
+                const code = chk.dataset.code;
+                const qtyInput = document.querySelector(`.session-mat-qty[data-code="${code}"]`);
+                const qty = parseInt(qtyInput.value) || 1;
+                materials.push({ code, qty });
+            }
+
+            try {
+                // Fetch active patient
+                const patients = await SupabaseDataService.getPatients();
+                const patient = patients.find(p => p.id === activeId);
+                if (!patient) return;
+
+                if (!patient.sessions) patient.sessions = [];
+                
+                // Construct new session
+                const sessionObj = {
+                    sessionNum,
+                    datetime,
+                    procedure,
+                    indications,
+                    signatureData,
+                    materials: []
+                };
+
+                // Deduct materials from stock
+                const inventory = await SupabaseDataService.getInventory();
+                for (const m of materials) {
+                    const item = inventory.find(inv => inv.code === m.code);
+                    if (item) {
+                        const newStock = Math.max(0, item.currentStock - m.qty);
+                        item.currentStock = newStock;
+                        
+                        // Update stock locally and in cloud
+                        if (window.kardex) window.kardex.updateStock(m.code, newStock);
+                        await SupabaseDataService.saveInventoryItem(item);
+                        
+                        sessionObj.materials.push({
+                            code: m.code,
+                            name: item.name,
+                            qty: m.qty
+                        });
+                    }
+                }
+
+                patient.sessions.push(sessionObj);
+                await SupabaseDataService.savePatient(patient);
+
+                closeModal('modal-session');
+                await renderEHRView();
+                await renderInventoryTable();
+                await renderDashboard();
+
+                Swal.fire({ icon: 'success', title: 'Sesión Registrada', text: 'La evolución de la sesión y firma de conformidad fueron guardadas exitosamente.', timer: 2000, showConfirmButton: false });
+            } catch(err) {
+                console.error("Error saving patient session:", err);
+                Swal.fire({ icon: 'error', title: 'Error al Guardar', text: err.message || err });
+            }
+        };
+    }
+
     // Direct Patient Select Dropdown Listener
     const odPatientSelect = document.getElementById('od-patient-select');
     if (odPatientSelect) {
@@ -3884,6 +3972,209 @@ async function renderSettingsView() {
         }
     } else {
         if (docSigSection) docSigSection.classList.add('hidden');
+    }
+}
+
+function initPatientStepperWizard() {
+    let currentStep = 1;
+    const totalSteps = 4;
+
+    const btnPrev = document.getElementById('btn-prev-step');
+    const btnNext = document.getElementById('btn-next-step');
+    const btnSave = document.getElementById('btn-save-patient');
+
+    function showStep(step) {
+        for (let i = 1; i <= totalSteps; i++) {
+            const pane = document.getElementById(`step-content-${i}`);
+            const indicator = document.getElementById(`step-indicator-${i}`);
+            if (pane) {
+                if (i === step) {
+                    pane.classList.remove('hidden');
+                } else {
+                    pane.classList.add('hidden');
+                }
+            }
+            if (indicator) {
+                if (i === step) {
+                    indicator.classList.add('active');
+                    indicator.classList.remove('completed');
+                } else if (i < step) {
+                    indicator.classList.remove('active');
+                    indicator.classList.add('completed');
+                } else {
+                    indicator.classList.remove('active', 'completed');
+                }
+            }
+        }
+
+        if (btnPrev) btnPrev.style.display = (step === 1) ? 'none' : 'inline-flex';
+        if (btnNext) btnNext.style.display = (step === totalSteps) ? 'none' : 'inline-flex';
+        if (btnSave) {
+            if (step === totalSteps) {
+                btnSave.classList.remove('hidden');
+            } else {
+                btnSave.classList.add('hidden');
+            }
+        }
+    }
+
+    if (btnPrev) {
+        btnPrev.onclick = (e) => {
+            e.preventDefault();
+            if (currentStep > 1) {
+                currentStep--;
+                showStep(currentStep);
+            }
+        };
+    }
+
+    if (btnNext) {
+        btnNext.onclick = async (e) => {
+            e.preventDefault();
+            
+            // Validation for Step 1
+            if (currentStep === 1) {
+                const fullname = document.getElementById('p-fullname').value.trim();
+                const id = document.getElementById('p-id').value.trim();
+                const birthdate = document.getElementById('p-birthdate').value;
+                const phone = document.getElementById('p-mobile-phone').value.trim();
+
+                if (!fullname || !id || !birthdate || !phone) {
+                    Swal.fire({ icon: 'warning', title: 'Campos Incompletos', text: 'Por favor complete todos los campos obligatorios del Paso 1.' });
+                    return;
+                }
+
+                // Check for representative fields if child
+                const age = calculateAge(birthdate);
+                if (age < 18) {
+                    const repName = document.getElementById('p-rep-name').value.trim();
+                    const repId = document.getElementById('p-rep-id').value.trim();
+                    const repPhone = document.getElementById('p-rep-phone').value.trim();
+                    const repRelation = document.getElementById('p-rep-relation').value.trim();
+
+                    if (!repName || !repId || !repPhone || !repRelation) {
+                        Swal.fire({ icon: 'warning', title: 'Representante Obligatorio', text: 'El paciente es menor de edad. Por favor complete los datos del representante legal.' });
+                        return;
+                    }
+                }
+
+                // Duplicate ID check
+                try {
+                    const patients = await SupabaseDataService.getPatients();
+                    const duplicate = patients.find(p => p.id === id);
+                    if (duplicate) {
+                        Swal.fire({ icon: 'error', title: 'Cédula Duplicada', text: 'Ya existe un paciente registrado con esta Cédula / ID.' });
+                        return;
+                    }
+                } catch(err) {
+                    console.error("Error validating duplicate patient:", err);
+                }
+            }
+
+            if (currentStep < totalSteps) {
+                currentStep++;
+                showStep(currentStep);
+            }
+        };
+    }
+
+    // Auto calculate age and toggle pediatrician
+    const pBirthdate = document.getElementById('p-birthdate');
+    if (pBirthdate) {
+        pBirthdate.onchange = () => {
+            const birthdate = pBirthdate.value;
+            if (birthdate) {
+                const age = calculateAge(birthdate);
+                const pAge = document.getElementById('p-age');
+                if (pAge) pAge.value = age;
+                
+                const pTypeSelect = document.getElementById('p-type');
+                const repFieldsDiv = document.getElementById('representative-fields');
+                
+                if (pTypeSelect && repFieldsDiv) {
+                    if (age < 18) {
+                        pTypeSelect.value = 'Infantil';
+                        repFieldsDiv.classList.remove('hidden');
+                        document.getElementById('p-rep-name').setAttribute('required', 'true');
+                        document.getElementById('p-rep-id').setAttribute('required', 'true');
+                        document.getElementById('p-rep-phone').setAttribute('required', 'true');
+                        document.getElementById('p-rep-relation').setAttribute('required', 'true');
+                    } else {
+                        pTypeSelect.value = 'Adulto';
+                        repFieldsDiv.classList.add('hidden');
+                        document.getElementById('p-rep-name').removeAttribute('required');
+                        document.getElementById('p-rep-id').removeAttribute('required');
+                        document.getElementById('p-rep-phone').removeAttribute('required');
+                        document.getElementById('p-rep-relation').removeAttribute('required');
+                    }
+                }
+            }
+        };
+    }
+
+    // Tissue cards interactiveness
+    document.querySelectorAll('.tissue-card').forEach(card => {
+        const tissueId = card.dataset.tissue;
+        const input = document.getElementById(tissueId);
+        const badge = card.querySelector('.tissue-status-badge');
+        
+        card.onclick = (e) => {
+            if (e.target === input) return;
+            const isNormal = card.classList.contains('normal');
+            if (isNormal) {
+                card.className = 'tissue-card has-finding';
+                if (badge) badge.innerText = 'Con Hallazgo';
+                if (input) {
+                    input.style.display = 'block';
+                    input.focus();
+                }
+            } else {
+                card.className = 'tissue-card normal';
+                if (badge) badge.innerText = 'Normal';
+                if (input) {
+                    input.value = '';
+                    input.style.display = 'none';
+                }
+            }
+        };
+    });
+
+    // Reset wizard state on modal open
+    const resetWizard = () => {
+        currentStep = 1;
+        showStep(currentStep);
+        
+        // Clear inputs
+        document.getElementById('form-patient').reset();
+        const repFieldsDiv = document.getElementById('representative-fields');
+        if (repFieldsDiv) repFieldsDiv.classList.add('hidden');
+
+        document.querySelectorAll('.tissue-card').forEach(card => {
+            card.className = 'tissue-card normal';
+            const badge = card.querySelector('.tissue-status-badge');
+            if (badge) badge.innerText = 'Normal';
+            const input = document.getElementById(card.dataset.tissue);
+            if (input) {
+                input.value = '';
+                input.style.display = 'none';
+            }
+        });
+    };
+
+    const btnQuickP = document.getElementById('btn-quick-patient');
+    if (btnQuickP) {
+        btnQuickP.onclick = () => {
+            resetWizard();
+            openModal('modal-patient');
+        };
+    }
+    
+    const btnNewPM = document.getElementById('btn-new-patient-modal');
+    if (btnNewPM) {
+        btnNewPM.onclick = () => {
+            resetWizard();
+            openModal('modal-patient');
+        };
     }
 }
 
