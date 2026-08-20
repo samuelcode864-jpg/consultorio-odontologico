@@ -2546,6 +2546,30 @@ function initGlobalEvents() {
             const webhookUrl = localStorage.getItem('dental_google_calendar_webhook');
             if (!webhookUrl) return;
             try {
+                // Parse hours and minutes from time string (e.g. "09:30 AM", "3:00 PM", "9")
+                let hours = 9;
+                let minutes = 0;
+                const match = (appt.time || '').match(/(\d+):?(\d*)\s*(AM|PM)?/i);
+                if (match) {
+                    hours = parseInt(match[1]);
+                    if (match[2]) minutes = parseInt(match[2]);
+                    const ampm = match[3] ? match[3].toUpperCase() : '';
+                    if (ampm === 'PM' && hours < 12) hours += 12;
+                    if (ampm === 'AM' && hours === 12) hours = 0;
+                }
+
+                // Calculate actual target date
+                const targetDate = new Date();
+                if (appt.isTomorrow) {
+                    targetDate.setDate(targetDate.getDate() + 1);
+                }
+                targetDate.setHours(hours, minutes, 0, 0);
+                const startDateISO = targetDate.toISOString();
+
+                // End date is 1 hour later
+                targetDate.setHours(targetDate.getHours() + 1);
+                const endDateISO = targetDate.toISOString();
+
                 await fetch(webhookUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -2558,6 +2582,8 @@ function initGlobalEvents() {
                         status: appt.status,
                         isTomorrow: appt.isTomorrow,
                         date: appt.date || new Date().toISOString().split('T')[0],
+                        startDateISO,
+                        endDateISO,
                         timestamp: new Date().toISOString()
                     })
                 });
