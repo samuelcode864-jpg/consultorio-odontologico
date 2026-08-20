@@ -1559,6 +1559,12 @@ async function renderAgendaView() {
 
         const deleteApptBtn = isAssistant ? '' : `<button class="btn btn-xs btn-outline text-red" style="margin-left: 6px;" onclick="deleteAppointment('${app.id}')" title="Eliminar Cita"><i class="fa-solid fa-trash"></i></button>`;
 
+        const gCalBtn = `
+            <button class="btn btn-xs btn-outline" style="margin-left: 6px; border-color: #2563eb; color: #2563eb;" onclick="addApptToGoogleCalendarDirect('${app.id}')" title="Añadir a Google Calendar">
+                <i class="fa-solid fa-calendar-plus"></i> Calendar
+            </button>
+        `;
+
         const div = document.createElement('div');
         div.className = 'timeline-item';
         div.style.marginBottom = '12px';
@@ -1568,6 +1574,7 @@ async function renderAgendaView() {
                 <div class="timeline-actions">
                     <span class="badge-tag blue">${app.status}</span>
                     ${whatsappBtnHtml}
+                    ${gCalBtn}
                     ${deleteApptBtn}
                 </div>
             </div>
@@ -1596,6 +1603,47 @@ async function renderAgendaView() {
 }
 window.renderAgendaView = renderAgendaView;
 
+window.getGoogleCalendarLinkForAppt = function(appt) {
+    // Parse hour and minutes from time string (e.g. "09:30 AM", "3:00 PM", "9")
+    let hours = 9;
+    let minutes = 0;
+    const match = (appt.time || '').match(/(\d+):?(\d*)\s*(AM|PM)?/i);
+    if (match) {
+        hours = parseInt(match[1]);
+        if (match[2]) minutes = parseInt(match[2]);
+        const ampm = match[3] ? match[3].toUpperCase() : '';
+        if (ampm === 'PM' && hours < 12) hours += 12;
+        if (ampm === 'AM' && hours === 12) hours = 0;
+    }
+
+    // Target Date
+    const targetDate = new Date();
+    if (appt.isTomorrow || appt.date === 'tomorrow') {
+        targetDate.setDate(targetDate.getDate() + 1);
+    }
+    targetDate.setHours(hours, minutes, 0, 0);
+
+    const pad = (num) => String(num).padStart(2, '0');
+    const startStr = `${targetDate.getFullYear()}${pad(targetDate.getMonth() + 1)}${pad(targetDate.getDate())}T${pad(targetDate.getHours())}${pad(targetDate.getMinutes())}00`;
+    
+    // End time is 1 hour later
+    targetDate.setHours(targetDate.getHours() + 1);
+    const endStr = `${targetDate.getFullYear()}${pad(targetDate.getMonth() + 1)}${pad(targetDate.getDate())}T${pad(targetDate.getHours())}${pad(targetDate.getMinutes())}00`;
+
+    const title = encodeURIComponent(`Cita: ${appt.patientName}`);
+    const details = encodeURIComponent(`Tratamiento: ${appt.treatment}\nPaciente C.I: ${appt.patientId}`);
+    
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startStr}/${endStr}&details=${details}`;
+};
+
+window.addApptToGoogleCalendarDirect = async function(apptId) {
+    const appointments = await SupabaseDataService.getAppointments();
+    const appt = appointments.find(a => a.id === apptId);
+    if (!appt) return;
+    const url = window.getGoogleCalendarLinkForAppt(appt);
+    window.open(url, '_blank');
+};
+
 window.sendWhatsAppReminderForAppt = async function(apptId) {
     const appointments = await SupabaseDataService.getAppointments();
     const appt = appointments.find(a => a.id === apptId);
@@ -1608,7 +1656,10 @@ window.sendWhatsAppReminderForAppt = async function(apptId) {
     if (!phone) return;
 
     const tomorrowStr = new Date(Date.now() + 86400000).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
-    const msg = WhatsAppService.generateAppointmentReminderMessage(appt.patientName, tomorrowStr, appt.time, appt.treatment);
+    
+    // Generate calendar link for patient
+    const calendarLink = window.getGoogleCalendarLinkForAppt(appt);
+    const msg = WhatsAppService.generateAppointmentReminderMessage(appt.patientName, tomorrowStr, appt.time, appt.treatment, calendarLink);
     
     WhatsAppService.sendToPatient(phone, msg);
 };
@@ -2622,13 +2673,24 @@ function initGlobalEvents() {
 
             await SupabaseDataService.saveAppointment(appointmentObj);
 
-            // Trigger Google Calendar sync webhook in the background
-            triggerGoogleCalendarWebhook(appointmentObj);
-
             closeModal('modal-appointment');
             await renderDashboard();
             await renderAgendaView();
-            Swal.fire({ icon: 'success', title: '¡Cita Agendada!', text: 'La cita ha sido añadida a la agenda.', timer: 2000, showConfirmButton: false });
+
+            Swal.fire({
+                icon: 'success',
+                title: '¡Cita Agendada!',
+                text: 'La cita ha sido añadida a la agenda.',
+                showCancelButton: true,
+                confirmButtonColor: '#2563eb',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: '<i class="fa-solid fa-calendar-plus"></i> Añadir a Google Calendar',
+                cancelButtonText: 'Cerrar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.addApptToGoogleCalendarDirect(appointmentObj.id);
+                }
+            });
         };
     }
 

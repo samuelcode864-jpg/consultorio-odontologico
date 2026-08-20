@@ -43,7 +43,7 @@ class WhatsAppService {
         return msg;
     }
 
-    static generateAppointmentReminderMessage(patientName, apptDate, apptTime, treatment) {
+    static generateAppointmentReminderMessage(patientName, apptDate, apptTime, treatment, calendarLink = '') {
         let msg = `🦷 *RECORDATORIO DE CITA ODONTOLÓGICA*\n`;
         msg += `*Consultorio DentalCare Pro*\n`;
         msg += `----------------------------------------\n\n`;
@@ -51,6 +51,9 @@ class WhatsAppService {
         msg += `📅 *Fecha:* ${apptDate}\n`;
         msg += `⏰ *Hora:* ${apptTime}\n`;
         msg += `🩺 *Tratamiento:* ${treatment}\n\n`;
+        if (calendarLink) {
+            msg += `📅 *Añadir a mi calendario:* ${calendarLink}\n\n`;
+        }
         msg += `📍 *Ubicación:* Consultorio DentalCare Pro\n`;
         msg += `Por favor responda a este mensaje con un *CONFIRMO* o infórmenos si requiere reprogramar.\n\n`;
         msg += `¡Le esperamos! 😊`;
