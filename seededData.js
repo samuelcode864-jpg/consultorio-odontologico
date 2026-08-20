@@ -24,6 +24,16 @@ const INITIAL_USERS = [
         license: "MPPS-99201",
         status: "Activo",
         createdAt: "2026-02-15"
+    },
+    {
+        id: "usr-03",
+        fullname: "Administrador General",
+        email: "admin@dentalcare.com",
+        password: "123456",
+        role: "Super Administrador",
+        license: "ADMIN-01",
+        status: "Activo",
+        createdAt: "2026-01-01"
     }
 ];
 
