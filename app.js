@@ -3981,14 +3981,14 @@ function initPatientStepperWizard() {
     let currentStep = 1;
     const totalSteps = 4;
 
-    const btnPrev = document.getElementById('btn-prev-step');
-    const btnNext = document.getElementById('btn-next-step');
+    const btnPrev = document.getElementById('btn-patient-prev');
+    const btnNext = document.getElementById('btn-patient-next');
     const btnSave = document.getElementById('btn-save-patient');
 
     function showStep(step) {
         for (let i = 1; i <= totalSteps; i++) {
             const pane = document.getElementById(`step-content-${i}`);
-            const indicator = document.getElementById(`step-indicator-${i}`);
+            const indicator = document.getElementById(`step-ind-${i}`);
             if (pane) {
                 if (i === step) {
                     pane.classList.remove('hidden');
@@ -4009,8 +4009,20 @@ function initPatientStepperWizard() {
             }
         }
 
-        if (btnPrev) btnPrev.style.display = (step === 1) ? 'none' : 'inline-flex';
-        if (btnNext) btnNext.style.display = (step === totalSteps) ? 'none' : 'inline-flex';
+        if (btnPrev) {
+            if (step === 1) {
+                btnPrev.setAttribute('disabled', 'true');
+            } else {
+                btnPrev.removeAttribute('disabled');
+            }
+        }
+        if (btnNext) {
+            if (step === totalSteps) {
+                btnNext.classList.add('hidden');
+            } else {
+                btnNext.classList.remove('hidden');
+            }
+        }
         if (btnSave) {
             if (step === totalSteps) {
                 btnSave.classList.remove('hidden');
