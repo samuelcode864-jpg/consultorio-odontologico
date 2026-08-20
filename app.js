@@ -1387,10 +1387,10 @@ async function renderEHRView() {
         }
     }
 
-    document.querySelectorAll('.subtab-btn').forEach(btn => {
+    document.querySelectorAll('#view-ehr .subtab-btn').forEach(btn => {
         btn.onclick = function() {
-            document.querySelectorAll('.subtab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.subtab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('#view-ehr .subtab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('#view-ehr .subtab-content').forEach(c => c.classList.remove('active'));
             
             this.classList.add('active');
             const target = document.getElementById(`subtab-${this.dataset.subtab}`);
