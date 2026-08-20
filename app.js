@@ -225,23 +225,74 @@ function checkAuthSession() {
 }
 
 function applyRolePermissionsUI(role) {
-    const isAssistant = role && role.toLowerCase().includes('asistente');
-    
-    const usersTab = document.querySelector('.nav-item[data-tab="users"]');
-    if (usersTab) {
-        if (isAssistant) {
-            usersTab.classList.add('hidden');
-        } else {
-            usersTab.classList.remove('hidden');
+    const r = (role || '').toLowerCase();
+    const isAdmin = r.includes('admin') || r.includes('super');
+    const isDoctor = r.includes('medico') || r.includes('odontologo') || r.includes('doctor') || r.includes('dentista');
+    const isAssistant = r.includes('asistente') || r.includes('recep');
+
+    const roleType = isAdmin ? 'admin' : (isDoctor ? 'doctor' : 'assistant');
+
+    const tabSelectors = {
+        dashboard: '.nav-item[data-tab="dashboard"]',
+        patients: '.nav-item[data-tab="patients"]',
+        agenda: '.nav-item[data-tab="agenda"]',
+        odontogram: '.nav-item[data-tab="odontogram"]',
+        ehr: '.nav-item[data-tab="ehr"]',
+        inventory: '.nav-item[data-tab="inventory"]',
+        pricing: '.nav-item[data-tab="pricing"]',
+        users: '.nav-item[data-tab="users"]',
+        billing: '.nav-item[data-tab="billing"]',
+        finance: '.nav-item[data-tab="finance"]',
+        stationery: '.nav-item[data-tab="stationery"]',
+        settings: '.nav-item[data-tab="settings"]',
+        help: '.nav-item[data-tab="help"]'
+    };
+
+    const permissions = {
+        admin: ['dashboard', 'patients', 'agenda', 'odontogram', 'ehr', 'inventory', 'pricing', 'users', 'billing', 'finance', 'stationery', 'settings', 'help'],
+        doctor: ['dashboard', 'patients', 'odontogram', 'ehr', 'settings', 'help'],
+        assistant: ['dashboard', 'patients', 'agenda', 'billing', 'settings', 'help']
+    };
+
+    const allowedTabs = permissions[roleType] || permissions.assistant;
+
+    for (const [tab, selector] of Object.entries(tabSelectors)) {
+        const el = document.querySelector(selector);
+        if (el) {
+            if (allowedTabs.includes(tab)) {
+                el.classList.remove('hidden');
+            } else {
+                el.classList.add('hidden');
+            }
         }
     }
 
+    // Toggle business settings tab based on admin role
+    const paneBusBtn = document.getElementById('btn-pane-business');
+    if (paneBusBtn) {
+        if (roleType === 'admin') {
+            paneBusBtn.style.display = 'flex';
+        } else {
+            paneBusBtn.style.display = 'none';
+            // Switch to profile pane if active pane was business
+            const profileBtn = document.querySelector('.settings-nav-btn[data-pane="profile"]');
+            if (profileBtn) profileBtn.click();
+        }
+    }
+
+    // Additional UI restrictions for assistant
     const addSrvBtn = document.getElementById('btn-add-service');
     if (addSrvBtn) {
-        if (isAssistant) {
-            addSrvBtn.style.display = 'none';
+        addSrvBtn.style.display = (roleType === 'assistant') ? 'none' : 'inline-flex';
+    }
+
+    // Hide/show doctor signature pad in profile adjustments
+    const docSigSection = document.getElementById('doctor-signature-setting-section');
+    if (docSigSection) {
+        if (roleType === 'doctor' || roleType === 'admin') {
+            docSigSection.classList.remove('hidden');
         } else {
-            addSrvBtn.style.display = 'inline-flex';
+            docSigSection.classList.add('hidden');
         }
     }
 }
@@ -336,6 +387,29 @@ function initNavigation() {
             e.preventDefault();
             const tabName = item.dataset.tab;
 
+            // RBAC Navigation Guard
+            const user = getCurrentUser();
+            if (user) {
+                const r = (user.role || '').toLowerCase();
+                const isAdmin = r.includes('admin') || r.includes('super');
+                const isDoctor = r.includes('medico') || r.includes('odontologo') || r.includes('doctor') || r.includes('dentista');
+                const roleType = isAdmin ? 'admin' : (isDoctor ? 'doctor' : 'assistant');
+                const allowedTabs = {
+                    admin: ['dashboard', 'patients', 'agenda', 'odontogram', 'ehr', 'inventory', 'pricing', 'users', 'billing', 'finance', 'stationery', 'settings', 'help'],
+                    doctor: ['dashboard', 'patients', 'odontogram', 'ehr', 'settings', 'help'],
+                    assistant: ['dashboard', 'patients', 'agenda', 'billing', 'settings', 'help']
+                }[roleType] || ['dashboard', 'help'];
+
+                if (!allowedTabs.includes(tabName)) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Acceso Denegado',
+                        text: 'Su rol no cuenta con permisos para ver este módulo.'
+                    });
+                    return;
+                }
+            }
+
             navItems.forEach(n => n.classList.remove('active'));
             tabViews.forEach(v => v.classList.remove('active'));
 
@@ -365,6 +439,10 @@ function initNavigation() {
                 await renderFinanceView();
             } else if (tabName === 'stationery') {
                 await renderStationeryView();
+            } else if (tabName === 'settings') {
+                await renderSettingsView();
+            } else if (tabName === 'help') {
+                await renderHelpView();
             }
         });
     });
@@ -1066,30 +1144,108 @@ async function renderEHRView() {
             document.getElementById('ehr-patient-fullname').innerText = activePatient.fullname;
             document.getElementById('ehr-patient-subinfo').innerText = `Cédula: ${activePatient.id} | Edad: ${calculateAge(activePatient.birthdate)} años | Tel: ${activePatient.phone}`;
             
-            const notesTimeline = document.getElementById('ehr-notes-timeline');
-            notesTimeline.innerHTML = '';
-            if (activePatient.clinicalNotes && activePatient.clinicalNotes.length > 0) {
-                activePatient.clinicalNotes.forEach(note => {
-                    const deleteNoteBtn = isAssistant ? '' : `<button class="btn btn-xs btn-outline text-red" style="margin-left:8px;" onclick="deleteClinicalNote('${note.id}')" title="Eliminar nota"><i class="fa-solid fa-trash"></i></button>`;
+            const meta = activePatient.metadata || {};
 
-                    const div = document.createElement('div');
-                    div.className = 'timeline-item';
-                    div.innerHTML = `
-                        <div class="timeline-meta">
-                            <span><i class="fa-solid fa-clock"></i> ${note.datetime}</span>
-                            <div>
-                                <span class="badge-tag green">Abono: $${(note.paymentUSD || 0).toFixed(2)}</span>
-                                ${deleteNoteBtn}
+            // 1. Resumen Tab
+            const summaryFiliation = document.getElementById('ehr-summary-filiation');
+            if (summaryFiliation) {
+                let repInfo = '';
+                if (meta.type === 'Infantil') {
+                    repInfo = `
+                        <div style="grid-column: span 2; border: 1px dashed var(--border-color); padding: 10px; border-radius: 8px; background:#f8fafc; margin-top:8px;">
+                            <strong style="color:var(--primary-cyan); font-size:0.8rem;"><i class="fa-solid fa-user-shield"></i> Representante Legal:</strong>
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; font-size:0.8rem; margin-top:4px;">
+                                <div><strong>Nombre:</strong> ${meta.repName || 'N/A'}</div>
+                                <div><strong>Cédula:</strong> ${meta.repId || 'N/A'}</div>
+                                <div><strong>Teléfono:</strong> ${meta.repPhone || 'N/A'}</div>
+                                <div><strong>Parentesco:</strong> ${meta.repRelation || 'N/A'}</div>
                             </div>
                         </div>
-                        <p>${note.content}</p>
                     `;
-                    notesTimeline.appendChild(div);
-                });
-            } else {
-                notesTimeline.innerHTML = `<p class="text-muted text-center">No hay evoluciones registradas para este paciente.</p>`;
+                }
+
+                summaryFiliation.innerHTML = `
+                    <div><strong>Tipo de Paciente:</strong> ${meta.type || 'Adulto'}</div>
+                    <div><strong>Edad:</strong> ${meta.age || calculateAge(activePatient.birthdate)} años</div>
+                    <div><strong>Sexo:</strong> ${meta.gender || 'N/A'}</div>
+                    <div><strong>Profesión / Ocupación:</strong> ${activePatient.occupation || meta.profession || 'N/A'}</div>
+                    <div><strong>Teléfono Principal:</strong> ${activePatient.phone || 'N/A'}</div>
+                    <div><strong>Correo Electrónico:</strong> ${activePatient.email || 'N/A'}</div>
+                    <div style="grid-column: span 2;"><strong>Dirección Habitación:</strong> ${meta.address || 'N/A'}</div>
+                    <div style="grid-column: span 2;"><strong>Motivo de Consulta:</strong> ${meta.consultReason || 'N/A'}</div>
+                    <div><strong>Contacto Emergencia:</strong> ${activePatient.emergencyContact || 'Sin registrar'}</div>
+                    <div><strong>Medicación Actual:</strong> ${activePatient.medication || 'Sin registrar'}</div>
+                    ${repInfo}
+                `;
             }
 
+            const gallery = document.getElementById('ehr-photo-gallery');
+            if (gallery) {
+                gallery.innerHTML = '';
+                if (activePatient.photos && activePatient.photos.length > 0) {
+                    activePatient.photos.forEach(photo => {
+                        const card = document.createElement('div');
+                        card.className = 'photo-card';
+                        card.innerHTML = `
+                            <img src="${photo.url}" alt="${photo.caption}">
+                            <div class="photo-card-caption">${photo.caption}</div>
+                        `;
+                        gallery.appendChild(card);
+                    });
+                } else {
+                    gallery.innerHTML = `<p class="text-muted text-center span-2">Sin fotografías radiográficas o intraorales registradas.</p>`;
+                }
+            }
+
+            // 2. Anamnesis Tab
+            const anamnesisContent = document.getElementById('ehr-anamnesis-content');
+            if (anamnesisContent) {
+                anamnesisContent.innerHTML = `
+                    <div style="display: flex; flex-direction: column; gap: 15px; padding: 10px;">
+                        <div class="details-section">
+                            <h4 style="margin: 0 0 10px 0; color: #dc2626;"><i class="fa-solid fa-notes-medical"></i> Cuestionario de Anamnesis Clínica</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.88rem;">
+                                <div><strong>¿Bajo tratamiento médico?:</strong> ${meta.medicalTreatment || 'NO'} ${meta.medicalTreatmentDetails ? `(${meta.medicalTreatmentDetails})` : ''}</div>
+                                <div><strong>Enfermedades de la Niñez:</strong> ${meta.childDiseases || 'Ninguna'}</div>
+                                <div><strong>¿Alergias?:</strong> ${meta.hasAllergies || 'NO'} ${meta.allergiesDetails ? `(${meta.allergiesDetails})` : ''}</div>
+                                <div><strong>Intervenciones Quirúrgicas (Qx):</strong> ${meta.surgeries || 'Ninguna'}</div>
+                                <div><strong>¿Sangra mucho al cortarse?:</strong> ${meta.bleedingIssue || 'NO'}</div>
+                                <div><strong>Trastornos respiratorios (Amígdalas/Adenoides):</strong> ${meta.respiratoryIssues || 'NO'} ${meta.respiratoryIssuesDetails ? `(${meta.respiratoryIssuesDetails})` : ''}</div>
+                                <div><strong>¿Reacción anormal a anestesia?:</strong> ${meta.anesthesiaReaction || 'NO'} ${meta.anesthesiaReactionDetails ? `(${meta.anesthesiaReactionDetails})` : ''}</div>
+                                <div><strong>¿Alérgico a la Penicilina?:</strong> ${meta.penicillinAllergy || 'NO'} ${meta.penicillinAllergyDetails ? `(${meta.penicillinAllergyDetails})` : ''}</div>
+                                <div style="grid-column: span 2;"><strong>¿Problemas del corazón / Cardiopatías?:</strong> ${meta.heartIssues || 'NO'} ${meta.heartIssuesDetails ? `(${meta.heartIssuesDetails})` : ''}</div>
+                            </div>
+                        </div>
+
+                        <div class="details-section" style="border-top: 1px dashed var(--border-color); padding-top: 10px;">
+                            <h4 style="margin: 0 0 10px 0; color: var(--primary-cyan);"><i class="fa-solid fa-face-smile"></i> Examen Extraoral y Tejidos Bucales</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.88rem;">
+                                <div><strong>Paladar Duro:</strong> ${meta.tissueHardPalate || 'Normal'}</div>
+                                <div><strong>Paladar Blando:</strong> ${meta.tissueSoftPalate || 'Normal'}</div>
+                                <div><strong>Piso de Boca:</strong> ${meta.tissueMouthFloor || 'Normal'}</div>
+                                <div><strong>Mejillas:</strong> ${meta.tissueCheeks || 'Normal'}</div>
+                                <div><strong>Lengua:</strong> ${meta.tissueTongue || 'Normal'}</div>
+                                <div><strong>Frenillo:</strong> ${meta.tissueFrenum || 'Normal'}</div>
+                            </div>
+                        </div>
+
+                        <div class="details-section" style="border-top: 1px dashed var(--border-color); padding-top: 10px;">
+                            <h4 style="margin: 0 0 10px 0; color: var(--primary-cyan);"><i class="fa-solid fa-hand-holding-hand"></i> Hábitos Bucales y Disfunciones</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.88rem;">
+                                <div><strong>Deglución Anormal:</strong> ${meta.habitSwallowing || 'NO'}</div>
+                                <div><strong>Onicofagia:</strong> ${meta.habitNailbiting || 'NO'}</div>
+                                <div><strong>Succión Digital:</strong> ${meta.habitThumbsucking || 'NO'} ${meta.habitThumbsuckingFinger ? `(${meta.habitThumbsuckingFinger})` : ''}</div>
+                                <div><strong>Respirador Bucal:</strong> ${meta.habitMouthbreather || 'NO'}</div>
+                                <div><strong>Frecuencia de Hábitos:</strong> ${meta.habitFrequency || 'N/A'}</div>
+                                <div><strong>Intensidad de Hábitos:</strong> ${meta.habitIntensity || 'N/A'}</div>
+                                <div style="grid-column: span 2;"><strong>Otros Hábitos:</strong> ${meta.habitOthers || 'Ninguno'}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 3. Odontograma Tab
             const initialWrapper = document.getElementById('ehr-od-initial-view');
             const currentWrapper = document.getElementById('ehr-od-current-view');
             if (initialWrapper && currentWrapper) {
@@ -1099,22 +1255,97 @@ async function renderEHRView() {
                 new OdontogramEngine('od-snap-current', { initialData: activePatient.odontogramData || {} });
             }
 
-            const gallery = document.getElementById('ehr-photo-gallery');
-            gallery.innerHTML = '';
-            if (activePatient.photos && activePatient.photos.length > 0) {
-                activePatient.photos.forEach(photo => {
-                    const card = document.createElement('div');
-                    card.className = 'photo-card';
-                    card.innerHTML = `
-                        <img src="${photo.url}" alt="${photo.caption}">
-                        <div class="photo-card-caption">${photo.caption}</div>
+            // 4. Tratamientos & Sesiones Tab
+            const plan = meta.initialTreatmentPlan || { treatmentName: 'Tratamiento General', totalSessions: 6, interval: 'Quincenal' };
+            const completed = activePatient.sessions ? activePatient.sessions.length : 0;
+            const pct = Math.min(100, Math.round((completed / plan.totalSessions) * 100));
+
+            document.getElementById('ehr-treatment-name-display').innerText = plan.treatmentName;
+            document.getElementById('ehr-sessions-percent-display').innerText = `${pct}% (${completed} de ${plan.totalSessions} sesiones)`;
+            const bar = document.getElementById('ehr-sessions-progress-bar');
+            if (bar) bar.style.width = `${pct}%`;
+
+            const timeline = document.getElementById('ehr-sessions-timeline');
+            timeline.innerHTML = '';
+            
+            if (activePatient.sessions && activePatient.sessions.length > 0) {
+                const sortedSessions = [...activePatient.sessions].sort((a, b) => b.sessionNum - a.sessionNum);
+                
+                sortedSessions.forEach(s => {
+                    let matsHtml = '';
+                    if (s.materials && s.materials.length > 0) {
+                        matsHtml = '<div style="margin-top:8px; font-size:0.75rem; color:#64748b;"><strong>Insumos descargados:</strong> ';
+                        matsHtml += s.materials.map(m => `${m.name} (x${m.qty})`).join(', ');
+                        matsHtml += '</div>';
+                    }
+
+                    const deleteSessionBtn = isAssistant ? '' : `<button class="btn btn-xs btn-outline text-red" style="margin-left:8px;" onclick="deleteSessionFromPatient('${activePatient.id}', ${s.sessionNum})" title="Eliminar Sesión"><i class="fa-solid fa-trash"></i></button>`;
+
+                    const div = document.createElement('div');
+                    div.className = 'timeline-item';
+                    div.innerHTML = `
+                        <div class="timeline-meta" style="display:flex; justify-content:space-between; align-items:center;">
+                            <span><strong>Sesión N° ${s.sessionNum}</strong> — <i class="fa-solid fa-clock"></i> ${s.datetime}</span>
+                            <div>
+                                <span class="badge-tag green">Evolución</span>
+                                ${deleteSessionBtn}
+                            </div>
+                        </div>
+                        <p style="margin:8px 0; font-size:0.88rem; color:#1e293b;">${s.procedure}</p>
+                        ${s.indications ? `<p style="margin:4px 0; font-size:0.8rem; color:#0284c7;"><strong>Indicaciones:</strong> ${s.indications}</p>` : ''}
+                        ${matsHtml}
+                        ${s.signatureData ? `
+                        <div style="margin-top:10px; display:flex; align-items:center; gap:10px;">
+                            <span style="font-size:0.75rem; color:#64748b;">Firma de conformidad:</span>
+                            <img src="${s.signatureData}" style="max-height: 40px; border:1px solid var(--border-color); border-radius:4px; padding:2px; background:#fff;" alt="Firma de conformidad del paciente">
+                        </div>` : ''}
                     `;
-                    gallery.appendChild(card);
+                    timeline.appendChild(div);
                 });
             } else {
-                gallery.innerHTML = `<p class="text-muted text-center span-2">Sin fotografías radiográficas o intraorales registradas.</p>`;
+                timeline.innerHTML = `<p class="text-muted text-center" style="padding:12px;">No hay sesiones evolutivas registradas en este tratamiento. Haga clic en "+ Registrar Nueva Sesión" para comenzar.</p>`;
             }
 
+            // Bind sessions add button
+            const addSessBtn = document.getElementById('btn-add-session');
+            if (addSessBtn) {
+                addSessBtn.onclick = async () => {
+                    document.getElementById('s-num').value = completed + 1;
+                    document.getElementById('s-datetime').value = new Date().toISOString().slice(0, 16);
+                    document.getElementById('s-procedure').value = '';
+                    document.getElementById('s-next-notes').value = '';
+
+                    const inventory = await SupabaseDataService.getInventory();
+                    const container = document.getElementById('session-materials-container');
+                    container.innerHTML = '';
+                    inventory.forEach(item => {
+                        const row = document.createElement('div');
+                        row.style.display = 'flex';
+                        row.style.justifyContent = 'space-between';
+                        row.style.alignItems = 'center';
+                        row.style.padding = '4px 0';
+                        row.style.borderBottom = '1px dashed var(--border-color)';
+                        row.innerHTML = `
+                            <label style="font-size:0.8rem; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                                <input type="checkbox" class="session-mat-checkbox" data-code="${item.code}">
+                                <span>${item.name} <small class="text-muted">(${item.currentStock} ${item.unit})</small></span>
+                            </label>
+                            <input type="number" class="session-mat-qty form-control" data-code="${item.code}" min="1" max="${item.currentStock}" value="1" style="width:60px; padding:2px; font-size:0.8rem;" disabled>
+                        `;
+                        const chk = row.querySelector('.session-mat-checkbox');
+                        const qtyIn = row.querySelector('.session-mat-qty');
+                        chk.onchange = () => {
+                            qtyIn.disabled = !chk.checked;
+                        };
+                        container.appendChild(row);
+                    });
+
+                    window.sessionSigPad = setupSignaturePad('session-signature-canvas', 'btn-clear-session-signature');
+                    openModal('modal-session');
+                };
+            }
+
+            // 5. Pagos Tab
             const payTbody = document.getElementById('ehr-payments-table-body');
             payTbody.innerHTML = '';
             if (activePatient.payments && activePatient.payments.length > 0) {
@@ -1131,89 +1362,7 @@ async function renderEHRView() {
                     payTbody.appendChild(tr);
                 });
             } else {
-                payTbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">Sin registro de pagos o saldos pendientes. Haga clic en "+ Registrar Pago / Abono" arriba.</td></tr>`;
-            }
-
-            // Populate Ficha Detallada Tab
-            const clinicalDetailsContent = document.getElementById('ehr-clinical-details-content');
-            if (clinicalDetailsContent) {
-                const meta = activePatient.metadata || {};
-                
-                let repHtml = '';
-                if (meta.type === 'Infantil') {
-                    repHtml = `
-                        <div class="details-section" style="margin-bottom: 20px; border-top: 1px dashed var(--border-color); padding-top: 10px;">
-                            <h4 style="margin: 0 0 10px 0; color: var(--primary-cyan);"><i class="fa-solid fa-user-shield"></i> Información del Representante</h4>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.88rem;">
-                                <div><strong>Nombre:</strong> ${meta.repName || 'N/A'}</div>
-                                <div><strong>C.I:</strong> ${meta.repId || 'N/A'}</div>
-                                <div><strong>Teléfono:</strong> ${meta.repPhone || 'N/A'}</div>
-                                <div><strong>Parentesco:</strong> ${meta.repRelation || 'N/A'}</div>
-                            </div>
-                        </div>
-                    `;
-                }
-
-                clinicalDetailsContent.innerHTML = `
-                    <div style="display: flex; flex-direction: column; gap: 15px; padding: 10px;">
-                        <div class="details-section">
-                            <h4 style="margin: 0 0 10px 0; color: var(--primary-cyan);"><i class="fa-solid fa-circle-info"></i> Datos Clínicos Básicos</h4>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.88rem;">
-                                <div><strong>Tipo de Paciente:</strong> ${meta.type || 'Adulto'}</div>
-                                <div><strong>Edad:</strong> ${meta.age || calculateAge(activePatient.birthdate)} años</div>
-                                <div><strong>Sexo:</strong> ${meta.gender || 'N/A'}</div>
-                                <div><strong>Dirección:</strong> ${meta.address || 'N/A'}</div>
-                                <div><strong>Telf. Celular:</strong> ${meta.mobilePhone || activePatient.phone || 'N/A'}</div>
-                                <div><strong>Telf. Local:</strong> ${meta.localPhone || 'N/A'}</div>
-                                <div><strong>Telf. Trabajo:</strong> ${meta.workPhone || 'N/A'}</div>
-                                <div><strong>Profesión:</strong> ${meta.profession || activePatient.occupation || 'N/A'}</div>
-                                <div style="grid-column: span 2;"><strong>Motivo de Consulta:</strong> ${meta.consultReason || 'N/A'}</div>
-                            </div>
-                        </div>
-
-                        ${repHtml}
-
-                        <div class="details-section" style="border-top: 1px dashed var(--border-color); padding-top: 10px;">
-                            <h4 style="margin: 0 0 10px 0; color: #dc2626;"><i class="fa-solid fa-notes-medical"></i> Anamnesis / Historia Médica</h4>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.88rem;">
-                                <div><strong>¿Bajo tratamiento médico?:</strong> ${meta.medicalTreatment || 'NO'} ${meta.medicalTreatmentDetails ? `(${meta.medicalTreatmentDetails})` : ''}</div>
-                                <div><strong>Enfermedades de la Niñez:</strong> ${meta.childDiseases || 'Ninguna'}</div>
-                                <div><strong>¿Alergias?:</strong> ${meta.hasAllergies || 'NO'} ${meta.allergiesDetails ? `(${meta.allergiesDetails})` : ''}</div>
-                                <div><strong>Intervenciones Quirúrgicas:</strong> ${meta.surgeries || 'Ninguna'}</div>
-                                <div><strong>¿Sangra mucho al cortarse/extraer?:</strong> ${meta.bleedingIssue || 'NO'}</div>
-                                <div><strong>Trastornos respiratorios:</strong> ${meta.respiratoryIssues || 'NO'} ${meta.respiratoryIssuesDetails ? `(${meta.respiratoryIssuesDetails})` : ''}</div>
-                                <div><strong>¿Reacción anormal a anestesia?:</strong> ${meta.anesthesiaReaction || 'NO'} ${meta.anesthesiaReactionDetails ? `(${meta.anesthesiaReactionDetails})` : ''}</div>
-                                <div><strong>¿Alérgico a la Penicilina?:</strong> ${meta.penicillinAllergy || 'NO'} ${meta.penicillinAllergyDetails ? `(${meta.penicillinAllergyDetails})` : ''}</div>
-                                <div style="grid-column: span 2;"><strong>¿Problemas del corazón?:</strong> ${meta.heartIssues || 'NO'} ${meta.heartIssuesDetails ? `(${meta.heartIssuesDetails})` : ''}</div>
-                            </div>
-                        </div>
-
-                        <div class="details-section" style="border-top: 1px dashed var(--border-color); padding-top: 10px;">
-                            <h4 style="margin: 0 0 10px 0; color: var(--primary-cyan);"><i class="fa-solid fa-face-smile"></i> Examen Extraoral (Tejidos Bucales)</h4>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.88rem;">
-                                <div><strong>Paladar Duro:</strong> ${meta.tissueHardPalate || 'Normal'}</div>
-                                <div><strong>Paladar Blando:</strong> ${meta.tissueSoftPalate || 'Normal'}</div>
-                                <div><strong>Piso de Boca:</strong> ${meta.tissueMouthFloor || 'Normal'}</div>
-                                <div><strong>Mejillas:</strong> ${meta.tissueCheeks || 'Normal'}</div>
-                                <div><strong>Lengua:</strong> ${meta.tissueTongue || 'Normal'}</div>
-                                <div><strong>Frenillo:</strong> ${meta.tissueFrenum || 'Normal'}</div>
-                            </div>
-                        </div>
-
-                        <div class="details-section" style="border-top: 1px dashed var(--border-color); padding-top: 10px;">
-                            <h4 style="margin: 0 0 10px 0; color: var(--primary-cyan);"><i class="fa-solid fa-hand-holding-hand"></i> Hábitos Bucales</h4>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.88rem;">
-                                <div><strong>Deglución Anormal:</strong> ${meta.habitSwallowing || 'NO'}</div>
-                                <div><strong>Onicofagia:</strong> ${meta.habitNailbiting || 'NO'}</div>
-                                <div><strong>Succión Dedo:</strong> ${meta.habitThumbsucking || 'NO'} ${meta.habitThumbsuckingFinger ? `(${meta.habitThumbsuckingFinger})` : ''}</div>
-                                <div><strong>Respirador Bucal:</strong> ${meta.habitMouthbreather || 'NO'}</div>
-                                <div><strong>Frecuencia:</strong> ${meta.habitFrequency || 'N/A'}</div>
-                                <div><strong>Intensidad:</strong> ${meta.habitIntensity || 'N/A'}</div>
-                                <div style="grid-column: span 2;"><strong>Otros Hábitos:</strong> ${meta.habitOthers || 'Ninguno'}</div>
-                            </div>
-                        </div>
-                    </div>
-                `;
+                payTbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">Sin registro de pagos o saldos pendientes. Haga clic en "+ Registrar Abono" arriba.</td></tr>`;
             }
         }
     }
@@ -1229,6 +1378,109 @@ async function renderEHRView() {
         };
     });
 }
+
+function setupSignaturePad(canvasId, clearBtnId) {
+    const canvas = document.getElementById(canvasId);
+    const clearBtn = document.getElementById(clearBtnId);
+    if (!canvas) return null;
+
+    const ctx = canvas.getContext('2d');
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    let drawing = false;
+
+    function getCoords(e) {
+        const rect = canvas.getBoundingClientRect();
+        if (e.touches && e.touches[0]) {
+            return {
+                x: e.touches[0].clientX - rect.left,
+                y: e.touches[0].clientY - rect.top
+            };
+        }
+        return {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        };
+    }
+
+    function startDraw(e) {
+        drawing = true;
+        const coords = getCoords(e);
+        ctx.beginPath();
+        ctx.moveTo(coords.x, coords.y);
+    }
+
+    function draw(e) {
+        if (!drawing) return;
+        e.preventDefault();
+        const coords = getCoords(e);
+        ctx.lineTo(coords.x, coords.y);
+        ctx.stroke();
+    }
+
+    function stopDraw() {
+        drawing = false;
+    }
+
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDraw);
+    canvas.addEventListener('mouseleave', stopDraw);
+
+    canvas.addEventListener('touchstart', startDraw, { passive: false });
+    canvas.addEventListener('touchmove', draw, { passive: false });
+    canvas.addEventListener('touchend', stopDraw);
+
+    if (clearBtn) {
+        clearBtn.onclick = (e) => {
+            e.preventDefault();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        };
+    }
+
+    return {
+        canvas,
+        ctx,
+        isEmpty: () => {
+            const buffer = new Uint32Array(ctx.getImageData(0, 0, canvas.width, canvas.height).data.buffer);
+            return !buffer.some(color => color !== 0);
+        },
+        getDataURL: () => canvas.toDataURL()
+    };
+}
+
+window.deleteSessionFromPatient = async function(patientId, sessionNum) {
+    const user = getCurrentUser();
+    if (user && user.role.toLowerCase().includes('asistente')) {
+        Swal.fire({ icon: 'warning', title: 'Acción denegada', text: 'Solo los Odontólogos o Administradores pueden eliminar sesiones.' });
+        return;
+    }
+
+    Swal.fire({
+        title: '¿Eliminar evolución de sesión?',
+        text: 'Esta acción no se puede deshacer.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            const patients = await SupabaseDataService.getPatients();
+            const p = patients.find(pat => pat.id === patientId);
+            if (p && p.sessions) {
+                p.sessions = p.sessions.filter(s => s.sessionNum !== sessionNum);
+                await SupabaseDataService.savePatient(p);
+                await renderEHRView();
+                Swal.fire({ icon: 'success', title: 'Sesión eliminada', timer: 1500, showConfirmButton: false });
+            }
+        }
+    });
+};
 
 // PDF EXPORT ENGINE FOR CLINICAL HISTORY
 async function exportEHRToPDF() {
@@ -1290,6 +1542,76 @@ async function exportEHRToPDF() {
         paymentsHtml = `<tr><td colspan="5" style="text-align:center; padding:10px; color:#64748b; font-size:0.8rem;">Sin pagos registrados</td></tr>`;
     }
 
+    // Dynamic Header / Footer configuration
+    let headerHtml = `
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0284c7; padding-bottom: 15px; margin-bottom: 20px;">
+            <div>
+                <h1 style="font-family: 'Outfit', sans-serif; font-size: 1.6rem; color: #0284c7; margin: 0;">🦷 DentalCare Pro</h1>
+                <p style="font-size: 0.8rem; color: #64748b; margin: 2px 0 0 0;">Consultorio Odontológico Unipersonal | Expediente Clínico Oficial</p>
+                <small style="font-size: 0.72rem; color: #94a3b8;">Odontólogo: Dr. Alejandro Silva (MPPS-84920 / C.O.V-14920)</small>
+            </div>
+            <div style="text-align: right;">
+                <span style="display: inline-block; background: #e0f2fe; color: #0284c7; padding: 4px 10px; border-radius: 12px; font-weight: 700; font-size: 0.75rem;">HISTORIA CLÍNICA</span>
+                <p style="font-size: 0.72rem; color: #64748b; margin: 4px 0 0 0;">Emisión: ${nowStr}</p>
+            </div>
+        </div>
+    `;
+
+    let footerHtml = `
+        <div style="font-size:0.75rem; color:#64748b; text-align:center; margin-top:20px; border-top:1px solid #e2e8f0; padding-top:10px;">
+            Gracias por su confianza. Todo tratamiento dental requiere control periódico cada 6 meses.
+        </div>
+    `;
+
+    try {
+        const config = await SupabaseDataService.getStationeryConfig();
+        if (config) {
+            if (config.footer_text) {
+                footerHtml = `
+                    <div style="font-size:0.75rem; color:#64748b; text-align:center; margin-top:20px; border-top:1px solid #e2e8f0; padding-top:10px;">
+                        ${config.footer_text}
+                    </div>
+                `;
+            }
+            let busData = null;
+            try { busData = JSON.parse(config.header_text); } catch(e) {}
+            if (busData) {
+                const logo = config.logo_url ? `<img src="${config.logo_url}" style="max-height: 60px; max-width: 60px; object-fit: contain; margin-right: 15px;" alt="Logo Negocio">` : '';
+                headerHtml = `
+                    <div style="display: flex; align-items: center; border-bottom: 2px solid #0284c7; padding-bottom: 15px; margin-bottom: 20px;">
+                        ${logo}
+                        <div style="flex:1;">
+                            <h1 style="font-family: 'Outfit', sans-serif; font-size: 1.5rem; color: #0284c7; margin: 0;">${busData.name}</h1>
+                            <p style="font-size: 0.78rem; color: #475569; margin: 2px 0 0 0;">${busData.type} | RIF: ${busData.rif}</p>
+                            <small style="font-size: 0.72rem; color: #64748b; display:block; margin-top:2px;">Dirección: ${busData.address} | Tel: ${busData.phone}</small>
+                        </div>
+                        <div style="text-align: right; margin-left:15px;">
+                            <span style="display: inline-block; background: #e0f2fe; color: #0284c7; padding: 4px 10px; border-radius: 12px; font-weight: 700; font-size: 0.72rem;">HISTORIA CLÍNICA</span>
+                            <p style="font-size: 0.65rem; color: #94a3b8; margin: 4px 0 0 0;">Emisión: ${nowStr}</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+    } catch(e) {
+        console.error("Error setting custom PDF header:", e);
+    }
+
+    // Doctor signature display
+    const user = getCurrentUser();
+    let signatureHtml = '<div style="border-bottom: 1px solid #0f172a; height: 50px; margin-bottom: 6px;"></div>';
+    if (user) {
+        const sig = (user.doctorProfile && user.doctorProfile.signature) || (user.doctor_profile && user.doctor_profile.signature);
+        if (sig) {
+            signatureHtml = `
+                <div style="height: 50px; display:flex; align-items:center; justify-content:center; margin-bottom: 6px;">
+                    <img src="${sig}" style="max-height: 50px; object-fit: contain;" alt="Firma Médica">
+                </div>
+                <div style="border-bottom: 1px solid #0f172a; margin-bottom: 6px;"></div>
+            `;
+        }
+    }
+
     const container = document.createElement('div');
     container.style.padding = '30px';
     container.style.fontFamily = "'Inter', Arial, sans-serif";
@@ -1298,17 +1620,7 @@ async function exportEHRToPDF() {
 
     container.innerHTML = `
         <!-- HEADER -->
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0284c7; padding-bottom: 15px; margin-bottom: 20px;">
-            <div>
-                <h1 style="font-family: 'Outfit', sans-serif; font-size: 1.6rem; color: #0284c7; margin: 0;">🦷 DentalCare Pro</h1>
-                <p style="font-size: 0.8rem; color: #64748b; margin: 2px 0 0 0;">Consultorio Odontológico Unipersonal | Expediente Clínico Oficial</p>
-                <small style="font-size: 0.72rem; color: #94a3b8;">Odontólogo: Dr. Alejandro Silva (MPPS-84920 / C.O.V-14920)</small>
-            </div>
-            <div style="text-align: right;">
-                <span style="display: inline-block; background: #e0f2fe; color: #0284c7; padding: 4px 10px; border-radius: 12px; font-weight: 700; font-size: 0.75rem;">HISTORIA CLINICA</span>
-                <p style="font-size: 0.72rem; color: #64748b; margin: 4px 0 0 0;">Emisión: ${nowStr}</p>
-            </div>
-        </div>
+        ${headerHtml}
 
         <!-- PATIENT DATA CARD -->
         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
@@ -1370,7 +1682,7 @@ async function exportEHRToPDF() {
         <!-- SIGNATURE FOOTER -->
         <div style="margin-top: 40px; display: flex; justify-content: space-between; text-align: center;">
             <div style="width: 200px;">
-                <div style="border-bottom: 1px solid #0f172a; height: 50px; margin-bottom: 6px;"></div>
+                ${signatureHtml}
                 <span style="font-size: 0.78rem; color: #475569; font-weight: 600;">Firma del Médico Odontólogo</span>
             </div>
             <div style="width: 200px;">
@@ -1378,6 +1690,8 @@ async function exportEHRToPDF() {
                 <span style="font-size: 0.78rem; color: #475569; font-weight: 600;">Firma del Paciente / Titular</span>
             </div>
         </div>
+
+        ${footerHtml}
     `;
 
     const filename = `Historia_Clinica_${patient.id}_${patient.fullname.replace(/\s+/g, '_')}.pdf`;
@@ -1901,27 +2215,8 @@ window.deleteUser = async function(userId) {
 // GLOBAL EVENTS & MODALS BINDING
 // ==========================================
 function initGlobalEvents() {
-    // Conditional display for Infantil in Patient Modal
-    const pTypeSelect = document.getElementById('p-type');
-    const repFieldsDiv = document.getElementById('representative-fields');
-    if (pTypeSelect && repFieldsDiv) {
-        pTypeSelect.onchange = () => {
-            const isChild = pTypeSelect.value === 'Infantil';
-            if (isChild) {
-                repFieldsDiv.classList.remove('hidden');
-                document.getElementById('p-rep-name').setAttribute('required', 'true');
-                document.getElementById('p-rep-id').setAttribute('required', 'true');
-                document.getElementById('p-rep-phone').setAttribute('required', 'true');
-                document.getElementById('p-rep-relation').setAttribute('required', 'true');
-            } else {
-                repFieldsDiv.classList.add('hidden');
-                document.getElementById('p-rep-name').removeAttribute('required');
-                document.getElementById('p-rep-id').removeAttribute('required');
-                document.getElementById('p-rep-phone').removeAttribute('required');
-                document.getElementById('p-rep-relation').removeAttribute('required');
-            }
-        };
-    }
+    initPatientStepperWizard();
+    initSettingsEvents();
 
     // Conditional display for Doctor role in User Modal
     const uRoleSelect = document.getElementById('u-role');

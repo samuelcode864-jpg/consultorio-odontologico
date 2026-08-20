@@ -114,6 +114,14 @@
                     <i class="fa-solid fa-users-gear"></i>
                     <span>Personal</span>
                 </a>
+                <a href="#settings" class="nav-item" data-tab="settings">
+                    <i class="fa-solid fa-gears"></i>
+                    <span>Configuraciones</span>
+                </a>
+                <a href="#help" class="nav-item" data-tab="help">
+                    <i class="fa-solid fa-circle-question"></i>
+                    <span>Ayuda</span>
+                </a>
             </nav>
 
             <div class="sidebar-footer">
@@ -755,29 +763,33 @@
                                 <div class="card-body">
                                     <!-- Tabs for EHR Sub-sections -->
                                     <div class="subtabs">
-                                        <button class="subtab-btn active" data-subtab="notes">Notas Clínicas / Citas</button>
-                                        <button class="subtab-btn" data-subtab="clinical-details">Ficha Detallada</button>
-                                        <button class="subtab-btn" data-subtab="timeline">Odontodiagrama Inicial vs Actual</button>
-                                        <button class="subtab-btn" data-subtab="gallery">Galería "Antes y Después"</button>
-                                        <button class="subtab-btn" data-subtab="consents">Consentimientos & Abonos</button>
+                                        <button class="subtab-btn active" data-subtab="summary">Resumen</button>
+                                        <button class="subtab-btn" data-subtab="anamnesis">Anamnesis</button>
+                                        <button class="subtab-btn" data-subtab="odontogram-comp">Odontograma</button>
+                                        <button class="subtab-btn" data-subtab="sessions">Tratamientos & Sesiones</button>
+                                        <button class="subtab-btn" data-subtab="payments-tab">Pagos</button>
                                     </div>
 
-                                    <!-- SUBTAB: Clinical Details (Ficha Detallada) -->
-                                    <div id="subtab-clinical-details" class="subtab-content">
-                                        <div id="ehr-clinical-details-content" style="max-height: 500px; overflow-y: auto;">
-                                            <!-- Dynamically populated details -->
+                                    <!-- SUBTAB 1: Resumen (Filiación general + Galería) -->
+                                    <div id="subtab-summary" class="subtab-content active">
+                                        <div class="grid-form" style="grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;" id="ehr-summary-filiation">
+                                            <!-- Dynamically populated filiación data -->
+                                        </div>
+                                        <h3 style="margin-top: 20px; margin-bottom: 10px;"><i class="fa-solid fa-images"></i> Galería de Fotos "Antes y Después"</h3>
+                                        <div class="gallery-grid" id="ehr-photo-gallery">
+                                            <!-- Photos loaded -->
                                         </div>
                                     </div>
 
-                                    <!-- SUBTAB 1: Clinical Notes Timeline -->
-                                    <div id="subtab-notes" class="subtab-content active">
-                                        <div class="clinical-timeline" id="ehr-notes-timeline">
-                                            <!-- Dynamic notes -->
+                                    <!-- SUBTAB 2: Anamnesis (Ficha médica completa y detallada) -->
+                                    <div id="subtab-anamnesis" class="subtab-content">
+                                        <div id="ehr-anamnesis-content" style="max-height: 500px; overflow-y: auto;">
+                                            <!-- Dynamically populated detailed anamnesis -->
                                         </div>
                                     </div>
 
-                                    <!-- SUBTAB 2: Odontogram Comparison -->
-                                    <div id="subtab-timeline" class="subtab-content">
+                                    <!-- SUBTAB 3: Odontograma (Comparación Inicial vs Actual) -->
+                                    <div id="subtab-odontogram-comp" class="subtab-content">
                                         <div class="odontogram-comparison-grid">
                                             <div class="comparison-box">
                                                 <h4>Odontodiagrama Inicial (Diagnóstico)</h4>
@@ -790,15 +802,28 @@
                                         </div>
                                     </div>
 
-                                    <!-- SUBTAB 3: Photo Gallery -->
-                                    <div id="subtab-gallery" class="subtab-content">
-                                        <div class="gallery-grid" id="ehr-photo-gallery">
-                                            <!-- Photos loaded -->
+                                    <!-- SUBTAB 4: Tratamientos & Sesiones (Progreso, Timeline, Nueva Sesión) -->
+                                    <div id="subtab-sessions" class="subtab-content">
+                                        <div class="sessions-progress-wrapper" id="ehr-sessions-progress-container">
+                                            <div class="sessions-progress-header">
+                                                <span>Progreso del Tratamiento: <span id="ehr-treatment-name-display">-</span></span>
+                                                <span id="ehr-sessions-percent-display">0% (0 de 0 sesiones)</span>
+                                            </div>
+                                            <div class="progress-bar-container">
+                                                <div class="progress-bar-fill" id="ehr-sessions-progress-bar" style="width: 0%;"></div>
+                                            </div>
+                                        </div>
+                                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                                            <h3 style="margin:0;"><i class="fa-solid fa-timeline"></i> Historial de Evolución y Sesiones</h3>
+                                            <button class="btn btn-sm btn-primary" id="btn-add-session">+ Registrar Nueva Sesión</button>
+                                        </div>
+                                        <div class="clinical-timeline" id="ehr-sessions-timeline">
+                                            <!-- Dynamic list of treatment sessions -->
                                         </div>
                                     </div>
 
-                                    <!-- SUBTAB 4: Consents & Payments -->
-                                    <div id="subtab-consents" class="subtab-content">
+                                    <!-- SUBTAB 5: Pagos (Historial financiero y abonos) -->
+                                    <div id="subtab-payments-tab" class="subtab-content">
                                         <div class="payments-overview">
                                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                                                 <h3 style="margin:0;"><i class="fa-solid fa-receipt"></i> Historial de Abonos y Pagos</h3>
@@ -817,7 +842,7 @@
                                                         </tr>
                                                     </thead>
                                                     <tbody id="ehr-payments-table-body">
-                                                        <!-- Loaded -->
+                                                        <!-- Loaded dynamically -->
                                                     </tbody>
                                                 </table>
                                             </div>
@@ -1382,6 +1407,221 @@
                         </div>
                     </div>
                 </div>
+                <!-- VIEW: CONFIGURACIONES (Estilo Treinta.co) -->
+                <section id="view-settings" class="tab-view">
+                    <div class="view-header">
+                        <div>
+                            <h1>Ajustes y Configuración</h1>
+                            <p class="subtitle">Gestione la información pública de su negocio, configure la firma digital y actualice sus credenciales.</p>
+                        </div>
+                    </div>
+
+                    <div class="settings-layout">
+                        <!-- Sidebar de Ajustes -->
+                        <div class="settings-sidebar">
+                            <button class="settings-nav-btn active" data-pane="business" id="btn-pane-business">
+                                <i class="fa-solid fa-building"></i>
+                                <span>Datos del Negocio</span>
+                            </button>
+                            <button class="settings-nav-btn" data-pane="profile">
+                                <i class="fa-solid fa-user-gear"></i>
+                                <span>Mi Perfil Personal</span>
+                            </button>
+                        </div>
+
+                        <!-- Panel de Contenido -->
+                        <div class="settings-content-pane">
+                            <!-- PANE 1: Datos del Negocio (Solo Super Admin) -->
+                            <div class="settings-pane active" id="pane-business">
+                                <h3 style="margin-top:0; margin-bottom:15px; color:var(--text-heading); font-weight:700;"><i class="fa-solid fa-hotel text-cyan"></i> Información del Establecimiento</h3>
+                                <form id="form-settings-business">
+                                    <div class="uploader-wrapper">
+                                        <div class="logo-circular-preview" id="settings-logo-preview">
+                                            <i class="fa-solid fa-image placeholder-icon" id="settings-logo-placeholder"></i>
+                                            <img src="" id="settings-logo-img" class="hidden">
+                                        </div>
+                                        <div>
+                                            <label class="btn btn-sm btn-primary" style="cursor:pointer; display:inline-block; margin-bottom:8px;">
+                                                Subir Logo
+                                                <input type="file" id="settings-logo-upload" accept="image/*" class="hidden">
+                                            </label>
+                                            <button type="button" class="btn btn-sm btn-outline text-red" id="btn-clear-settings-logo">Eliminar</button>
+                                            <p class="text-muted" style="font-size:0.75rem; margin: 4px 0 0 0;">Formatos permitidos: JPG, PNG. Resolución sugerida: 400x400px.</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="grid-form" style="grid-template-columns: 1fr 1fr; gap:15px;">
+                                        <div class="form-group">
+                                            <label>Nombre del Negocio *</label>
+                                            <input type="text" id="set-bus-name" required placeholder="ej: DentalCare Mérida">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Tipo de Negocio *</label>
+                                            <select id="set-bus-type" required>
+                                                <option value="Clínica Dental">Clínica Dental</option>
+                                                <option value="Consultorio Privado" selected>Consultorio Privado</option>
+                                                <option value="Estética y Salud">Estética y Salud</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>WhatsApp / Teléfono de Contacto *</label>
+                                            <input type="tel" id="set-bus-phone" required placeholder="+584141234567">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Correo Electrónico de Contacto</label>
+                                            <input type="email" id="set-bus-email" placeholder="contacto@dentalcare.com">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>ID Fiscal / RIF *</label>
+                                            <input type="text" id="set-bus-rif" required placeholder="J-12345678-9 o V-12345678">
+                                        </div>
+                                        <div class="form-group" style="grid-column: span 2;">
+                                            <label>Dirección Física del Establecimiento *</label>
+                                            <input type="text" id="set-bus-address" required placeholder="Av. Principal, Edificio Consultorios, Piso 1, Mérida">
+                                        </div>
+                                        <div class="form-group" style="grid-column: span 2;">
+                                            <label>Pie de Página en Documentos PDF (Presupuestos, Facturas)</label>
+                                            <input type="text" id="set-bus-footer" placeholder="Gracias por su confianza. Todo tratamiento dental requiere control periódico cada 6 meses.">
+                                        </div>
+                                    </div>
+                                    <div style="margin-top:20px; text-align:right;">
+                                        <button type="submit" class="btn btn-primary" id="btn-save-settings-business">Guardar Configuración</button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- PANE 2: Mi Perfil Personal (Todos) -->
+                            <div class="settings-pane" id="pane-profile">
+                                <h3 style="margin-top:0; margin-bottom:15px; color:var(--text-heading); font-weight:700;"><i class="fa-solid fa-user-tag text-cyan"></i> Datos Personales y Seguridad</h3>
+                                <form id="form-settings-profile">
+                                    <div class="grid-form" style="grid-template-columns: 1fr 1fr; gap:15px; margin-bottom: 20px;">
+                                        <div class="form-group">
+                                            <label>Nombre Completo *</label>
+                                            <input type="text" id="set-prof-fullname" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Correo Electrónico *</label>
+                                            <input type="email" id="set-prof-email" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Teléfono Celular *</label>
+                                            <input type="tel" id="set-prof-phone" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Nombre de Usuario (Login)</label>
+                                            <input type="text" id="set-prof-username" readonly style="background-color:#f1f5f9;">
+                                        </div>
+                                    </div>
+
+                                    <h4 style="margin-bottom:12px; color:var(--text-heading); font-weight:700; border-top: 1px solid var(--border-color); padding-top:15px;"><i class="fa-solid fa-key"></i> Cambiar Contraseña</h4>
+                                    <div class="grid-form" style="grid-template-columns: repeat(3, 1fr); gap:15px; margin-bottom: 20px;">
+                                        <div class="form-group">
+                                            <label>Contraseña Actual</label>
+                                            <input type="password" id="set-pwd-current" placeholder="••••••••">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Nueva Contraseña</label>
+                                            <input type="password" id="set-pwd-new" placeholder="Min. 6 caracteres">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Confirmar Nueva Contraseña</label>
+                                            <input type="password" id="set-pwd-confirm" placeholder="Repita contraseña">
+                                        </div>
+                                    </div>
+
+                                    <!-- Firma Médica (Solo visible si es Odontólogo / Médico) -->
+                                    <div id="doctor-signature-setting-section" class="hidden" style="border-top: 1px solid var(--border-color); padding-top:15px;">
+                                        <h4 style="margin-bottom:12px; color:var(--text-heading); font-weight:700;"><i class="fa-solid fa-signature"></i> Firma Digitalizada del Médico</h4>
+                                        <p class="text-muted" style="font-size:0.8rem; margin-bottom:10px;">Esta firma se inyectará al final de los PDFs oficiales (Récipes, Historias Clínicas, Evoluciones).</p>
+                                        
+                                        <div style="display:flex; gap:20px; align-items:start;">
+                                            <div style="border: 1px dashed var(--border-color); border-radius: 8px; background: #fff; padding: 5px; position: relative; width: 350px;">
+                                                <canvas id="doctor-signature-canvas" width="340" height="120" style="width: 100%; height: 120px; display: block; cursor: crosshair; background:#ffffff;"></canvas>
+                                                <button type="button" class="btn btn-xs btn-outline text-red" id="btn-clear-doctor-signature" style="position: absolute; right: 10px; bottom: 10px;">Limpiar</button>
+                                            </div>
+                                            <div style="flex:1;">
+                                                <label class="btn btn-sm btn-outline" style="cursor:pointer; display:inline-block; margin-bottom:8px;">
+                                                    Subir Imagen de Firma (PNG transparente)
+                                                    <input type="file" id="doctor-signature-upload" accept="image/png" class="hidden">
+                                                </label>
+                                                <p class="text-muted" style="font-size:0.72rem;">Sugerido: Imagen con fondo transparente y trazo negro.</p>
+                                                <div id="doctor-signature-preview-img-container" class="mt-5 hidden" style="border: 1px solid var(--border-color); padding: 5px; border-radius: var(--radius-sm); width: 150px; height: 60px; display: flex; align-items: center; justify-content: center; background:#fff;">
+                                                    <img id="doctor-signature-preview-img" src="" alt="Firma Médica Guardada" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div style="margin-top:20px; text-align:right;">
+                                        <button type="submit" class="btn btn-primary" id="btn-save-settings-profile">Actualizar Perfil</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW: AYUDA & SOPORTE -->
+                <section id="view-help" class="tab-view">
+                    <div class="view-header">
+                        <div>
+                            <h1>Centro de Ayuda y Soporte</h1>
+                            <p class="subtitle">Consulte preguntas frecuentes sobre el funcionamiento del sistema o contáctenos por soporte técnico.</p>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-bottom:20px;">
+                        <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                            <h3><i class="fa-solid fa-circle-info text-cyan"></i> Preguntas Frecuentes (FAQs)</h3>
+                            <a href="https://wa.me/584121234567?text=Hola,%20necesito%20soporte%20técnico%20con%20el%20sistema%20DentalCare" target="_blank" class="btn btn-sm btn-success">
+                                <i class="fa-brands fa-whatsapp"></i> Soporte por WhatsApp
+                            </a>
+                        </div>
+                        <div class="card-body">
+                            <div class="faq-accordion">
+                                <div class="faq-item">
+                                    <button class="faq-question">
+                                        <span>¿Cómo realizo el control de acceso por roles (RBAC)?</span>
+                                        <i class="fa-solid fa-chevron-down"></i>
+                                    </button>
+                                    <div class="faq-answer">
+                                        El sistema cuenta con 3 roles predefinidos: Super Administrador (acceso total), Odontólogo/Médico (acceso clínico, historias y firma), y Asistente/Recepción (agenda, registro básico y cobros). Los permisos se aplican automáticamente al iniciar sesión.
+                                    </div>
+                                </div>
+
+                                <div class="faq-item">
+                                    <button class="faq-question">
+                                        <span>¿Cómo funciona el descargo de inventario del Kardex en las sesiones?</span>
+                                        <i class="fa-solid fa-chevron-down"></i>
+                                    </button>
+                                    <div class="faq-answer">
+                                        Al registrar una nueva sesión en la pestaña "Tratamientos & Sesiones", se le mostrará un multiselector con los insumos del Kardex. Al seleccionar los materiales y digitar la cantidad consumida, el stock correspondiente se reducirá de forma automática al guardar la sesión.
+                                    </div>
+                                </div>
+
+                                <div class="faq-item">
+                                    <button class="faq-question">
+                                        <span>¿Por qué es importante configurar los datos del negocio y la firma médica?</span>
+                                        <i class="fa-solid fa-chevron-down"></i>
+                                    </button>
+                                    <div class="faq-answer">
+                                        Los datos del establecimiento (nombre, RIF, teléfono, logo) se inyectan dinámicamente en los membretes de los PDFs generados. De igual forma, la firma digital del médico odontólogo se estampa automáticamente al pie de las recetas, evoluciones e historias clínicas impresas.
+                                    </div>
+                                </div>
+
+                                <div class="faq-item">
+                                    <button class="faq-question">
+                                        <span>¿Cómo puedo restablecer o cambiar mi contraseña?</span>
+                                        <i class="fa-solid fa-chevron-down"></i>
+                                    </button>
+                                    <div class="faq-answer">
+                                        Diríjase a la sección "Configuraciones" -> pestaña "Mi Perfil Personal", rellene los campos de cambio de clave ("Contraseña Actual", "Nueva Contraseña" y "Confirmar Nueva Contraseña"), y presione "Actualizar Perfil".
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </div>
         </main>
     </div>
@@ -1666,306 +1906,413 @@
 
     <!-- MODAL: REGISTRO/EDICIÓN DE PACIENTE -->
     <div class="modal-overlay hidden" id="modal-patient">
-        <div class="modal-dialog">
+        <div class="modal-dialog" style="max-width: 90vw; width: 1000px;">
             <div class="modal-header">
-                <h3 id="modal-patient-title"><i class="fa-solid fa-user-plus"></i> Registrar Nuevo Paciente</h3>
+                <h3 id="modal-patient-title"><i class="fa-solid fa-user-plus text-cyan"></i> Registro de Paciente</h3>
                 <button class="modal-close" data-close="modal-patient">&times;</button>
             </div>
-            <div class="modal-body">
-                <form id="form-patient" class="grid-form" style="max-height: 60vh; overflow-y: auto; padding-right: 5px;">
-                    <div class="form-group">
-                        <label>Tipo de Paciente *</label>
-                        <select id="p-type" required>
-                            <option value="Adulto" selected>Adulto</option>
-                            <option value="Infantil">Infantil (Menor de Edad)</option>
-                        </select>
+            <div class="modal-body" style="padding-top: 15px; padding-bottom: 15px;">
+                <!-- Stepper Wizard Progress Bar -->
+                <div class="stepper-wizard-bar">
+                    <div class="step-indicator active" id="step-ind-1" data-step="1">
+                        <span class="step-num">1</span>
+                        <span class="step-label">Filiación</span>
                     </div>
-                    <div class="form-group">
-                        <label>Cédula / Documento Identidad *</label>
-                        <input type="text" id="p-id" required placeholder="V-18492102">
+                    <div class="step-line" id="step-line-1"></div>
+                    <div class="step-indicator" id="step-ind-2" data-step="2">
+                        <span class="step-num">2</span>
+                        <span class="step-label">Anamnesis</span>
                     </div>
-                    <div class="form-group span-2">
-                        <label>Nombres Completos *</label>
-                        <input type="text" id="p-fullname" required placeholder="María Elena Rodríguez">
+                    <div class="step-line" id="step-line-2"></div>
+                    <div class="step-indicator" id="step-ind-3" data-step="3">
+                        <span class="step-num">3</span>
+                        <span class="step-label">Examen y Hábitos</span>
                     </div>
-                    <div class="form-group">
-                        <label>Fecha de Nacimiento *</label>
-                        <input type="date" id="p-birthdate" required>
+                    <div class="step-line" id="step-line-3"></div>
+                    <div class="step-indicator" id="step-ind-4" data-step="4">
+                        <span class="step-num">4</span>
+                        <span class="step-label">Plan Inicial</span>
                     </div>
-                    <div class="form-group">
-                        <label>Edad *</label>
-                        <input type="number" id="p-age" min="0" required placeholder="ej: 28">
-                    </div>
-                    <div class="form-group">
-                        <label>Sexo *</label>
-                        <select id="p-gender" required>
-                            <option value="Femenino">Femenino</option>
-                            <option value="Masculino">Masculino</option>
-                            <option value="Otro">Otro</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Correo Electrónico</label>
-                        <input type="email" id="p-email" placeholder="paciente@gmail.com">
-                    </div>
-                    <div class="form-group">
-                        <label>Profesión / Ocupación *</label>
-                        <input type="text" id="p-profession" required placeholder="ej: Docente / Ingeniero">
-                    </div>
-                    <div class="form-group">
-                        <label>Telf. Celular (WhatsApp) *</label>
-                        <input type="tel" id="p-mobile-phone" required placeholder="+584141234567">
-                    </div>
-                    <div class="form-group">
-                        <label>Telf. Local</label>
-                        <input type="tel" id="p-local-phone" placeholder="0212-1234567">
-                    </div>
-                    <div class="form-group">
-                        <label>Telf. Trabajo</label>
-                        <input type="tel" id="p-work-phone" placeholder="0212-7654321">
-                    </div>
-                    <div class="form-group span-2">
-                        <label>Dirección Habitación *</label>
-                        <input type="text" id="p-address" required placeholder="Av. Principal, Edificio X, Apto Y">
-                    </div>
-                    <div class="form-group span-2">
-                        <label>Motivo de Consulta *</label>
-                        <textarea id="p-consult-reason" required rows="2" placeholder="Dolor en molar inferior derecho, limpieza general, etc."></textarea>
-                    </div>
+                </div>
 
-                    <!-- Representante (Condicional para Infantil) -->
-                    <div id="representative-fields" class="span-2 hidden" style="border: 1px solid var(--border-color); padding: 12px; border-radius: 6px; background-color: rgba(0,0,0,0.02); margin-top: 10px;">
-                        <h4 style="margin-top:0; margin-bottom:10px; color: var(--primary-cyan);"><i class="fa-solid fa-user-shield"></i> Datos del Representante Legal</h4>
-                        <div class="grid-form">
+                <form id="form-patient" style="max-height: 55vh; overflow-y: auto; padding: 10px 5px;">
+                    <!-- PASO 1: Filiación / Datos Personales -->
+                    <div id="step-content-1" class="step-content">
+                        <h4 style="margin-top:0; margin-bottom:15px; color:var(--primary-cyan); font-weight:700;"><i class="fa-solid fa-address-card"></i> Paso 1: Datos de Filiación</h4>
+                        <div class="grid-form" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
                             <div class="form-group">
-                                <label>Nombre del Representante *</label>
-                                <input type="text" id="p-rep-name" placeholder="ej: Juan Pérez">
+                                <label>Tipo de Paciente *</label>
+                                <select id="p-type" required>
+                                    <option value="Adulto" selected>Adulto</option>
+                                    <option value="Infantil">Infantil (Menor de Edad)</option>
+                                </select>
                             </div>
                             <div class="form-group">
-                                <label>C.I. del Representante *</label>
-                                <input type="text" id="p-rep-id" placeholder="ej: V-12345678">
+                                <label>Cédula / Documento Identidad *</label>
+                                <input type="text" id="p-id" required placeholder="V-18492102">
                             </div>
                             <div class="form-group">
-                                <label>Teléfono del Representante *</label>
-                                <input type="text" id="p-rep-phone" placeholder="ej: +584121234567">
+                                <label>Nombres *</label>
+                                <input type="text" id="p-firstname" required placeholder="María Elena">
                             </div>
                             <div class="form-group">
-                                <label>Parentesco *</label>
-                                <input type="text" id="p-rep-relation" placeholder="ej: Padre / Madre / Tutor">
+                                <label>Apellidos *</label>
+                                <input type="text" id="p-lastname" required placeholder="Rodríguez">
+                            </div>
+                            <div class="form-group">
+                                <label>Fecha de Nacimiento *</label>
+                                <input type="date" id="p-birthdate" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Edad *</label>
+                                <input type="number" id="p-age" min="0" required placeholder="ej: 28">
+                            </div>
+                            <div class="form-group">
+                                <label>Sexo *</label>
+                                <select id="p-gender" required>
+                                    <option value="Femenino" selected>Femenino</option>
+                                    <option value="Masculino">Masculino</option>
+                                    <option value="Otro">Otro</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Profesión / Ocupación *</label>
+                                <input type="text" id="p-profession" required placeholder="ej: Ingeniero / Estudiante">
+                            </div>
+                            <div class="form-group">
+                                <label>WhatsApp Principal *</label>
+                                <input type="tel" id="p-mobile-phone" required placeholder="+584141234567">
+                            </div>
+                            <div class="form-group">
+                                <label>Teléfono Secundario</label>
+                                <input type="tel" id="p-local-phone" placeholder="0212-1234567">
+                            </div>
+                            <div class="form-group">
+                                <label>Correo Electrónico</label>
+                                <input type="email" id="p-email" placeholder="paciente@gmail.com">
+                            </div>
+                            <div class="form-group" style="grid-column: span 2;">
+                                <label>Dirección Habitación *</label>
+                                <input type="text" id="p-address" required placeholder="Av. Principal, Edificio X, Apto Y">
+                            </div>
+                        </div>
+
+                        <!-- Representante (Condicional para Infantil) -->
+                        <div id="representative-fields" class="hidden" style="border: 1px solid var(--border-color); padding: 15px; border-radius: 8px; background-color: #f8fafc; margin-top: 15px;">
+                            <h4 style="margin-top:0; margin-bottom:12px; color: var(--primary-cyan); font-size: 0.9rem; font-weight:700;"><i class="fa-solid fa-user-shield"></i> Datos del Representante Legal</h4>
+                            <div class="grid-form" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                                <div class="form-group">
+                                    <label>Nombre del Representante *</label>
+                                    <input type="text" id="p-rep-name" placeholder="ej: Juan Pérez">
+                                </div>
+                                <div class="form-group">
+                                    <label>C.I. del Representante *</label>
+                                    <input type="text" id="p-rep-id" placeholder="ej: V-12345678">
+                                </div>
+                                <div class="form-group">
+                                    <label>Teléfono del Representante *</label>
+                                    <input type="text" id="p-rep-phone" placeholder="ej: +584121234567">
+                                </div>
+                                <div class="form-group">
+                                    <label>Parentesco *</label>
+                                    <input type="text" id="p-rep-relation" placeholder="ej: Padre / Madre / Tutor">
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- ANAMNESIS CLÍNICA -->
-                    <div class="form-section-title span-2" style="margin-top: 15px;">
-                        <i class="fa-solid fa-notes-medical text-red"></i> Anamnesis / Historia Médica
-                    </div>
+                    <!-- PASO 2: Anamnesis Dinámica y Alertas Rápidas -->
+                    <div id="step-content-2" class="step-content hidden">
+                        <h4 style="margin-top:0; margin-bottom:15px; color:var(--primary-cyan); font-weight:700;"><i class="fa-solid fa-file-medical"></i> Paso 2: Anamnesis e Historial Médico</h4>
+                        
+                        <!-- Quick Check Chips for Allergies & Systemic Illnesses -->
+                        <div style="margin-bottom: 20px;">
+                            <label style="font-weight: 700; font-size: 0.85rem; color: #475569; display:block; margin-bottom:6px;">Alertas de Selección Rápida (Alergias):</label>
+                            <div class="chips-group" id="allergies-chips-container">
+                                <label class="check-chip"><input type="checkbox" name="p-allergies" value="Penicilina"> Penicilina</label>
+                                <label class="check-chip"><input type="checkbox" name="p-allergies" value="Anestésicos"> Anestésicos</label>
+                                <label class="check-chip"><input type="checkbox" name="p-allergies" value="Látex"> Látex</label>
+                                <label class="check-chip"><input type="checkbox" name="p-allergies" value="AINEs/Aspirina"> AINEs / Aspirina</label>
+                            </div>
+                        </div>
 
-                    <div class="form-group">
-                        <label>¿Bajo tratamiento médico actualmente? *</label>
-                        <select id="p-medical-treatment" required>
-                            <option value="NO">NO</option>
-                            <option value="SI">SI</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Detalles del tratamiento:</label>
-                        <input type="text" id="p-medical-treatment-details" placeholder="Especifique tratamiento o medicación">
-                    </div>
+                        <div style="margin-bottom: 20px;">
+                            <label style="font-weight: 700; font-size: 0.85rem; color: #475569; display:block; margin-bottom:6px;">Alertas de Selección Rápida (Sistémicas):</label>
+                            <div class="chips-group" id="systemic-chips-container">
+                                <label class="check-chip"><input type="checkbox" name="p-systemic" value="Hipertensión"> Hipertensión</label>
+                                <label class="check-chip"><input type="checkbox" name="p-systemic" value="Diabetes"> Diabetes</label>
+                                <label class="check-chip"><input type="checkbox" name="p-systemic" value="Coagulopatías"> Coagulopatías</label>
+                                <label class="check-chip"><input type="checkbox" name="p-systemic" value="Inmunosupresión"> Inmunosupresión</label>
+                            </div>
+                        </div>
 
-                    <div class="form-group span-2">
-                        <label>Enfermedades de la Niñez:</label>
-                        <input type="text" id="p-child-diseases" placeholder="ej: Varicela, sarampión, rubéola, parotiditis...">
-                    </div>
+                        <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 15px 0;">
 
-                    <div class="form-group">
-                        <label>¿Alergias a sustancias/medicamentos? *</label>
-                        <select id="p-has-allergies" required>
-                            <option value="NO">NO</option>
-                            <option value="SI">SI</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Detalles de Alergias:</label>
-                        <input type="text" id="p-allergies-details" placeholder="Especifique alergias">
-                    </div>
+                        <!-- Dynamic Toggle Switches and animated fields -->
+                        <div class="grid-form" style="grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div>
+                                <div class="toggle-switch-wrapper">
+                                    <label for="p-medical-treatment">¿Bajo tratamiento médico actualmente?</label>
+                                    <div class="toggle-switch">
+                                        <input type="checkbox" id="p-medical-treatment">
+                                        <span class="slider"></span>
+                                    </div>
+                                </div>
+                                <div class="conditional-details" id="details-medical-treatment">
+                                    <textarea id="p-medical-treatment-details" rows="2" class="form-control" placeholder="Especificar tratamiento, medicación y dosis..."></textarea>
+                                </div>
+                            </div>
 
-                    <div class="form-group span-2">
-                        <label>Intervenciones Quirúrgicas (Qx):</label>
-                        <input type="text" id="p-surgeries" placeholder="Especifique cirugías previas y fechas aproximadas">
-                    </div>
+                            <div>
+                                <div class="toggle-switch-wrapper">
+                                    <label for="p-has-allergies">¿Alergias a sustancias/medicamentos?</label>
+                                    <div class="toggle-switch">
+                                        <input type="checkbox" id="p-has-allergies">
+                                        <span class="slider"></span>
+                                    </div>
+                                </div>
+                                <div class="conditional-details" id="details-has-allergies">
+                                    <textarea id="p-allergies-details" rows="2" class="form-control" placeholder="Especifique sustancias, alimentos o medicamentos..."></textarea>
+                                </div>
+                            </div>
 
-                    <div class="form-group">
-                        <label>¿Sangra mucho al cortarse o extraer un diente? *</label>
-                        <select id="p-bleeding-issue" required>
-                            <option value="NO">NO</option>
-                            <option value="SI">SI</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Trastornos respiratorios (Adenoides/Amígdalas) *</label>
-                        <select id="p-respiratory-issues" required>
-                            <option value="NO">NO</option>
-                            <option value="SI">SI</option>
-                        </select>
-                    </div>
-                    <div class="form-group span-2">
-                        <label>Detalles trastornos respiratorios:</label>
-                        <input type="text" id="p-respiratory-issues-details" placeholder="Especifique si padece amígdalas, adenoides u otros">
-                    </div>
+                            <div>
+                                <div class="toggle-switch-wrapper">
+                                    <label for="p-respiratory-issues">¿Trastornos respiratorios (Adenoides/Amígdalas)?</label>
+                                    <div class="toggle-switch">
+                                        <input type="checkbox" id="p-respiratory-issues">
+                                        <span class="slider"></span>
+                                    </div>
+                                </div>
+                                <div class="conditional-details" id="details-respiratory-issues">
+                                    <textarea id="p-respiratory-issues-details" rows="2" class="form-control" placeholder="Especifique trastornos respiratorios o cirugías de amígdalas/adenoides..."></textarea>
+                                </div>
+                            </div>
 
-                    <div class="form-group">
-                        <label>¿Reacción anormal a anestesia dental? *</label>
-                        <select id="p-anesthesia-reaction" required>
-                            <option value="NO">NO</option>
-                            <option value="SI">SI</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Detalles reacción anestesia:</label>
-                        <input type="text" id="p-anesthesia-reaction-details" placeholder="Especifique síntomas presentados">
-                    </div>
+                            <div>
+                                <div class="toggle-switch-wrapper">
+                                    <label for="p-anesthesia-reaction">¿Reacción anormal a anestesia dental?</label>
+                                    <div class="toggle-switch">
+                                        <input type="checkbox" id="p-anesthesia-reaction">
+                                        <span class="slider"></span>
+                                    </div>
+                                </div>
+                                <div class="conditional-details" id="details-anesthesia-reaction">
+                                    <textarea id="p-anesthesia-reaction-details" rows="2" class="form-control" placeholder="Especifique síntomas presentados (taquicardia, mareos, etc.)..."></textarea>
+                                </div>
+                            </div>
 
-                    <div class="form-group">
-                        <label>¿Alérgico a la Penicilina? *</label>
-                        <select id="p-penicillin-allergy" required>
-                            <option value="NO">NO</option>
-                            <option value="SI">SI</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Detalles alergia penicilina:</label>
-                        <input type="text" id="p-penicillin-allergy-details" placeholder="Reacción experimentada">
-                    </div>
+                            <div>
+                                <div class="toggle-switch-wrapper">
+                                    <label for="p-penicillin-allergy">¿Alérgico a la Penicilina?</label>
+                                    <div class="toggle-switch">
+                                        <input type="checkbox" id="p-penicillin-allergy">
+                                        <span class="slider"></span>
+                                    </div>
+                                </div>
+                                <div class="conditional-details" id="details-penicillin-allergy">
+                                    <textarea id="p-penicillin-allergy-details" rows="2" class="form-control" placeholder="Detalle reacción experimentada (shock, urticaria, etc.)..."></textarea>
+                                </div>
+                            </div>
 
-                    <div class="form-group">
-                        <label>¿Problemas del corazón / Cardiopatías? *</label>
-                        <select id="p-heart-issues" required>
-                            <option value="NO">NO</option>
-                            <option value="SI">SI</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Detalles problemas del corazón:</label>
-                        <input type="text" id="p-heart-issues-details" placeholder="ej: Soplos, arritmias, hipertensión severa...">
-                    </div>
+                            <div>
+                                <div class="toggle-switch-wrapper">
+                                    <label for="p-heart-issues">¿Problemas del corazón / Cardiopatías?</label>
+                                    <div class="toggle-switch">
+                                        <input type="checkbox" id="p-heart-issues">
+                                        <span class="slider"></span>
+                                    </div>
+                                </div>
+                                <div class="conditional-details" id="details-heart-issues">
+                                    <textarea id="p-heart-issues-details" rows="2" class="form-control" placeholder="Especifique cardiopatías (ej: soplos, arritmias, marcapasos, hipertensión)..."></textarea>
+                                </div>
+                            </div>
 
-                    <!-- EXAMEN EXTRAORAL -->
-                    <div class="form-section-title span-2" style="margin-top: 15px;">
-                        <i class="fa-solid fa-face-smile text-cyan"></i> Examen Extraoral & Hábitos Bucales
-                    </div>
+                            <div style="grid-column: span 2;">
+                                <div class="toggle-switch-wrapper">
+                                    <label for="p-bleeding-issue">¿Sangra de forma anormal o excesiva al cortarse o al extraerle un diente?</label>
+                                    <div class="toggle-switch">
+                                        <input type="checkbox" id="p-bleeding-issue">
+                                        <span class="slider"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-                    <div class="span-2" style="font-weight: 600; font-size: 0.85rem; color: var(--text-heading);">1- Condición de Tejidos Bucales:</div>
-                    <div class="form-group">
-                        <label>Paladar Duro:</label>
-                        <input type="text" id="p-tissue-hard-palate" placeholder="Normal / Observaciones">
-                    </div>
-                    <div class="form-group">
-                        <label>Paladar Blando:</label>
-                        <input type="text" id="p-tissue-soft-palate" placeholder="Normal / Observaciones">
-                    </div>
-                    <div class="form-group">
-                        <label>Piso de Boca:</label>
-                        <input type="text" id="p-tissue-mouth-floor" placeholder="Normal / Observaciones">
-                    </div>
-                    <div class="form-group">
-                        <label>Mejillas:</label>
-                        <input type="text" id="p-tissue-cheeks" placeholder="Normal / Observaciones">
-                    </div>
-                    <div class="form-group">
-                        <label>Lengua:</label>
-                        <input type="text" id="p-tissue-tongue" placeholder="Normal / Observaciones">
-                    </div>
-                    <div class="form-group">
-                        <label>Frenillo:</label>
-                        <input type="text" id="p-tissue-frenum" placeholder="Normal / Observaciones">
-                    </div>
-
-                    <div class="span-2" style="font-weight: 600; font-size: 0.85rem; color: var(--text-heading); margin-top: 5px;">2- Hábitos Bucales:</div>
-                    <div class="form-group">
-                        <label>Deglución Anormal *</label>
-                        <select id="p-habit-swallowing" required>
-                            <option value="NO">NO</option>
-                            <option value="SI">SI</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Onicofagia (Morderse las uñas) *</label>
-                        <select id="p-habit-nailbiting" required>
-                            <option value="NO">NO</option>
-                            <option value="SI">SI</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Succión Dedo *</label>
-                        <select id="p-habit-thumbsucking" required>
-                            <option value="NO">NO</option>
-                            <option value="SI">SI</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>¿Cuál dedo?</label>
-                        <input type="text" id="p-habit-thumbsucking-finger" placeholder="ej: Pulgar derecho">
-                    </div>
-                    <div class="form-group">
-                        <label>Respirador Bucal *</label>
-                        <select id="p-habit-mouthbreather" required>
-                            <option value="NO">NO</option>
-                            <option value="SI">SI</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Frecuencia de hábitos:</label>
-                        <input type="text" id="p-habit-frequency" placeholder="ej: Continuo, diurno, nocturno...">
-                    </div>
-                    <div class="form-group">
-                        <label>Intensidad de hábitos:</label>
-                        <input type="text" id="p-habit-intensity" placeholder="ej: Leve, moderada, severa...">
-                    </div>
-                    <div class="form-group span-2">
-                        <label>Otros Hábitos:</label>
-                        <input type="text" id="p-habit-others" placeholder="ej: Bruxismo, empuje lingual, etc.">
-                    </div>
-
-                    <!-- Ficha Médica de Cabecera (Retrocompatibilidad / Alertas de cabecera rápida) -->
-                    <div class="form-section-title span-2" style="margin-top: 15px;">
-                        <i class="fa-solid fa-triangle-exclamation text-amber"></i> Alertas de Cabecera Rápida (Para visualización superior)
-                    </div>
-
-                    <div class="form-group span-2">
-                        <label>Alergias Rápidas (Checkboxes):</label>
-                        <div class="checkbox-group">
-                            <label><input type="checkbox" name="p-allergies" value="Penicilina"> Penicilina</label>
-                            <label><input type="checkbox" name="p-allergies" value="Anestésicos"> Anestésicos Locales</label>
-                            <label><input type="checkbox" name="p-allergies" value="Látex"> Látex</label>
-                            <label><input type="checkbox" name="p-allergies" value="AINEs/Aspirina"> AINEs / Aspirina</label>
+                        <div class="grid-form" style="margin-top: 10px;">
+                            <div class="form-group span-2">
+                                <label>Intervenciones Quirúrgicas (Qx)</label>
+                                <input type="text" id="p-surgeries" placeholder="Especifique cirugías previas, fechas aproximadas y complicaciones...">
+                            </div>
+                            <div class="form-group span-2">
+                                <label>Enfermedades de la Niñez Comunes</label>
+                                <input type="text" id="p-child-diseases" placeholder="ej: Varicela, sarampión, rubéola, parotiditis...">
+                            </div>
                         </div>
                     </div>
 
-                    <div class="form-group span-2">
-                        <label>Sistémicas Rápidas (Checkboxes):</label>
-                        <div class="checkbox-group">
-                            <label><input type="checkbox" name="p-systemic" value="Hipertensión"> Hipertensión Arterial</label>
-                            <label><input type="checkbox" name="p-systemic" value="Diabetes"> Diabetes Mellitus</label>
-                            <label><input type="checkbox" name="p-systemic" value="Coagulopatías"> Coagulopatías / Anticoagulado</label>
-                            <label><input type="checkbox" name="p-systemic" value="Inmunosupresión"> Inmunosupresión</label>
+                    <!-- PASO 3: Examen Extraoral, Tejidos y Hábitos -->
+                    <div id="step-content-3" class="step-content hidden">
+                        <h4 style="margin-top:0; margin-bottom:15px; color:var(--primary-cyan); font-weight:700;"><i class="fa-solid fa-face-smile"></i> Paso 3: Examen de Tejidos y Hábitos Bucales</h4>
+                        
+                        <div style="font-weight: 700; font-size: 0.85rem; color: #475569; margin-bottom: 10px;">1- Examen de Tejidos Bucales (Haga clic en las tarjetas con hallazgos patológicos):</div>
+                        
+                        <div class="tissues-grid">
+                            <div class="tissue-card normal" id="card-tissue-hard-palate" data-tissue="p-tissue-hard-palate">
+                                <div class="tissue-card-header">
+                                    <span>Paladar Duro</span>
+                                    <span class="tissue-status-badge">Normal</span>
+                                </div>
+                                <input type="text" id="p-tissue-hard-palate" class="form-control tissue-card-input" placeholder="Observaciones / Hallazgos en Paladar Duro">
+                            </div>
+
+                            <div class="tissue-card normal" id="card-tissue-soft-palate" data-tissue="p-tissue-soft-palate">
+                                <div class="tissue-card-header">
+                                    <span>Paladar Blando</span>
+                                    <span class="tissue-status-badge">Normal</span>
+                                </div>
+                                <input type="text" id="p-tissue-soft-palate" class="form-control tissue-card-input" placeholder="Observaciones / Hallazgos en Paladar Blando">
+                            </div>
+
+                            <div class="tissue-card normal" id="card-tissue-mouth-floor" data-tissue="p-tissue-mouth-floor">
+                                <div class="tissue-card-header">
+                                    <span>Piso de Boca</span>
+                                    <span class="tissue-status-badge">Normal</span>
+                                </div>
+                                <input type="text" id="p-tissue-mouth-floor" class="form-control tissue-card-input" placeholder="Observaciones / Hallazgos en Piso de Boca">
+                            </div>
+
+                            <div class="tissue-card normal" id="card-tissue-cheeks" data-tissue="p-tissue-cheeks">
+                                <div class="tissue-card-header">
+                                    <span>Mejillas</span>
+                                    <span class="tissue-status-badge">Normal</span>
+                                </div>
+                                <input type="text" id="p-tissue-cheeks" class="form-control tissue-card-input" placeholder="Observaciones / Hallazgos en Mejillas">
+                            </div>
+
+                            <div class="tissue-card normal" id="card-tissue-tongue" data-tissue="p-tissue-tongue">
+                                <div class="tissue-card-header">
+                                    <span>Lengua</span>
+                                    <span class="tissue-status-badge">Normal</span>
+                                </div>
+                                <input type="text" id="p-tissue-tongue" class="form-control tissue-card-input" placeholder="Observaciones / Hallazgos en Lengua">
+                            </div>
+
+                            <div class="tissue-card normal" id="card-tissue-frenum" data-tissue="p-tissue-frenum">
+                                <div class="tissue-card-header">
+                                    <span>Frenillo</span>
+                                    <span class="tissue-status-badge">Normal</span>
+                                </div>
+                                <input type="text" id="p-tissue-frenum" class="form-control tissue-card-input" placeholder="Observaciones / Hallazgos en Frenillo">
+                            </div>
+                        </div>
+
+                        <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 20px 0;">
+
+                        <div style="font-weight: 700; font-size: 0.85rem; color: #475569; margin-bottom: 10px;">2- Hábitos Bucales y Disfunciones:</div>
+                        
+                        <div class="grid-form" style="grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div>
+                                <div class="toggle-switch-wrapper">
+                                    <label for="p-habit-swallowing">Deglución Anormal</label>
+                                    <div class="toggle-switch">
+                                        <input type="checkbox" id="p-habit-swallowing">
+                                        <span class="slider"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="toggle-switch-wrapper">
+                                    <label for="p-habit-nailbiting">Onicofagia (Morderse las uñas)</label>
+                                    <div class="toggle-switch">
+                                        <input type="checkbox" id="p-habit-nailbiting">
+                                        <span class="slider"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="toggle-switch-wrapper">
+                                    <label for="p-habit-thumbsucking">Succión Digital / Dedo</label>
+                                    <div class="toggle-switch">
+                                        <input type="checkbox" id="p-habit-thumbsucking">
+                                        <span class="slider"></span>
+                                    </div>
+                                </div>
+                                <div class="conditional-details" id="details-thumbsucking">
+                                    <input type="text" id="p-habit-thumbsucking-finger" class="form-control" placeholder="¿Cuál dedo? (ej: pulgar derecho)">
+                                </div>
+                            </div>
+                            <div>
+                                <div class="toggle-switch-wrapper">
+                                    <label for="p-habit-mouthbreather">Respirador Bucal</label>
+                                    <div class="toggle-switch">
+                                        <input type="checkbox" id="p-habit-mouthbreather">
+                                        <span class="slider"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid-form" style="margin-top: 10px;">
+                            <div class="form-group">
+                                <label>Frecuencia de Hábitos</label>
+                                <input type="text" id="p-habit-frequency" placeholder="ej: Continuo, nocturno, diurno...">
+                            </div>
+                            <div class="form-group">
+                                <label>Intensidad de Hábitos</label>
+                                <input type="text" id="p-habit-intensity" placeholder="ej: Leve, moderada, severa...">
+                            </div>
+                            <div class="form-group span-2">
+                                <label>Otros Hábitos Bucales</label>
+                                <input type="text" id="p-habit-others" placeholder="ej: Bruxismo, empuje lingual, succión de labios...">
+                            </div>
                         </div>
                     </div>
 
-                    <div class="form-group span-2">
-                        <label>Medicación Actual & Observaciones Rápidas:</label>
-                        <textarea id="p-medication" rows="2" placeholder="ej: Enalapril 10mg diario, etc."></textarea>
-                    </div>
-
-                    <div class="form-group span-2">
-                        <label>Contacto de Emergencia:</label>
-                        <input type="text" id="p-emergency" placeholder="Nombre y Teléfono del familiar">
+                    <!-- PASO 4: Inicialización del Plan de Tratamiento (Tratamientos Multisesión) -->
+                    <div id="step-content-4" class="step-content hidden">
+                        <h4 style="margin-top:0; margin-bottom:15px; color:var(--primary-cyan); font-weight:700;"><i class="fa-solid fa-list-check"></i> Paso 4: Plan Inicial de Tratamiento Multisesión</h4>
+                        
+                        <div class="grid-form" style="grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div class="form-group span-2">
+                                <label>Motivo de Consulta Principal *</label>
+                                <textarea id="p-consult-reason" required rows="2" placeholder="Dolor, estética, limpieza general, ortodoncia..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Tratamiento Principal Inicial (Multisesión) *</label>
+                                <input type="text" id="p-init-treatment-name" required placeholder="ej: Ortodoncia Metálica / Endodoncia">
+                            </div>
+                            <div class="form-group">
+                                <label>Número de Sesiones Estimadas *</label>
+                                <input type="number" id="p-init-treatment-sessions" min="1" max="100" value="6" required class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Intervalo Recomendado *</label>
+                                <select id="p-init-treatment-interval" required>
+                                    <option value="Semanal">Semanal</option>
+                                    <option value="Quincenal" selected>Quincenal</option>
+                                    <option value="Mensual">Mensual</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Contacto de Emergencia</label>
+                                <input type="text" id="p-emergency" placeholder="Nombre y Teléfono del familiar">
+                            </div>
+                            <div class="form-group span-2">
+                                <label>Medicación Actual & Observaciones Clínicas Rápidas</label>
+                                <textarea id="p-medication" rows="2" placeholder="Medicamentos tomados habitualmente, alergias menores, etc."></textarea>
+                            </div>
+                        </div>
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-outline" data-close="modal-patient">Cancelar</button>
-                <button class="btn btn-primary" id="btn-save-patient">Guardar Paciente</button>
+            <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
+                <button class="btn btn-outline" id="btn-patient-prev" disabled>Anterior</button>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-outline" data-close="modal-patient">Cancelar</button>
+                    <button class="btn btn-primary" id="btn-patient-next">Siguiente</button>
+                    <button class="btn btn-success hidden" id="btn-save-patient">Guardar Paciente</button>
+                </div>
             </div>
         </div>
     </div>
@@ -2024,6 +2371,62 @@
             <div class="modal-footer">
                 <button class="btn btn-outline" data-close="modal-note">Cancelar</button>
                 <button class="btn btn-primary" id="btn-save-note">Guardar Evolución</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: REGISTRAR EVOLUCIÓN DE SESIÓN CON FIRMA Y KARDEX -->
+    <div class="modal-overlay hidden" id="modal-session">
+        <div class="modal-dialog" style="max-width: 600px; width: 100%;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-notes-medical text-cyan"></i> Registrar Nueva Sesión</h3>
+                <button class="modal-close" data-close="modal-session">&times;</button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <form id="form-session">
+                    <div class="grid-form" style="grid-template-columns: 1fr 2fr; gap:15px; margin-bottom:15px;">
+                        <div class="form-group">
+                            <label>N° de Sesión</label>
+                            <input type="number" id="s-num" readonly style="background-color:#f1f5f9; font-weight:700;">
+                        </div>
+                        <div class="form-group">
+                            <label>Fecha y Hora *</label>
+                            <input type="datetime-local" id="s-datetime" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group mb-15">
+                        <label>Procedimiento Realizado *</label>
+                        <textarea id="s-procedure" required rows="3" placeholder="Detalle los procedimientos odontológicos realizados en esta sesión..."></textarea>
+                    </div>
+
+                    <!-- Stock deduction -->
+                    <div class="form-group mb-15">
+                        <label><strong>Descargo de Inventario (Materiales Usados en esta Sesión):</strong></label>
+                        <div id="session-materials-container" style="max-height: 150px; overflow-y: auto; border: 1px solid var(--border-color); padding: 10px; border-radius: 8px; background-color:#f8fafc; display:flex; flex-direction:column; gap:8px;">
+                            <!-- List of materials with checkboxes and quantity inputs will be rendered dynamically -->
+                        </div>
+                    </div>
+
+                    <div class="form-group mb-15">
+                        <label>Indicaciones / Próxima Cita</label>
+                        <input type="text" id="s-next-notes" placeholder="ej: Tomar Ibuprofeno 400mg c/8h si hay dolor, control en 15 días...">
+                    </div>
+
+                    <!-- Signature Pad -->
+                    <div class="form-group mb-15">
+                        <label><strong>Firma Digital de Conformidad del Paciente *</strong></label>
+                        <p class="text-muted" style="font-size:0.75rem; margin-bottom:6px;">El paciente debe firmar en el cuadro inferior para validar su conformidad con el tratamiento realizado.</p>
+                        <div style="border: 1px dashed #cbd5e1; border-radius: 8px; background: #fff; padding: 5px; position: relative;">
+                            <canvas id="session-signature-canvas" width="550" height="150" style="width: 100%; height: 150px; display: block; cursor: crosshair; background:#ffffff;"></canvas>
+                            <button type="button" class="btn btn-xs btn-outline text-red" id="btn-clear-session-signature" style="position: absolute; right: 10px; bottom: 10px;">Limpiar</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" data-close="modal-session">Cancelar</button>
+                <button class="btn btn-primary" id="btn-save-session">Guardar Sesión</button>
             </div>
         </div>
     </div>

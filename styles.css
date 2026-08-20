@@ -2304,3 +2304,481 @@ html, body {
 .search-result-item:last-child {
     border-bottom: none !important;
 }
+
+/* ==========================================================================
+   REFAC/UX - STEPPER WIZARD, TOGGLE SWITCHES & CHECK-CHIPS STYLES
+   ========================================================================== */
+
+/* Thin custom scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Stepper Wizard Bar */
+.stepper-wizard-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 25px;
+    padding: 0 10px;
+    background: #f8fafc;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 12px 20px;
+}
+
+.step-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 10;
+    cursor: default;
+    user-select: none;
+}
+
+.step-num {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: #e2e8f0;
+    color: #64748b;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.step-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    margin-top: 6px;
+    transition: all 0.3s ease;
+}
+
+.step-line {
+    flex: 1;
+    height: 2px;
+    background-color: #e2e8f0;
+    margin: 0 12px;
+    margin-top: -18px;
+    transition: background-color 0.3s ease;
+}
+
+.step-indicator.active .step-num {
+    background-color: #ffffff;
+    color: #2563eb;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+}
+.step-indicator.active .step-label {
+    color: #2563eb;
+    font-weight: 700;
+}
+
+.step-indicator.completed .step-num {
+    background-color: #10b981;
+    color: #ffffff;
+    border-color: #10b981;
+}
+.step-indicator.completed .step-label {
+    color: #10b981;
+}
+
+.step-indicator.completed + .step-line,
+.step-line.completed {
+    background-color: #10b981;
+}
+
+/* Step content switcher */
+.step-content {
+    transition: opacity 0.25s ease-in-out;
+}
+.step-content.hidden {
+    display: none !important;
+}
+
+/* Modern Toggle Switches */
+.toggle-switch-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: #f8fafc;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.toggle-switch-wrapper label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-main);
+    cursor: pointer;
+}
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-switch .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #cbd5e1;
+    transition: .3s;
+    border-radius: 24px;
+}
+
+.toggle-switch .slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .3s;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+.toggle-switch input:checked + .slider {
+    background-color: #2563eb;
+}
+
+.toggle-switch input:checked + .slider:before {
+    transform: translateX(20px);
+}
+
+/* Conditional Textarea Animation */
+.conditional-details {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s cubic-bezier(0, 1, 0, 1), opacity 0.3s ease;
+    opacity: 0;
+}
+
+.conditional-details.active {
+    max-height: 300px;
+    opacity: 1;
+    transition: max-height 0.3s ease-in, opacity 0.3s ease;
+    margin-top: 6px;
+    margin-bottom: 12px;
+}
+
+/* Check-Chips Selection */
+.chips-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.check-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    background-color: #ffffff;
+    color: #64748b;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.check-chip input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.check-chip:hover {
+    background-color: #f1f5f9;
+    color: #1e293b;
+    border-color: #cbd5e1;
+}
+
+.check-chip.active,
+.check-chip:has(input:checked) {
+    background-color: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.15);
+}
+
+/* Interactive Tissue Cards */
+.tissues-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.tissue-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+    background: #ffffff;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    user-select: none;
+}
+
+.tissue-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #1e293b;
+}
+
+.tissue-status-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 12px;
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.tissue-card.normal {
+    border-color: #e2e8f0;
+}
+
+.tissue-card.has-finding {
+    border-color: #2563eb;
+    background: #f0f6ff;
+    box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.05);
+}
+
+.tissue-card.has-finding .tissue-status-badge {
+    background: #2563eb;
+    color: #ffffff;
+}
+
+.tissue-card-input {
+    margin-top: 4px;
+    display: none;
+}
+
+.tissue-card.has-finding .tissue-card-input {
+    display: block;
+}
+
+/* Sessions Progress Bar */
+.sessions-progress-wrapper {
+    background: #f8fafc;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.sessions-progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.progress-bar-container {
+    height: 10px;
+    background-color: #e2e8f0;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background-color: #2563eb;
+    border-radius: 5px;
+    transition: width 0.4s ease-out;
+}
+
+/* Treinta.co Settings view & Support FAQs */
+.settings-layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 20px;
+    min-height: 500px;
+}
+
+.settings-sidebar {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-self: start;
+}
+
+.settings-nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 14px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-align: left;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.settings-nav-btn:hover {
+    background: #f8fafc;
+    color: #1e293b;
+}
+
+.settings-nav-btn.active {
+    background: #f0f6ff;
+    color: #2563eb;
+}
+
+.settings-content-pane {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 24px;
+    min-height: 480px;
+}
+
+.settings-pane {
+    display: none;
+}
+
+.settings-pane.active {
+    display: block;
+}
+
+/* Settings uploader preview */
+.uploader-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.logo-circular-preview {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    border: 2px solid #e2e8f0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8fafc;
+    position: relative;
+}
+
+.logo-circular-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.logo-circular-preview .placeholder-icon {
+    font-size: 2.2rem;
+    color: #cbd5e1;
+}
+
+/* FAQ Accordion list */
+.faq-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.faq-item {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background: #ffffff;
+}
+
+.faq-question {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 14px 18px;
+    background: #f8fafc;
+    border: none;
+    text-align: left;
+    font-weight: 700;
+    font-size: 0.88rem;
+    color: #1e293b;
+    cursor: pointer;
+}
+
+.faq-answer {
+    padding: 0 18px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out, padding 0.3s ease-out;
+    background: #ffffff;
+    font-size: 0.85rem;
+    color: #475569;
+    line-height: 1.5;
+}
+
+.faq-item.active .faq-answer {
+    max-height: 200px;
+    padding: 14px 18px;
+}
+
+.faq-item.active .faq-question i {
+    transform: rotate(180deg);
+}
+
+.faq-question i {
+    transition: transform 0.2s ease;
+}
+
