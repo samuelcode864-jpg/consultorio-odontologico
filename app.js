@@ -3,6 +3,18 @@
    Single-Page Application Router, Auth System, DolarApi & PDF Export Engine
    ========================================================================== */
 
+window.onerror = function (msg, url, lineNo, columnNo, error) {
+    const message = [
+        'Message: ' + msg,
+        'URL: ' + url,
+        'Line: ' + lineNo,
+        'Column: ' + columnNo,
+        'Error: ' + (error ? error.stack : 'No stack')
+    ].join('\n');
+    alert("CRITICAL ERROR:\n" + message);
+    return false;
+};
+
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Initialize Persistent State & Live Exchange Rate API
     initStorage();
