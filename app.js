@@ -224,7 +224,19 @@ function checkAuthSession() {
             loginOverlay.classList.add('hidden');
             
             document.getElementById('dr-name-display').innerText = user.fullname;
-            document.getElementById('dr-role-display').innerText = user.role;
+            const roleEl = document.getElementById('dr-role-display');
+            if (roleEl) {
+                roleEl.innerText = user.role;
+                roleEl.className = 'role-badge-tag';
+                const r = user.role.toLowerCase();
+                if (r.includes('admin') || r.includes('super')) {
+                    roleEl.classList.add('badge-admin');
+                } else if (r.includes('medico') || r.includes('odont') || r.includes('doctor')) {
+                    roleEl.classList.add('badge-doctor');
+                } else {
+                    roleEl.classList.add('badge-assistant');
+                }
+            }
 
             applyRolePermissionsUI(user.role);
             
@@ -4365,7 +4377,19 @@ function initSettingsEvents() {
                 sessionStorage.setItem('dental_current_user', JSON.stringify(currentUser));
                 
                 document.getElementById('dr-name-display').innerText = currentUser.fullname;
-                document.getElementById('dr-role-display').innerText = currentUser.role;
+                const roleEl = document.getElementById('dr-role-display');
+                if (roleEl) {
+                    roleEl.innerText = currentUser.role;
+                    roleEl.className = 'role-badge-tag';
+                    const r = currentUser.role.toLowerCase();
+                    if (r.includes('admin') || r.includes('super')) {
+                        roleEl.classList.add('badge-admin');
+                    } else if (r.includes('medico') || r.includes('odont') || r.includes('doctor')) {
+                        roleEl.classList.add('badge-doctor');
+                    } else {
+                        roleEl.classList.add('badge-assistant');
+                    }
+                }
 
                 document.getElementById('set-pwd-current').value = '';
                 document.getElementById('set-pwd-new').value = '';

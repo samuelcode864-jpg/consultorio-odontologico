@@ -187,6 +187,7 @@ h4 { font-size: 1rem; }
     flex-direction: column;
     gap: 6px;
     flex: 1;
+    overflow-y: auto;
 }
 
 .nav-item {
@@ -255,6 +256,32 @@ h4 { font-size: 1rem; }
 .profile-info small {
     font-size: 0.72rem;
     color: var(--text-dim);
+}
+
+.role-badge-tag {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+}
+.badge-admin {
+    background-color: rgba(239, 68, 68, 0.12) !important;
+    color: #ef4444 !important;
+    border: 1px solid rgba(239, 68, 68, 0.25) !important;
+}
+.badge-doctor {
+    background-color: rgba(6, 182, 212, 0.12) !important;
+    color: #06b6d4 !important;
+    border: 1px solid rgba(6, 182, 212, 0.25) !important;
+}
+.badge-assistant {
+    background-color: rgba(16, 185, 129, 0.12) !important;
+    color: #10b981 !important;
+    border: 1px solid rgba(16, 185, 129, 0.25) !important;
 }
 
 /* Custom Sleek Logout Button */
