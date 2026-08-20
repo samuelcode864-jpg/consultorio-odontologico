@@ -322,6 +322,7 @@ function initInactivityTracker() {
 
 let currentBudgetItems = [];
 let pendingToothFaceKey = null;
+let activeEditingBudgetId = null;
 
 // ==========================================
 // NAVIGATION & TABS
@@ -343,7 +344,7 @@ function initNavigation() {
             if (targetView) targetView.classList.add('active');
 
             if (tabName === 'odontogram') {
-                await renderOdontogramView();
+                await renderBudgetListView();
             } else if (tabName === 'patients') {
                 await renderPatientsTable();
             } else if (tabName === 'agenda') {
@@ -451,6 +452,142 @@ async function renderPatientSearchResults(query) {
     });
     resultsContainer.style.display = 'block';
 }
+
+async function renderBudgetListView() {
+    const listContainer = document.getElementById('odontogram-list-container');
+    const editorContainer = document.getElementById('odontogram-editor-container');
+    if (listContainer) listContainer.classList.remove('hidden');
+    if (editorContainer) editorContainer.classList.add('hidden');
+
+    const searchInput = document.getElementById('budget-search-input');
+    const statusFilter = document.getElementById('budget-status-filter');
+    const tableBody = document.getElementById('budget-list-table-body');
+    if (!tableBody) return;
+
+    const invoices = await SupabaseDataService.getInvoices();
+    const budgets = invoices.filter(inv => inv.id && inv.id.startsWith('PRE-'));
+
+    if (searchInput && !searchInput.oninput) {
+        searchInput.oninput = () => drawTable();
+    }
+    if (statusFilter && !statusFilter.onchange) {
+        statusFilter.onchange = () => drawTable();
+    }
+
+    drawTable();
+
+    async function drawTable() {
+        const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+        const status = statusFilter ? statusFilter.value : 'all';
+
+        const patients = await SupabaseDataService.getPatients();
+
+        const filtered = budgets.filter(b => {
+            const patient = patients.find(p => p.id === b.patientId);
+            const patientName = patient ? patient.fullname.toLowerCase() : '';
+            const spec = b.items && b.items[0] && b.items[0].specialist ? b.items[0].specialist.toLowerCase() : '';
+            const matchText = b.id.toLowerCase().includes(query) || patientName.includes(query) || spec.includes(query);
+
+            if (status === 'all') return matchText;
+            if (status === 'Presupuesto') return matchText && b.status !== 'Aprobado';
+            if (status === 'Aprobado') return matchText && b.status === 'Aprobado';
+            return matchText;
+        });
+
+        tableBody.innerHTML = '';
+        if (filtered.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No se encontraron presupuestos.</td></tr>';
+            return;
+        }
+
+        filtered.forEach(b => {
+            const patient = patients.find(p => p.id === b.patientId);
+            const patientName = patient ? patient.fullname : 'Desconocido';
+            const spec = b.items && b.items[0] && b.items[0].specialist ? b.items[0].specialist : 'Varios';
+            
+            const isApproved = b.status === 'Aprobado';
+            const badgeClass = isApproved ? 'badge-tag green' : 'badge-tag orange';
+            const statusLabel = isApproved ? 'Aprobado' : 'Borrador';
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${b.id}</strong></td>
+                <td>${patientName}</td>
+                <td>${b.invoiceDate}</td>
+                <td>$${b.totalRef.toFixed(2)}</td>
+                <td>${spec}</td>
+                <td><span class="${badgeClass}" style="font-size:0.75rem; text-transform:none; padding: 2px 6px;">${statusLabel}</span></td>
+                <td style="text-align: center;">
+                    <button class="btn btn-xs btn-outline" onclick="loadBudgetIntoEditor('${b.id}')" style="padding: 4px 8px; font-weight:600; border-radius:4px; cursor: pointer;"><i class="fa-solid fa-folder-open"></i> Abrir</button>
+                </td>
+            `;
+            tableBody.appendChild(tr);
+        });
+    }
+}
+
+window.loadBudgetIntoEditor = async function(budgetId) {
+    const listContainer = document.getElementById('odontogram-list-container');
+    const editorContainer = document.getElementById('odontogram-editor-container');
+    if (listContainer) listContainer.classList.add('hidden');
+    if (editorContainer) editorContainer.classList.remove('hidden');
+
+    const invoices = await SupabaseDataService.getInvoices();
+    const budget = invoices.find(inv => inv.id === budgetId);
+    if (!budget) return;
+
+    activeEditingBudgetId = budget.id;
+
+    // Load active patient ID
+    setActivePatientId(budget.patientId);
+
+    // Load treatments
+    currentBudgetItems = (budget.items || []).map((item, idx) => ({
+        key: 'proc-' + idx + '-' + Date.now(),
+        tooth: item.tooth || 'General',
+        face: item.face || 'Gnl',
+        serviceCode: item.code || '',
+        name: item.name,
+        price: item.price,
+        specialist: item.specialist || 'Dr. Carlos Mendoza'
+    }));
+
+    await renderOdontogramView();
+
+    // Populate notes and consent
+    document.getElementById('budget-notes').value = budget.footerText || '';
+    
+    // Set discount input
+    const totalUSD = budget.totalRef;
+    let subtotalUSD = 0;
+    currentBudgetItems.forEach(item => subtotalUSD += item.price);
+    const discountPct = subtotalUSD > 0 ? Math.round(((subtotalUSD - totalUSD) / subtotalUSD) * 100) : 0;
+    document.getElementById('budget-discount-input').value = discountPct;
+
+    // Set payment method select
+    const paymentMethodSelect = document.getElementById('budget-payment-method');
+    if (paymentMethodSelect) {
+        paymentMethodSelect.value = budget.paymentMethod || 'pagomovil';
+    }
+    
+    // Sync payment selector buttons visual state
+    document.querySelectorAll('.pay-method-btn').forEach(btn => {
+        const method = btn.getAttribute('data-method');
+        if (method === budget.paymentMethod) {
+            btn.classList.add('active');
+            btn.style.background = '#0d9488';
+            btn.style.color = '#fff';
+            btn.style.borderColor = '#0d9488';
+        } else {
+            btn.classList.remove('active');
+            btn.style.background = 'transparent';
+            btn.style.color = 'var(--text-main)';
+            btn.style.borderColor = 'var(--border-color)';
+        }
+    });
+
+    renderBudgetTable();
+};
 
 // ==========================================
 // ODONTOGRAM & BUDGET VIEW
@@ -2733,8 +2870,8 @@ function initGlobalEvents() {
             const notes = document.getElementById('budget-notes').value;
             const consentText = document.getElementById('consent-text').value;
 
-            // Generate budget invoice record
-            const invoiceId = `PRE-${Date.now().toString().slice(-6)}`;
+            // Generate or load budget invoice record ID
+            const invoiceId = activeEditingBudgetId || `PRE-${Date.now().toString().slice(-6)}`;
             const invoiceObj = {
                 id: invoiceId,
                 patientId: patient.id,
@@ -2780,6 +2917,9 @@ function initGlobalEvents() {
                 });
 
                 await SupabaseDataService.savePatient(patient);
+
+                activeEditingBudgetId = invoiceId;
+                await renderBudgetListView();
 
                 Swal.fire({
                     icon: 'success',
@@ -2883,6 +3023,183 @@ function initGlobalEvents() {
         pdfBtn.onclick = async () => {
             await autoSaveActivePatientOdontogram();
             await downloadBudgetPDF();
+        };
+    }
+
+    // Historial y Listado de Presupuestos Buttons
+    const btnNewBudget = document.getElementById('btn-new-budget');
+    if (btnNewBudget) {
+        btnNewBudget.onclick = async () => {
+            activeEditingBudgetId = null;
+            setActivePatientId(null);
+            currentBudgetItems = [];
+            
+            const listContainer = document.getElementById('odontogram-list-container');
+            const editorContainer = document.getElementById('odontogram-editor-container');
+            if (listContainer) listContainer.classList.add('hidden');
+            if (editorContainer) editorContainer.classList.remove('hidden');
+
+            await renderOdontogramView();
+            
+            document.getElementById('budget-notes').value = '';
+            document.getElementById('budget-discount-input').value = '0';
+            
+            if (window.doctorSigPad) window.doctorSigPad.clear();
+            if (window.patientSigPad) window.patientSigPad.clear();
+            
+            renderBudgetTable();
+        };
+    }
+
+    const btnBackToBudgets = document.getElementById('btn-back-to-budgets');
+    if (btnBackToBudgets) {
+        btnBackToBudgets.onclick = async () => {
+            activeEditingBudgetId = null;
+            await renderBudgetListView();
+        };
+    }
+
+    const btnBillBudgetDirect = document.getElementById('btn-bill-budget-direct');
+    if (btnBillBudgetDirect) {
+        btnBillBudgetDirect.onclick = async () => {
+            const activeId = getActivePatientId();
+            if (!activeId) {
+                Swal.fire({ icon: 'warning', title: 'Seleccione un paciente', text: 'Por favor active un paciente antes de facturar.' });
+                return;
+            }
+            if (currentBudgetItems.length === 0) {
+                Swal.fire({ icon: 'warning', title: 'Presupuesto vacío', text: 'Agregue tratamientos al presupuesto.' });
+                return;
+            }
+
+            const billingTabBtn = document.querySelector('.nav-item[data-tab="billing"]');
+            if (billingTabBtn) {
+                billingTabBtn.click();
+            }
+
+            setTimeout(async () => {
+                const billPatientSelect = document.getElementById('bill-patient-select');
+                if (billPatientSelect) {
+                    billPatientSelect.value = activeId;
+                    billPatientSelect.dispatchEvent(new Event('change'));
+                }
+                
+                billingItems = currentBudgetItems.map(item => ({
+                    code: item.serviceCode || 'CUSTOM',
+                    name: item.name,
+                    price: item.price,
+                    hygienistBonus: 0,
+                    qty: 1
+                }));
+
+                const baremo = await SupabaseDataService.getBaremo();
+                billingItems.forEach(bi => {
+                    const srv = baremo.find(b => b.code === bi.code);
+                    if (srv) bi.hygienistBonus = srv.hygienistBonus || 0;
+                });
+
+                renderBillingItemsTable();
+                Swal.fire({ icon: 'success', title: 'Presupuesto cargado en Factura', text: 'Los tratamientos se cargaron en el módulo de facturación.', timer: 2000, showConfirmButton: false });
+            }, 200);
+        };
+    }
+
+    const btnScheduleBudgetDirect = document.getElementById('btn-schedule-budget-direct');
+    if (btnScheduleBudgetDirect) {
+        btnScheduleBudgetDirect.onclick = async () => {
+            const activeId = getActivePatientId();
+            if (!activeId) {
+                Swal.fire({ icon: 'warning', title: 'Seleccione un paciente', text: 'Por favor active un paciente antes de agendar.' });
+                return;
+            }
+            if (currentBudgetItems.length === 0) {
+                Swal.fire({ icon: 'warning', title: 'Presupuesto vacío', text: 'No hay tratamientos para agendar.' });
+                return;
+            }
+
+            const agendaTabBtn = document.querySelector('.nav-item[data-tab="agenda"]');
+            if (agendaTabBtn) {
+                agendaTabBtn.click();
+            }
+
+            setTimeout(async () => {
+                openModal('modal-appointment');
+                
+                const appPatientSelect = document.getElementById('app-patient-select');
+                if (appPatientSelect) {
+                    appPatientSelect.value = activeId;
+                }
+
+                const treatmentNames = currentBudgetItems.map(item => item.name).join(' + ');
+                const appTreatmentInput = document.getElementById('app-treatment');
+                if (appTreatmentInput) {
+                    appTreatmentInput.value = treatmentNames;
+                }
+            }, 200);
+        };
+    }
+
+    const btnUpdateBudgetEdits = document.getElementById('btn-update-budget-edits');
+    if (btnUpdateBudgetEdits) {
+        btnUpdateBudgetEdits.onclick = async () => {
+            const activeId = getActivePatientId();
+            if (!activeId) {
+                Swal.fire({ icon: 'warning', title: 'Seleccione un paciente', text: 'Por favor active un paciente antes de guardar.' });
+                return;
+            }
+            if (currentBudgetItems.length === 0) {
+                Swal.fire({ icon: 'warning', title: 'Presupuesto vacío', text: 'Agregue al menos un tratamiento.' });
+                return;
+            }
+
+            const rate = getExchangeRate();
+            let subtotalUSD = 0;
+            currentBudgetItems.forEach(item => subtotalUSD += item.price);
+            const discountPct = parseFloat(document.getElementById('budget-discount-input').value) || 0;
+            const discountAmountUSD = subtotalUSD * (discountPct / 100);
+            const totalUSD = subtotalUSD - discountAmountUSD;
+            const totalVES = (totalUSD * rate).toFixed(2);
+
+            const paymentMethodSelect = document.getElementById('budget-payment-method');
+            const paymentMethod = paymentMethodSelect ? paymentMethodSelect.value : 'pagomovil';
+            const notes = document.getElementById('budget-notes').value;
+
+            const budgetId = activeEditingBudgetId || `PRE-${Date.now().toString().slice(-6)}`;
+            
+            const budgetObj = {
+                id: budgetId,
+                patientId: activeId,
+                invoiceDate: new Date().toISOString().split('T')[0],
+                paymentMethod: paymentMethod,
+                paymentTerms: 'Contado',
+                currency: 'REF',
+                items: currentBudgetItems.map(item => ({
+                    code: item.serviceCode,
+                    name: item.name,
+                    price: item.price,
+                    specialist: item.specialist || ''
+                })),
+                totalRef: totalUSD,
+                totalBcv: parseFloat(totalVES),
+                status: 'Borrador',
+                footerText: notes
+            };
+
+            try {
+                await SupabaseDataService.saveInvoice(budgetObj);
+                activeEditingBudgetId = budgetObj.id;
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Presupuesto Guardado!',
+                    text: `Se actualizaron los cambios en el presupuesto ${budgetId}.`,
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            } catch (err) {
+                console.error(err);
+                Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudieron guardar los cambios.' });
+            }
         };
     }
 

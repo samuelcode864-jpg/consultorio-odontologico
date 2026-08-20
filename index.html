@@ -355,7 +355,74 @@
                 <!-- VIEW 3: ODONTOGRAMA & PRESUPUESTO (5 SECCIONES VERTICALES) -->
                 <section id="view-odontogram" class="tab-view">
                     
-                    <!-- SECCIÓN 1: CABECERA Y CONTROL CLÍNICO -->
+                    <!-- 1. HISTORIAL Y LISTADO DE PRESUPUESTOS -->
+                    <div id="odontogram-list-container">
+                        <div class="card mb-20">
+                            <div class="card-body" style="display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; padding: 20px;">
+                                <div>
+                                    <span class="badge-tag green" style="text-transform: uppercase; font-size: 0.78rem; font-weight: 600; padding: 4px 10px; border-radius: 12px; background: rgba(5, 150, 105, 0.08); color: #059669;">Control de Presupuestos</span>
+                                    <h2 style="font-size: 1.6rem; font-weight: 700; margin-top: 5px; color: var(--text-main); margin-bottom: 5px;"><i class="fa-solid fa-calculator text-cyan"></i> Historial y Propuestas Económicas</h2>
+                                    <p class="text-muted" style="font-size: 0.9rem; margin: 0;">Consulta, edita, factura o agenda citas a partir de tus propuestas clínicas guardadas.</p>
+                                </div>
+                                <button class="btn btn-success" id="btn-new-budget" style="background: #0d9488 !important; border: none !important; font-weight: 700; padding: 12px 24px; border-radius: 8px; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <i class="fa-solid fa-plus"></i> Nuevo Presupuesto
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Filtros del Listado -->
+                        <div class="card mb-20">
+                            <div class="card-body" style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center; padding: 15px;">
+                                <div style="flex: 1.5; min-width: 250px; position: relative;">
+                                    <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                                    <input type="text" id="budget-search-input" class="form-input" placeholder="Buscar por paciente, especialista o código de presupuesto..." style="padding-left: 35px; width: 100%; border-radius: 8px; height: 38px; border: 1px solid var(--border-color);">
+                                </div>
+                                <div style="flex: 0.8; min-width: 150px;">
+                                    <select id="budget-status-filter" class="form-control" style="width: 100%; border-radius: 8px; height: 38px; border: 1px solid var(--border-color); background: var(--bg-card);">
+                                        <option value="all">Todos los Estatus</option>
+                                        <option value="Presupuesto">Presupuestos / Cotizaciones</option>
+                                        <option value="Aprobado">Aprobados / Facturados</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tabla del Listado -->
+                        <div class="card">
+                            <div class="card-body p-0">
+                                <div class="table-container">
+                                    <table class="table table-compact" id="budget-list-table">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 12%;">Código ID</th>
+                                                <th style="width: 25%;">Paciente</th>
+                                                <th style="width: 15%;">Fecha Emisión</th>
+                                                <th style="width: 15%;">Total Ref. ($)</th>
+                                                <th style="width: 18%;">Especialista</th>
+                                                <th style="width: 10%;">Estatus</th>
+                                                <th style="width: 10%; text-align: center;">Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="budget-list-table-body">
+                                            <tr class="empty-row"><td colspan="7" class="text-center text-muted">Cargando propuestas económicas...</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. EDITOR DE PRESUPUESTO (OCULTO POR DEFECTO) -->
+                    <div id="odontogram-editor-container" class="hidden">
+                        
+                        <!-- Botón Volver al Listado -->
+                        <div class="mb-15" style="display: flex; justify-content: flex-start; margin-bottom: 15px;">
+                            <button class="btn btn-outline" id="btn-back-to-budgets" style="border: 1px solid var(--border-color) !important; border-radius: 6px; padding: 8px 16px; font-weight: 600; display: flex; align-items: center; gap: 6px; color: var(--text-main); background: transparent; cursor: pointer;">
+                                <i class="fa-solid fa-arrow-left"></i> Volver al Historial
+                            </button>
+                        </div>
+
+                        <!-- SECCIÓN 1: CABECERA Y CONTROL CLÍNICO -->
                     <div class="card mb-20">
                         <div class="card-body" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap; padding: 20px;">
                             <div style="flex: 2; min-width: 300px; display: flex; flex-direction: column; gap: 6px;">
@@ -621,7 +688,16 @@
                                 </div>
 
                                 <!-- Action Buttons (Bottom single Green Button) -->
-                                <div style="display: flex; justify-content: flex-end; width: 100%;">
+                                <div style="display: flex; justify-content: flex-end; width: 100%; gap: 10px; flex-wrap: wrap;">
+                                    <button class="btn btn-primary btn-lg" id="btn-bill-budget-direct" style="background: #2563eb !important; border: none !important; display: flex; align-items: center; gap: 8px; font-weight: 700; padding: 12px 20px; font-size: 1rem; border-radius: 8px; cursor: pointer;">
+                                        <i class="fa-solid fa-file-invoice-dollar"></i> Facturar
+                                    </button>
+                                    <button class="btn btn-outline btn-lg" id="btn-schedule-budget-direct" style="border: 1px solid #7c3aed !important; color: #7c3aed !important; background: transparent !important; display: flex; align-items: center; gap: 8px; font-weight: 700; padding: 12px 20px; font-size: 1rem; border-radius: 8px; cursor: pointer;">
+                                        <i class="fa-solid fa-calendar-days"></i> Agendar Cita
+                                    </button>
+                                    <button class="btn btn-outline btn-lg" id="btn-update-budget-edits" style="border: 1px solid var(--border-color) !important; color: var(--text-main) !important; background: transparent !important; display: flex; align-items: center; gap: 8px; font-weight: 700; padding: 12px 20px; font-size: 1rem; border-radius: 8px; cursor: pointer;">
+                                        <i class="fa-solid fa-floppy-disk"></i> Guardar Cambios
+                                    </button>
                                     <button class="btn btn-success btn-lg" id="btn-approve-budget" style="background: #0d9488 !important; border: none !important; display: flex; align-items: center; gap: 8px; font-weight: 700; padding: 12px 30px; font-size: 1rem; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
                                         <i class="fa-solid fa-shield-halved"></i> Aprobar Presupuesto & Certificar Firma Digital
                                     </button>
