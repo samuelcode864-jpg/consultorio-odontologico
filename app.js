@@ -2542,6 +2542,31 @@ function initGlobalEvents() {
 
     const saveApptBtn = document.getElementById('btn-save-appointment');
     if (saveApptBtn) {
+        const triggerGoogleCalendarWebhook = async (appt) => {
+            const webhookUrl = localStorage.getItem('dental_google_calendar_webhook');
+            if (!webhookUrl) return;
+            try {
+                await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: appt.id,
+                        time: appt.time,
+                        patientName: appt.patientName,
+                        patientId: appt.patientId,
+                        treatment: appt.treatment,
+                        status: appt.status,
+                        isTomorrow: appt.isTomorrow,
+                        date: appt.date || new Date().toISOString().split('T')[0],
+                        timestamp: new Date().toISOString()
+                    })
+                });
+                console.log('Google Calendar Webhook triggered successfully!');
+            } catch (err) {
+                console.error('Error triggering Google Calendar Webhook:', err);
+            }
+        };
+
         saveApptBtn.onclick = async (e) => {
             e.preventDefault();
             const patientSelect = document.getElementById('app-patient-select');
@@ -2558,7 +2583,7 @@ function initGlobalEvents() {
             const patientName = selectedOption.dataset.name;
             const patientId = selectedOption.value;
 
-            await SupabaseDataService.saveAppointment({
+            const appointmentObj = {
                 id: 'appt-' + Date.now(),
                 time,
                 patientName,
@@ -2567,7 +2592,12 @@ function initGlobalEvents() {
                 status: 'Programada',
                 isTomorrow: dayTarget === 'tomorrow',
                 date: dayTarget
-            });
+            };
+
+            await SupabaseDataService.saveAppointment(appointmentObj);
+
+            // Trigger Google Calendar sync webhook in the background
+            triggerGoogleCalendarWebhook(appointmentObj);
 
             closeModal('modal-appointment');
             await renderDashboard();
@@ -4242,6 +4272,11 @@ async function renderStationeryView() {
     headerTextarea.value = config.headerText || '';
     footerTextarea.value = config.footerText || '';
 
+    const webhookInput = document.getElementById('setting-calendar-webhook');
+    if (webhookInput) {
+        webhookInput.value = localStorage.getItem('dental_google_calendar_webhook') || '';
+    }
+
     const previewImg = document.getElementById('stat-logo-preview-img');
     const previewContainer = document.getElementById('stat-logo-preview-img-container');
     if (config.logoUrl) {
@@ -4285,6 +4320,9 @@ async function renderStationeryView() {
         const footerText = footerTextarea.value.trim();
         const logoUrl = previewImg.src || '';
 
+        const webhookVal = document.getElementById('setting-calendar-webhook') ? document.getElementById('setting-calendar-webhook').value.trim() : '';
+        localStorage.setItem('dental_google_calendar_webhook', webhookVal);
+
         await SupabaseDataService.saveStationeryConfig({
             id: 'default',
             headerText,
@@ -4294,7 +4332,7 @@ async function renderStationeryView() {
 
         renderBudgetTable();
 
-        Swal.fire({ icon: 'success', title: 'Papelería guardada', text: 'Se actualizó la plantilla oficial del consultorio.', timer: 2000, showConfirmButton: false });
+        Swal.fire({ icon: 'success', title: 'Configuración guardada', text: 'Se actualizaron la plantilla oficial y los ajustes del sistema.', timer: 2000, showConfirmButton: false });
     };
 
     const templateBtns = document.querySelectorAll('#view-stationery .subtab-btn');
