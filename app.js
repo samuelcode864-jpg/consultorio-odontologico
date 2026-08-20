@@ -424,7 +424,7 @@ function initNavigation() {
             if (user) {
                 const r = (user.role || '').toLowerCase();
                 const isAdmin = r.includes('admin') || r.includes('super');
-                const isDoctor = r.includes('medico') || r.includes('odontologo') || r.includes('doctor') || r.includes('dentista');
+                const isDoctor = r.includes('medico') || r.includes('odont') || r.includes('doctor') || r.includes('dentista') || r.includes('médico');
                 const roleType = isAdmin ? 'admin' : (isDoctor ? 'doctor' : 'assistant');
                 const allowedTabs = {
                     admin: ['dashboard', 'patients', 'agenda', 'odontogram', 'ehr', 'inventory', 'pricing', 'users', 'billing', 'finance', 'stationery', 'settings', 'help'],
