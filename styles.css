@@ -2197,8 +2197,8 @@ html, body {
 .odontogram-quadrant {
     display: flex !important;
     flex-direction: column !important;
-    gap: 16px !important;
-    padding: 20px !important;
+    gap: 12px !important;
+    padding: 10px !important;
     background: var(--bg-card) !important;
     border: 1px solid var(--border-color) !important;
     border-radius: var(--radius-md) !important;
@@ -2218,10 +2218,33 @@ html, body {
 
 .tooth-row {
     display: flex !important;
-    gap: 5px !important;
+    gap: 2px !important;
     width: 100% !important;
     flex-wrap: nowrap !important;
     justify-content: center !important;
+    align-items: center !important;
+}
+
+/* Fluid responsive sizing for teeth inside quadrants */
+.tooth-row .tooth-box {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 auto !important;
+    padding: 1px !important;
+    flex: 1 1 auto !important;
+    min-width: 16px !important;
+    max-width: 40px !important;
+    box-sizing: border-box !important;
+}
+
+.tooth-row .tooth-svg {
+    width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 1 / 1 !important;
+    max-width: 40px !important;
+    margin: 0 !important;
 }
 
 /* Alineaciones FDI pedíatricas */
