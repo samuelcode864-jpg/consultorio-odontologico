@@ -232,6 +232,7 @@ function checkAuthSession() {
             resetInactivityTimer();
             return;
         } catch(e) {
+            alert("Auth Session Try-Catch Error:\n" + e.message + "\nStack:\n" + e.stack);
             sessionStorage.removeItem('dental_current_user');
         }
     }
