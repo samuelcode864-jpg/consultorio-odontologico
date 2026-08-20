@@ -361,7 +361,7 @@ function initNavigation() {
     });
 }
 
-async function updateActivePatientUI() {
+async function updateActivePatientUI(filterText = '') {
     const activeId = getActivePatientId();
     const activePill = document.getElementById('active-patient-bar');
     const activeName = document.getElementById('active-patient-name');
@@ -369,9 +369,16 @@ async function updateActivePatientUI() {
 
     const patients = await SupabaseDataService.getPatients();
 
+    const query = filterText.toLowerCase().trim();
+    const filteredPatients = patients.filter(p => {
+        const name = (p.fullname || '').toLowerCase();
+        const ci = (p.id || '').toLowerCase();
+        return name.includes(query) || ci.includes(query);
+    });
+
     if (odSelect) {
         odSelect.innerHTML = '<option value="">-- Seleccionar Paciente --</option>';
-        patients.forEach(p => {
+        filteredPatients.forEach(p => {
             const opt = document.createElement('option');
             opt.value = p.id;
             opt.innerText = `${p.fullname} (${p.id})`;
@@ -403,6 +410,13 @@ async function updateActivePatientUI() {
 // ==========================================
 async function renderOdontogramView() {
     await updateActivePatientUI();
+
+    const searchInput = document.getElementById('od-patient-search-input');
+    if (searchInput) {
+        searchInput.oninput = async (e) => {
+            await updateActivePatientUI(e.target.value);
+        };
+    }
 
     const activeId = getActivePatientId();
     const alertBanner = document.getElementById('od-medical-header-banner');
@@ -1738,6 +1752,9 @@ function initGlobalEvents() {
     if (odPatientSelect) {
         odPatientSelect.onchange = async (e) => {
             const val = e.target.value;
+            const searchInput = document.getElementById('od-patient-search-input');
+            if (searchInput) searchInput.value = '';
+            
             if (val === 'new') {
                 openModal('modal-patient');
             } else if (val) {
