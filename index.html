@@ -355,11 +355,29 @@
                 <!-- VIEW 3: ODONTOGRAMA & PRESUPUESTO (5 SECCIONES VERTICALES) -->
                 <section id="view-odontogram" class="tab-view">
                     
-                    <!-- SECCIÓN 1: CABECERA -->
-                    <div class="view-header mb-15">
-                        <div>
-                            <h1>Emisión y Envío de Presupuestos</h1>
-                            <p class="subtitle">Núcleo Operativo: Odontodiagrama interactivo por caras, selección de baremos y consentimiento.</p>
+                    <!-- SECCIÓN 1: CABECERA Y CONTROL CLÍNICO -->
+                    <div class="card mb-20">
+                        <div class="card-body" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap; padding: 20px;">
+                            <div style="flex: 2; min-width: 300px; display: flex; flex-direction: column; gap: 6px;">
+                                <span class="badge-tag green" style="text-transform: uppercase; width: fit-content; font-size: 0.78rem; font-weight: 600; padding: 4px 10px; border-radius: 12px; background: rgba(5, 150, 105, 0.08); color: #059669;">Sección 1 • Control Clínico</span>
+                                <h2 style="font-size: 1.6rem; font-weight: 700; margin-top: 5px; color: var(--text-main); line-height: 1.2; display: flex; align-items: center; gap: 10px;"><i class="fa-solid fa-stethoscope text-cyan" style="font-size: 1.8rem;"></i> Emisión, Presupuesto Clínico & Firma Digital Unificada</h2>
+                                <p class="text-muted" style="font-size: 0.9rem; margin-top: 5px; max-width: 650px; line-height: 1.4;">Flujo clínico completo: selecciona el paciente, marca hallazgos en el odontodiagrama, genera la propuesta económica y certifica con firma digital.</p>
+                            </div>
+                            <div class="action-buttons-sec1" style="display: flex; flex-direction: column; gap: 10px; min-width: 240px; flex: 1;">
+                                <button class="btn btn-outline" id="btn-pdf-budget" style="background: #0f172a !important; color: #fff !important; border: none !important; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; width: 100%; border-radius: 8px; padding: 10px 15px;">
+                                    <i class="fa-solid fa-file-pdf"></i> Exportar Presupuesto PDF
+                                </button>
+                                <button class="btn btn-outline" id="btn-customize-whatsapp" style="border: 1px solid rgba(13, 148, 136, 0.3) !important; color: #0d9488 !important; background: transparent !important; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; width: 100%; border-radius: 8px; padding: 10px 15px;">
+                                    <i class="fa-solid fa-pen"></i> Personalizar Mensaje WhatsApp
+                                </button>
+                                <button class="btn btn-success" id="btn-send-whatsapp" style="background: #059669 !important; border: none !important; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; width: 100%; border-radius: 8px; padding: 10px 15px;">
+                                    <i class="fa-solid fa-paper-plane"></i> Enviar por WhatsApp
+                                </button>
+                            </div>
+                        </div>
+                        <div style="border-top: 1px solid var(--border-color); padding: 12px 20px; background: rgba(0,0,0,0.015); display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text-muted); border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
+                            <i class="fa-solid fa-dollar-sign text-cyan" style="font-size: 1rem;"></i>
+                            <span>Tasa Oficial BCV Aplicada: <strong id="tasa-bcv-badge" style="color: var(--text-main); font-weight: 700; font-size: 0.9rem;">775.34</strong> <strong>Bs / USD</strong>. <span style="margin-left: 15px; color: var(--text-muted);">Todos los presupuestos son calculados automáticamente en USD y Bolívares.</span></span>
                         </div>
                     </div>
 
@@ -393,157 +411,199 @@
                         
                         <!-- SECCIÓN 3: ODONTOGRAMA -->
                         <div class="card odontogram-card">
-                            <div class="card-header border-bottom flex-wrap" style="justify-content: space-between; align-items: center; display: flex; width: 100%;">
-                                <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
-                                    <h3><i class="fa-solid fa-tooth text-cyan"></i> Odontodiagrama Clínico</h3>
-                                    <div class="layer-legend">
-                                        <span class="legend-item"><span class="color-dot blue"></span> Tratado (Azul)</span>
-                                        <span class="legend-item"><span class="color-dot red"></span> Patología (Rojo)</span>
-                                        <span class="legend-item"><span class="color-dot green"></span> Plan Propuesto (Verde)</span>
-                                    </div>
+                            <div class="card-header border-bottom flex-wrap" style="justify-content: space-between; align-items: center; display: flex; width: 100%; gap: 15px;">
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    <span class="badge-tag green" style="text-transform: uppercase; width: fit-content;">Sección 3 • Mapeo Anatómico</span>
+                                    <h3 style="font-size: 1.4rem; font-weight: 700; color: var(--text-main); margin: 0;"><i class="fa-solid fa-tooth text-cyan"></i> Odontodiagrama 2D Clínico (Estructura FDI Regulada)</h3>
                                 </div>
-                                <div class="dentition-toggle" style="display: flex; gap: 10px;">
-                                    <button id="btn-dentition-adult" class="btn btn-sm btn-outline active">Dentición Adulto</button>
-                                    <button id="btn-dentition-pediatric" class="btn btn-sm btn-outline">Dentición Infantil</button>
+                                <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                                    <span class="text-muted" style="font-size: 0.85rem; font-weight: 600;">Haz clic sobre cualquier pieza dental para cambiar su diagnóstico.</span>
+                                    <div class="dentition-toggle" style="display: flex; gap: 10px;">
+                                        <button id="btn-dentition-adult" class="btn btn-sm btn-outline active">Dentición Adulto</button>
+                                        <button id="btn-dentition-pediatric" class="btn btn-sm btn-outline">Dentición Infantil</button>
+                                    </div>
                                 </div>
                             </div>
 
                             <div class="card-body">
                                 <!-- Mode Selector Bar -->
-                                <div class="tool-mode-bar">
-                                    <span class="tool-label">Modo de Marcado:</span>
-                                    <button class="tool-btn active" data-mode="patology"><i class="fa-solid fa-circle-exclamation text-red"></i> Patología (Rojo)</button>
-                                    <button class="tool-btn" data-mode="treated"><i class="fa-solid fa-circle-check text-blue"></i> Tratado (Azul)</button>
-                                    <button class="tool-btn" data-mode="proposed"><i class="fa-solid fa-square-plus text-green"></i> Plan Propuesto (Verde)</button>
-                                    <button class="tool-btn" data-mode="clear"><i class="fa-solid fa-eraser"></i> Borrar Cara</button>
+                                <div class="tool-mode-bar" style="background: rgba(0,0,0,0.02); padding: 12px 15px; border-radius: var(--radius-md); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;">
+                                    <span class="tool-label" style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Modo de Marcado:</span>
+                                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                        <button class="tool-btn active" data-mode="patology" style="border: 1px solid #ef4444 !important; border-radius: 20px; padding: 6px 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: all 0.2s; background: #ef4444; color: #fff;"><span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #ef4444; border: 1px solid #fff;"></span> Patología (Rojo)</button>
+                                        <button class="tool-btn" data-mode="treated" style="border: 1px solid #2563eb !important; border-radius: 20px; padding: 6px 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: all 0.2s; background: transparent; color: #2563eb;"><span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #2563eb;"></span> ✓ Tratado (Azul)</button>
+                                        <button class="tool-btn" data-mode="proposed" style="border: 1px solid #16a34a !important; border-radius: 20px; padding: 6px 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: all 0.2s; background: transparent; color: #16a34a;"><span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #16a34a;"></span> ✚ Plan Propuesto (Verde)</button>
+                                        <button class="tool-btn" data-mode="endo" style="border: 1px solid #9333ea !important; border-radius: 20px; padding: 6px 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: all 0.2s; background: transparent; color: #9333ea;"><span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #9333ea;"></span> Endodoncia / Corona</button>
+                                        <button class="tool-btn" data-mode="clear" style="border: 1px solid #f97316 !important; border-radius: 20px; padding: 6px 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: all 0.2s; background: transparent; color: #f97316;"><span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #f97316;"></span> Borrar Cara</button>
+                                    </div>
                                 </div>
 
                                 <!-- SVG Odontogram Canvas Container (CENTRADOS) -->
                                 <div class="odontogram-viewport" id="odontogram-viewport">
                                     <!-- Rendered dynamically via odontogram.js -->
                                 </div>
-                            </div>
-                        </div>
-
-                        <!-- SECCIÓN 4: PRESUPUESTO GENERADO -->
+                                               <!-- SECCIÓN 4: PRESUPUESTO GENERADO -->
                         <div class="card budget-card">
-                            <div class="card-header">
-                                <h3><i class="fa-solid fa-calculator text-green"></i> Presupuesto Generado</h3>
-                                <button class="btn btn-sm btn-secondary" id="btn-add-custom-item">+ Agregar Item</button>
+                            <div class="card-header border-bottom" style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
+                                <span class="badge-tag green" style="text-transform: uppercase;">Sección 4 • Propuesta Económica</span>
+                                <h3 style="font-size: 1.4rem; font-weight: 700; color: var(--text-main); margin: 0;"><i class="fa-solid fa-calculator text-green"></i> Presupuesto Generado & Desglose de Tratamiento</h3>
                             </div>
+                            
+                            <!-- Direct Custom Item Input Form Row -->
+                            <div class="custom-item-form-row" style="display: flex; gap: 15px; padding: 15px; background: rgba(0,0,0,0.01); border-bottom: 1px solid var(--border-color); flex-wrap: wrap; align-items: flex-end;">
+                                <div class="form-group mb-0" style="flex: 1; min-width: 120px;">
+                                    <label class="form-label" style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase;">Pieza Dental</label>
+                                    <input type="text" id="custom-item-tooth" class="form-input" value="General" placeholder="General o Nº de diente">
+                                </div>
+                                <div class="form-group mb-0" style="flex: 3; min-width: 250px;">
+                                    <label class="form-label" style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase;">Nombre del Tratamiento / Procedimiento</label>
+                                    <input type="text" id="custom-item-name" class="form-input" placeholder="Ej: Limpieza Ultrasónica Profunda">
+                                </div>
+                                <div class="form-group mb-0" style="flex: 1; min-width: 100px;">
+                                    <label class="form-label" style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase;">Precio ($ USD)</label>
+                                    <input type="number" id="custom-item-price" class="form-input" value="40">
+                                </div>
+                                <button class="btn btn-success" id="btn-add-custom-item-direct" style="background: #0d9488 !important; border: none !important; height: var(--input-height); display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 600; padding: 0 20px;">
+                                    <i class="fa-solid fa-plus"></i> Agregar
+                                </button>
+                            </div>
+
                             <div class="card-body p-0">
                                 <div class="table-container">
                                     <table class="table table-compact" id="budget-table">
                                         <thead>
                                             <tr>
-                                                <th>Pieza / Cara</th>
-                                                <th>Tratamiento</th>
-                                                <th>Especialista</th>
-                                                <th>Precio (USD)</th>
-                                                <th>Precio (Bs.)</th>
-                                                <th></th>
+                                                <th style="width: 10%;">Pieza</th>
+                                                <th style="width: 35%;">Procedimiento / Tratamiento</th>
+                                                <th style="width: 20%;">Médico Tratante</th>
+                                                <th style="width: 15%;">Precio ($ USD)</th>
+                                                <th style="width: 15%;">Equivalente (Bs BCV)</th>
+                                                <th style="width: 5%;">Acción</th>
                                             </tr>
                                         </thead>
                                         <tbody id="budget-table-body">
-                                            <tr class="empty-row"><td colspan="6" class="text-center text-muted">Haga clic en el odontodiagrama para agregar tratamientos.</td></tr>
+                                            <tr class="empty-row"><td colspan="6" class="text-center text-muted">Haga clic en el odontodiagrama o en el formulario de arriba para agregar tratamientos.</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
 
+                                <!-- Hidden select to store value for form processing -->
+                                <select id="payment-mode-select" style="display: none;">
+                                    <option value="contado" selected>Contado Inmediato (100%)</option>
+                                    <option value="cuotas-2">50% Inicial + 50% al finalizar</option>
+                                    <option value="cuotas-3">3 Cuotas por fase de tratamiento</option>
+                                </select>
+
                                 <!-- Budget Total & Options -->
-                                <div class="budget-summary-box" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap;">
-                                     <div class="payment-terms-group" style="display: flex; flex-direction: column; gap: 12px; min-width: 250px;">
-                                          <div class="payment-terms" style="display: flex; align-items: center; gap: 8px;">
-                                              <label style="margin-bottom:0; font-size:0.85rem; font-weight:600; min-width: 100px;">Forma de Pago:</label>
-                                              <select id="payment-mode-select">
-                                                  <option value="contado">Contado Inmediato (100%)</option>
-                                                  <option value="cuotas-2">50% Inicial + 50% al finalizar</option>
-                                                  <option value="cuotas-3">3 Cuotas por fase de tratamiento</option>
-                                              </select>
+                                <div class="budget-summary-box" style="display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; padding: 20px; border-top: 1px solid var(--border-color);">
+                                     <div class="payment-terms-group" style="display: flex; flex-direction: column; gap: 15px; min-width: 300px;">
+                                          <div style="display: flex; align-items: center; gap: 10px;">
+                                              <span style="font-weight: 700; font-size: 0.85rem; min-width: 160px;">⚡ Descuento Manual (%):</span>
+                                              <input type="number" id="budget-discount-input" class="form-input" style="width: 70px; padding: 4px 8px; height: auto;" value="0" min="0" max="100">
+                                              <span style="font-weight: 600;">%</span>
                                           </div>
-                                          <div class="payment-terms" style="display: flex; align-items: center; gap: 8px;">
-                                              <label style="margin-bottom:0; font-size:0.85rem; font-weight:600; min-width: 100px;">Método Pago:</label>
-                                              <select id="budget-payment-method">
-                                                  <option value="pagomovil">Pago Móvil</option>
+                                          
+                                          <div style="display: flex; flex-direction: column; gap: 8px;">
+                                              <label class="form-label" style="font-weight: 700; font-size: 0.85rem;"><i class="fa-solid fa-credit-card text-cyan"></i> Método de Pago Asignado:</label>
+                                              <div class="payment-method-selector-group" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                                  <button type="button" class="btn pay-method-btn active" data-method="pagomovil" style="border: 1px solid #0d9488 !important; border-radius: 8px; padding: 8px 16px; font-weight: 600; display: flex; align-items: center; gap: 6px; background: #0d9488; color: #fff;"><i class="fa-solid fa-mobile-screen-button"></i> Pago Móvil</button>
+                                                  <button type="button" class="btn pay-method-btn" data-method="cash" style="border: 1px solid var(--border-color) !important; border-radius: 8px; padding: 8px 16px; font-weight: 600; display: flex; align-items: center; gap: 6px; background: transparent; color: var(--text-main);"><i class="fa-solid fa-money-bill-wave" style="color: #16a34a;"></i> Efectivo</button>
+                                                  <button type="button" class="btn pay-method-btn" data-method="zelle" style="border: 1px solid var(--border-color) !important; border-radius: 8px; padding: 8px 16px; font-weight: 600; display: flex; align-items: center; gap: 6px; background: transparent; color: var(--text-main);"><i class="fa-solid fa-vault" style="color: #7c3aed;"></i> Zelle</button>
+                                                  <button type="button" class="btn pay-method-btn" data-method="binance" style="border: 1px solid var(--border-color) !important; border-radius: 8px; padding: 8px 16px; font-weight: 600; display: flex; align-items: center; gap: 6px; background: transparent; color: var(--text-main);"><i class="fa-solid fa-coins" style="color: #eab308;"></i> Binance</button>
+                                              </div>
+                                              <select id="budget-payment-method" style="display: none;">
+                                                  <option value="pagomovil" selected>Pago Móvil</option>
                                                   <option value="cash">Efectivo</option>
                                                   <option value="zelle">Zelle</option>
                                                   <option value="binance">Binance</option>
                                               </select>
                                           </div>
                                      </div>
-                                     <div class="total-display" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px; text-align: right; min-width: 200px;">
-                                         <div style="font-size: 0.88rem; color: var(--text-muted);">Subtotal: <strong id="budget-subtotal">$0.00</strong> (<span id="budget-subtotal-bs">Bs. 0.00</span>)</div>
-                                         <div style="display: flex; align-items: center; gap: 8px; font-size: 0.88rem;">
-                                             <span>Descuento (%):</span>
-                                             <input type="number" id="budget-discount-input" class="form-input" style="width: 70px; padding: 4px 8px; height: auto;" value="0" min="0" max="100">%
+                                     
+                                     <!-- Totals Box on the Right -->
+                                     <div class="total-display-container" style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
+                                         <!-- Hidden legacy spans to satisfy JS calculations without breaking -->
+                                         <div style="display: none;">
+                                             Subtotal: <span id="budget-subtotal">$0.00</span> (<span id="budget-subtotal-bs">Bs. 0.00</span>)
+                                             Descuento: -<span id="budget-discount-amount">$0.00</span> (-<span id="budget-discount-ves">Bs. 0.00</span>)
                                          </div>
-                                         <div style="font-size: 0.88rem; color: #ff6b6b; font-weight: 600;">Descuento: -<strong id="budget-discount-amount">$0.00</strong> (-<span id="budget-discount-ves">Bs. 0.00</span>)</div>
-                                         <div style="margin-top: 5px; border-top: 1px solid var(--border-color); padding-top: 5px; width: 100%;">
-                                             <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">Total Final Ref.:</span>
-                                             <h2 id="budget-total-amount" style="color: var(--primary-cyan); font-size: 1.8rem; line-height: 1.1; font-weight: 700; margin: 0;">$0.00</h2>
-                                             <span class="text-muted" id="budget-total-ves" style="font-size: 0.85rem; font-weight: 600; display: block; text-align: right; margin-top: 2px;">Bs. 0.00</span>
+                                         
+                                         <div style="background: rgba(13, 148, 136, 0.03); border: 1px solid rgba(13, 148, 136, 0.2); border-radius: 8px; padding: 15px 25px; min-width: 280px; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px;">
+                                             <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Total Final en Dólares ($):</div>
+                                             <div style="font-size: 1.8rem; font-weight: 800; color: #0f172a; margin: 0; line-height: 1.1;" id="budget-total-amount">$0.00 USD</div>
+                                             <div style="border-top: 1px dashed rgba(13, 148, 136, 0.2); width: 100%; margin: 4px 0;"></div>
+                                             <div style="font-size: 0.82rem; font-weight: 700; color: #1e3a8a;" id="ves-title-label">Total Final en Bolívares (Tasa BCV 775.34):</div>
+                                             <div style="font-size: 1.3rem; font-weight: 800; color: #1e3a8a; margin: 0;" id="budget-total-ves">0.00 Bs</div>
                                          </div>
                                      </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- SECCIÓN 5: CONSENTIMIENTO & FIRMAS DIGITALES -->
+                        <!-- SECCIÓN 5: OBSERVACIONES CLÍNICAS, CONSENTIMIENTO INFORMADO & FIRMAS DIGITALES -->
                         <div class="card consent-card">
-                            <div class="card-header">
-                                <h3><i class="fa-solid fa-file-signature text-purple"></i> Consentimiento & Firmas Digitales</h3>
+                            <div class="card-header border-bottom" style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
+                                <span class="badge-tag green" style="text-transform: uppercase;">Sección 5 • Certificación Legal & Firmas</span>
+                                <h3 style="font-size: 1.4rem; font-weight: 700; color: var(--text-main); margin: 0;"><i class="fa-solid fa-file-signature text-purple"></i> Observaciones Clínicas, Consentimiento Informado & Firmas Digitales</h3>
                             </div>
-                            <div class="card-body flex-column gap-15">
-                                <div>
-                                    <label class="form-label">Observaciones Clínicas (Notas del Médico):</label>
-                                    <textarea id="budget-notes" class="form-control" rows="2" placeholder="Diagnóstico complementario, notas clínicas del médico..."></textarea>
+                            <div class="card-body flex-column gap-20" style="padding: 20px;">
+                                
+                                <!-- Observaciones box -->
+                                <div style="background: rgba(0,0,0,0.01); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; display: flex; flex-direction: column; gap: 10px;">
+                                    <div style="font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-notes-medical text-cyan"></i> OBSERVACIONES CLÍNICAS (NOTAS DEL MÉDICO PARA ESTE PRESUPUESTO)</div>
+                                    <textarea id="budget-notes" class="form-control" rows="3" placeholder="Escriba aquí las observaciones clínicas específicas, recomendaciones o detalles médicos del presupuesto..." style="width: 100%; border-radius: 6px;"></textarea>
+                                    <small class="text-muted" style="font-size: 0.78rem;">Estas notas clínicas aparecerán en la propuesta impresa y comprobante enviado al paciente.</small>
                                 </div>
 
-                                <div>
-                                    <label class="form-label">Consentimiento Informado (Editable en Vivo):</label>
-                                    <textarea id="consent-text" class="form-control" rows="4">Por la presente declaro que he sido informado(a) detalladamente sobre el plan de tratamiento propuesto, incluyendo sus beneficios, riesgos, costos y alternativas. Doy mi consentimiento libre y voluntario para la ejecución de los procedimientos odontológicos indicados.</textarea>
+                                <!-- Consentimiento box -->
+                                <div style="background: rgba(0,0,0,0.01); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; display: flex; flex-direction: column; gap: 10px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                                        <div style="font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-circle-info text-cyan"></i> CONSENTIMIENTO INFORMADO (EDITABLE EN VIVO)</div>
+                                        <span class="badge-tag green" style="font-size: 0.75rem; text-transform: none; font-weight: 600;">✓ Cargado desde la plantilla predeterminada de Papelería</span>
+                                    </div>
+                                    <textarea id="consent-text" class="form-control" rows="3" style="width: 100%; border-radius: 6px; border: 1px solid rgba(5, 150, 105, 0.3) !important;">Declaro haber sido informado sobre los procedimientos clínicos descritos en este presupuesto y autorizo la ejecución de los tratamientos bajo la tasa oficial BCV de la clínica.</textarea>
+                                    <small class="text-muted" style="font-size: 0.78rem;">Puedes modificar o ajustar el texto del consentimiento informado exclusivamente para este presupuesto.</small>
                                 </div>
 
-                                <!-- Signature Canvas Accordion -->
-                                <div class="signature-section">
-                                    <div class="signatures-grid">
-                                        <!-- Doctor Signature -->
-                                        <div class="sig-box">
-                                            <span class="sig-title"><i class="fa-solid fa-user-doctor"></i> Firma del Odontólogo Tratante</span>
-                                            <div class="sig-canvas-wrapper">
-                                                <canvas id="doctor-sig-canvas" width="220" height="90"></canvas>
+                                <!-- Signatures Digitales -->
+                                <div class="signature-section" style="width: 100%;">
+                                    <div class="signatures-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%; margin-bottom: 20px;">
+                                        
+                                        <!-- Patient Signature (Left) -->
+                                        <div class="sig-box" style="display: flex; flex-direction: column; gap: 8px;">
+                                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                                <span style="font-weight: 700; font-size: 0.88rem; color: var(--text-main);"><i class="fa-solid fa-pen-nib"></i> Firma Digital del Paciente / Representante</span>
+                                                <button class="btn btn-xs btn-link text-red" id="btn-clear-patient-sig" style="text-decoration: none; font-size: 0.8rem; font-weight: 600;"><i class="fa-solid fa-rotate-left"></i> Limpiar Firma</button>
                                             </div>
-                                            <button class="btn btn-xs btn-link" id="btn-clear-doc-sig">Limpiar</button>
+                                            <div class="sig-canvas-wrapper" style="border: 2px dashed var(--border-color); border-radius: 8px; background: #fff; display: flex; justify-content: center; align-items: center; padding: 10px;">
+                                                <canvas id="patient-sig-canvas" width="380" height="120" style="width: 100%; height: 120px; cursor: crosshair;"></canvas>
+                                            </div>
+                                            <span style="text-align: center; font-size: 0.75rem; color: var(--text-muted);">Firme dentro del recuadro usando mouse o pantalla táctil</span>
                                         </div>
 
-                                        <!-- Patient Signature -->
-                                        <div class="sig-box">
-                                            <span class="sig-title"><i class="fa-solid fa-pen-nib"></i> Firma del Paciente / Representante</span>
-                                            <div class="sig-canvas-wrapper">
-                                                <canvas id="patient-sig-canvas" width="220" height="90"></canvas>
+                                        <!-- Doctor Signature (Right) -->
+                                        <div class="sig-box" style="display: flex; flex-direction: column; gap: 8px;">
+                                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                                <span style="font-weight: 700; font-size: 0.88rem; color: var(--text-main);"><i class="fa-solid fa-user-doctor"></i> Firma Digital del Odontólogo Tratante</span>
+                                                <button class="btn btn-xs btn-link text-red" id="btn-clear-doc-sig" style="text-decoration: none; font-size: 0.8rem; font-weight: 600;"><i class="fa-solid fa-rotate-left"></i> Limpiar Firma</button>
                                             </div>
-                                            <button class="btn btn-xs btn-link" id="btn-clear-patient-sig">Limpiar</button>
+                                            <div class="sig-canvas-wrapper" style="border: 2px dashed var(--border-color); border-radius: 8px; background: #fff; display: flex; justify-content: center; align-items: center; padding: 10px;">
+                                                <canvas id="doctor-sig-canvas" width="380" height="120" style="width: 100%; height: 120px; cursor: crosshair;"></canvas>
+                                            </div>
+                                            <span style="text-align: center; font-size: 0.75rem; color: var(--text-muted);">Firme dentro del recuadro usando mouse o pantalla táctil</span>
                                         </div>
                                     </div>
-                                    <div class="terms-checkbox">
+                                    
+                                    <div class="terms-checkbox" style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px; font-size: 0.88rem;">
                                         <input type="checkbox" id="chk-terms" checked>
-                                        <label for="chk-terms">El paciente acepta el Plan de Tratamiento y autoriza el protocolo clínico.</label>
+                                        <label for="chk-terms" style="font-weight: 600; cursor: pointer; color: var(--text-main);">El paciente acepta el Plan de Tratamiento y autoriza el protocolo clínico.</label>
                                     </div>
                                 </div>
 
-                                <!-- Action Bar -->
-                                <div class="actions-bar" style="display: flex; gap: 10px; width: 100%; flex-wrap: wrap; margin-top: 20px;">
-                                    <button class="btn btn-primary btn-lg flex-1" id="btn-approve-budget" style="background: linear-gradient(135deg, #16a34a 0%, #15803d 100%) !important; border: none !important;">
-                                        <i class="fa-solid fa-file-signature"></i> Aprobar y Certificar Presupuesto
-                                    </button>
-                                    <button class="btn btn-success btn-lg" id="btn-send-whatsapp">
-                                        <i class="fa-brands fa-whatsapp"></i> WhatsApp
-                                    </button>
-                                    <button class="btn btn-outline" id="btn-print-budget" title="Imprimir Presupuesto">
-                                        <i class="fa-solid fa-print"></i> Imprimir
-                                    </button>
-                                    <button class="btn btn-outline" id="btn-pdf-budget" title="Descargar PDF Presupuesto">
-                                        <i class="fa-solid fa-file-pdf"></i> PDF
+                                <!-- Action Buttons (Bottom single Green Button) -->
+                                <div style="display: flex; justify-content: flex-end; width: 100%;">
+                                    <button class="btn btn-success btn-lg" id="btn-approve-budget" style="background: #0d9488 !important; border: none !important; display: flex; align-items: center; gap: 8px; font-weight: 700; padding: 12px 30px; font-size: 1rem; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                                        <i class="fa-solid fa-shield-halved"></i> Aprobar Presupuesto & Certificar Firma Digital
                                     </button>
                                 </div>
                             </div>

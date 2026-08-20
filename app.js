@@ -100,14 +100,19 @@ async function fetchLiveExchangeRate() {
 
 function updateCurrencyBadge(rate, isLive) {
     const currencyBtn = document.getElementById('currency-btn');
-    if (!currencyBtn) return;
+    if (currencyBtn) {
+        const formattedRate = rate.toFixed(2);
+        if (isLive) {
+            currencyBtn.innerHTML = `<i class="fa-solid fa-dollar-sign text-green"></i> BCV: <strong>Bs. ${formattedRate}</strong> <small class="text-muted" style="font-size:0.68rem; margin-left:2px;">(En vivo)</small>`;
+            currencyBtn.style.border = '1px solid #10b981';
+        } else {
+            currencyBtn.innerHTML = `<i class="fa-solid fa-dollar-sign text-amber"></i> BCV: <strong>Bs. ${formattedRate}</strong>`;
+        }
+    }
 
-    const formattedRate = rate.toFixed(2);
-    if (isLive) {
-        currencyBtn.innerHTML = `<i class="fa-solid fa-dollar-sign text-green"></i> BCV: <strong>Bs. ${formattedRate}</strong> <small class="text-muted" style="font-size:0.68rem; margin-left:2px;">(En vivo)</small>`;
-        currencyBtn.style.border = '1px solid #10b981';
-    } else {
-        currencyBtn.innerHTML = `<i class="fa-solid fa-dollar-sign text-amber"></i> BCV: <strong>Bs. ${formattedRate}</strong>`;
+    const tasaBadge = document.getElementById('tasa-bcv-badge');
+    if (tasaBadge) {
+        tasaBadge.innerText = rate.toFixed(2);
     }
 }
 
@@ -409,6 +414,12 @@ async function renderOdontogramView() {
         if (patient) {
             window.odontogram.setData(patient.odontogramData || {});
             
+            // Sincronizar datos del expediente (Seccion 2)
+            document.getElementById('info-patient-name').innerText = patient.fullname || 'Paciente';
+            document.getElementById('info-patient-cedula').innerText = patient.id || 'V-00000000';
+            document.getElementById('info-patient-category').innerText = patient.category || 'Privado';
+            document.getElementById('info-patient-doctor').innerText = patient.assignedDoctor || 'Dr. Carlos Mendoza';
+
             let flags = [];
             if (patient.allergies && patient.allergies.length > 0) {
                 flags.push(`⚠️ Alergias: ${patient.allergies.join(', ')}`);
@@ -430,6 +441,12 @@ async function renderOdontogramView() {
     } else {
         window.odontogram.setData({});
         alertBanner.classList.add('hidden');
+        
+        // Reset a valores por defecto
+        document.getElementById('info-patient-name').innerText = 'Paciente';
+        document.getElementById('info-patient-cedula').innerText = 'V-00000000';
+        document.getElementById('info-patient-category').innerText = 'Privado';
+        document.getElementById('info-patient-doctor').innerText = 'Dr. Carlos Mendoza';
     }
 
     document.getElementById('btn-dentition-adult').onclick = function() {
@@ -598,21 +615,21 @@ async function renderBudgetTable() {
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td><strong>Pieza ${item.tooth || '-'}</strong> (${item.face || 'General'})</td>
-            <td>${item.name}</td>
+            <td><strong>#${item.tooth || '-'}</strong></td>
+            <td><strong>${item.name}</strong></td>
             <td>
-                <select class="form-control btn-xs srv-specialist-select" style="width: 130px; font-size: 0.8rem; padding: 2px 4px;" data-idx="${index}">
+                <select class="form-control btn-xs srv-specialist-select" style="width: 160px; font-size: 0.82rem; padding: 4px 8px; border-radius: 6px;" data-idx="${index}">
                     ${doctors.map(doc => `<option value="${doc.fullname}" ${item.specialist === doc.fullname ? 'selected' : ''}>${doc.fullname}</option>`).join('')}
                 </select>
             </td>
             <td>
-                <div style="display: flex; align-items: center; gap: 4px;">
-                    $<input type="number" class="form-control btn-xs srv-price-input" style="width: 70px; padding: 2px 4px; height: auto;" value="${item.price}" step="0.01" data-idx="${index}">
+                <div style="display: flex; align-items: center; gap: 4px; font-weight: 600;">
+                    $ <input type="number" class="form-control btn-xs srv-price-input" style="width: 70px; padding: 4px 6px; height: auto; text-align: center; border-radius: 4px;" value="${item.price}" step="0.01" data-idx="${index}"> USD
                 </div>
             </td>
-            <td class="text-muted" style="font-size: 0.82rem;">Bs. ${(item.price * rate).toFixed(2)}</td>
+            <td style="font-weight: 700; color: #1e3a8a;">${(item.price * rate).toFixed(2)} Bs</td>
             <td>
-                <button class="btn btn-xs btn-outline text-red" onclick="removeBudgetItem(${index})"><i class="fa-solid fa-trash"></i></button>
+                <button class="btn btn-xs btn-outline text-red" style="border-radius: 6px; padding: 4px 8px;" onclick="removeBudgetItem(${index})"><i class="fa-solid fa-trash"></i></button>
             </td>
         `;
 
@@ -641,12 +658,19 @@ async function renderBudgetTable() {
     const discountVES = (discountAmountUSD * rate).toFixed(2);
     const totalVES = (totalUSD * rate).toFixed(2);
 
+    // Update labels and values
     document.getElementById('budget-subtotal').innerText = `$${subtotalUSD.toFixed(2)}`;
     document.getElementById('budget-subtotal-bs').innerText = `Bs. ${subtotalVES}`;
     document.getElementById('budget-discount-amount').innerText = `$${discountAmountUSD.toFixed(2)}`;
     document.getElementById('budget-discount-ves').innerText = `Bs. ${discountVES}`;
-    document.getElementById('budget-total-amount').innerText = `$${totalUSD.toFixed(2)}`;
-    document.getElementById('budget-total-ves').innerText = `Bs. ${totalVES}`;
+    
+    document.getElementById('budget-total-amount').innerText = `$${totalUSD.toFixed(2)} USD`;
+    document.getElementById('budget-total-ves').innerText = `${totalVES} Bs`;
+    
+    const vesTitleLabel = document.getElementById('ves-title-label');
+    if (vesTitleLabel) {
+        vesTitleLabel.innerText = `Total Final en Bolívares (Tasa BCV ${rate.toFixed(2)}):`;
+    }
 }
 
 window.removeBudgetItem = async function(index) {
@@ -1726,72 +1750,39 @@ function initGlobalEvents() {
         };
     }
 
-    // Modal Add Item Handler (#modal-add-item)
-    const btnAddCustom = document.getElementById('btn-add-custom-item');
-    if (btnAddCustom) {
-        btnAddCustom.onclick = async () => {
-            const baremo = await SupabaseDataService.getBaremo();
-            const selectEl = document.getElementById('item-baremo-select');
-            
-            if (selectEl) {
-                selectEl.innerHTML = '<option value="">-- Seleccionar Procedimiento del Baremo --</option>';
-                baremo.forEach(proc => {
-                    const opt = document.createElement('option');
-                    opt.value = proc.code;
-                    opt.innerText = `${proc.name} - $${proc.priceUSD.toFixed(2)} (${proc.category})`;
-                    selectEl.appendChild(opt);
-                });
-            }
-
-            document.getElementById('item-custom-name').value = '';
-            document.getElementById('item-custom-price').value = '';
-            openModal('modal-add-item');
-        };
-    }
-
-    const btnConfirmAddItem = document.getElementById('btn-confirm-add-item');
-    if (btnConfirmAddItem) {
-        btnConfirmAddItem.onclick = async (e) => {
+    // Direct Custom Item Input Add Handler
+    const btnAddCustomDirect = document.getElementById('btn-add-custom-item-direct');
+    if (btnAddCustomDirect) {
+        btnAddCustomDirect.onclick = async (e) => {
             e.preventDefault();
-            const selectEl = document.getElementById('item-baremo-select');
-            const customName = document.getElementById('item-custom-name').value.trim();
-            const customPrice = parseFloat(document.getElementById('item-custom-price').value) || 0;
+            const toothVal = document.getElementById('custom-item-tooth').value.trim() || 'General';
+            const nameVal = document.getElementById('custom-item-name').value.trim();
+            const priceVal = parseFloat(document.getElementById('custom-item-price').value) || 0;
 
-            const baremo = await SupabaseDataService.getBaremo();
-            const selectedCode = selectEl ? selectEl.value : '';
-
-            if (selectedCode) {
-                const proc = baremo.find(p => p.code === selectedCode);
-                if (proc) {
-                    currentBudgetItems.push({
-                        key: 'proc-' + Date.now(),
-                        tooth: 'General',
-                        face: 'Gnl',
-                        serviceCode: proc.code,
-                        name: proc.name,
-                        price: proc.priceUSD,
-                        discount: 0
-                    });
-                }
-            } else if (customName && customPrice > 0) {
-                currentBudgetItems.push({
-                    key: 'custom-' + Date.now(),
-                    tooth: 'General',
-                    face: 'Gnl',
-                    serviceCode: '',
-                    name: customName,
-                    price: customPrice,
-                    discount: 0
-                });
-            } else {
-                Swal.fire({ icon: 'warning', title: 'Selección requerida', text: 'Elija un tratamiento del Baremo o escriba un concepto y precio.' });
+            if (!nameVal || priceVal <= 0) {
+                Swal.fire({ icon: 'warning', title: 'Datos incompletos', text: 'Escriba el nombre del procedimiento y un precio válido.' });
                 return;
             }
 
+            const doctors = await getDoctorsList();
+            const defaultDoc = doctors[0] ? doctors[0].fullname : 'Dr. Alejandro Silva';
+
+            currentBudgetItems.push({
+                key: 'custom-' + Date.now(),
+                tooth: toothVal,
+                face: toothVal.toLowerCase() === 'general' ? 'Gnl' : 'Gnl',
+                serviceCode: '',
+                name: nameVal,
+                price: priceVal,
+                specialist: defaultDoc
+            });
+
             await autoSaveActivePatientOdontogram();
             renderBudgetTable();
-            closeModal('modal-add-item');
-            Swal.fire({ icon: 'success', title: '¡Item Agregado!', timer: 1500, showConfirmButton: false });
+
+            // Clear inputs for next entry
+            document.getElementById('custom-item-name').value = '';
+            Swal.fire({ icon: 'success', title: '¡Item Agregado!', timer: 1200, showConfirmButton: false });
         };
     }
 
@@ -2597,6 +2588,29 @@ function initGlobalEvents() {
     const clearPatSigBtn = document.getElementById('btn-clear-patient-sig');
     if (clearPatSigBtn) clearPatSigBtn.onclick = () => window.patientSigPad.clear();
 
+    // Setup payment selector buttons click handler
+    document.querySelectorAll('.pay-method-btn').forEach(btn => {
+        btn.onclick = function() {
+            document.querySelectorAll('.pay-method-btn').forEach(b => {
+                b.classList.remove('active');
+                b.style.background = 'transparent';
+                b.style.color = 'var(--text-main)';
+                b.style.borderColor = 'var(--border-color)';
+            });
+            this.classList.add('active');
+            this.style.background = '#0d9488';
+            this.style.color = '#fff';
+            this.style.borderColor = '#0d9488';
+            
+            const method = this.getAttribute('data-method');
+            const select = document.getElementById('budget-payment-method');
+            if (select) {
+                select.value = method;
+                select.dispatchEvent(new Event('change'));
+            }
+        };
+    });
+
     const approveBudgetBtn = document.getElementById('btn-approve-budget');
     if (approveBudgetBtn) {
         approveBudgetBtn.onclick = async () => {
@@ -2740,6 +2754,32 @@ function initGlobalEvents() {
 
             const msg = WhatsAppService.generateBudgetMessage(patient, currentBudgetItems, totalUSD, paymentModeText, notes, subtotalUSD, discountPct, paymentMethodLabel);
             WhatsAppService.sendToPatient(patient.phone, msg);
+        };
+    }
+
+    const customizeWpBtn = document.getElementById('btn-customize-whatsapp');
+    if (customizeWpBtn) {
+        customizeWpBtn.onclick = async () => {
+            const currentTemplate = WhatsAppService.getTemplate();
+            const { value: text } = await Swal.fire({
+                title: 'Personalizar Mensaje de WhatsApp',
+                input: 'textarea',
+                inputLabel: 'Plantilla del Mensaje',
+                inputValue: currentTemplate,
+                inputAttributes: {
+                    rows: 12,
+                    style: 'font-family: monospace; font-size: 0.85rem;'
+                },
+                footer: '<div style="font-size:0.75rem; text-align:left; color:#555;">Variables disponibles:<br><b>{PACIENTE}</b>, <b>{CLINICA}</b>, <b>{SUBTOTAL_USD}</b>, <b>{DESCUENTO_PCT}</b>, <b>{TOTAL_USD}</b>, <b>{TOTAL_BS}</b>, <b>{METODO_PAGO}</b>, <b>{LINK_PRESUPUESTO}</b></div>',
+                showCancelButton: true,
+                confirmButtonText: 'Guardar Plantilla',
+                cancelButtonText: 'Cancelar'
+            });
+
+            if (text) {
+                WhatsAppService.saveTemplate(text);
+                Swal.fire({ icon: 'success', title: '¡Plantilla guardada!', timer: 1500, showConfirmButton: false });
+            }
         };
     }
  

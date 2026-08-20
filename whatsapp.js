@@ -4,20 +4,29 @@
    ========================================================================== */
 
 class WhatsAppService {
+    static getTemplate() {
+        const defaultTemplate = `🦷 *{CLINICA} - PRESUPUESTO ODONTOLÓGICO*\n\n` +
+                               `Estimado(a) *{PACIENTE}*,\n` +
+                               `A continuación detallamos la cotización de su plan de tratamiento:\n\n` +
+                               `💵 *Subtotal Bruto:* {SUBTOTAL_USD} USD\n` +
+                               `📉 *Descuento Aplicado:* {DESCUENTO_PCT}%\n` +
+                               `💰 *Total Final Ref.:* *{TOTAL_USD}* / *( {TOTAL_BS} )*\n` +
+                               `💳 *Método de Pago Sugerido:* {METODO_PAGO}\n\n` +
+                               `📄 *Ver Presupuesto PDF Online:* {LINK_PRESUPUESTO}\n\n` +
+                               `Quedamos a su disposición para coordinar el inicio de su tratamiento.`;
+        
+        return localStorage.getItem('whatsapp_budget_template') || defaultTemplate;
+    }
+
+    static saveTemplate(templateStr) {
+        localStorage.setItem('whatsapp_budget_template', templateStr);
+    }
+
     static generateBudgetMessage(patient, items, totalUSD, paymentMode, notes = '', subtotalUSD = 0, discountPct = 0, paymentMethodLabel = '') {
         const exchangeRate = parseFloat(localStorage.getItem('dental_exchange_rate')) || 36.5;
         const totalVES = (totalUSD * exchangeRate).toFixed(2);
         
-        let template = `🦷 *{CLINICA} - PRESUPUESTO ODONTOLÓGICO*\n\n` +
-                       `Estimado(a) *{PACIENTE}*,\n` +
-                       `A continuación detallamos la cotización de su plan de tratamiento:\n\n` +
-                       `💵 *Subtotal Bruto:* {SUBTOTAL_USD} USD\n` +
-                       `📉 *Descuento Aplicado:* {DESCUENTO_PCT}%\n` +
-                       `💰 *Total Final Ref.:* *{TOTAL_USD}* / *( {TOTAL_BS} )*\n` +
-                       `💳 *Método de Pago Sugerido:* {METODO_PAGO}\n\n` +
-                       `📄 *Ver Presupuesto PDF Online:* {LINK_PRESUPUESTO}\n\n` +
-                       `Quedamos a su disposición para coordinar el inicio de su tratamiento.`;
-
+        let template = this.getTemplate();
         const clinica = "DentalCare Pro";
         const link = `${window.location.origin}/?patientId=${patient.id}&view=budget`;
 
@@ -49,20 +58,11 @@ class WhatsAppService {
     }
 
     static sendToPatient(phone, message) {
-        if (!phone) {
-            alert('El paciente no tiene un número telefónico registrado.');
-            return;
-        }
-        
-        // Clean phone number (remove spaces, plus sign, dashes)
-        let cleanPhone = phone.replace(/[^0-9]/g, '');
-        if (!cleanPhone.startsWith('58') && cleanPhone.startsWith('0')) {
-            cleanPhone = '58' + cleanPhone.substring(1);
-        }
-        
-        const encodedText = encodeURIComponent(message);
-        const waUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedText}`;
-        
-        window.open(waUrl, '_blank');
+        if (!phone) return;
+        const cleanPhone = phone.replace(/[^0-9]/g, '');
+        const url = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`;
+        window.open(url, '_blank');
     }
 }
+
+window.WhatsAppService = WhatsAppService;
