@@ -857,6 +857,79 @@ h4 { font-size: 1rem; }
     font-weight: 600;
 }
 
+/* Color-coded tool buttons in Odontodiagram */
+.tool-btn[data-mode="patology"] {
+    border: 1px solid #ef4444 !important;
+    color: #ef4444 !important;
+    background: transparent !important;
+}
+.tool-btn[data-mode="patology"].active {
+    background: #ef4444 !important;
+    color: #fff !important;
+}
+
+.tool-btn[data-mode="treated"] {
+    border: 1px solid #2563eb !important;
+    color: #2563eb !important;
+    background: transparent !important;
+}
+.tool-btn[data-mode="treated"].active {
+    background: #2563eb !important;
+    color: #fff !important;
+}
+
+.tool-btn[data-mode="proposed"] {
+    border: 1px solid #16a34a !important;
+    color: #16a34a !important;
+    background: transparent !important;
+}
+.tool-btn[data-mode="proposed"].active {
+    background: #16a34a !important;
+    color: #fff !important;
+}
+
+.tool-btn[data-mode="endo"] {
+    border: 1px solid #9333ea !important;
+    color: #9333ea !important;
+    background: transparent !important;
+}
+.tool-btn[data-mode="endo"].active {
+    background: #9333ea !important;
+    color: #fff !important;
+}
+
+.tool-btn[data-mode="clear"] {
+    border: 1px solid #f97316 !important;
+    color: #f97316 !important;
+    background: transparent !important;
+}
+.tool-btn[data-mode="clear"].active {
+    background: #f97316 !important;
+    color: #fff !important;
+}
+
+.tool-btn .mode-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+.tool-btn[data-mode="patology"] .mode-dot { background: #ef4444; border: 1px solid transparent; }
+.tool-btn[data-mode="patology"].active .mode-dot { background: transparent; border: 1px solid #fff; }
+
+.tool-btn[data-mode="treated"] .mode-dot { background: #2563eb; border: 1px solid transparent; }
+.tool-btn[data-mode="treated"].active .mode-dot { background: transparent; border: 1px solid #fff; }
+
+.tool-btn[data-mode="proposed"] .mode-dot { background: #16a34a; border: 1px solid transparent; }
+.tool-btn[data-mode="proposed"].active .mode-dot { background: transparent; border: 1px solid #fff; }
+
+.tool-btn[data-mode="endo"] .mode-dot { background: #9333ea; border: 1px solid transparent; }
+.tool-btn[data-mode="endo"].active .mode-dot { background: transparent; border: 1px solid #fff; }
+
+.tool-btn[data-mode="clear"] .mode-dot { background: #f97316; border: 1px solid transparent; }
+.tool-btn[data-mode="clear"].active .mode-dot { background: transparent; border: 1px solid #fff; }
+
 /* SVG Viewport & Dental Graphics */
 .odontogram-viewport {
     width: 100%;
