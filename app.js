@@ -227,7 +227,7 @@ function checkAuthSession() {
 function applyRolePermissionsUI(role) {
     const r = (role || '').toLowerCase();
     const isAdmin = r.includes('admin') || r.includes('super');
-    const isDoctor = r.includes('medico') || r.includes('odontologo') || r.includes('doctor') || r.includes('dentista');
+    const isDoctor = r.includes('medico') || r.includes('odont') || r.includes('doctor') || r.includes('dentista') || r.includes('médico');
     const isAssistant = r.includes('asistente') || r.includes('recep');
 
     const roleType = isAdmin ? 'admin' : (isDoctor ? 'doctor' : 'assistant');
@@ -274,9 +274,6 @@ function applyRolePermissionsUI(role) {
             paneBusBtn.style.display = 'flex';
         } else {
             paneBusBtn.style.display = 'none';
-            // Switch to profile pane if active pane was business
-            const profileBtn = document.querySelector('.settings-nav-btn[data-pane="profile"]');
-            if (profileBtn) profileBtn.click();
         }
     }
 
@@ -3741,6 +3738,341 @@ function openModal(id) {
 function closeModal(id) {
     const el = document.getElementById(id);
     if (el) el.classList.add('hidden');
+}
+
+async function renderSettingsView() {
+    const user = getCurrentUser();
+    if (!user) return;
+
+    const r = (user.role || '').toLowerCase();
+    const isAdmin = r.includes('admin') || r.includes('super');
+    const isDoctor = r.includes('medico') || r.includes('odont') || r.includes('doctor') || r.includes('dentista') || r.includes('médico');
+
+    const navButtons = document.querySelectorAll('.settings-nav-btn');
+    const panes = document.querySelectorAll('.settings-pane');
+
+    navButtons.forEach(btn => {
+        btn.onclick = (e) => {
+            e.preventDefault();
+            const paneName = btn.dataset.pane;
+            
+            navButtons.forEach(b => b.classList.remove('active'));
+            panes.forEach(p => p.classList.remove('active'));
+
+            btn.classList.add('active');
+            const targetPane = document.getElementById(`pane-${paneName}`);
+            if (targetPane) targetPane.classList.add('active');
+        };
+    });
+
+    // If not admin, hide business pane and activate profile pane by default
+    if (!isAdmin) {
+        const paneBus = document.getElementById('pane-business');
+        const paneProf = document.getElementById('pane-profile');
+        if (paneBus && paneProf) {
+            paneBus.classList.remove('active');
+            paneProf.classList.add('active');
+        }
+        const busBtn = document.getElementById('btn-pane-business');
+        const profileBtn = document.querySelector('.settings-nav-btn[data-pane="profile"]');
+        if (busBtn) busBtn.classList.remove('active');
+        if (profileBtn) profileBtn.classList.add('active');
+    } else {
+        // If admin, default back to business pane active
+        const paneBus = document.getElementById('pane-business');
+        const paneProf = document.getElementById('pane-profile');
+        if (paneBus && paneProf) {
+            paneBus.classList.add('active');
+            paneProf.classList.remove('active');
+        }
+        const busBtn = document.getElementById('btn-pane-business');
+        const profileBtn = document.querySelector('.settings-nav-btn[data-pane="profile"]');
+        if (busBtn) busBtn.classList.add('active');
+        if (profileBtn) profileBtn.classList.remove('active');
+    }
+
+    if (isAdmin) {
+        let config = null;
+        try {
+            config = await SupabaseDataService.getStationeryConfig();
+        } catch(e) {
+            console.error("Error fetching stationery config:", e);
+        }
+
+        let busData = { name: '', type: 'Consultorio Privado', phone: '', email: '', rif: '', address: '', footer: '', logoUrl: '' };
+        if (config) {
+            try {
+                busData = JSON.parse(config.header_text);
+            } catch(e) {
+                busData.name = config.header_text || '';
+            }
+            busData.footer = config.footer_text || '';
+            busData.logoUrl = config.logo_url || '';
+        }
+
+        document.getElementById('set-bus-name').value = busData.name || '';
+        document.getElementById('set-bus-type').value = busData.type || 'Consultorio Privado';
+        document.getElementById('set-bus-phone').value = busData.phone || '';
+        document.getElementById('set-bus-email').value = busData.email || '';
+        document.getElementById('set-bus-rif').value = busData.rif || '';
+        document.getElementById('set-bus-address').value = busData.address || '';
+        document.getElementById('set-bus-footer').value = busData.footer || '';
+
+        const logoImg = document.getElementById('settings-logo-img');
+        const placeholder = document.getElementById('settings-logo-placeholder');
+        if (logoImg && placeholder) {
+            if (busData.logoUrl) {
+                logoImg.src = busData.logoUrl;
+                logoImg.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+            } else {
+                logoImg.src = '';
+                logoImg.classList.add('hidden');
+                placeholder.classList.remove('hidden');
+            }
+        }
+    }
+
+    document.getElementById('set-prof-fullname').value = user.fullname || '';
+    document.getElementById('set-prof-email').value = user.email || '';
+    document.getElementById('set-prof-phone').value = user.phone || '';
+    document.getElementById('set-prof-username').value = user.username || '';
+
+    document.getElementById('set-pwd-current').value = '';
+    document.getElementById('set-pwd-new').value = '';
+    document.getElementById('set-pwd-confirm').value = '';
+
+    const docSigSection = document.getElementById('doctor-signature-setting-section');
+    if (isDoctor || isAdmin) {
+        if (docSigSection) docSigSection.classList.remove('hidden');
+        window.doctorSigPad = setupSignaturePad('doctor-signature-canvas', 'btn-clear-doctor-signature');
+        
+        const sigData = (user.doctorProfile && user.doctorProfile.signature) || (user.doctor_profile && user.doctor_profile.signature);
+        const previewContainer = document.getElementById('doctor-signature-preview-img-container');
+        const previewImg = document.getElementById('doctor-signature-preview-img');
+        if (previewContainer && previewImg) {
+            if (sigData) {
+                previewImg.src = sigData;
+                previewContainer.classList.remove('hidden');
+            } else {
+                previewImg.src = '';
+                previewContainer.classList.add('hidden');
+            }
+        }
+    } else {
+        if (docSigSection) docSigSection.classList.add('hidden');
+    }
+}
+
+function initSettingsEvents() {
+    const logoUpload = document.getElementById('settings-logo-upload');
+    if (logoUpload) {
+        logoUpload.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = 400;
+                        canvas.height = 400;
+                        const ctx = canvas.getContext('2d');
+                        const minDim = Math.min(img.width, img.height);
+                        const sx = (img.width - minDim) / 2;
+                        const sy = (img.height - minDim) / 2;
+                        ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, 400, 400);
+
+                        const scaledDataUrl = canvas.toDataURL('image/png');
+                        const logoImg = document.getElementById('settings-logo-img');
+                        const placeholder = document.getElementById('settings-logo-placeholder');
+                        if (logoImg && placeholder) {
+                            logoImg.src = scaledDataUrl;
+                            logoImg.classList.remove('hidden');
+                            placeholder.classList.add('hidden');
+                        }
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+    }
+
+    const clearLogoBtn = document.getElementById('btn-clear-settings-logo');
+    if (clearLogoBtn) {
+        clearLogoBtn.onclick = () => {
+            const logoImg = document.getElementById('settings-logo-img');
+            const placeholder = document.getElementById('settings-logo-placeholder');
+            if (logoImg && placeholder) {
+                logoImg.src = '';
+                logoImg.classList.add('hidden');
+                placeholder.classList.remove('hidden');
+            }
+        };
+    }
+
+    const docSigUpload = document.getElementById('doctor-signature-upload');
+    if (docSigUpload) {
+        docSigUpload.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.getElementById('doctor-signature-canvas');
+                        if (canvas) {
+                            const ctx = canvas.getContext('2d');
+                            ctx.clearRect(0, 0, canvas.width, canvas.height);
+                            const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+                            const w = img.width * scale;
+                            const h = img.height * scale;
+                            const x = (canvas.width - w) / 2;
+                            const y = (canvas.height - h) / 2;
+                            ctx.drawImage(img, x, y, w, h);
+
+                            const previewContainer = document.getElementById('doctor-signature-preview-img-container');
+                            const previewImg = document.getElementById('doctor-signature-preview-img');
+                            if (previewContainer && previewImg) {
+                                previewImg.src = canvas.toDataURL();
+                                previewContainer.classList.remove('hidden');
+                            }
+                        }
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+    }
+
+    const formBusiness = document.getElementById('form-settings-business');
+    if (formBusiness) {
+        formBusiness.onsubmit = async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('set-bus-name').value.trim();
+            const type = document.getElementById('set-bus-type').value;
+            const phone = document.getElementById('set-bus-phone').value.trim();
+            const email = document.getElementById('set-bus-email').value.trim();
+            const rif = document.getElementById('set-bus-rif').value.trim();
+            const address = document.getElementById('set-bus-address').value.trim();
+            const footer = document.getElementById('set-bus-footer').value.trim();
+
+            const logoImg = document.getElementById('settings-logo-img');
+            const logoUrl = logoImg.classList.contains('hidden') ? '' : logoImg.src;
+
+            const busData = { name, type, phone, email, rif, address };
+
+            try {
+                await SupabaseDataService.saveStationeryConfig({
+                    id: 'default',
+                    header_text: JSON.stringify(busData),
+                    footer_text: footer,
+                    logo_url: logoUrl
+                });
+                Swal.fire({ icon: 'success', title: 'Ajustes de Negocio Guardados', text: 'Se actualizaron los membretes clínicos y papelería en la nube de Supabase.', timer: 2500, showConfirmButton: false });
+            } catch(err) {
+                console.error("Error saving business configuration:", err);
+                Swal.fire({ icon: 'error', title: 'Error al Guardar', text: err.message || err });
+            }
+        };
+    }
+
+    const formProfile = document.getElementById('form-settings-profile');
+    if (formProfile) {
+        formProfile.onsubmit = async (e) => {
+            e.preventDefault();
+            const currentUser = getCurrentUser();
+            if (!currentUser) return;
+
+            const fullname = document.getElementById('set-prof-fullname').value.trim();
+            const email = document.getElementById('set-prof-email').value.trim();
+            const phone = document.getElementById('set-prof-phone').value.trim();
+
+            const pwdCurrent = document.getElementById('set-pwd-current').value;
+            const pwdNew = document.getElementById('set-pwd-new').value;
+            const pwdConfirm = document.getElementById('set-pwd-confirm').value;
+
+            if (pwdNew) {
+                if (pwdCurrent !== currentUser.password) {
+                    Swal.fire({ icon: 'error', title: 'Contraseña Incorrecta', text: 'La contraseña actual ingresada no coincide con su registro.' });
+                    return;
+                }
+                if (pwdNew.length < 6) {
+                    Swal.fire({ icon: 'warning', title: 'Contraseña Muy Corta', text: 'La nueva contraseña debe tener al menos 6 caracteres.' });
+                    return;
+                }
+                if (pwdNew !== pwdConfirm) {
+                    Swal.fire({ icon: 'error', title: 'Error de Coincidencia', text: 'Las nuevas contraseñas no coinciden.' });
+                    return;
+                }
+                currentUser.password = pwdNew;
+            }
+
+            let signatureData = '';
+            if (window.doctorSigPad && !window.doctorSigPad.isEmpty()) {
+                signatureData = window.doctorSigPad.getDataURL();
+            } else {
+                const previewImg = document.getElementById('doctor-signature-preview-img');
+                if (previewImg && !previewImg.parentElement.classList.contains('hidden')) {
+                    signatureData = previewImg.src;
+                }
+            }
+
+            currentUser.fullname = fullname;
+            currentUser.email = email;
+            currentUser.phone = phone;
+
+            if (signatureData) {
+                if (!currentUser.doctorProfile) currentUser.doctorProfile = {};
+                currentUser.doctorProfile.signature = signatureData;
+                currentUser.doctor_profile = currentUser.doctorProfile;
+            }
+
+            try {
+                await SupabaseDataService.saveUser(currentUser);
+                sessionStorage.setItem('dental_current_user', JSON.stringify(currentUser));
+                
+                document.getElementById('dr-name-display').innerText = currentUser.fullname;
+                document.getElementById('dr-role-display').innerText = currentUser.role;
+
+                document.getElementById('set-pwd-current').value = '';
+                document.getElementById('set-pwd-new').value = '';
+                document.getElementById('set-pwd-confirm').value = '';
+
+                const previewContainer = document.getElementById('doctor-signature-preview-img-container');
+                const previewImg = document.getElementById('doctor-signature-preview-img');
+                if (previewContainer && previewImg && signatureData) {
+                    previewImg.src = signatureData;
+                    previewContainer.classList.remove('hidden');
+                }
+
+                Swal.fire({ icon: 'success', title: 'Perfil Personal Actualizado', text: 'Sus datos de acceso y firma médica fueron sincronizados en Supabase.', timer: 2000, showConfirmButton: false });
+            } catch(err) {
+                console.error("Error updating user profile:", err);
+                Swal.fire({ icon: 'error', title: 'Error al Sincronizar', text: err.message || err });
+            }
+        };
+    }
+}
+
+async function renderHelpView() {
+    document.querySelectorAll('.faq-item').forEach(item => {
+        const question = item.querySelector('.faq-question');
+        if (question) {
+            question.onclick = (e) => {
+                e.preventDefault();
+                const isActive = item.classList.contains('active');
+                
+                document.querySelectorAll('.faq-item').forEach(el => el.classList.remove('active'));
+                
+                if (!isActive) {
+                    item.classList.add('active');
+                }
+            };
+        }
+    });
 }
 
 // Mobile Sidebar Drawer Controller
