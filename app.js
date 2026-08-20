@@ -3168,11 +3168,13 @@ function initGlobalEvents() {
         savePatientBtn.onclick = async (e) => {
             e.preventDefault();
             const id = document.getElementById('p-id').value.trim();
-            const fullname = document.getElementById('p-fullname').value.trim();
+            const firstname = document.getElementById('p-firstname') ? document.getElementById('p-firstname').value.trim() : '';
+            const lastname = document.getElementById('p-lastname') ? document.getElementById('p-lastname').value.trim() : '';
+            const fullname = `${firstname} ${lastname}`.trim();
             const birthdate = document.getElementById('p-birthdate').value;
             const phone = document.getElementById('p-mobile-phone').value.trim();
 
-            if (!id || !fullname || !birthdate || !phone) {
+            if (!id || !firstname || !lastname || !birthdate || !phone) {
                 Swal.fire({ icon: 'warning', title: 'Campos requeridos', text: 'Por favor complete los campos obligatorios (*)' });
                 return;
             }
@@ -4034,12 +4036,14 @@ function initPatientStepperWizard() {
             
             // Validation for Step 1
             if (currentStep === 1) {
-                const fullname = document.getElementById('p-fullname').value.trim();
+                const firstname = document.getElementById('p-firstname') ? document.getElementById('p-firstname').value.trim() : '';
+                const lastname = document.getElementById('p-lastname') ? document.getElementById('p-lastname').value.trim() : '';
+                const fullname = `${firstname} ${lastname}`.trim();
                 const id = document.getElementById('p-id').value.trim();
                 const birthdate = document.getElementById('p-birthdate').value;
                 const phone = document.getElementById('p-mobile-phone').value.trim();
 
-                if (!fullname || !id || !birthdate || !phone) {
+                if (!firstname || !lastname || !id || !birthdate || !phone) {
                     Swal.fire({ icon: 'warning', title: 'Campos Incompletos', text: 'Por favor complete todos los campos obligatorios del Paso 1.' });
                     return;
                 }
