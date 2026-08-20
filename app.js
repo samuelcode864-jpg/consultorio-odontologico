@@ -37,6 +37,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 7. Global Event Listeners & Modals
     initGlobalEvents();
+
+    document.addEventListener('click', (e) => {
+        const resultsBox = document.getElementById('od-patient-search-results');
+        const searchInput = document.getElementById('od-patient-search-input');
+        if (resultsBox && searchInput && !resultsBox.contains(e.target) && e.target !== searchInput) {
+            resultsBox.style.display = 'none';
+        }
+    });
 });
 
 // Storage Initializer
@@ -405,6 +413,45 @@ async function updateActivePatientUI(filterText = '') {
     activeName.innerText = 'Ninguno';
 }
 
+async function renderPatientSearchResults(query) {
+    const resultsContainer = document.getElementById('od-patient-search-results');
+    if (!resultsContainer) return;
+
+    const trimmedQuery = query.toLowerCase().trim();
+    if (!trimmedQuery) {
+        resultsContainer.style.display = 'none';
+        return;
+    }
+
+    const patients = await SupabaseDataService.getPatients();
+    const filtered = patients.filter(p => {
+        const name = (p.fullname || '').toLowerCase();
+        const ci = (p.id || '').toLowerCase();
+        return name.includes(trimmedQuery) || ci.includes(trimmedQuery);
+    });
+
+    if (filtered.length === 0) {
+        resultsContainer.innerHTML = '<div style="padding: 10px 15px; color: var(--text-muted); font-size: 0.88rem; text-align: left;">No se encontraron pacientes</div>';
+        resultsContainer.style.display = 'block';
+        return;
+    }
+
+    resultsContainer.innerHTML = '';
+    filtered.forEach(p => {
+        const item = document.createElement('div');
+        item.className = 'search-result-item';
+        item.innerHTML = `<strong>${p.fullname}</strong> <span style="font-size: 0.8rem; color: var(--text-muted); margin-left: 5px;">(${p.id})</span>`;
+        item.onclick = async () => {
+            document.getElementById('od-patient-search-input').value = p.fullname;
+            resultsContainer.style.display = 'none';
+            setActivePatientId(p.id);
+            await renderOdontogramView();
+        };
+        resultsContainer.appendChild(item);
+    });
+    resultsContainer.style.display = 'block';
+}
+
 // ==========================================
 // ODONTOGRAM & BUDGET VIEW
 // ==========================================
@@ -414,7 +461,12 @@ async function renderOdontogramView() {
     const searchInput = document.getElementById('od-patient-search-input');
     if (searchInput) {
         searchInput.oninput = async (e) => {
-            await updateActivePatientUI(e.target.value);
+            const val = e.target.value;
+            await updateActivePatientUI(val);
+            await renderPatientSearchResults(val);
+        };
+        searchInput.onfocus = async (e) => {
+            await renderPatientSearchResults(e.target.value);
         };
     }
 
@@ -433,6 +485,11 @@ async function renderOdontogramView() {
             document.getElementById('info-patient-cedula').innerText = patient.id || 'V-00000000';
             document.getElementById('info-patient-category').innerText = patient.category || 'Privado';
             document.getElementById('info-patient-doctor').innerText = patient.assignedDoctor || 'Dr. Carlos Mendoza';
+
+            const searchInput = document.getElementById('od-patient-search-input');
+            if (searchInput && !searchInput.value) {
+                searchInput.value = patient.fullname;
+            }
 
             let flags = [];
             if (patient.allergies && patient.allergies.length > 0) {
@@ -461,6 +518,9 @@ async function renderOdontogramView() {
         document.getElementById('info-patient-cedula').innerText = 'V-00000000';
         document.getElementById('info-patient-category').innerText = 'Privado';
         document.getElementById('info-patient-doctor').innerText = 'Dr. Carlos Mendoza';
+
+        const searchInput = document.getElementById('od-patient-search-input');
+        if (searchInput) searchInput.value = '';
     }
 
     document.getElementById('btn-dentition-adult').onclick = function() {

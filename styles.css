@@ -2280,3 +2280,27 @@ html, body {
         display: none !important;
     }
 }
+
+/* Floating Autocomplete Search Results Styles */
+.search-result-item {
+    padding: 10px 15px !important;
+    cursor: pointer !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    font-size: 0.88rem !important;
+    color: var(--text-main) !important;
+    font-weight: 500 !important;
+    transition: background 0.15s ease, color 0.15s ease !important;
+    background: #ffffff !important;
+    display: block !important;
+    text-align: left !important;
+}
+
+.search-result-item:hover {
+    background: rgba(13, 148, 136, 0.08) !important;
+    color: #0d9488 !important;
+    font-weight: 600 !important;
+}
+
+.search-result-item:last-child {
+    border-bottom: none !important;
+}

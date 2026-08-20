@@ -404,7 +404,9 @@
                                     <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: var(--text-main); margin-bottom: 2px;">Buscar / Seleccionar Paciente</label>
                                     <div style="position: relative; width: 100%;">
                                         <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.9rem;"></i>
-                                        <input type="text" id="od-patient-search-input" class="form-input" placeholder="Buscar por Nombre o Cédula..." style="padding-left: 35px; width: 100%; border-radius: 8px; height: 40px; border: 1px solid var(--border-color);">
+                                        <input type="text" id="od-patient-search-input" class="form-input" placeholder="Buscar por Nombre o Cédula..." style="padding-left: 35px; width: 100%; border-radius: 8px; height: 40px; border: 1px solid var(--border-color);" autocomplete="off">
+                                        <!-- Floating Autocomplete Results Container -->
+                                        <div id="od-patient-search-results" style="position: absolute; top: 45px; left: 0; right: 0; background: #ffffff; border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); z-index: 9999; max-height: 220px; overflow-y: auto; display: none;"></div>
                                     </div>
                                     <select id="od-patient-select" class="form-control select-lg patient-dropdown-main" style="width: 100%; border-radius: 8px; height: 40px; border: 1px solid var(--border-color); background-color: var(--bg-card);">
                                         <!-- Filled dynamically -->
