@@ -27,13 +27,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 5. UI Navigation & Tab Controller
     initNavigation();
 
-    // 6. Render Initial Views & Data from Supabase Cloud
-    await renderDashboard();
-    await renderPatientsTable();
-    await renderInventoryTable();
-    await renderPricingTable();
-    await renderEHRView();
-    await renderUsersTable();
+    // 6. Render Initial Views & Data from Supabase Cloud (Only if user is logged in)
+    if (getCurrentUser()) {
+        try { await renderDashboard(); } catch(e) { console.error("Error rendering Dashboard:", e); }
+        try { await renderPatientsTable(); } catch(e) { console.error("Error rendering Patients:", e); }
+        try { await renderInventoryTable(); } catch(e) { console.error("Error rendering Inventory:", e); }
+        try { await renderPricingTable(); } catch(e) { console.error("Error rendering Pricing:", e); }
+        try { await renderEHRView(); } catch(e) { console.error("Error rendering EHR:", e); }
+        try { await renderUsersTable(); } catch(e) { console.error("Error rendering Users:", e); }
+    }
 
     // 7. Global Event Listeners & Modals
     initGlobalEvents();
@@ -304,6 +306,14 @@ async function login(email, password) {
         sessionStorage.setItem('dental_current_user', JSON.stringify(match));
         checkAuthSession();
         
+        // Render initial views for the newly authenticated session
+        try { renderDashboard(); } catch(e) { console.error(e); }
+        try { renderPatientsTable(); } catch(e) { console.error(e); }
+        try { renderInventoryTable(); } catch(e) { console.error(e); }
+        try { renderPricingTable(); } catch(e) { console.error(e); }
+        try { renderEHRView(); } catch(e) { console.error(e); }
+        try { renderUsersTable(); } catch(e) { console.error(e); }
+
         // Initialize inactivity tracker upon successful login
         resetInactivityTimer();
         
