@@ -1828,6 +1828,10 @@ async function renderDashboard() {
 
             const deleteApptBtn = isAssistant ? '' : `<button class="btn btn-xs btn-outline text-red" style="margin-left: 6px;" onclick="deleteAppointment('${app.id}')" title="Eliminar Cita"><i class="fa-solid fa-trash"></i></button>`;
 
+            const atenderBtn = (!isAssistant && app.status === 'Programada') 
+                ? `<button class="btn btn-xs btn-primary" style="margin-left: 6px; background-color: var(--primary-cyan) !important; color: white !important; border: none !important;" onclick="window.atenderAppointmentFromAgenda('${app.id}')" title="Atender esta cita ahora"><i class="fa-solid fa-user-doctor"></i> Atender</button>`
+                : '';
+
             const div = document.createElement('div');
             div.className = 'timeline-item';
             div.style.marginBottom = '12px';
@@ -1837,6 +1841,7 @@ async function renderDashboard() {
                     <div class="timeline-actions">
                         <span class="badge-tag blue">${app.status}</span>
                         ${whatsappBtnHtml}
+                        ${atenderBtn}
                         ${deleteApptBtn}
                     </div>
                 </div>
