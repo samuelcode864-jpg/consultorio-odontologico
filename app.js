@@ -3244,81 +3244,125 @@ function initGlobalEvents() {
             const habitFrequency = document.getElementById('p-habit-frequency').value.trim();
             const habitIntensity = document.getElementById('p-habit-intensity').value.trim();
 
-            const newPatient = {
-                id,
-                fullname,
-                birthdate,
-                phone,
-                email: document.getElementById('p-email').value.trim(),
-                occupation: profession,
-                allergies,
-                systemic,
-                medication,
-                emergencyContact,
-                status: 'Activo',
-                createdAt: new Date().toISOString().split('T')[0],
-                odontogramData: {},
-                clinicalNotes: [],
-                photos: [],
-                payments: [],
-                metadata: {
-                    type,
-                    age,
-                    gender,
-                    address,
-                    mobilePhone,
-                    localPhone,
-                    workPhone,
-                    profession,
-                    consultReason,
-                    repName,
-                    repId,
-                    repPhone,
-                    repRelation,
-                    medicalTreatment,
-                    medicalTreatmentDetails,
-                    childDiseases,
-                    hasAllergies,
-                    allergiesDetails,
-                    surgeries,
-                    bleedingIssue,
-                    respiratoryIssues,
-                    respiratoryIssuesDetails,
-                    anesthesiaReaction,
-                    anesthesiaReactionDetails,
-                    penicillinAllergy,
-                    penicillinAllergyDetails,
-                    heartIssues,
-                    heartIssuesDetails,
-                    tissueHardPalate,
-                    tissueSoftPalate,
-                    tissueMouthFloor,
-                    tissueCheeks,
-                    tissueTongue,
-                    tissueFrenum,
-                    habitSwallowing,
-                    habitNailbiting,
-                    habitThumbsucking,
-                    habitThumbsuckingFinger,
-                    habitOthers,
-                    habitMouthbreather,
-                    habitFrequency,
-                    habitIntensity
-                }
-            };
+            let patientToSave = {};
 
             try {
-                await SupabaseDataService.savePatient(newPatient);
+                if (typeof wizardMode !== 'undefined' && wizardMode === 'clinical_complete') {
+                    // Update mode - Fetch patient, merge clinical info, preserve odontogram, notes, etc.
+                    const patients = await SupabaseDataService.getPatients();
+                    const existing = patients.find(p => p.id === id);
+                    if (!existing) {
+                        throw new Error(`No se encontró el paciente seleccionado (${id}) en el sistema.`);
+                    }
+
+                    patientToSave = {
+                        ...existing,
+                        allergies,
+                        systemic,
+                        medication,
+                        emergencyContact,
+                        metadata: {
+                            ...(existing.metadata || {}),
+                            type,
+                            age,
+                            gender,
+                            address,
+                            mobilePhone,
+                            localPhone,
+                            workPhone,
+                            profession,
+                            consultReason,
+                            repName,
+                            repId,
+                            repPhone,
+                            repRelation,
+                            medicalTreatment,
+                            medicalTreatmentDetails,
+                            childDiseases,
+                            hasAllergies,
+                            allergiesDetails,
+                            surgeries,
+                            bleedingIssue,
+                            respiratoryIssues,
+                            respiratoryIssuesDetails,
+                            anesthesiaReaction,
+                            anesthesiaReactionDetails,
+                            penicillinAllergy,
+                            penicillinAllergyDetails,
+                            heartIssues,
+                            heartIssuesDetails,
+                            tissueHardPalate,
+                            tissueSoftPalate,
+                            tissueMouthFloor,
+                            tissueCheeks,
+                            tissueTongue,
+                            tissueFrenum,
+                            habitSwallowing,
+                            habitNailbiting,
+                            habitThumbsucking,
+                            habitThumbsuckingFinger,
+                            habitOthers,
+                            habitMouthbreather,
+                            habitFrequency,
+                            habitIntensity
+                        }
+                    };
+                } else {
+                    // New registration (filiación básica)
+                    // Check duplicate ID
+                    const patients = await SupabaseDataService.getPatients();
+                    const duplicate = patients.find(p => p.id === id);
+                    if (duplicate) {
+                        Swal.fire({ icon: 'error', title: 'Cédula Duplicada', text: 'Ya existe un paciente registrado con esta Cédula / ID.' });
+                        return;
+                    }
+
+                    patientToSave = {
+                        id,
+                        fullname,
+                        birthdate,
+                        phone,
+                        email: document.getElementById('p-email').value.trim(),
+                        occupation: profession,
+                        allergies: [],
+                        systemic: [],
+                        medication: '',
+                        emergencyContact: '',
+                        status: 'Activo',
+                        createdAt: new Date().toISOString().split('T')[0],
+                        odontogramData: {},
+                        clinicalNotes: [],
+                        photos: [],
+                        payments: [],
+                        metadata: {
+                            type,
+                            age,
+                            gender,
+                            address,
+                            mobilePhone,
+                            localPhone,
+                            workPhone,
+                            profession,
+                            consultReason,
+                            repName,
+                            repId,
+                            repPhone,
+                            repRelation
+                        }
+                    };
+                }
+
+                await SupabaseDataService.savePatient(patientToSave);
                 closeModal('modal-patient');
                 setActivePatientId(id);
                 await renderPatientsTable();
-                Swal.fire({ icon: 'success', title: '¡Paciente Registrado!', text: `${fullname} ha sido agregado en la nube de Supabase.`, timer: 2000, showConfirmButton: false });
+                Swal.fire({ icon: 'success', title: '¡Paciente Guardado!', text: `${fullname} ha sido guardado exitosamente en la nube de Supabase.`, timer: 2000, showConfirmButton: false });
             } catch (err) {
-                console.error("Error al registrar paciente en app.js:", err);
+                console.error("Error al guardar paciente:", err);
                 Swal.fire({
                     icon: 'error',
                     title: 'Error de Servidor / Supabase',
-                    text: `No se pudo guardar el paciente. Detalle del error: ${err.message || err}`
+                    text: `No se pudo guardar el paciente. Detalle: ${err.message || err}`
                 });
             }
         };
@@ -3992,6 +4036,8 @@ async function renderSettingsView() {
 function initPatientStepperWizard() {
     let currentStep = 1;
     const totalSteps = 4;
+    window.currentPatientId = null;
+    window.wizardMode = 'new_basic';
 
     const btnPrev = document.getElementById('btn-patient-prev');
     const btnNext = document.getElementById('btn-patient-next');
@@ -4029,14 +4075,14 @@ function initPatientStepperWizard() {
             }
         }
         if (btnNext) {
-            if (step === totalSteps) {
+            if (step === totalSteps || (window.wizardMode === 'new_basic' && step === 1)) {
                 btnNext.classList.add('hidden');
             } else {
                 btnNext.classList.remove('hidden');
             }
         }
         if (btnSave) {
-            if (step === totalSteps) {
+            if (step === totalSteps || (window.wizardMode === 'new_basic' && step === 1)) {
                 btnSave.classList.remove('hidden');
             } else {
                 btnSave.classList.add('hidden');
@@ -4062,7 +4108,6 @@ function initPatientStepperWizard() {
             if (currentStep === 1) {
                 const firstname = document.getElementById('p-firstname') ? document.getElementById('p-firstname').value.trim() : '';
                 const lastname = document.getElementById('p-lastname') ? document.getElementById('p-lastname').value.trim() : '';
-                const fullname = `${firstname} ${lastname}`.trim();
                 const id = document.getElementById('p-id').value.trim();
                 const birthdate = document.getElementById('p-birthdate').value;
                 const phone = document.getElementById('p-mobile-phone').value.trim();
@@ -4084,18 +4129,6 @@ function initPatientStepperWizard() {
                         Swal.fire({ icon: 'warning', title: 'Representante Obligatorio', text: 'El paciente es menor de edad. Por favor complete los datos del representante legal.' });
                         return;
                     }
-                }
-
-                // Duplicate ID check
-                try {
-                    const patients = await SupabaseDataService.getPatients();
-                    const duplicate = patients.find(p => p.id === id);
-                    if (duplicate) {
-                        Swal.fire({ icon: 'error', title: 'Cédula Duplicada', text: 'Ya existe un paciente registrado con esta Cédula / ID.' });
-                        return;
-                    }
-                } catch(err) {
-                    console.error("Error validating duplicate patient:", err);
                 }
             }
 
@@ -4189,21 +4222,244 @@ function initPatientStepperWizard() {
         });
     };
 
+    const openPatientModalForNew = () => {
+        window.currentPatientId = null;
+        window.wizardMode = 'new_basic';
+        resetWizard();
+        
+        // Enable Step 1 inputs
+        toggleStep1InputsReadonly(false);
+        
+        // Hide Step indicators 2, 3, 4 and lines
+        document.getElementById('step-ind-2').classList.add('hidden');
+        document.getElementById('step-ind-3').classList.add('hidden');
+        document.getElementById('step-ind-4').classList.add('hidden');
+        document.getElementById('step-line-1').classList.add('hidden');
+        document.getElementById('step-line-2').classList.add('hidden');
+        document.getElementById('step-line-3').classList.add('hidden');
+        
+        // Show step 1
+        showStep(1);
+        openModal('modal-patient');
+    };
+
+    const openPatientModalForExisting = async () => {
+        try {
+            const patients = await SupabaseDataService.getPatients();
+            if (patients.length === 0) {
+                Swal.fire({ icon: 'info', title: 'Sin Pacientes', text: 'No hay pacientes registrados en el sistema para completar su historia.' });
+                return;
+            }
+
+            const patientOptions = {};
+            patients.forEach(p => {
+                patientOptions[p.id] = `${p.fullname} (C.I: ${p.id})`;
+            });
+
+            const { value: selectedId } = await Swal.fire({
+                title: 'Seleccione el Paciente',
+                text: 'Elija el paciente cuya historia clínica desea completar:',
+                input: 'select',
+                inputOptions: patientOptions,
+                inputPlaceholder: 'Seleccionar paciente...',
+                showCancelButton: true,
+                confirmButtonText: 'Cargar Historia',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#2563eb',
+                cancelButtonColor: '#64748b',
+                inputValidator: (value) => {
+                    return new Promise((resolve) => {
+                        if (value) {
+                            resolve();
+                        } else {
+                            resolve('Debe seleccionar un paciente.');
+                        }
+                    });
+                }
+            });
+
+            if (selectedId) {
+                window.currentPatientId = selectedId;
+                window.wizardMode = 'clinical_complete';
+                resetWizard();
+
+                const p = patients.find(pat => pat.id === selectedId);
+                loadPatientDataIntoForm(p);
+
+                // Disable Step 1 inputs (read-only)
+                toggleStep1InputsReadonly(true);
+
+                // Show all indicators and lines
+                document.getElementById('step-ind-2').classList.remove('hidden');
+                document.getElementById('step-ind-3').classList.remove('hidden');
+                document.getElementById('step-ind-4').classList.remove('hidden');
+                document.getElementById('step-line-1').classList.remove('hidden');
+                document.getElementById('step-line-2').classList.remove('hidden');
+                document.getElementById('step-line-3').classList.remove('hidden');
+
+                // Open modal starting at step 1
+                showStep(1);
+                openModal('modal-patient');
+            }
+        } catch(e) {
+            console.error("Error loading existing patient list:", e);
+            Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar la lista de pacientes.' });
+        }
+    };
+
+    const selectRegisterFlow = async () => {
+        const result = await Swal.fire({
+            title: 'Registro de Paciente',
+            text: 'Seleccione el tipo de flujo a realizar:',
+            icon: 'question',
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonColor: '#2563eb',
+            denyButtonColor: '#06b6d4',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: '<i class="fa-solid fa-user-plus"></i> Nuevo Registro (Filiación)',
+            denyButtonText: '<i class="fa-solid fa-file-medical"></i> Paciente Existente (Historia)',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (result.isConfirmed) {
+            openPatientModalForNew();
+        } else if (result.isDenied) {
+            await openPatientModalForExisting();
+        }
+    };
+
     const btnQuickP = document.getElementById('btn-quick-patient');
     if (btnQuickP) {
-        btnQuickP.onclick = () => {
-            resetWizard();
-            openModal('modal-patient');
-        };
+        btnQuickP.onclick = selectRegisterFlow;
     }
     
     const btnNewPM = document.getElementById('btn-new-patient-modal');
     if (btnNewPM) {
-        btnNewPM.onclick = () => {
-            resetWizard();
-            openModal('modal-patient');
-        };
+        btnNewPM.onclick = selectRegisterFlow;
     }
+}
+
+function toggleStep1InputsReadonly(isReadonly) {
+    const ids = ['p-type', 'p-id', 'p-firstname', 'p-lastname', 'p-birthdate', 'p-age', 'p-gender', 'p-profession', 'p-mobile-phone', 'p-local-phone', 'p-work-phone', 'p-email', 'p-address', 'p-consult-reason', 'p-rep-name', 'p-rep-id', 'p-rep-phone', 'p-rep-relation'];
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            if (isReadonly) {
+                el.setAttribute('disabled', 'true');
+            } else {
+                el.removeAttribute('disabled');
+            }
+        }
+    });
+}
+
+function loadPatientDataIntoForm(p) {
+    document.getElementById('p-id').value = p.id;
+    if (document.getElementById('p-firstname') && p.fullname) {
+        const parts = p.fullname.split(' ');
+        document.getElementById('p-firstname').value = parts[0] || '';
+        document.getElementById('p-lastname').value = parts.slice(1).join(' ') || '';
+    }
+    document.getElementById('p-birthdate').value = p.birthdate;
+    const age = calculateAge(p.birthdate);
+    document.getElementById('p-age').value = age;
+    document.getElementById('p-mobile-phone').value = p.phone;
+    if (document.getElementById('p-email')) document.getElementById('p-email').value = p.email || '';
+    if (document.getElementById('p-profession')) document.getElementById('p-profession').value = p.occupation || '';
+    
+    if (document.getElementById('p-type')) {
+        document.getElementById('p-type').value = p.metadata?.type || (age < 18 ? 'Infantil' : 'Adulto');
+        document.getElementById('p-birthdate').dispatchEvent(new Event('change'));
+    }
+    
+    if (p.metadata?.gender) {
+        document.getElementById('p-gender').value = p.metadata.gender;
+    }
+    if (p.metadata?.address) {
+        document.getElementById('p-address').value = p.metadata.address;
+    }
+    if (p.metadata?.localPhone) {
+        document.getElementById('p-local-phone').value = p.metadata.localPhone;
+    }
+    if (p.metadata?.workPhone) {
+        document.getElementById('p-work-phone').value = p.metadata.workPhone;
+    }
+    if (p.metadata?.consultReason) {
+        document.getElementById('p-consult-reason').value = p.metadata.consultReason;
+    }
+
+    if (p.metadata?.repName) document.getElementById('p-rep-name').value = p.metadata.repName;
+    if (p.metadata?.repId) document.getElementById('p-rep-id').value = p.metadata.repId;
+    if (p.metadata?.repPhone) document.getElementById('p-rep-phone').value = p.metadata.repPhone;
+    if (p.metadata?.repRelation) document.getElementById('p-rep-relation').value = p.metadata.repRelation;
+
+    document.querySelectorAll('input[name="p-allergies"]').forEach(cb => cb.checked = false);
+    if (p.allergies) {
+        p.allergies.forEach(val => {
+            const cb = document.querySelector(`input[name="p-allergies"][value="${val}"]`);
+            if (cb) cb.checked = true;
+        });
+    }
+
+    document.querySelectorAll('input[name="p-systemic"]').forEach(cb => cb.checked = false);
+    if (p.systemic) {
+        p.systemic.forEach(val => {
+            const cb = document.querySelector(`input[name="p-systemic"][value="${val}"]`);
+            if (cb) cb.checked = true;
+        });
+    }
+
+    document.getElementById('p-medication').value = p.medication || '';
+    document.getElementById('p-emergency').value = p.emergencyContact || '';
+
+    if (p.metadata?.medicalTreatment) document.getElementById('p-medical-treatment').value = p.metadata.medicalTreatment;
+    if (p.metadata?.medicalTreatmentDetails) document.getElementById('p-medical-treatment-details').value = p.metadata.medicalTreatmentDetails;
+    if (p.metadata?.childDiseases) document.getElementById('p-child-diseases').value = p.metadata.childDiseases;
+    if (p.metadata?.hasAllergies) document.getElementById('p-has-allergies').value = p.metadata.hasAllergies;
+    if (p.metadata?.allergiesDetails) document.getElementById('p-allergies-details').value = p.metadata.allergiesDetails;
+    if (p.metadata?.surgeries) document.getElementById('p-surgeries').value = p.metadata.surgeries;
+    if (p.metadata?.bleedingIssue) document.getElementById('p-bleeding-issue').value = p.metadata.bleedingIssue;
+    if (p.metadata?.respiratoryIssues) document.getElementById('p-respiratory-issues').value = p.metadata.respiratoryIssues;
+    if (p.metadata?.respiratoryIssuesDetails) document.getElementById('p-respiratory-issues-details').value = p.metadata.respiratoryIssuesDetails;
+    if (p.metadata?.anesthesiaReaction) document.getElementById('p-anesthesia-reaction').value = p.metadata.anesthesiaReaction;
+    if (p.metadata?.anesthesiaReactionDetails) document.getElementById('p-anesthesia-reaction-details').value = p.metadata.anesthesiaReactionDetails;
+    if (p.metadata?.penicillinAllergy) document.getElementById('p-penicillin-allergy').value = p.metadata.penicillinAllergy;
+    if (p.metadata?.penicillinAllergyDetails) document.getElementById('p-penicillin-allergy-details').value = p.metadata.penicillinAllergyDetails;
+    if (p.metadata?.heartIssues) document.getElementById('p-heart-issues').value = p.metadata.heartIssues;
+    if (p.metadata?.heartIssuesDetails) document.getElementById('p-heart-issues-details').value = p.metadata.heartIssuesDetails;
+
+    const tissues = ['hardPalate', 'softPalate', 'mouthFloor', 'cheeks', 'tongue', 'frenum'];
+    tissues.forEach(t => {
+        const key = 'tissue' + t.charAt(0).toUpperCase() + t.slice(1);
+        const val = p.metadata?.[key] || '';
+        const inputId = 'p-tissue-' + t.replace(/[A-Z]/g, m => '-' + m.toLowerCase());
+        const input = document.getElementById(inputId);
+        const card = document.querySelector(`.tissue-card[data-tissue="${inputId}"]`);
+        const badge = card ? card.querySelector('.tissue-status-badge') : null;
+        
+        if (input) {
+            input.value = val;
+            if (val) {
+                if (card) card.className = 'tissue-card has-finding';
+                if (badge) badge.innerText = 'Con Hallazgo';
+                input.style.display = 'block';
+            } else {
+                if (card) card.className = 'tissue-card normal';
+                if (badge) badge.innerText = 'Normal';
+                input.style.display = 'none';
+            }
+        }
+    });
+
+    if (p.metadata?.habitSwallowing) document.getElementById('p-habit-swallowing').value = p.metadata.habitSwallowing;
+    if (p.metadata?.habitNailbiting) document.getElementById('p-habit-nailbiting').value = p.metadata.habitNailbiting;
+    if (p.metadata?.habitThumbsucking) document.getElementById('p-habit-thumbsucking').value = p.metadata.habitThumbsucking;
+    if (p.metadata?.habitThumbsuckingFinger) document.getElementById('p-habit-thumbsucking-finger').value = p.metadata.habitThumbsuckingFinger;
+    if (p.metadata?.habitOthers) document.getElementById('p-habit-others').value = p.metadata.habitOthers;
+    if (p.metadata?.habitMouthbreather) document.getElementById('p-habit-mouthbreather').value = p.metadata.habitMouthbreather;
+    if (p.metadata?.habitFrequency) document.getElementById('p-habit-frequency').value = p.metadata.habitFrequency;
+    if (p.metadata?.habitIntensity) document.getElementById('p-habit-intensity').value = p.metadata.habitIntensity;
 }
 
 function initSettingsEvents() {
