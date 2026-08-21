@@ -4034,7 +4034,7 @@ async function renderSettingsView() {
     const docSigSection = document.getElementById('doctor-signature-setting-section');
     if (isDoctor || isAdmin) {
         if (docSigSection) docSigSection.classList.remove('hidden');
-        window.doctorSigPad = setupSignaturePad('doctor-signature-canvas', 'btn-clear-doctor-signature');
+        window.settingsDoctorSigPad = setupSignaturePad('doctor-signature-canvas', 'btn-clear-doctor-signature');
         
         const sigData = (user.doctorProfile && user.doctorProfile.signature) || (user.doctor_profile && user.doctor_profile.signature);
         const previewContainer = document.getElementById('doctor-signature-preview-img-container');
@@ -4719,8 +4719,8 @@ function initSettingsEvents() {
             }
 
             let signatureData = '';
-            if (window.doctorSigPad && !window.doctorSigPad.isEmpty()) {
-                signatureData = window.doctorSigPad.getDataURL();
+            if (window.settingsDoctorSigPad && !window.settingsDoctorSigPad.isEmpty()) {
+                signatureData = window.settingsDoctorSigPad.getDataURL();
             } else {
                 const previewImg = document.getElementById('doctor-signature-preview-img');
                 if (previewImg && !previewImg.parentElement.classList.contains('hidden')) {
@@ -4890,7 +4890,13 @@ async function generateBudgetHTMLContainer() {
     const stationery = await SupabaseDataService.getStationeryConfig();
     const logoBase64 = await toDataURL(stationery.logoUrl);
 
-    const docSig = (window.doctorSigPad && !window.doctorSigPad.isEmpty()) ? window.doctorSigPad.toDataURL() : '';
+    let docSig = (window.doctorSigPad && !window.doctorSigPad.isEmpty()) ? window.doctorSigPad.toDataURL() : '';
+    if (!docSig) {
+        const u = getCurrentUser();
+        if (u) {
+            docSig = (u.doctorProfile && u.doctorProfile.signature) || (u.doctor_profile && u.doctor_profile.signature) || '';
+        }
+    }
     const patSig = (window.patientSigPad && !window.patientSigPad.isEmpty()) ? window.patientSigPad.toDataURL() : '';
 
     const container = document.createElement('div');
