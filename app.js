@@ -3110,10 +3110,20 @@ function initGlobalEvents() {
     }
 
     const btnQuickP = document.getElementById('btn-quick-patient');
-    if (btnQuickP) btnQuickP.onclick = () => openModal('modal-patient');
+    if (btnQuickP) {
+        btnQuickP.onclick = () => {
+            if (window.selectRegisterFlow) window.selectRegisterFlow();
+            else openModal('modal-patient');
+        };
+    }
     
     const btnNewPM = document.getElementById('btn-new-patient-modal');
-    if (btnNewPM) btnNewPM.onclick = () => openModal('modal-patient');
+    if (btnNewPM) {
+        btnNewPM.onclick = () => {
+            if (window.selectRegisterFlow) window.selectRegisterFlow();
+            else openModal('modal-patient');
+        };
+    }
 
     const btnNewUM = document.getElementById('btn-new-user-modal');
     if (btnNewUM) btnNewUM.onclick = () => openModal('modal-user');
@@ -4307,7 +4317,7 @@ function initPatientStepperWizard() {
         }
     };
 
-    const selectRegisterFlow = async () => {
+    window.selectRegisterFlow = async () => {
         const result = await Swal.fire({
             title: 'Registro de Paciente',
             text: 'Seleccione el tipo de flujo a realizar:',
