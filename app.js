@@ -4261,28 +4261,86 @@ function initPatientStepperWizard() {
                 return;
             }
 
-            const patientOptions = {};
-            patients.forEach(p => {
-                patientOptions[p.id] = `${p.fullname} (C.I: ${p.id})`;
-            });
-
             const { value: selectedId } = await Swal.fire({
                 title: 'Seleccione el Paciente',
-                text: 'Elija el paciente cuya historia clínica desea completar:',
-                input: 'select',
-                inputOptions: patientOptions,
-                inputPlaceholder: 'Seleccionar paciente...',
+                html: `
+                    <div style="text-align: left; position: relative; margin-top: 15px;">
+                        <label style="font-weight: 600; margin-bottom: 8px; display: block; color: var(--text-heading); font-size: 0.9rem;">Buscar por Nombre o Cédula:</label>
+                        <input type="text" id="swal-patient-search" class="swal2-input" placeholder="Escriba C.I. o Nombre..." style="margin: 0; width: 100%; box-sizing: border-box; border-radius: 6px;">
+                        <div id="swal-patient-results" style="position: absolute; width: 100%; max-height: 180px; overflow-y: auto; background: white; border: 1px solid #cbd5e1; border-radius: 6px; z-index: 10000; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); display: none; color: black;"></div>
+                    </div>
+                    <style>
+                        .swal-search-item {
+                            padding: 10px 12px;
+                            cursor: pointer;
+                            border-bottom: 1px solid #f1f5f9;
+                            text-align: left;
+                        }
+                        .swal-search-item:hover {
+                            background-color: #f1f5f9;
+                        }
+                        .swal-search-item:last-child {
+                            border-bottom: none;
+                        }
+                    </style>
+                `,
                 showCancelButton: true,
                 confirmButtonText: 'Cargar Historia',
                 cancelButtonText: 'Cancelar',
                 confirmButtonColor: '#2563eb',
                 cancelButtonColor: '#64748b',
-                inputValidator: (value) => {
-                    return new Promise((resolve) => {
-                        if (value) {
-                            resolve();
+                preConfirm: () => {
+                    const selId = window.selectedSwalPatientId;
+                    if (!selId) {
+                        Swal.showValidationMessage('Debe escribir y seleccionar un paciente de las sugerencias filtradas.');
+                        return false;
+                    }
+                    return selId;
+                },
+                didOpen: () => {
+                    const searchInput = document.getElementById('swal-patient-search');
+                    const resultsDiv = document.getElementById('swal-patient-results');
+                    window.selectedSwalPatientId = null;
+
+                    searchInput.oninput = () => {
+                        const q = searchInput.value.trim().toLowerCase();
+                        if (q.length < 2) {
+                            resultsDiv.style.display = 'none';
+                            return;
+                        }
+
+                        const matches = patients.filter(p => 
+                            p.fullname.toLowerCase().includes(q) || 
+                            p.id.toLowerCase().includes(q)
+                        );
+
+                        if (matches.length === 0) {
+                            resultsDiv.innerHTML = '<div style="padding: 10px; color: #64748b; text-align: center;">Sin coincidencias</div>';
                         } else {
-                            resolve('Debe seleccionar un paciente.');
+                            resultsDiv.innerHTML = matches.map(p => `
+                                <div class="swal-search-item" data-id="${p.id}">
+                                    <strong style="color: #1e293b; font-size: 0.9rem;">${p.fullname}</strong><br>
+                                    <small style="color: #64748b; font-size: 0.75rem;">C.I: ${p.id}</small>
+                                </div>
+                            `).join('');
+
+                            resultsDiv.querySelectorAll('.swal-search-item').forEach(item => {
+                                item.onclick = () => {
+                                    const pId = item.dataset.id;
+                                    const match = matches.find(m => m.id === pId);
+                                    searchInput.value = `${match.fullname} (C.I: ${match.id})`;
+                                    window.selectedSwalPatientId = pId;
+                                    resultsDiv.style.display = 'none';
+                                };
+                            });
+                        }
+                        resultsDiv.style.display = 'block';
+                    };
+
+                    // Close suggestions when clicking outside
+                    document.addEventListener('click', (e) => {
+                        if (e.target !== searchInput && e.target !== resultsDiv) {
+                            resultsDiv.style.display = 'none';
                         }
                     });
                 }
