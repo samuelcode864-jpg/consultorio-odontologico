@@ -4264,20 +4264,24 @@ function initPatientStepperWizard() {
             const { value: selectedId } = await Swal.fire({
                 title: 'Seleccione el Paciente',
                 html: `
-                    <div style="text-align: left; position: relative; margin-top: 15px;">
+                    <div style="text-align: left; margin-top: 15px;">
                         <label style="font-weight: 600; margin-bottom: 8px; display: block; color: var(--text-heading); font-size: 0.9rem;">Buscar por Nombre o Cédula:</label>
-                        <input type="text" id="swal-patient-search" class="swal2-input" placeholder="Escriba C.I. o Nombre..." style="margin: 0; width: 100%; box-sizing: border-box; border-radius: 6px;">
-                        <div id="swal-patient-results" style="position: absolute; width: 100%; max-height: 180px; overflow-y: auto; background: white; border: 1px solid #cbd5e1; border-radius: 6px; z-index: 10000; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); display: none; color: black;"></div>
+                        <input type="text" id="swal-patient-search" class="swal2-input" placeholder="Escriba C.I. o Nombre..." style="margin: 0; width: 100%; box-sizing: border-box; border-radius: 6px; font-size: 1rem; padding: 10px 15px; border: 1px solid #cbd5e1;">
+                        <div id="swal-patient-results" style="margin-top: 8px; max-height: 150px; overflow-y: auto; background: white; border: 1px solid #cbd5e1; border-radius: 6px; display: none; color: black; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);"></div>
                     </div>
                     <style>
                         .swal-search-item {
-                            padding: 10px 12px;
+                            padding: 10px 14px;
                             cursor: pointer;
                             border-bottom: 1px solid #f1f5f9;
                             text-align: left;
+                            transition: background-color 0.2s;
                         }
                         .swal-search-item:hover {
-                            background-color: #f1f5f9;
+                            background-color: #f8fafc !important;
+                        }
+                        .swal-search-item strong {
+                            color: #0f172a;
                         }
                         .swal-search-item:last-child {
                             border-bottom: none;
