@@ -1151,37 +1151,61 @@ window.openEHRForPatient = function(patientId) {
 // ==========================================
 // HISTORIA CLÍNICA (EHR) VIEW WITH PDF EXPORT
 // ==========================================
-async function renderEHRView() {
+async function renderEHRView(filter = 'all', searchQuery = '') {
     const listGroup = document.getElementById('ehr-patient-list');
     if (!listGroup) return;
 
     listGroup.innerHTML = '';
-    const patients = await SupabaseDataService.getPatients();
+    const allPatients = await SupabaseDataService.getPatients();
+    let patients = [...allPatients];
     const activeId = getActivePatientId() || (patients[0] ? patients[0].id : null);
     const currentUser = getCurrentUser();
     const isAssistant = currentUser && currentUser.role.toLowerCase().includes('asistente');
 
-    patients.forEach(p => {
-        const item = document.createElement('a');
-        item.className = `nav-item ${p.id === activeId ? 'active' : ''}`;
-        item.style.borderRadius = '0';
-        item.style.borderBottom = '1px solid var(--border-color)';
-        item.innerHTML = `
-            <div>
-                <strong>${p.fullname}</strong><br>
-                <small class="text-muted">${p.id} • Tel: ${p.phone}</small>
-            </div>
-        `;
-        item.onclick = async (e) => {
-            e.preventDefault();
-            setActivePatientId(p.id);
-            await renderEHRView();
-        };
-        listGroup.appendChild(item);
-    });
+    // Apply Filter
+    if (filter !== 'all') {
+        patients = patients.filter(p => p.status === filter);
+    }
+
+    // Apply Search
+    if (searchQuery && searchQuery.trim() !== '') {
+        const q = searchQuery.toLowerCase();
+        patients = patients.filter(p => 
+            (p.fullname && p.fullname.toLowerCase().includes(q)) || 
+            (p.id && p.id.toLowerCase().includes(q)) || 
+            (p.phone && p.phone.includes(q))
+        );
+    }
+
+    if (patients.length === 0) {
+        listGroup.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.85rem;"><i class="fa-solid fa-user-slash" style="display:block; font-size:1.5rem; margin-bottom:6px;"></i>Sin coincidencias</div>`;
+    } else {
+        patients.forEach(p => {
+            const item = document.createElement('a');
+            item.className = `nav-item ${p.id === activeId ? 'active' : ''}`;
+            item.style.borderRadius = '0';
+            item.style.borderBottom = '1px solid var(--border-color)';
+            item.innerHTML = `
+                <div>
+                    <strong>${p.fullname}</strong><br>
+                    <small class="text-muted">${p.id} • Tel: ${p.phone}</small>
+                </div>
+            `;
+            item.onclick = async (e) => {
+                e.preventDefault();
+                setActivePatientId(p.id);
+                // Keep the current filters when reloading EHR view on selection
+                const actF = document.querySelector('#view-ehr .filter-btn.active');
+                const filterVal = actF ? actF.dataset.filter : 'all';
+                const searchVal = document.getElementById('ehr-patient-search') ? document.getElementById('ehr-patient-search').value : '';
+                await renderEHRView(filterVal, searchVal);
+            };
+            listGroup.appendChild(item);
+        });
+    }
 
     if (activeId) {
-        const activePatient = patients.find(p => p.id === activeId);
+        const activePatient = allPatients.find(p => p.id === activeId);
         if (activePatient) {
             document.getElementById('ehr-patient-fullname').innerText = activePatient.fullname;
             document.getElementById('ehr-patient-subinfo').innerText = `Cédula: ${activePatient.id} | Edad: ${calculateAge(activePatient.birthdate)} años | Tel: ${activePatient.phone}`;
@@ -1885,17 +1909,47 @@ window.deleteAppointment = async function(apptId) {
     });
 };
 
-async function renderAgendaView() {
+async function renderAgendaView(filter = 'all', searchQuery = '') {
     const agendaListMain = document.getElementById('agenda-list-main');
     if (!agendaListMain) return;
 
     agendaListMain.innerHTML = '';
-    const appointments = await SupabaseDataService.getAppointments();
+    let appointments = await SupabaseDataService.getAppointments();
     const currentUser = getCurrentUser();
     const isAssistant = currentUser && currentUser.role.toLowerCase().includes('asistente');
 
+    // Apply Filter
+    if (filter !== 'all') {
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (filter === 'today') {
+            appointments = appointments.filter(app => app.date === todayStr || app.date === 'today' || app.date === 'today-appt');
+        } else if (filter === 'week') {
+            const today = new Date();
+            const nextWeek = new Date();
+            nextWeek.setDate(today.getDate() + 7);
+            const todayTime = today.getTime();
+            const nextWeekTime = nextWeek.getTime();
+            appointments = appointments.filter(app => {
+                const appDate = new Date(app.date);
+                return appDate.getTime() >= todayTime && appDate.getTime() <= nextWeekTime;
+            });
+        } else {
+            appointments = appointments.filter(app => app.status === filter);
+        }
+    }
+
+    // Apply Search
+    if (searchQuery && searchQuery.trim() !== '') {
+        const q = searchQuery.toLowerCase();
+        appointments = appointments.filter(app => 
+            (app.patientName && app.patientName.toLowerCase().includes(q)) ||
+            (app.patientId && app.patientId.toLowerCase().includes(q)) ||
+            (app.treatment && app.treatment.toLowerCase().includes(q))
+        );
+    }
+
     if (appointments.length === 0) {
-        agendaListMain.innerHTML = `<div style="text-align:center; padding:30px; color:var(--text-muted);"><i class="fa-solid fa-calendar-xmark" style="font-size:2rem; margin-bottom:10px; display:block;"></i>No hay citas registradas en la agenda.</div>`;
+        agendaListMain.innerHTML = `<div style="text-align:center; padding:30px; color:var(--text-muted);"><i class="fa-solid fa-calendar-xmark" style="font-size:2rem; margin-bottom:10px; display:block;"></i>No se encontraron citas con los filtros activos.</div>`;
         return;
     }
 
@@ -2052,14 +2106,45 @@ window.sendRemindersForAllTomorrow = async function() {
 // ==========================================
 // INVENTORY KARDEX & PRICING TABLES WITH DELETE
 // ==========================================
-async function renderInventoryTable() {
+async function renderInventoryTable(filter = 'all', searchQuery = '') {
     const tbody = document.getElementById('inventory-table-body');
     if (!tbody || !window.kardex) return;
 
     tbody.innerHTML = '';
-    const items = await SupabaseDataService.getInventory();
+    let items = await SupabaseDataService.getInventory();
     const currentUser = getCurrentUser();
     const isAssistant = currentUser && currentUser.role.toLowerCase().includes('asistente');
+
+    // Apply Filter
+    if (filter !== 'all') {
+        if (filter === 'low_stock') {
+            items = items.filter(item => item.currentStock <= (item.minStock || 5));
+        } else if (filter === 'expired') {
+            const today = new Date();
+            const threshold = new Date();
+            threshold.setDate(today.getDate() + 30); // 30 days buffer
+            items = items.filter(item => {
+                if (!item.expiryDate) return false;
+                const expiry = new Date(item.expiryDate);
+                return expiry.getTime() <= threshold.getTime();
+            });
+        }
+    }
+
+    // Apply Search
+    if (searchQuery && searchQuery.trim() !== '') {
+        const q = searchQuery.toLowerCase();
+        items = items.filter(item => 
+            (item.code && item.code.toLowerCase().includes(q)) ||
+            (item.name && item.name.toLowerCase().includes(q)) ||
+            (item.category && item.category.toLowerCase().includes(q))
+        );
+    }
+
+    if (items.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted" style="padding: 24px;">No se encontraron insumos con los filtros activos.</td></tr>`;
+        return;
+    }
 
     items.forEach(item => {
         let statusBadge = `<span class="badge-tag green">Normal</span>`;
@@ -2137,15 +2222,35 @@ window.deleteInventoryItem = async function(code) {
     });
 };
 
-async function renderPricingTable() {
+async function renderPricingTable(filter = 'all', searchQuery = '') {
     const tbody = document.getElementById('pricing-table-body');
     if (!tbody) return;
 
     tbody.innerHTML = '';
-    const baremo = await SupabaseDataService.getBaremo();
+    let baremo = await SupabaseDataService.getBaremo();
     const rate = getExchangeRate();
     const currentUser = getCurrentUser();
     const isAssistant = currentUser && currentUser.role.toLowerCase().includes('asistente');
+
+    // Apply Filter
+    if (filter !== 'all') {
+        baremo = baremo.filter(p => p.category === filter);
+    }
+
+    // Apply Search
+    if (searchQuery && searchQuery.trim() !== '') {
+        const q = searchQuery.toLowerCase();
+        baremo = baremo.filter(p => 
+            (p.code && p.code.toLowerCase().includes(q)) ||
+            (p.name && p.name.toLowerCase().includes(q)) ||
+            (p.category && p.category.toLowerCase().includes(q))
+        );
+    }
+
+    if (baremo.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted" style="padding: 24px;">No se encontraron servicios con los filtros activos.</td></tr>`;
+        return;
+    }
 
     baremo.forEach(p => {
         const priceVES = (p.priceUSD * rate).toFixed(2);
@@ -2199,12 +2304,37 @@ window.deletePricingService = async function(code) {
 // ==========================================
 // GESTIÓN DE USUARIOS (USER MANAGEMENT)
 // ==========================================
-async function renderUsersTable() {
+async function renderUsersTable(filter = 'all', searchQuery = '') {
     const tbody = document.getElementById('users-table-body');
     if (!tbody) return;
 
     tbody.innerHTML = '';
-    const users = await SupabaseDataService.getUsers();
+    let users = await SupabaseDataService.getUsers();
+
+    // Apply Filter
+    if (filter !== 'all') {
+        users = users.filter(u => {
+            if (!u.role) return false;
+            const role = u.role.toLowerCase();
+            const f = filter.toLowerCase();
+            return role.includes(f) || (f === 'médico' && (role.includes('odontólogo') || role.includes('médico') || role.includes('especialista') || role.includes('cirujano')));
+        });
+    }
+
+    // Apply Search
+    if (searchQuery && searchQuery.trim() !== '') {
+        const q = searchQuery.toLowerCase();
+        users = users.filter(u => 
+            (u.fullname && u.fullname.toLowerCase().includes(q)) ||
+            (u.email && u.email.toLowerCase().includes(q)) ||
+            (u.role && u.role.toLowerCase().includes(q))
+        );
+    }
+
+    if (users.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted" style="padding: 24px;">No se encontraron usuarios con los filtros activos.</td></tr>`;
+        return;
+    }
 
     users.forEach(u => {
         const tr = document.createElement('tr');
@@ -2553,9 +2683,9 @@ function initGlobalEvents() {
     }
 
     // Patient Filters Handler
-    document.querySelectorAll('.filter-btn').forEach(btn => {
+    document.querySelectorAll('#view-patients .filter-btn').forEach(btn => {
         btn.onclick = async function() {
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('#view-patients .filter-btn').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
             const searchVal = document.getElementById('patient-table-search') ? document.getElementById('patient-table-search').value : '';
             await renderPatientsTable(this.dataset.filter, searchVal);
@@ -2565,7 +2695,7 @@ function initGlobalEvents() {
     const patientSearchInput = document.getElementById('patient-table-search');
     if (patientSearchInput) {
         patientSearchInput.addEventListener('input', async (e) => {
-            const activeFilterBtn = document.querySelector('.filter-btn.active');
+            const activeFilterBtn = document.querySelector('#view-patients .filter-btn.active');
             const activeFilter = activeFilterBtn ? activeFilterBtn.dataset.filter : 'all';
             await renderPatientsTable(activeFilter, e.target.value);
         });
@@ -3141,6 +3271,96 @@ function initGlobalEvents() {
     document.querySelectorAll('[data-close]').forEach(btn => {
         btn.onclick = () => closeModal(btn.dataset.close);
     });
+
+    // Agenda View Filters and Search Handler
+    document.querySelectorAll('#view-agenda .filter-btn').forEach(btn => {
+        btn.onclick = async function() {
+            document.querySelectorAll('#view-agenda .filter-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            const searchVal = document.getElementById('agenda-table-search') ? document.getElementById('agenda-table-search').value : '';
+            await renderAgendaView(this.dataset.filter, searchVal);
+        };
+    });
+    const agendaSearchInput = document.getElementById('agenda-table-search');
+    if (agendaSearchInput) {
+        agendaSearchInput.addEventListener('input', async (e) => {
+            const activeFilterBtn = document.querySelector('#view-agenda .filter-btn.active');
+            const activeFilter = activeFilterBtn ? activeFilterBtn.dataset.filter : 'all';
+            await renderAgendaView(activeFilter, e.target.value);
+        });
+    }
+
+    // EHR View Filters and Search Handler
+    document.querySelectorAll('#view-ehr .filter-btn').forEach(btn => {
+        btn.onclick = async function() {
+            document.querySelectorAll('#view-ehr .filter-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            const searchVal = document.getElementById('ehr-patient-search') ? document.getElementById('ehr-patient-search').value : '';
+            await renderEHRView(this.dataset.filter, searchVal);
+        };
+    });
+    const ehrSearchInput = document.getElementById('ehr-patient-search');
+    if (ehrSearchInput) {
+        ehrSearchInput.addEventListener('input', async (e) => {
+            const activeFilterBtn = document.querySelector('#view-ehr .filter-btn.active');
+            const activeFilter = activeFilterBtn ? activeFilterBtn.dataset.filter : 'all';
+            await renderEHRView(activeFilter, e.target.value);
+        });
+    }
+
+    // Servicios / Pricing View Filters and Search Handler
+    document.querySelectorAll('#view-pricing .filter-btn').forEach(btn => {
+        btn.onclick = async function() {
+            document.querySelectorAll('#view-pricing .filter-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            const searchVal = document.getElementById('pricing-table-search') ? document.getElementById('pricing-table-search').value : '';
+            await renderPricingTable(this.dataset.filter, searchVal);
+        };
+    });
+    const pricingSearchInput = document.getElementById('pricing-table-search');
+    if (pricingSearchInput) {
+        pricingSearchInput.addEventListener('input', async (e) => {
+            const activeFilterBtn = document.querySelector('#view-pricing .filter-btn.active');
+            const activeFilter = activeFilterBtn ? activeFilterBtn.dataset.filter : 'all';
+            await renderPricingTable(activeFilter, e.target.value);
+        });
+    }
+
+    // Insumos / Inventory View Filters and Search Handler
+    document.querySelectorAll('#view-inventory .filter-btn').forEach(btn => {
+        btn.onclick = async function() {
+            document.querySelectorAll('#view-inventory .filter-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            const searchVal = document.getElementById('inventory-table-search') ? document.getElementById('inventory-table-search').value : '';
+            await renderInventoryTable(this.dataset.filter, searchVal);
+        };
+    });
+    const inventorySearchInput = document.getElementById('inventory-table-search');
+    if (inventorySearchInput) {
+        inventorySearchInput.addEventListener('input', async (e) => {
+            const activeFilterBtn = document.querySelector('#view-inventory .filter-btn.active');
+            const activeFilter = activeFilterBtn ? activeFilterBtn.dataset.filter : 'all';
+            await renderInventoryTable(activeFilter, e.target.value);
+        });
+    }
+
+    // Personal / Users View Filters and Search Handler
+    document.querySelectorAll('#view-users .filter-btn').forEach(btn => {
+        btn.onclick = async function() {
+            document.querySelectorAll('#view-users .filter-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            const searchVal = document.getElementById('users-table-search') ? document.getElementById('users-table-search').value : '';
+            await renderUsersTable(this.dataset.filter, searchVal);
+        };
+    });
+    const usersSearchInput = document.getElementById('users-table-search');
+    if (usersSearchInput) {
+        usersSearchInput.addEventListener('input', async (e) => {
+            const activeFilterBtn = document.querySelector('#view-users .filter-btn.active');
+            const activeFilter = activeFilterBtn ? activeFilterBtn.dataset.filter : 'all';
+            await renderUsersTable(activeFilter, e.target.value);
+        });
+    }
 
     const saveUserBtn = document.getElementById('btn-save-user');
     if (saveUserBtn) {

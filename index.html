@@ -348,6 +348,20 @@
                         <button class="btn btn-primary" id="btn-add-appointment-agenda">+ Agregar Cita</button>
                     </div>
 
+                    <!-- Filters bar -->
+                    <div class="card filter-card">
+                        <div class="filter-group">
+                            <button class="filter-btn active" data-filter="all">Todas</button>
+                            <button class="filter-btn" data-filter="today">Hoy</button>
+                            <button class="filter-btn" data-filter="week">Semana</button>
+                            <button class="filter-btn" data-filter="Programada">Programadas</button>
+                            <button class="filter-btn" data-filter="Completada">Completadas</button>
+                        </div>
+                        <div class="search-box">
+                            <input type="text" id="agenda-table-search" placeholder="Filtrar por paciente, procedimiento o médico...">
+                        </div>
+                    </div>
+
                     <div class="card">
                         <div class="card-header">
                             <h3><i class="fa-solid fa-calendar-day"></i> Citas Programadas</h3>
@@ -736,8 +750,16 @@
                     <div class="grid-30-70">
                         <!-- Left sidebar patient list -->
                         <div class="card">
-                            <div class="card-header">
+                            <div class="card-header" style="flex-direction: column; align-items: stretch; gap: 8px;">
                                 <h3><i class="fa-solid fa-users"></i> Seleccionar Paciente</h3>
+                                <div class="search-box" style="margin-top: 5px; width: 100%;">
+                                    <input type="text" id="ehr-patient-search" placeholder="Buscar paciente por nombre o C.I..." style="width: 100%; padding: 8px 12px; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 6px;">
+                                </div>
+                                <div class="filter-group" style="display: flex; gap: 5px; margin-top: 5px; flex-wrap: wrap;">
+                                    <button class="filter-btn active btn-xs" data-filter="all" style="padding: 2px 8px; font-size: 0.72rem;">Todos</button>
+                                    <button class="filter-btn btn-xs" data-filter="Activo" style="padding: 2px 8px; font-size: 0.72rem;">Activos</button>
+                                    <button class="filter-btn btn-xs" data-filter="En Tratamiento" style="padding: 2px 8px; font-size: 0.72rem;">En Tratamiento</button>
+                                </div>
                             </div>
                             <div class="card-body p-0">
                                 <div class="list-group" id="ehr-patient-list">
@@ -880,6 +902,18 @@
                         </div>
                     </div>
 
+                    <!-- Filters bar -->
+                    <div class="card filter-card">
+                        <div class="filter-group">
+                            <button class="filter-btn active" data-filter="all">Todos</button>
+                            <button class="filter-btn" data-filter="low_stock">Stock Bajo</button>
+                            <button class="filter-btn" data-filter="expired">Vencidos / Por Vencer</button>
+                        </div>
+                        <div class="search-box">
+                            <input type="text" id="inventory-table-search" placeholder="Filtrar por código, nombre o lote...">
+                        </div>
+                    </div>
+
                     <div class="card">
                         <div class="table-responsive">
                             <table class="table">
@@ -924,6 +958,21 @@
                         </div>
                     </div>
 
+                    <!-- Filters bar -->
+                    <div class="card filter-card">
+                        <div class="filter-group">
+                            <button class="filter-btn active" data-filter="all">Todos</button>
+                            <button class="filter-btn" data-filter="Odontología General">General</button>
+                            <button class="filter-btn" data-filter="Ortodoncia">Ortodoncia</button>
+                            <button class="filter-btn" data-filter="Endodoncia">Endodoncia</button>
+                            <button class="filter-btn" data-filter="Cirugía">Cirugía</button>
+                            <button class="filter-btn" data-filter="Estética">Estética</button>
+                        </div>
+                        <div class="search-box">
+                            <input type="text" id="pricing-table-search" placeholder="Filtrar por código, nombre o categoría...">
+                        </div>
+                    </div>
+
                     <div class="card">
                         <div class="table-responsive">
                             <table class="table">
@@ -958,6 +1007,19 @@
                         <button class="btn btn-primary" id="btn-new-user-modal">
                             <i class="fa-solid fa-user-plus"></i> + Crear Nuevo Usuario
                         </button>
+                    </div>
+
+                    <!-- Filters bar -->
+                    <div class="card filter-card">
+                        <div class="filter-group">
+                            <button class="filter-btn active" data-filter="all">Todos</button>
+                            <button class="filter-btn" data-filter="Administrador">Administradores</button>
+                            <button class="filter-btn" data-filter="Médico">Médicos</button>
+                            <button class="filter-btn" data-filter="Asistente">Asistentes</button>
+                        </div>
+                        <div class="search-box">
+                            <input type="text" id="users-table-search" placeholder="Filtrar por nombre, correo o rol...">
+                        </div>
                     </div>
 
                     <div class="card">
@@ -2437,12 +2499,12 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=56"></script>
-    <script src="supabaseClient.js?v=56"></script>
-    <script src="odontogram.js?v=56"></script>
-    <script src="signature.js?v=56"></script>
-    <script src="whatsapp.js?v=56"></script>
-    <script src="kardex.js?v=56"></script>
-    <script src="app.js?v=56"></script>
+    <script src="seededData.js?v=57"></script>
+    <script src="supabaseClient.js?v=57"></script>
+    <script src="odontogram.js?v=57"></script>
+    <script src="signature.js?v=57"></script>
+    <script src="whatsapp.js?v=57"></script>
+    <script src="kardex.js?v=57"></script>
+    <script src="app.js?v=57"></script>
 </body>
 </html>
