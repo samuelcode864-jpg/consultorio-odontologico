@@ -1980,6 +1980,10 @@ async function renderAgendaView(filter = 'all', searchQuery = '') {
             </button>
         `;
 
+        const atenderBtn = (!isAssistant && app.status === 'Programada') 
+            ? `<button class="btn btn-xs btn-primary" style="margin-left: 6px; background-color: var(--primary-cyan) !important; color: white !important; border: none !important;" onclick="window.atenderAppointmentFromAgenda('${app.id}')" title="Atender esta cita ahora"><i class="fa-solid fa-user-doctor"></i> Atender</button>`
+            : '';
+
         const div = document.createElement('div');
         div.className = 'timeline-item';
         div.style.marginBottom = '12px';
@@ -1990,6 +1994,7 @@ async function renderAgendaView(filter = 'all', searchQuery = '') {
                     <span class="badge-tag blue">${app.status}</span>
                     ${whatsappBtnHtml}
                     ${gCalBtn}
+                    ${atenderBtn}
                     ${deleteApptBtn}
                 </div>
             </div>
@@ -2017,6 +2022,71 @@ async function renderAgendaView(filter = 'all', searchQuery = '') {
     }
 }
 window.renderAgendaView = renderAgendaView;
+
+window.atenderAppointmentFromAgenda = async (apptId) => {
+    try {
+        const appts = await SupabaseDataService.getAppointments();
+        const app = appts.find(a => a.id === apptId);
+        if (!app) {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'No se encontró la cita seleccionada.' });
+            return;
+        }
+
+        const patients = await SupabaseDataService.getPatients();
+        const patient = patients.find(p => p.id === app.patientId);
+        if (!patient) {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'No se encontró la ficha del paciente asociado a esta cita.' });
+            return;
+        }
+
+        // Set state
+        window.activeAttendingAppointmentId = apptId;
+        setActivePatientId(patient.id);
+
+        // Pre-fill session modal
+        const completed = patient.sessions ? patient.sessions.length : 0;
+        document.getElementById('s-num').value = completed + 1;
+        document.getElementById('s-datetime').value = new Date().toISOString().slice(0, 16);
+        document.getElementById('s-procedure').value = app.treatment || '';
+        document.getElementById('s-next-notes').value = '';
+
+        // Load inventory materials
+        const inventory = await SupabaseDataService.getInventory();
+        const container = document.getElementById('session-materials-container');
+        if (container) {
+            container.innerHTML = '';
+            inventory.forEach(item => {
+                const row = document.createElement('div');
+                row.style.display = 'flex';
+                row.style.justifyContent = 'space-between';
+                row.style.alignItems = 'center';
+                row.style.padding = '4px 0';
+                row.style.borderBottom = '1px dashed var(--border-color)';
+                row.innerHTML = `
+                    <label style="font-size:0.8rem; cursor:pointer; display:flex; align-items:center; gap:6px; color: var(--text-main);">
+                        <input type="checkbox" class="session-mat-checkbox" data-code="${item.code}">
+                        <span>${item.name} <small class="text-muted">(${item.currentStock} ${item.unit})</small></span>
+                    </label>
+                    <input type="number" class="session-mat-qty form-control" data-code="${item.code}" min="1" max="${item.currentStock}" value="1" style="width:60px; padding:2px; font-size:0.8rem; border:1px solid var(--border-color); background:var(--bg-main); color:var(--text-main);" disabled>
+                `;
+                const chk = row.querySelector('.session-mat-checkbox');
+                const qtyIn = row.querySelector('.session-mat-qty');
+                chk.onchange = () => {
+                    qtyIn.disabled = !chk.checked;
+                };
+                container.appendChild(row);
+            });
+        }
+
+        // Init signature
+        window.sessionSigPad = setupSignaturePad('session-signature-canvas', 'btn-clear-session-signature');
+        openModal('modal-session');
+
+    } catch (err) {
+        console.error("Error at opening attendance modal:", err);
+        Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo iniciar el proceso de atención.' });
+    }
+};
 
 window.getGoogleCalendarLinkForAppt = function(appt) {
     // Parse hour and minutes from time string (e.g. "09:30 AM", "3:00 PM", "9")
@@ -2542,12 +2612,73 @@ function initGlobalEvents() {
                 patient.sessions.push(sessionObj);
                 await SupabaseDataService.savePatient(patient);
 
+                let apptUpdated = false;
+                if (window.activeAttendingAppointmentId) {
+                    try {
+                        const appts = await SupabaseDataService.getAppointments();
+                        const appt = appts.find(a => a.id === window.activeAttendingAppointmentId);
+                        if (appt) {
+                            appt.status = 'Completada';
+                            await SupabaseDataService.saveAppointment(appt);
+                            apptUpdated = true;
+                        }
+                    } catch(e) {
+                        console.error("Error updating appointment status:", e);
+                    }
+                }
+
                 closeModal('modal-session');
                 await renderEHRView();
                 await renderInventoryTable();
                 await renderDashboard();
+                if (apptUpdated) {
+                    await renderAgendaView();
+                }
 
-                Swal.fire({ icon: 'success', title: 'Sesión Registrada', text: 'La evolución de la sesión y firma de conformidad fueron guardadas exitosamente.', timer: 2000, showConfirmButton: false });
+                // Show success alert with Receipt print/download options
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Sesión Registrada',
+                    text: 'La evolución de la sesión y firma de conformidad fueron guardadas exitosamente.',
+                    showCancelButton: true,
+                    showDenyButton: true,
+                    confirmButtonText: '<i class="fa-solid fa-file-pdf"></i> Descargar PDF',
+                    denyButtonText: '<i class="fa-solid fa-print"></i> Imprimir Recibo',
+                    cancelButtonText: 'Cerrar',
+                    confirmButtonColor: 'var(--primary-cyan)',
+                    denyButtonColor: '#475569',
+                    cancelButtonColor: '#64748b'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.downloadSessionReceiptPDF(patient, sessionObj);
+                    } else if (result.isDenied) {
+                        window.printSessionReceipt(patient, sessionObj);
+                    }
+
+                    // Prompt to schedule next session if attended from Agenda
+                    if (window.activeAttendingAppointmentId) {
+                        window.activeAttendingAppointmentId = null;
+
+                        setTimeout(() => {
+                            Swal.fire({
+                                title: '¿Programar Próxima Sesión?',
+                                text: `La sesión ${sessionNum} ha sido completada. ¿Desea programar la siguiente sesión para ${patient.fullname} ahora?`,
+                                icon: 'question',
+                                showCancelButton: true,
+                                confirmButtonText: 'Sí, agendar',
+                                cancelButtonText: 'No, después',
+                                confirmButtonColor: 'var(--primary-cyan)',
+                                cancelButtonColor: '#64748b'
+                            }).then((res) => {
+                                if (res.isConfirmed) {
+                                    if (window.openAppointmentModalForNextSession) {
+                                        window.openAppointmentModalForNextSession(patient.id, sessionNum + 1);
+                                    }
+                                }
+                            });
+                        }, 600);
+                    }
+                });
             } catch(err) {
                 console.error("Error saving patient session:", err);
                 Swal.fire({ icon: 'error', title: 'Error al Guardar', text: err.message || err });
@@ -4236,6 +4367,23 @@ async function populateAppointmentPatientSelect() {
         select.appendChild(opt);
     });
 }
+
+window.openAppointmentModalForNextSession = async (patientId, nextSessionNum) => {
+    await populateAppointmentPatientSelect();
+    
+    const select = document.getElementById('app-patient-select');
+    if (select) {
+        select.value = patientId;
+        select.dispatchEvent(new Event('change'));
+    }
+
+    const treatInput = document.getElementById('app-treatment');
+    if (treatInput) {
+        treatInput.value = `Sesión ${nextSessionNum}: `;
+    }
+
+    openModal('modal-appointment');
+};
 
 function openModal(id) {
     const el = document.getElementById(id);
@@ -6610,3 +6758,177 @@ async function generatePDFFromElement(element, filename) {
         }
     });
 }
+
+window.generateSessionReceiptHTML = (patient, sessionObj, busData) => {
+    const materialsList = sessionObj.materials && sessionObj.materials.length > 0
+        ? sessionObj.materials.map(m => `<li>${m.name} x${m.qty}</li>`).join('')
+        : '<li>Ninguno</li>';
+
+    return `
+        <div style="font-family: Arial, sans-serif; padding: 30px; max-width: 800px; margin: 0 auto; color: #333; background: #fff; border: 1px solid #ddd; border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0d9488; padding-bottom: 15px; margin-bottom: 20px;">
+                <div>
+                    ${busData.logoUrl ? `<img src="${busData.logoUrl}" style="max-height: 70px; margin-bottom: 10px; display: block;">` : ''}
+                    <h2 style="margin: 0; color: #0d9488;">${busData.name || 'Consultorio Odontológico'}</h2>
+                    <p style="margin: 3px 0; font-size: 0.85rem; color: #666;">RIF: ${busData.rif || 'N/A'} | Tel: ${busData.phone || 'N/A'}</p>
+                    <p style="margin: 3px 0; font-size: 0.85rem; color: #666;">Dirección: ${busData.address || 'N/A'}</p>
+                </div>
+                <div style="text-align: right;">
+                    <span style="background: rgba(13, 148, 136, 0.1); color: #0d9488; font-weight: bold; padding: 6px 12px; border-radius: 20px; font-size: 0.9rem; text-transform: uppercase;">Comprobante de Sesión</span>
+                    <p style="margin: 10px 0 0 0; font-size: 0.85rem; color: #666;">Fecha: <strong>${sessionObj.datetime}</strong></p>
+                    <p style="margin: 3px 0; font-size: 0.85rem; color: #666;">Número de Control: <strong>SESS-${sessionObj.sessionNum}-${Date.now().toString().slice(-6)}</strong></p>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 20px; background: #f8fafc; border-radius: 6px; padding: 15px; border: 1px solid #e2e8f0;">
+                <h4 style="margin: 0 0 10px 0; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">Datos del Paciente</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.88rem;">
+                    <div>Paciente: <strong>${patient.fullname}</strong></div>
+                    <div>Cédula / ID: <strong>${patient.id}</strong></div>
+                    <div>Teléfono: <strong>${patient.phone || 'N/A'}</strong></div>
+                    <div>Correo: <strong>${patient.email || 'N/A'}</strong></div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <h4 style="margin: 0 0 10px 0; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">Detalles de la Sesión Clínica</h4>
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 10px;">
+                    <thead>
+                        <tr style="background: #f1f5f9; text-align: left;">
+                            <th style="padding: 10px; border: 1px solid #cbd5e1;">Concepto / Avance</th>
+                            <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; width: 120px;">N° Sesión</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 10px; border: 1px solid #cbd5e1; vertical-align: top; line-height: 1.4;">
+                                <strong>Procedimientos Realizados / Nota Operatoria:</strong><br>
+                                ${sessionObj.procedure}
+                                ${sessionObj.indications ? `<br><br><strong>Indicaciones / Receta / Próximos pasos:</strong><br>${sessionObj.indications}` : ''}
+                            </td>
+                            <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; font-size: 1.1rem; color: #0d9488; vertical-align: middle;">
+                                Sesión ${sessionObj.sessionNum}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="margin-bottom: 20px; background: #fafafa; border-radius: 6px; padding: 12px; border: 1px solid #eee;">
+                <h5 style="margin: 0 0 6px 0; color: #555; font-size: 0.85rem;">Materiales / Insumos Utilizados en la Sesión:</h5>
+                <ul style="margin: 0; padding-left: 20px; font-size: 0.82rem; color: #666; line-height: 1.4;">
+                    ${materialsList}
+                </ul>
+            </div>
+
+            <div style="margin-top: 40px; display: flex; justify-content: space-between; align-items: flex-end; gap: 30px;">
+                <div style="flex: 1; text-align: center; max-width: 250px;">
+                    <div style="border-bottom: 1px solid #94a3b8; height: 80px; display: flex; align-items: center; justify-content: center;">
+                        <span style="font-size: 0.8rem; color: #94a3b8;">Firma Digital del Odontólogo</span>
+                    </div>
+                    <p style="margin: 5px 0 0 0; font-size: 0.85rem; font-weight: bold; color: #334155;">Firma del Especialista</p>
+                </div>
+                
+                <div style="flex: 1; text-align: center; max-width: 250px;">
+                    <div style="border-bottom: 1px solid #94a3b8; height: 80px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                        ${sessionObj.signatureData ? `<img src="${sessionObj.signatureData}" style="max-height: 75px; max-width: 100%; display: block; object-fit: contain;">` : '<span style="font-size: 0.8rem; color: #94a3b8;">Firma no registrada</span>'}
+                    </div>
+                    <p style="margin: 5px 0 0 0; font-size: 0.85rem; font-weight: bold; color: #334155;">Firma de Conformidad del Paciente</p>
+                </div>
+            </div>
+
+            <div style="margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 10px; text-align: center; font-size: 0.75rem; color: #94a3b8;">
+                Este documento certifica legalmente la realización y conformidad de los tratamientos listados en la fecha indicada.
+            </div>
+        </div>
+    `;
+};
+
+window.printSessionReceipt = async (patient, sessionObj) => {
+    let config = null;
+    try {
+        config = await SupabaseDataService.getStationeryConfig();
+    } catch(e) {
+        console.error(e);
+    }
+    let busData = { name: '', rif: '', phone: '', email: '', address: '', logoUrl: '' };
+    if (config) {
+        try {
+            busData = JSON.parse(config.header_text);
+        } catch(e) {
+            busData.name = config.header_text;
+        }
+        busData.logoUrl = config.logo_url || '';
+    }
+
+    const htmlContent = window.generateSessionReceiptHTML(patient, sessionObj, busData);
+
+    const printWin = window.open('', '_blank');
+    if (printWin) {
+        printWin.document.write(`
+            <html>
+            <head>
+                <title>Comprobante de Sesión - ${patient.fullname}</title>
+                <style>
+                    body { margin: 0; padding: 0; background: #fff; }
+                </style>
+            </head>
+            <body onload="window.print(); window.close();">
+                ${htmlContent}
+            </body>
+            </html>
+        `);
+        printWin.document.close();
+    } else {
+        Swal.fire({
+            icon: 'error',
+            title: 'Bloqueador de Ventanas Activo',
+            text: 'Por favor permite las ventanas emergentes en este sitio para imprimir.'
+        });
+    }
+};
+
+window.downloadSessionReceiptPDF = async (patient, sessionObj) => {
+    let config = null;
+    try {
+        config = await SupabaseDataService.getStationeryConfig();
+    } catch(e) {
+        console.error(e);
+    }
+    let busData = { name: '', rif: '', phone: '', email: '', address: '', logoUrl: '' };
+    if (config) {
+        try {
+            busData = JSON.parse(config.header_text);
+        } catch(e) {
+            busData.name = config.header_text;
+        }
+        busData.logoUrl = config.logo_url || '';
+    }
+
+    const htmlContent = window.generateSessionReceiptHTML(patient, sessionObj, busData);
+
+    const element = document.createElement('div');
+    element.innerHTML = htmlContent;
+    document.body.appendChild(element);
+
+    const opt = {
+        margin: 10,
+        filename: `Comprobante_Sesion_${sessionObj.sessionNum}_${patient.fullname.replace(/\s+/g, '_')}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    try {
+        if (typeof html2pdf !== 'undefined') {
+            await html2pdf().from(element).set(opt).save();
+        } else {
+            Swal.fire({ icon: 'warning', title: 'Librería PDF no cargada', text: 'No se pudo descargar el PDF automáticamente, pero se abrirá el cuadro de impresión.' });
+            window.printSessionReceipt(patient, sessionObj);
+        }
+    } catch (err) {
+        console.error("Error generating session PDF:", err);
+    } finally {
+        document.body.removeChild(element);
+    }
+};
