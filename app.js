@@ -3508,6 +3508,8 @@ function initGlobalEvents() {
                 sessionBlocks.forEach(input => {
                     const sessionNum = parseInt(input.dataset.session);
                     const dateVal = input.value;
+                    const timeSelect = planSessionsContainer.querySelector(`.session-time-select[data-session="${sessionNum}"]`);
+                    const timeVal = timeSelect ? timeSelect.value : '09:00 AM';
                     const checkedBoxes = planSessionsContainer.querySelectorAll(`.session-service-checkbox[data-session="${sessionNum}"]:checked`);
                     const services = Array.from(checkedBoxes).map(cb => {
                         const idx = parseInt(cb.dataset.itemIdx);
@@ -3516,6 +3518,7 @@ function initGlobalEvents() {
                     sessionsData.push({
                         sessionNumber: sessionNum,
                         date: dateVal,
+                        time: timeVal,
                         services: services
                     });
                 });
@@ -3650,7 +3653,7 @@ function initGlobalEvents() {
                                 patientId: id,
                                 patientName: fullname,
                                 date: session.date,
-                                time: "09:00 AM", // default time
+                                time: session.time || "09:00 AM",
                                 treatment: `Sesión ${session.sessionNumber}: ${servicesText}`,
                                 status: "Programada",
                                 isTomorrow: false
@@ -4368,6 +4371,43 @@ async function renderSettingsView() {
     }
 }
 
+async function updateConflictInfoForSession(dateVal, sessionNum) {
+    const infoDiv = document.getElementById(`conflict-info-${sessionNum}`);
+    if (!infoDiv) return;
+
+    if (!dateVal) {
+        infoDiv.innerHTML = '';
+        infoDiv.style.background = 'transparent';
+        infoDiv.style.border = 'none';
+        return;
+    }
+
+    infoDiv.innerHTML = '<span style="color:var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Consultando agenda...</span>';
+    infoDiv.style.background = 'rgba(0,0,0,0.02)';
+    infoDiv.style.border = '1px solid var(--border-color)';
+
+    try {
+        const appts = await SupabaseDataService.getAppointments();
+        const dailyAppts = appts.filter(a => a.date === dateVal && a.status !== 'Cancelada');
+
+        if (dailyAppts.length === 0) {
+            infoDiv.innerHTML = '<span style="color:#059669; font-weight: 600;"><i class="fa-solid fa-circle-check"></i> Día Libre: Sin citas registradas para esta fecha.</span>';
+            infoDiv.style.background = 'rgba(5, 150, 105, 0.05)';
+            infoDiv.style.border = '1px solid rgba(5, 150, 105, 0.2)';
+        } else {
+            const times = dailyAppts.map(a => `<strong style="color:var(--text-main); font-weight:700;">${a.time}</strong> (${a.patientName})`).join(', ');
+            infoDiv.innerHTML = `<span style="color:#d97706; font-weight: 600;"><i class="fa-solid fa-calendar-check"></i> Citas ocupadas para esta fecha: ${times}</span>`;
+            infoDiv.style.background = 'rgba(217, 119, 6, 0.05)';
+            infoDiv.style.border = '1px solid rgba(217, 119, 6, 0.2)';
+        }
+    } catch (err) {
+        console.error("Error checking conflict:", err);
+        infoDiv.innerHTML = '<span style="color:var(--text-red);">Error al verificar disponibilidad</span>';
+        infoDiv.style.background = 'rgba(239, 68, 68, 0.05)';
+        infoDiv.style.border = '1px solid rgba(239, 68, 68, 0.2)';
+    }
+}
+
 function renderSessionsPlanner() {
     const container = document.getElementById('plan-sessions-container');
     if (!container) return;
@@ -4386,12 +4426,14 @@ function renderSessionsPlanner() {
         return;
     }
 
-    // Preserve current selections and dates before redrawing
+    // Preserve current selections, dates and times before redrawing
     const prevData = {};
     container.querySelectorAll('.session-date-input').forEach(input => {
         const sNum = input.dataset.session;
+        const timeSelect = container.querySelector(`.session-time-select[data-session="${sNum}"]`);
         prevData[sNum] = {
             date: input.value,
+            time: timeSelect ? timeSelect.value : '09:00 AM',
             selectedIdxs: []
         };
     });
@@ -4404,8 +4446,15 @@ function renderSessionsPlanner() {
     });
 
     let html = '';
+    const timesArray = [
+        "08:00 AM", "08:30 AM", "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
+        "11:00 AM", "11:30 AM", "12:00 PM", "01:00 PM", "01:30 PM", "02:00 PM",
+        "02:30 PM", "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM", "05:00 PM"
+    ];
+
     for (let i = 1; i <= sessionsCount; i++) {
         const defaultDate = prevData[i] ? prevData[i].date : '';
+        const savedTime = prevData[i] ? prevData[i].time : '09:00 AM';
         const savedSelected = prevData[i] ? prevData[i].selectedIdxs : [];
 
         let servicesHtml = '';
@@ -4419,15 +4468,30 @@ function renderSessionsPlanner() {
             `;
         });
 
+        let timeOptionsHtml = '';
+        timesArray.forEach(t => {
+            const isSel = (savedTime === t) ? 'selected' : '';
+            timeOptionsHtml += `<option value="${t}" ${isSel}>${t}</option>`;
+        });
+
         html += `
             <div class="card" style="padding: 12px; border: 1px solid var(--border-color); background: var(--bg-card); border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:10px;">
                     <strong style="color:var(--primary-cyan); font-size:0.9rem;"><i class="fa-solid fa-calendar-day"></i> Sesión ${i}</strong>
-                    <div style="display:flex; align-items:center; gap:6px;">
-                        <label style="font-size:0.78rem; margin:0; font-weight:600; color:var(--text-muted);">Fecha Programada:</label>
-                        <input type="date" class="form-control session-date-input" data-session="${i}" value="${defaultDate}" style="padding:4px 8px; font-size:0.8rem; width:135px; border-radius:4px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-main);">
+                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <label style="font-size:0.78rem; margin:0; font-weight:600; color:var(--text-muted);">Fecha:</label>
+                            <input type="date" class="form-control session-date-input" data-session="${i}" value="${defaultDate}" style="padding:4px 8px; font-size:0.8rem; width:135px; border-radius:4px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-main);">
+                        </div>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <label style="font-size:0.78rem; margin:0; font-weight:600; color:var(--text-muted);">Hora:</label>
+                            <select class="form-control session-time-select" data-session="${i}" style="padding:4px 8px; font-size:0.8rem; width:110px; border-radius:4px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-main);">
+                                ${timeOptionsHtml}
+                            </select>
+                        </div>
                     </div>
                 </div>
+                <div class="session-conflict-info" id="conflict-info-${i}" style="font-size:0.8rem; margin-bottom:10px; padding:6px 10px; border-radius:6px; display:none;"></div>
                 <div style="font-size:0.75rem; font-weight:600; color:var(--text-muted); margin-bottom:6px; border-bottom:1px dashed var(--border-color); padding-bottom:4px;">Servicios a realizar:</div>
                 <div class="session-services-list" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:8px;">
                     ${servicesHtml}
@@ -4437,6 +4501,26 @@ function renderSessionsPlanner() {
     }
 
     container.innerHTML = html;
+
+    // Attach dynamic date change listener for conflicts checking
+    container.querySelectorAll('.session-date-input').forEach(input => {
+        const sNum = input.dataset.session;
+        
+        // Check conflict immediately if a date already exists
+        if (input.value) {
+            const infoDiv = document.getElementById(`conflict-info-${sNum}`);
+            if (infoDiv) infoDiv.style.display = 'block';
+            updateConflictInfoForSession(input.value, sNum);
+        }
+
+        input.onchange = async () => {
+            const infoDiv = document.getElementById(`conflict-info-${sNum}`);
+            if (infoDiv) {
+                infoDiv.style.display = input.value ? 'block' : 'none';
+            }
+            await updateConflictInfoForSession(input.value, sNum);
+        };
+    });
 }
 
 function initPatientStepperWizard() {

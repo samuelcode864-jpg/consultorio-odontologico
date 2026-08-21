@@ -453,9 +453,6 @@
                                 <p class="text-muted" style="font-size: 0.9rem; margin-top: 5px; max-width: 650px; line-height: 1.4;">Flujo clínico completo: selecciona el paciente, marca hallazgos en el odontodiagrama, genera la propuesta económica y certifica con firma digital.</p>
                             </div>
                             <div class="action-buttons-sec1" style="display: flex; flex-direction: column; gap: 10px; min-width: 240px; flex: 1;">
-                                <button class="btn btn-outline" id="btn-budget-complete-history" style="border: 1px solid var(--primary-cyan) !important; color: var(--primary-cyan) !important; background: transparent !important; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; width: 100%; border-radius: 8px; padding: 10px 15px; cursor: pointer;">
-                                    <i class="fa-solid fa-file-medical"></i> Registrar Historia / Plan
-                                </button>
                                 <button class="btn btn-outline" id="btn-pdf-budget" style="background: #0f172a !important; color: #fff !important; border: none !important; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; width: 100%; border-radius: 8px; padding: 10px 15px;">
                                     <i class="fa-solid fa-file-pdf"></i> Exportar Presupuesto PDF
                                 </button>
@@ -649,6 +646,22 @@
                                          </div>
                                      </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- SECCIÓN 4.5: PLAN CLÍNICO & AGENDAMIENTO DE CITAS -->
+                        <div class="card" style="margin-bottom: 20px; border: 1px solid rgba(13, 148, 136, 0.25);">
+                            <div class="card-header border-bottom" style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start; background: rgba(13, 148, 136, 0.02); padding: 15px 20px;">
+                                <span class="badge-tag cyan" style="text-transform: uppercase;">Sección 4.5 • Plan Clínico & Citas</span>
+                                <h3 style="font-size: 1.4rem; font-weight: 700; color: var(--text-main); margin: 0;"><i class="fa-solid fa-notes-medical text-cyan"></i> Historia Clínica & Planificación de Sesiones</h3>
+                            </div>
+                            <div class="card-body" style="padding: 20px; display: flex; flex-direction: column; gap: 15px;">
+                                <p class="text-muted" style="font-size: 0.88rem; margin: 0; line-height: 1.4;">
+                                    Antes de emitir el presupuesto y certificarlo con firmas, debe completar los antecedentes médicos y de hábitos del paciente, así como distribuir los tratamientos cargados en las sesiones de trabajo correspondientes con sus respectivas fechas y horas.
+                                </p>
+                                <button class="btn btn-primary" id="btn-budget-complete-history" style="background: var(--primary-cyan) !important; color: #fff !important; border: none !important; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; border-radius: 8px; padding: 12px 20px; width: fit-content; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                                    <i class="fa-solid fa-file-medical"></i> Registrar Historia Clínica y Sesiones (Paso 2, 3, 4)
+                                </button>
                             </div>
                         </div>
 
@@ -2514,12 +2527,12 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=60"></script>
-    <script src="supabaseClient.js?v=60"></script>
-    <script src="odontogram.js?v=60"></script>
-    <script src="signature.js?v=60"></script>
-    <script src="whatsapp.js?v=60"></script>
-    <script src="kardex.js?v=60"></script>
-    <script src="app.js?v=60"></script>
+    <script src="seededData.js?v=61"></script>
+    <script src="supabaseClient.js?v=61"></script>
+    <script src="odontogram.js?v=61"></script>
+    <script src="signature.js?v=61"></script>
+    <script src="whatsapp.js?v=61"></script>
+    <script src="kardex.js?v=61"></script>
+    <script src="app.js?v=61"></script>
 </body>
 </html>
