@@ -23,6 +23,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 2. Initialize Theme (Light Mode Default)
     initTheme();
 
+    // Update live current date badge
+    const dateBadge = document.getElementById('current-date-badge');
+    if (dateBadge) {
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        const todayStr = new Date().toLocaleDateString('es-ES', options);
+        dateBadge.textContent = todayStr.charAt(0).toUpperCase() + todayStr.slice(1);
+    }
+
     // 3. Check Authentication & Session
     checkAuthSession();
     initInactivityTracker();
