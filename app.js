@@ -310,6 +310,16 @@ function applyRolePermissionsUI(role) {
         addSrvBtn.style.display = (roleType === 'assistant') ? 'none' : 'inline-flex';
     }
 
+    // Separation of duties: Hide register patient buttons for doctors
+    const quickPatientBtn = document.getElementById('btn-quick-patient');
+    const newPatientModalBtn = document.getElementById('btn-new-patient-modal');
+    if (quickPatientBtn) {
+        quickPatientBtn.style.display = (roleType === 'doctor') ? 'none' : 'inline-flex';
+    }
+    if (newPatientModalBtn) {
+        newPatientModalBtn.style.display = (roleType === 'doctor') ? 'none' : 'inline-flex';
+    }
+
     // Hide/show doctor signature pad in profile adjustments
     const docSigSection = document.getElementById('doctor-signature-setting-section');
     if (docSigSection) {
@@ -4379,36 +4389,64 @@ function initPatientStepperWizard() {
         }
     };
 
-    window.selectRegisterFlow = async () => {
-        const result = await Swal.fire({
-            title: 'Registro de Paciente',
-            text: 'Seleccione el tipo de flujo a realizar:',
-            icon: 'question',
-            showCancelButton: true,
-            showDenyButton: true,
-            confirmButtonColor: '#2563eb',
-            denyButtonColor: '#06b6d4',
-            cancelButtonColor: '#64748b',
-            confirmButtonText: '<i class="fa-solid fa-user-plus"></i> Nuevo Registro (Filiación)',
-            denyButtonText: '<i class="fa-solid fa-file-medical"></i> Paciente Existente (Historia)',
-            cancelButtonText: 'Cancelar'
-        });
+    window.openClinicalWizardForPatientId = (patient) => {
+        window.currentPatientId = patient.id;
+        window.wizardMode = 'clinical_complete';
+        resetWizard();
 
-        if (result.isConfirmed) {
-            openPatientModalForNew();
-        } else if (result.isDenied) {
-            await openPatientModalForExisting();
-        }
+        loadPatientDataIntoForm(patient);
+
+        // Disable Step 1 inputs (read-only)
+        toggleStep1InputsReadonly(true);
+
+        // Show all indicators and lines
+        document.getElementById('step-ind-2').classList.remove('hidden');
+        document.getElementById('step-ind-3').classList.remove('hidden');
+        document.getElementById('step-ind-4').classList.remove('hidden');
+        document.getElementById('step-line-1').classList.remove('hidden');
+        document.getElementById('step-line-2').classList.remove('hidden');
+        document.getElementById('step-line-3').classList.remove('hidden');
+
+        // Open modal starting at step 1
+        showStep(1);
+        openModal('modal-patient');
+    };
+
+    window.selectRegisterFlow = async () => {
+        // Assistants and Admins register new patients directly (Step 1 Filiación only)
+        openPatientModalForNew();
     };
 
     const btnQuickP = document.getElementById('btn-quick-patient');
     if (btnQuickP) {
-        btnQuickP.onclick = selectRegisterFlow;
+        btnQuickP.onclick = window.selectRegisterFlow;
     }
     
     const btnNewPM = document.getElementById('btn-new-patient-modal');
     if (btnNewPM) {
-        btnNewPM.onclick = selectRegisterFlow;
+        btnNewPM.onclick = window.selectRegisterFlow;
+    }
+
+    const btnEditClinical = document.getElementById('btn-edit-clinical-wizard');
+    if (btnEditClinical) {
+        btnEditClinical.onclick = async () => {
+            const activeId = getActivePatientId();
+            if (!activeId) {
+                Swal.fire({ icon: 'warning', title: 'Paciente No Seleccionado', text: 'Por favor, seleccione un paciente de la lista de la izquierda primero para completar su historia clínica.' });
+                return;
+            }
+            try {
+                const patients = await SupabaseDataService.getPatients();
+                const p = patients.find(pat => pat.id === activeId);
+                if (p) {
+                    window.openClinicalWizardForPatientId(p);
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo encontrar al paciente en el sistema.' });
+                }
+            } catch(e) {
+                console.error("Error launching clinical wizard:", e);
+            }
+        };
     }
 }
 
