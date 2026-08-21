@@ -3499,6 +3499,28 @@ function initGlobalEvents() {
             const habitFrequency = getVal('p-habit-frequency');
             const habitIntensity = getVal('p-habit-intensity');
 
+            // Collect sessions data from step 4
+            const sessionsData = [];
+            const planSessionsContainer = document.getElementById('plan-sessions-container');
+            const bItems = window.currentBudgetItems || [];
+            if (planSessionsContainer && bItems.length > 0) {
+                const sessionBlocks = planSessionsContainer.querySelectorAll('.session-date-input');
+                sessionBlocks.forEach(input => {
+                    const sessionNum = parseInt(input.dataset.session);
+                    const dateVal = input.value;
+                    const checkedBoxes = planSessionsContainer.querySelectorAll(`.session-service-checkbox[data-session="${sessionNum}"]:checked`);
+                    const services = Array.from(checkedBoxes).map(cb => {
+                        const idx = parseInt(cb.dataset.itemIdx);
+                        return bItems[idx];
+                    });
+                    sessionsData.push({
+                        sessionNumber: sessionNum,
+                        date: dateVal,
+                        services: services
+                    });
+                });
+            }
+
             let patientToSave = {};
 
             try {
@@ -3559,7 +3581,11 @@ function initGlobalEvents() {
                             habitOthers,
                             habitMouthbreather,
                             habitFrequency,
-                            habitIntensity
+                            habitIntensity,
+                            initTreatmentName: getVal('p-init-treatment-name'),
+                            initTreatmentSessions: getVal('p-init-treatment-sessions'),
+                            initTreatmentInterval: getVal('p-init-treatment-interval'),
+                            sessionsPlan: sessionsData
                         }
                     };
                 } else {
@@ -3608,6 +3634,36 @@ function initGlobalEvents() {
                 }
 
                 await SupabaseDataService.savePatient(patientToSave);
+                
+                // Create automatically scheduled appointments for each session with a date
+                if (sessionsData && sessionsData.length > 0) {
+                    let appointmentsScheduledCount = 0;
+                    for (const session of sessionsData) {
+                        if (session.date) {
+                            const servicesText = session.services && session.services.length > 0
+                                ? session.services.map(s => `Pza ${s.tooth || 'Gnl'}: ${s.name}`).join(', ')
+                                : 'Tratamiento Planificado';
+                            
+                            const apptId = 'appt-' + Date.now() + '-' + Math.floor(Math.random() * 100000);
+                            const appt = {
+                                id: apptId,
+                                patientId: id,
+                                patientName: fullname,
+                                date: session.date,
+                                time: "09:00 AM", // default time
+                                treatment: `Sesión ${session.sessionNumber}: ${servicesText}`,
+                                status: "Programada",
+                                isTomorrow: false
+                            };
+                            await SupabaseDataService.saveAppointment(appt);
+                            appointmentsScheduledCount++;
+                        }
+                    }
+                    if (appointmentsScheduledCount > 0) {
+                        await renderAgendaView(); // Reload agenda immediately
+                    }
+                }
+
                 closeModal('modal-patient');
                 setActivePatientId(id);
                 await renderPatientsTable();
@@ -3890,6 +3946,30 @@ function initGlobalEvents() {
         btnBackToBudgets.onclick = async () => {
             activeEditingBudgetId = null;
             await renderBudgetListView();
+        };
+    }
+
+    const btnBudgetCompleteHistory = document.getElementById('btn-budget-complete-history');
+    if (btnBudgetCompleteHistory) {
+        btnBudgetCompleteHistory.onclick = async () => {
+            const activeId = getActivePatientId();
+            if (!activeId) {
+                Swal.fire({ icon: 'warning', title: 'Paciente No Seleccionado', text: 'Por favor, seleccione un paciente para el presupuesto primero.' });
+                return;
+            }
+            try {
+                const patients = await SupabaseDataService.getPatients();
+                const p = patients.find(pat => pat.id === activeId);
+                if (p) {
+                    if (window.openClinicalWizardForPatientId) {
+                        window.openClinicalWizardForPatientId(p);
+                    }
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo encontrar al paciente en el sistema.' });
+                }
+            } catch(e) {
+                console.error("Error launching clinical wizard from budget:", e);
+            }
         };
     }
 
@@ -4288,6 +4368,77 @@ async function renderSettingsView() {
     }
 }
 
+function renderSessionsPlanner() {
+    const container = document.getElementById('plan-sessions-container');
+    if (!container) return;
+
+    const sessionsInput = document.getElementById('p-init-treatment-sessions');
+    const sessionsCount = parseInt(sessionsInput ? sessionsInput.value : 0) || 0;
+
+    if (sessionsCount <= 0) {
+        container.innerHTML = '<div style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 10px;">Indique al menos 1 sesión estimada.</div>';
+        return;
+    }
+
+    const budgetItems = window.currentBudgetItems || [];
+    if (budgetItems.length === 0) {
+        container.innerHTML = '<div style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 10px; border: 1px dashed var(--border-color); border-radius:6px; background:var(--bg-main);"><i class="fa-solid fa-triangle-exclamation text-amber"></i> No hay tratamientos cargados en el presupuesto activo para distribuir en las sesiones.</div>';
+        return;
+    }
+
+    // Preserve current selections and dates before redrawing
+    const prevData = {};
+    container.querySelectorAll('.session-date-input').forEach(input => {
+        const sNum = input.dataset.session;
+        prevData[sNum] = {
+            date: input.value,
+            selectedIdxs: []
+        };
+    });
+    container.querySelectorAll('.session-service-checkbox:checked').forEach(cb => {
+        const sNum = cb.dataset.session;
+        const idx = cb.dataset.itemIdx;
+        if (prevData[sNum]) {
+            prevData[sNum].selectedIdxs.push(idx);
+        }
+    });
+
+    let html = '';
+    for (let i = 1; i <= sessionsCount; i++) {
+        const defaultDate = prevData[i] ? prevData[i].date : '';
+        const savedSelected = prevData[i] ? prevData[i].selectedIdxs : [];
+
+        let servicesHtml = '';
+        budgetItems.forEach((item, idx) => {
+            const isChecked = savedSelected.includes(idx.toString()) ? 'checked' : '';
+            servicesHtml += `
+                <label style="font-size:0.8rem; display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; margin:0; color: var(--text-main);">
+                    <input type="checkbox" class="session-service-checkbox" data-session="${i}" data-item-idx="${idx}" ${isChecked}>
+                    Pza ${item.tooth || 'Gnl'} (${item.face || 'Gnl'}): ${item.name}
+                </label>
+            `;
+        });
+
+        html += `
+            <div class="card" style="padding: 12px; border: 1px solid var(--border-color); background: var(--bg-card); border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:10px;">
+                    <strong style="color:var(--primary-cyan); font-size:0.9rem;"><i class="fa-solid fa-calendar-day"></i> Sesión ${i}</strong>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <label style="font-size:0.78rem; margin:0; font-weight:600; color:var(--text-muted);">Fecha Programada:</label>
+                        <input type="date" class="form-control session-date-input" data-session="${i}" value="${defaultDate}" style="padding:4px 8px; font-size:0.8rem; width:135px; border-radius:4px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-main);">
+                    </div>
+                </div>
+                <div style="font-size:0.75rem; font-weight:600; color:var(--text-muted); margin-bottom:6px; border-bottom:1px dashed var(--border-color); padding-bottom:4px;">Servicios a realizar:</div>
+                <div class="session-services-list" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:8px;">
+                    ${servicesHtml}
+                </div>
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
+}
+
 function initPatientStepperWizard() {
     let currentStep = 1;
     const totalSteps = 4;
@@ -4342,6 +4493,9 @@ function initPatientStepperWizard() {
             } else {
                 btnSave.classList.add('hidden');
             }
+        }
+        if (step === 4) {
+            renderSessionsPlanner();
         }
     }
 
@@ -4454,6 +4608,14 @@ function initPatientStepperWizard() {
             }
         };
     });
+
+    // Auto redraw sessions on sessions count change
+    const sessionsCountInput = document.getElementById('p-init-treatment-sessions');
+    if (sessionsCountInput) {
+        sessionsCountInput.onchange = sessionsCountInput.oninput = () => {
+            renderSessionsPlanner();
+        };
+    }
 
     // Reset wizard state on modal open
     const resetWizard = () => {

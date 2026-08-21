@@ -453,6 +453,9 @@
                                 <p class="text-muted" style="font-size: 0.9rem; margin-top: 5px; max-width: 650px; line-height: 1.4;">Flujo clínico completo: selecciona el paciente, marca hallazgos en el odontodiagrama, genera la propuesta económica y certifica con firma digital.</p>
                             </div>
                             <div class="action-buttons-sec1" style="display: flex; flex-direction: column; gap: 10px; min-width: 240px; flex: 1;">
+                                <button class="btn btn-outline" id="btn-budget-complete-history" style="border: 1px solid var(--primary-cyan) !important; color: var(--primary-cyan) !important; background: transparent !important; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; width: 100%; border-radius: 8px; padding: 10px 15px; cursor: pointer;">
+                                    <i class="fa-solid fa-file-medical"></i> Registrar Historia / Plan
+                                </button>
                                 <button class="btn btn-outline" id="btn-pdf-budget" style="background: #0f172a !important; color: #fff !important; border: none !important; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; width: 100%; border-radius: 8px; padding: 10px 15px;">
                                     <i class="fa-solid fa-file-pdf"></i> Exportar Presupuesto PDF
                                 </button>
@@ -2369,6 +2372,18 @@
                                 <label>Medicación Actual & Observaciones Clínicas Rápidas</label>
                                 <textarea id="p-medication" rows="2" placeholder="Medicamentos tomados habitualmente, alergias menores, etc."></textarea>
                             </div>
+                            
+                            <div class="form-group span-2" id="plan-sessions-generator-section" style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+                                <label style="font-weight: 700; color: var(--primary-cyan); display: flex; align-items: center; gap: 6px;">
+                                    <i class="fa-solid fa-list-ol"></i> Distribución de Servicios por Sesión
+                                </label>
+                                <p class="text-muted" style="font-size: 0.78rem; margin: 2px 0 12px 0;">
+                                    Indique el número de sesiones estimadas arriba para generar los bloques de planificación. Podrá asignar fechas y marcar cuáles servicios del presupuesto se realizarán en cada sesión.
+                                </p>
+                                <div id="plan-sessions-container" style="display: flex; flex-direction: column; gap: 15px; width: 100%;">
+                                    <!-- Populated dynamically based on currentBudgetItems and sessions count -->
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </form>
@@ -2499,12 +2514,12 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=59"></script>
-    <script src="supabaseClient.js?v=59"></script>
-    <script src="odontogram.js?v=59"></script>
-    <script src="signature.js?v=59"></script>
-    <script src="whatsapp.js?v=59"></script>
-    <script src="kardex.js?v=59"></script>
-    <script src="app.js?v=59"></script>
+    <script src="seededData.js?v=60"></script>
+    <script src="supabaseClient.js?v=60"></script>
+    <script src="odontogram.js?v=60"></script>
+    <script src="signature.js?v=60"></script>
+    <script src="whatsapp.js?v=60"></script>
+    <script src="kardex.js?v=60"></script>
+    <script src="app.js?v=60"></script>
 </body>
 </html>
