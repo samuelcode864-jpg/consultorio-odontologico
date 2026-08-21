@@ -313,11 +313,16 @@ function applyRolePermissionsUI(role) {
     // Separation of duties: Hide register patient buttons for doctors
     const quickPatientBtn = document.getElementById('btn-quick-patient');
     const newPatientModalBtn = document.getElementById('btn-new-patient-modal');
+    const editClinicalWizardBtn = document.getElementById('btn-edit-clinical-wizard');
     if (quickPatientBtn) {
         quickPatientBtn.style.display = (roleType === 'doctor') ? 'none' : 'inline-flex';
     }
     if (newPatientModalBtn) {
         newPatientModalBtn.style.display = (roleType === 'doctor') ? 'none' : 'inline-flex';
+    }
+    if (editClinicalWizardBtn) {
+        // Only Doctors and Admins can complete or edit clinical history
+        editClinicalWizardBtn.style.display = (roleType === 'assistant') ? 'none' : 'inline-flex';
     }
 
     // Hide/show doctor signature pad in profile adjustments
@@ -3419,12 +3424,22 @@ function initGlobalEvents() {
     if (savePatientBtn) {
         savePatientBtn.onclick = async (e) => {
             e.preventDefault();
-            const id = document.getElementById('p-id').value.trim();
-            const firstname = document.getElementById('p-firstname') ? document.getElementById('p-firstname').value.trim() : '';
-            const lastname = document.getElementById('p-lastname') ? document.getElementById('p-lastname').value.trim() : '';
+
+            const getVal = (id) => {
+                const el = document.getElementById(id);
+                return el ? el.value.trim() : '';
+            };
+            const getChecked = (id) => {
+                const el = document.getElementById(id);
+                return el ? (el.checked ? 'Sí' : 'No') : 'No';
+            };
+
+            const id = getVal('p-id');
+            const firstname = getVal('p-firstname');
+            const lastname = getVal('p-lastname');
             const fullname = `${firstname} ${lastname}`.trim();
-            const birthdate = document.getElementById('p-birthdate').value;
-            const phone = document.getElementById('p-mobile-phone').value.trim();
+            const birthdate = getVal('p-birthdate');
+            const phone = getVal('p-mobile-phone');
 
             if (!id || !firstname || !lastname || !birthdate || !phone) {
                 Swal.fire({ icon: 'warning', title: 'Campos requeridos', text: 'Por favor complete los campos obligatorios (*)' });
@@ -3433,56 +3448,56 @@ function initGlobalEvents() {
 
             const allergies = Array.from(document.querySelectorAll('input[name="p-allergies"]:checked')).map(cb => cb.value);
             const systemic = Array.from(document.querySelectorAll('input[name="p-systemic"]:checked')).map(cb => cb.value);
-            const medication = document.getElementById('p-medication').value.trim();
-            const emergencyContact = document.getElementById('p-emergency').value.trim();
+            const medication = getVal('p-medication');
+            const emergencyContact = getVal('p-emergency');
 
             // Extract all detailed metadata fields
-            const type = document.getElementById('p-type').value;
-            const age = parseInt(document.getElementById('p-age').value) || 0;
-            const gender = document.getElementById('p-gender').value;
-            const address = document.getElementById('p-address').value.trim();
-            const mobilePhone = document.getElementById('p-mobile-phone').value.trim();
-            const localPhone = document.getElementById('p-local-phone').value.trim();
-            const workPhone = document.getElementById('p-work-phone').value.trim();
-            const profession = document.getElementById('p-profession').value.trim();
-            const consultReason = document.getElementById('p-consult-reason').value.trim();
+            const type = getVal('p-type') || 'Adulto';
+            const age = parseInt(getVal('p-age')) || 0;
+            const gender = getVal('p-gender') || 'Femenino';
+            const address = getVal('p-address');
+            const mobilePhone = getVal('p-mobile-phone');
+            const localPhone = getVal('p-local-phone');
+            const workPhone = getVal('p-work-phone');
+            const profession = getVal('p-profession');
+            const consultReason = getVal('p-consult-reason');
 
-            const repName = document.getElementById('p-rep-name').value.trim();
-            const repId = document.getElementById('p-rep-id').value.trim();
-            const repPhone = document.getElementById('p-rep-phone').value.trim();
-            const repRelation = document.getElementById('p-rep-relation').value.trim();
+            const repName = getVal('p-rep-name');
+            const repId = getVal('p-rep-id');
+            const repPhone = getVal('p-rep-phone');
+            const repRelation = getVal('p-rep-relation');
 
-            const medicalTreatment = document.getElementById('p-medical-treatment').value;
-            const medicalTreatmentDetails = document.getElementById('p-medical-treatment-details').value.trim();
-            const childDiseases = document.getElementById('p-child-diseases').value.trim();
-            const hasAllergies = document.getElementById('p-has-allergies').value;
-            const allergiesDetails = document.getElementById('p-allergies-details').value.trim();
-            const surgeries = document.getElementById('p-surgeries').value.trim();
-            const bleedingIssue = document.getElementById('p-bleeding-issue').value;
-            const respiratoryIssues = document.getElementById('p-respiratory-issues').value;
-            const respiratoryIssuesDetails = document.getElementById('p-respiratory-issues-details').value.trim();
-            const anesthesiaReaction = document.getElementById('p-anesthesia-reaction').value;
-            const anesthesiaReactionDetails = document.getElementById('p-anesthesia-reaction-details').value.trim();
-            const penicillinAllergy = document.getElementById('p-penicillin-allergy').value;
-            const penicillinAllergyDetails = document.getElementById('p-penicillin-allergy-details').value.trim();
-            const heartIssues = document.getElementById('p-heart-issues').value;
-            const heartIssuesDetails = document.getElementById('p-heart-issues-details').value.trim();
+            const medicalTreatment = getChecked('p-medical-treatment');
+            const medicalTreatmentDetails = getVal('p-medical-treatment-details');
+            const childDiseases = getVal('p-child-diseases');
+            const hasAllergies = getChecked('p-has-allergies');
+            const allergiesDetails = getVal('p-allergies-details');
+            const surgeries = getVal('p-surgeries');
+            const bleedingIssue = getChecked('p-bleeding-issue');
+            const respiratoryIssues = getChecked('p-respiratory-issues');
+            const respiratoryIssuesDetails = getVal('p-respiratory-issues-details');
+            const anesthesiaReaction = getChecked('p-anesthesia-reaction');
+            const anesthesiaReactionDetails = getVal('p-anesthesia-reaction-details');
+            const penicillinAllergy = getChecked('p-penicillin-allergy');
+            const penicillinAllergyDetails = getVal('p-penicillin-allergy-details');
+            const heartIssues = getChecked('p-heart-issues');
+            const heartIssuesDetails = getVal('p-heart-issues-details');
 
-            const tissueHardPalate = document.getElementById('p-tissue-hard-palate').value.trim();
-            const tissueSoftPalate = document.getElementById('p-tissue-soft-palate').value.trim();
-            const tissueMouthFloor = document.getElementById('p-tissue-mouth-floor').value.trim();
-            const tissueCheeks = document.getElementById('p-tissue-cheeks').value.trim();
-            const tissueTongue = document.getElementById('p-tissue-tongue').value.trim();
-            const tissueFrenum = document.getElementById('p-tissue-frenum').value.trim();
+            const tissueHardPalate = getVal('p-tissue-hard-palate');
+            const tissueSoftPalate = getVal('p-tissue-soft-palate');
+            const tissueMouthFloor = getVal('p-tissue-mouth-floor');
+            const tissueCheeks = getVal('p-tissue-cheeks');
+            const tissueTongue = getVal('p-tissue-tongue');
+            const tissueFrenum = getVal('p-tissue-frenum');
 
-            const habitSwallowing = document.getElementById('p-habit-swallowing').value;
-            const habitNailbiting = document.getElementById('p-habit-nailbiting').value;
-            const habitThumbsucking = document.getElementById('p-habit-thumbsucking').value;
-            const habitThumbsuckingFinger = document.getElementById('p-habit-thumbsucking-finger').value.trim();
-            const habitOthers = document.getElementById('p-habit-others').value.trim();
-            const habitMouthbreather = document.getElementById('p-habit-mouthbreather').value;
-            const habitFrequency = document.getElementById('p-habit-frequency').value.trim();
-            const habitIntensity = document.getElementById('p-habit-intensity').value.trim();
+            const habitSwallowing = getChecked('p-habit-swallowing');
+            const habitNailbiting = getChecked('p-habit-nailbiting');
+            const habitThumbsucking = getChecked('p-habit-thumbsucking');
+            const habitThumbsuckingFinger = getVal('p-habit-thumbsucking-finger');
+            const habitOthers = getVal('p-habit-others');
+            const habitMouthbreather = getChecked('p-habit-mouthbreather');
+            const habitFrequency = getVal('p-habit-frequency');
+            const habitIntensity = getVal('p-habit-intensity');
 
             let patientToSave = {};
 
@@ -3562,7 +3577,7 @@ function initGlobalEvents() {
                         fullname,
                         birthdate,
                         phone,
-                        email: document.getElementById('p-email').value.trim(),
+                        email: getVal('p-email'),
                         occupation: profession,
                         allergies: [],
                         systemic: [],
