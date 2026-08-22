@@ -473,7 +473,12 @@ function initNavigation() {
             if (targetView) targetView.classList.add('active');
 
             if (tabName === 'odontogram') {
-                await renderBudgetListView();
+                const editorContainer = document.getElementById('odontogram-editor-container');
+                if (editorContainer && !editorContainer.classList.contains('hidden')) {
+                    // Do nothing, stay in editor view
+                } else {
+                    await renderBudgetListView();
+                }
             } else if (tabName === 'patients') {
                 await renderPatientsTable();
             } else if (tabName === 'agenda') {
@@ -1018,6 +1023,13 @@ async function renderBudgetTable() {
 }
 
 window.removeBudgetItem = async function(index) {
+    const item = currentBudgetItems[index];
+    if (item && item.key) {
+        if (window.odontogram) {
+            delete window.odontogram.toothData[item.key];
+            window.odontogram.render();
+        }
+    }
     currentBudgetItems.splice(index, 1);
     await autoSaveActivePatientOdontogram();
     renderBudgetTable();
@@ -3955,7 +3967,18 @@ function initGlobalEvents() {
 
                 await SupabaseDataService.savePatient(patient);
 
-                activeEditingBudgetId = invoiceId;
+                // Reset editor state to zero
+                currentBudgetItems = [];
+                activeEditingBudgetId = null;
+                setActivePatientId(null);
+                if (window.odontogram) {
+                    window.odontogram.setData({});
+                }
+                document.getElementById('budget-notes').value = '';
+                document.getElementById('budget-discount-input').value = '0';
+                if (window.doctorSigPad) window.doctorSigPad.clear();
+                if (window.patientSigPad) window.patientSigPad.clear();
+
                 await renderBudgetListView();
 
                 Swal.fire({
@@ -4248,7 +4271,20 @@ function initGlobalEvents() {
 
             try {
                 await SupabaseDataService.saveInvoice(budgetObj);
-                activeEditingBudgetId = budgetObj.id;
+                
+                // Reset editor state to zero
+                currentBudgetItems = [];
+                activeEditingBudgetId = null;
+                setActivePatientId(null);
+                if (window.odontogram) {
+                    window.odontogram.setData({});
+                }
+                document.getElementById('budget-notes').value = '';
+                document.getElementById('budget-discount-input').value = '0';
+                if (window.doctorSigPad) window.doctorSigPad.clear();
+                if (window.patientSigPad) window.patientSigPad.clear();
+
+                await renderBudgetListView();
                 
                 Swal.fire({
                     icon: 'success',

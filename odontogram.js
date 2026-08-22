@@ -199,6 +199,13 @@ class OdontogramEngine {
                 this.handleFaceClick(toothNumber, face.id, key, el);
             });
 
+            // Right-click listener to erase
+            el.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.handleFaceRightClick(toothNumber, face.id, key, el);
+            });
+
             svg.appendChild(el);
         });
 
@@ -222,6 +229,15 @@ class OdontogramEngine {
 
         if (this.onFaceClickCallback) {
             this.onFaceClickCallback(toothNumber, faceId, this.currentMode, key);
+        }
+    }
+
+    handleFaceRightClick(toothNumber, faceId, key, el) {
+        delete this.toothData[key];
+        el.setAttribute('class', 'tooth-face');
+
+        if (this.onFaceClickCallback) {
+            this.onFaceClickCallback(toothNumber, faceId, 'clear', key);
         }
     }
 }
