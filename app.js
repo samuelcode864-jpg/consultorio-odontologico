@@ -3913,8 +3913,23 @@ function initGlobalEvents() {
             const paymentModeSelect = document.getElementById('payment-mode-select');
             const paymentModeText = paymentModeSelect.options[paymentModeSelect.selectedIndex].text;
             const paymentMethodSelect = document.getElementById('budget-payment-method');
-            const paymentMethod = paymentMethodSelect.value;
-            const paymentMethodLabel = paymentMethodSelect.options[paymentMethodSelect.selectedIndex].text;
+            let paymentMethod = paymentMethodSelect ? paymentMethodSelect.value : 'pagomovil';
+            let paymentMethodLabel = paymentMethodSelect ? paymentMethodSelect.options[paymentMethodSelect.selectedIndex].text : 'Pago Móvil';
+            if (paymentMethod === 'split') {
+                const pmAmt = parseFloat(document.getElementById('budget-split-pagomovil').value) || 0;
+                const cashAmt = parseFloat(document.getElementById('budget-split-cash').value) || 0;
+                const zelleAmt = parseFloat(document.getElementById('budget-split-zelle').value) || 0;
+                const binanceAmt = parseFloat(document.getElementById('budget-split-binance').value) || 0;
+
+                const parts = [];
+                if (pmAmt > 0) parts.push(`Pago Móvil: $${pmAmt.toFixed(2)}`);
+                if (cashAmt > 0) parts.push(`Efectivo: $${cashAmt.toFixed(2)}`);
+                if (zelleAmt > 0) parts.push(`Zelle: $${zelleAmt.toFixed(2)}`);
+                if (binanceAmt > 0) parts.push(`Binance: $${binanceAmt.toFixed(2)}`);
+
+                paymentMethod = `Mixto (${parts.join(', ') || 'Sin distribución'})`;
+                paymentMethodLabel = paymentMethod;
+            }
             
             const notes = document.getElementById('budget-notes').value;
             const consentText = document.getElementById('consent-text').value;
@@ -4245,7 +4260,21 @@ function initGlobalEvents() {
             const totalVES = (totalUSD * rate).toFixed(2);
 
             const paymentMethodSelect = document.getElementById('budget-payment-method');
-            const paymentMethod = paymentMethodSelect ? paymentMethodSelect.value : 'pagomovil';
+            let paymentMethod = paymentMethodSelect ? paymentMethodSelect.value : 'pagomovil';
+            if (paymentMethod === 'split') {
+                const pmAmt = parseFloat(document.getElementById('budget-split-pagomovil').value) || 0;
+                const cashAmt = parseFloat(document.getElementById('budget-split-cash').value) || 0;
+                const zelleAmt = parseFloat(document.getElementById('budget-split-zelle').value) || 0;
+                const binanceAmt = parseFloat(document.getElementById('budget-split-binance').value) || 0;
+
+                const parts = [];
+                if (pmAmt > 0) parts.push(`Pago Móvil: $${pmAmt.toFixed(2)}`);
+                if (cashAmt > 0) parts.push(`Efectivo: $${cashAmt.toFixed(2)}`);
+                if (zelleAmt > 0) parts.push(`Zelle: $${zelleAmt.toFixed(2)}`);
+                if (binanceAmt > 0) parts.push(`Binance: $${binanceAmt.toFixed(2)}`);
+
+                paymentMethod = `Mixto (${parts.join(', ') || 'Sin distribución'})`;
+            }
             const notes = document.getElementById('budget-notes').value;
 
             const budgetId = activeEditingBudgetId || `PRE-${Date.now().toString().slice(-6)}`;
@@ -4400,6 +4429,116 @@ function initGlobalEvents() {
             }
         };
     }
+    initSplitPaymentHandlers();
+}
+
+function initSplitPaymentHandlers() {
+    const budgetMethodSelect = document.getElementById('budget-payment-method');
+    const budgetSplitContainer = document.getElementById('budget-split-payment-container');
+    const budgetSplitInputs = document.querySelectorAll('.budget-split-input');
+    const budgetSplitStatus = document.getElementById('budget-split-status');
+
+    function updateBudgetSplitStatus() {
+        if (!budgetSplitStatus) return;
+        let totalPaid = 0;
+        budgetSplitInputs.forEach(input => {
+            totalPaid += parseFloat(input.value) || 0;
+        });
+
+        let subtotalUSD = 0;
+        currentBudgetItems.forEach(item => subtotalUSD += item.price);
+        const discountPct = parseFloat(document.getElementById('budget-discount-input').value) || 0;
+        const totalUSD = subtotalUSD * (1 - discountPct / 100);
+
+        const diff = totalUSD - totalPaid;
+        if (Math.abs(diff) < 0.01) {
+            budgetSplitStatus.innerHTML = `<span style="color:#059669;"><i class="fa-solid fa-circle-check"></i> Distribución completa: $${totalUSD.toFixed(2)} USD cubiertos.</span>`;
+            budgetSplitStatus.style.background = 'rgba(5, 150, 105, 0.05)';
+        } else if (diff > 0) {
+            budgetSplitStatus.innerHTML = `<span style="color:#d97706;"><i class="fa-solid fa-triangle-exclamation"></i> Faltan $${diff.toFixed(2)} USD por distribuir (Total: $${totalUSD.toFixed(2)} USD).</span>`;
+            budgetSplitStatus.style.background = 'rgba(217, 119, 6, 0.05)';
+        } else {
+            budgetSplitStatus.innerHTML = `<span style="color:#dc2626;"><i class="fa-solid fa-circle-xmark"></i> Exceso de $${Math.abs(diff).toFixed(2)} USD (Total: $${totalUSD.toFixed(2)} USD).</span>`;
+            budgetSplitStatus.style.background = 'rgba(220, 38, 38, 0.05)';
+        }
+    }
+
+    if (budgetMethodSelect) {
+        budgetMethodSelect.addEventListener('change', () => {
+            const val = budgetMethodSelect.value;
+            if (val === 'split') {
+                if (budgetSplitContainer) budgetSplitContainer.classList.remove('hidden');
+                updateBudgetSplitStatus();
+            } else {
+                if (budgetSplitContainer) budgetSplitContainer.classList.add('hidden');
+            }
+        });
+    }
+
+    const budgetDiscInput = document.getElementById('budget-discount-input');
+    if (budgetDiscInput) {
+        budgetDiscInput.addEventListener('input', () => {
+            if (budgetMethodSelect && budgetMethodSelect.value === 'split') {
+                updateBudgetSplitStatus();
+            }
+        });
+    }
+
+    budgetSplitInputs.forEach(input => {
+        input.addEventListener('input', updateBudgetSplitStatus);
+    });
+
+    const billMethodSelect = document.getElementById('bill-method');
+    const billSplitContainer = document.getElementById('billing-split-payment-container');
+    const billSplitInputs = document.querySelectorAll('.billing-split-input');
+    const billSplitStatus = document.getElementById('billing-split-status');
+
+    function updateBillingSplitStatus() {
+        if (!billSplitStatus) return;
+        let totalPaid = 0;
+        billSplitInputs.forEach(input => {
+            totalPaid += parseFloat(input.value) || 0;
+        });
+
+        let totalRef = 0;
+        billingItems.forEach(item => {
+            totalRef += item.price * item.qty;
+        });
+
+        const diff = totalRef - totalPaid;
+        if (Math.abs(diff) < 0.01) {
+            billSplitStatus.innerHTML = `<span style="color:#059669;"><i class="fa-solid fa-circle-check"></i> Distribución completa: $${totalRef.toFixed(2)} USD cubiertos.</span>`;
+            billSplitStatus.style.background = 'rgba(5, 150, 105, 0.05)';
+        } else if (diff > 0) {
+            billSplitStatus.innerHTML = `<span style="color:#d97706;"><i class="fa-solid fa-triangle-exclamation"></i> Faltan $${diff.toFixed(2)} USD por distribuir (Total: $${totalRef.toFixed(2)} USD).</span>`;
+            billSplitStatus.style.background = 'rgba(217, 119, 6, 0.05)';
+        } else {
+            billSplitStatus.innerHTML = `<span style="color:#dc2626;"><i class="fa-solid fa-circle-xmark"></i> Exceso de $${Math.abs(diff).toFixed(2)} USD (Total: $${totalRef.toFixed(2)} USD).</span>`;
+            billSplitStatus.style.background = 'rgba(220, 38, 38, 0.05)';
+        }
+    }
+
+    if (billMethodSelect) {
+        billMethodSelect.addEventListener('change', () => {
+            const val = billMethodSelect.value;
+            if (val === 'split') {
+                if (billSplitContainer) billSplitContainer.classList.remove('hidden');
+                updateBillingSplitStatus();
+            } else {
+                if (billSplitContainer) billSplitContainer.classList.add('hidden');
+            }
+        });
+    }
+
+    billSplitInputs.forEach(input => {
+        input.addEventListener('input', updateBillingSplitStatus);
+    });
+
+    window.updateBillingSplitStatusExternal = () => {
+        if (billMethodSelect && billMethodSelect.value === 'split') {
+            updateBillingSplitStatus();
+        }
+    };
 }
 
 async function populateAppointmentPatientSelect() {
@@ -5880,7 +6019,21 @@ async function renderBillingView() {
 
         const currency = document.getElementById('bill-currency').value;
         const terms = document.getElementById('bill-terms').value;
-        const method = document.getElementById('bill-method').value;
+        let method = document.getElementById('bill-method').value;
+        if (method === 'split') {
+            const pmAmt = parseFloat(document.getElementById('billing-split-pagomovil').value) || 0;
+            const cashAmt = parseFloat(document.getElementById('billing-split-cash').value) || 0;
+            const zelleAmt = parseFloat(document.getElementById('billing-split-zelle').value) || 0;
+            const binanceAmt = parseFloat(document.getElementById('billing-split-binance').value) || 0;
+
+            const parts = [];
+            if (pmAmt > 0) parts.push(`Pago Móvil: $${pmAmt.toFixed(2)}`);
+            if (cashAmt > 0) parts.push(`Efectivo: $${cashAmt.toFixed(2)}`);
+            if (zelleAmt > 0) parts.push(`Zelle: $${zelleAmt.toFixed(2)}`);
+            if (binanceAmt > 0) parts.push(`Binance: $${binanceAmt.toFixed(2)}`);
+
+            method = `Mixto (${parts.join(', ') || 'Sin distribución'})`;
+        }
         const footerNote = document.getElementById('bill-footer-note').value;
 
         let totalRef = 0;
@@ -6046,6 +6199,10 @@ function updateBillingTotals() {
         document.getElementById('bill-total-final').innerText = `$${totalRef.toFixed(2)} REF`;
     } else {
         document.getElementById('bill-total-final').innerText = `Bs. ${totalBcv.toFixed(2)} BS`;
+    }
+
+    if (window.updateBillingSplitStatusExternal) {
+        window.updateBillingSplitStatusExternal();
     }
 }
 
