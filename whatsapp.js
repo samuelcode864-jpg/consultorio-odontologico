@@ -22,13 +22,13 @@ class WhatsAppService {
         localStorage.setItem('whatsapp_budget_template', templateStr);
     }
 
-    static generateBudgetMessage(patient, items, totalUSD, paymentMode, notes = '', subtotalUSD = 0, discountPct = 0, paymentMethodLabel = '') {
+    static generateBudgetMessage(patient, items, totalUSD, paymentMode, notes = '', subtotalUSD = 0, discountPct = 0, paymentMethodLabel = '', budgetId = '') {
         const exchangeRate = parseFloat(localStorage.getItem('dental_exchange_rate')) || 36.5;
         const totalVES = (totalUSD * exchangeRate).toFixed(2);
         
         let template = this.getTemplate();
         const clinica = "DentalCare Pro";
-        const link = `${window.location.origin}/?patientId=${patient.id}&view=budget`;
+        const link = `${window.location.origin}/?patientId=${patient.id}&view=budget&budgetId=${budgetId}`;
 
         let msg = template
             .replace(/{PACIENTE}/g, patient.fullname)

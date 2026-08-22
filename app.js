@@ -236,8 +236,17 @@ function getCurrentUser() {
 }
 
 function checkAuthSession() {
-    const currentSession = sessionStorage.getItem('dental_current_user');
+    const urlParams = new URLSearchParams(window.location.search);
+    const isPublicBudget = urlParams.get('view') === 'budget' && urlParams.get('patientId');
     const loginOverlay = document.getElementById('login-screen');
+
+    if (isPublicBudget) {
+        if (loginOverlay) loginOverlay.classList.add('hidden');
+        renderPublicBudgetView();
+        return;
+    }
+
+    const currentSession = sessionStorage.getItem('dental_current_user');
 
     if (currentSession) {
         try {
@@ -4156,7 +4165,45 @@ function initGlobalEvents() {
             const notes = document.getElementById('budget-notes').value;
             const consentText = document.getElementById('consent-text').value;
 
-            const msg = WhatsAppService.generateBudgetMessage(patient, currentBudgetItems, totalUSD, paymentModeText, notes, subtotalUSD, discountPct, paymentMethodLabel);
+            // Generate budgetId or use active editing one
+            const budgetId = activeEditingBudgetId || `PRE-${Date.now().toString().slice(-6)}`;
+
+            if (!activeEditingBudgetId) {
+                // Auto save as Borrador so that the database has the record for the patient to view
+                try {
+                    const budgetObj = {
+                        id: budgetId,
+                        patientId: activeId,
+                        invoiceDate: new Date().toISOString().split('T')[0],
+                        paymentMethod: paymentMethodSelect.value,
+                        paymentTerms: 'Contado',
+                        currency: 'REF',
+                        items: currentBudgetItems.map(item => ({
+                            tooth: item.tooth,
+                            face: item.face,
+                            code: item.serviceCode,
+                            name: item.name,
+                            price: item.price,
+                            specialist: item.specialist || ''
+                        })),
+                        totalRef: totalUSD,
+                        totalBcv: totalUSD * getExchangeRate(),
+                        status: 'Borrador',
+                        footerText: notes,
+                        metadata: {
+                            consentText: consentText,
+                            discountPct: discountPct
+                        }
+                    };
+                    await SupabaseDataService.saveInvoice(budgetObj);
+                    activeEditingBudgetId = budgetId;
+                    await renderBudgetListView();
+                } catch (saveErr) {
+                    console.error("Error auto-saving budget before whatsapp:", saveErr);
+                }
+            }
+
+            const msg = WhatsAppService.generateBudgetMessage(patient, currentBudgetItems, totalUSD, paymentModeText, notes, subtotalUSD, discountPct, paymentMethodLabel, budgetId);
             WhatsAppService.sendToPatient(patient.phone, msg);
         };
     }
@@ -7408,5 +7455,231 @@ async function renderAttendedPatientsModal(dateStr) {
     } catch (err) {
         console.error("Error loading attended patients modal table:", err);
         tbody.innerHTML = '<tr><td colspan="5" class="text-center text-red">Error al cargar datos de pacientes.</td></tr>';
+    }
+}
+
+async function renderPublicBudgetView() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const patientId = urlParams.get('patientId');
+    const budgetId = urlParams.get('budgetId');
+
+    const publicScreen = document.getElementById('public-budget-screen');
+    const publicContent = document.getElementById('public-budget-content');
+
+    if (!publicScreen || !publicContent) return;
+
+    publicScreen.classList.remove('hidden');
+    publicContent.innerHTML = '<div style="padding:40px; text-align:center;"><i class="fa-solid fa-arrows-rotate fa-spin" style="font-size:2rem; color:var(--primary-cyan);"></i><br><br>Cargando presupuesto...</div>';
+
+    try {
+        const patients = await SupabaseDataService.getPatients();
+        const patient = patients.find(p => p.id === patientId);
+        if (!patient) {
+            publicContent.innerHTML = '<div class="text-center text-red" style="padding:40px;"><i class="fa-solid fa-circle-xmark" style="font-size:2rem;"></i><br><br>No se encontró el paciente en el sistema.</div>';
+            return;
+        }
+
+        const invoices = await SupabaseDataService.getInvoices();
+        const budget = invoices.find(inv => inv.id === budgetId || (inv.patientId === patientId && inv.id.startsWith('PRE-')));
+        
+        if (!budget) {
+            publicContent.innerHTML = '<div class="text-center text-red" style="padding:40px;"><i class="fa-solid fa-circle-xmark" style="font-size:2rem;"></i><br><br>No se encontró ningún presupuesto activo para este paciente.</div>';
+            return;
+        }
+
+        // Convert logo URL to Base64 for local PDF rendering
+        let logoBase64 = '';
+        const stationery = await SupabaseDataService.getStationeryConfig();
+        if (stationery && stationery.logo_url) {
+            try {
+                logoBase64 = stationery.logo_url; // Use logo URL directly
+            } catch (logoErr) {
+                console.warn("Logo load warning:", logoErr);
+            }
+        }
+
+        const rate = parseFloat(localStorage.getItem('dental_exchange_rate')) || 36.5;
+
+        let subtotalUSD = 0;
+        budget.items.forEach(item => subtotalUSD += item.price || 0);
+
+        const discountPct = budget.metadata && budget.metadata.discountPct ? parseFloat(budget.metadata.discountPct) : 0;
+        const discountAmountUSD = subtotalUSD * (discountPct / 100);
+        const totalUSD = subtotalUSD - discountAmountUSD;
+
+        const subtotalVES = (subtotalUSD * rate).toFixed(2);
+        const discountVES = (discountAmountUSD * rate).toFixed(2);
+        const totalVES = (totalUSD * rate).toFixed(2);
+
+        let itemsHtml = '';
+        budget.items.forEach(item => {
+            itemsHtml += `
+                <tr style="border-bottom: 1px dashed #cbd5e1; font-size: 0.85rem;">
+                    <td style="padding: 10px 0;">Pieza ${item.tooth || 'Gnl'} (${item.face || 'Gnl'})</td>
+                    <td style="padding: 10px 0;"><strong>${item.name}</strong></td>
+                    <td style="padding: 10px 0;">${item.specialist || '-'}</td>
+                    <td style="padding: 10px 0; font-weight: 600;">$${item.price.toFixed(2)} USD</td>
+                    <td style="padding: 10px 0; text-align: right; font-weight: 600; color: #1e3a8a;">Bs. ${(item.price * rate).toFixed(2)}</td>
+                </tr>
+            `;
+        });
+
+        let busData = { name: 'Consultorio Odontológico', rif: '', phone: '', email: '', address: '' };
+        if (stationery && stationery.header_text) {
+            try {
+                busData = JSON.parse(stationery.header_text);
+            } catch(e) {
+                busData.name = stationery.header_text;
+            }
+        }
+
+        let patientFiliation = `Cédula / ID: ${patient.id}`;
+        if (patient.phone) patientFiliation += ` | Tel: ${patient.phone}`;
+
+        let docSignatureHtml = '';
+        if (budget.metadata && budget.metadata.doctorSig) {
+            docSignatureHtml = `<img src="${budget.metadata.doctorSig}" style="max-height: 70px; border-bottom: 1px solid #94a3b8; display:block; margin:0 auto 4px auto;" alt="Firma Odontólogo"><span style="font-size:0.75rem; color:#64748b;">Firma Odontólogo</span>`;
+        } else {
+            docSignatureHtml = `<div style="height: 70px; border-bottom: 1px solid #94a3b8; margin-bottom: 4px;"></div><span style="font-size:0.75rem; color:#64748b;">Firma Odontólogo</span>`;
+        }
+
+        let patSignatureHtml = '';
+        if (budget.metadata && budget.metadata.patientSig) {
+            patSignatureHtml = `<img src="${budget.metadata.patientSig}" style="max-height: 70px; border-bottom: 1px solid #94a3b8; display:block; margin:0 auto 4px auto;" alt="Firma Paciente"><span style="font-size:0.75rem; color:#64748b;">Firma Paciente</span>`;
+        } else {
+            patSignatureHtml = `<div style="height: 70px; border-bottom: 1px solid #94a3b8; margin-bottom: 4px;"></div><span style="font-size:0.75rem; color:#64748b;">Firma Paciente</span>`;
+        }
+
+        let notesHtml = '';
+        if (budget.footerText) {
+            notesHtml = `
+                <div style="margin-top: 25px; border-top: 1px solid #cbd5e1; padding-top: 15px; text-align: left;">
+                    <h5 style="margin: 0 0 6px 0; color: #0f172a; font-size: 0.85rem; text-transform: uppercase; font-weight:700;">Observaciones Clínicas / Condiciones:</h5>
+                    <p style="margin: 0; font-size: 0.85rem; color: #475569; line-height: 1.45; white-space: pre-wrap;">${budget.footerText}</p>
+                </div>
+            `;
+        }
+
+        let consentHtml = '';
+        if (budget.metadata && budget.metadata.consentText) {
+            consentHtml = `
+                <div style="margin-top: 20px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 12px; font-size: 0.78rem; color: #475569; line-height: 1.45; text-align: left;">
+                    <strong>Consentimiento Informado:</strong> ${budget.metadata.consentText}
+                </div>
+            `;
+        }
+
+        const html = `
+            <div style="font-family: 'Inter', system-ui, sans-serif; color: #1e293b; padding: 10px;">
+                <!-- HEADER -->
+                <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #06b6d4; padding-bottom: 15px; margin-bottom: 25px; align-items: flex-start; text-align: left;">
+                    <div>
+                        ${logoBase64 ? `<img src="${logoBase64}" style="max-height: 60px; margin-bottom: 10px; display: block;" alt="Logo Clinic">` : ''}
+                        <h2 style="margin: 0; font-size: 1.3rem; color: #0f172a; font-weight: 800;">${busData.name || 'Consultorio Odontológico'}</h2>
+                        <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #64748b;">
+                            ${busData.rif ? `RIF: ${busData.rif} | ` : ''} 
+                            ${busData.phone ? `Tlf: ${busData.phone} | ` : ''} 
+                            ${busData.email ? `Email: ${busData.email}` : ''}
+                        </p>
+                        ${busData.address ? `<p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #64748b;">${busData.address}</p>` : ''}
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="background: rgba(6, 182, 212, 0.1); color: #0891b2; font-weight: 800; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; text-transform: uppercase; display: inline-block; margin-bottom: 8px;">PRESUPUESTO</span>
+                        <p style="margin: 0; font-size: 0.95rem; font-weight: 800; color: #0f172a;">N° Control: ${budget.id}</p>
+                        <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #64748b;">Fecha Emisión: ${budget.invoiceDate}</p>
+                    </div>
+                </div>
+
+                <!-- INFO PATIENT -->
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; display: flex; justify-content: space-between; margin-bottom: 25px; font-size: 0.85rem; text-align: left;">
+                    <div>
+                        <span style="font-size: 0.72rem; color: #64748b; font-weight: 800; text-transform: uppercase; display: block; margin-bottom: 4px;">Paciente:</span>
+                        <strong style="font-size: 1rem; color: #0f172a;">${patient.fullname}</strong>
+                        <span style="display: block; color: #475569; margin-top: 4px;">${patientFiliation}</span>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="font-size: 0.72rem; color: #64748b; font-weight: 800; text-transform: uppercase; display: block; margin-bottom: 4px;">Términos de Pago:</span>
+                        <strong>Contado</strong>
+                        <span style="display: block; color: #475569; margin-top: 4px;">Método: ${budget.paymentMethod || 'Pago Móvil'}</span>
+                    </div>
+                </div>
+
+                <!-- TABLE ITEMS -->
+                <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem; margin-bottom: 25px;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid #cbd5e1; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 0.75rem;">
+                            <th style="padding: 10px 0; width: 15%;">Pieza</th>
+                            <th style="padding: 10px 0; width: 45%;">Procedimiento</th>
+                            <th style="padding: 10px 0; width: 20%;">Especialista</th>
+                            <th style="padding: 10px 0; width: 10%;">Precio Ref.</th>
+                            <th style="padding: 10px 0; width: 10%; text-align: right;">Monto (Bs)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemsHtml}
+                    </tbody>
+                </table>
+
+                <!-- TOTALS -->
+                <div style="display: flex; justify-content: flex-end; margin-bottom: 30px;">
+                    <div style="width: 290px; font-size: 0.85rem; text-align: right;">
+                        <div style="display: flex; justify-content: space-between; padding: 4px 0; color: #475569;">
+                            <span>Subtotal:</span>
+                            <span>$${subtotalUSD.toFixed(2)} USD</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 4px 0; color: #dc2626; font-weight: 600;">
+                            <span>Descuento (${discountPct}%):</span>
+                            <span>-$${discountAmountUSD.toFixed(2)} USD</span>
+                        </div>
+                        <div style="border-top: 1px solid #cbd5e1; margin: 6px 0;"></div>
+                        <div style="display: flex; justify-content: space-between; padding: 4px 0; font-weight: 800; font-size: 0.95rem; color: #0f172a;">
+                            <span>Total Final USD:</span>
+                            <span>$${totalUSD.toFixed(2)} USD</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 4px 0; font-weight: 800; font-size: 1rem; color: #0891b2;">
+                            <span>Total Bolívares (BCV):</span>
+                            <span>Bs. ${totalVES} Bs</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SIGNATURES -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 40px; text-align: center;">
+                    <div>${docSignatureHtml}</div>
+                    <div>${patSignatureHtml}</div>
+                </div>
+
+                <!-- CONSENT AND FOOTER NOTES -->
+                ${consentHtml}
+                ${notesHtml}
+            </div>
+        `;
+
+        publicContent.innerHTML = html;
+
+        // Hook up print & download
+        document.getElementById('btn-public-print').onclick = () => window.print();
+        document.getElementById('btn-public-download-pdf').onclick = async () => {
+            const opt = {
+                margin: 10,
+                filename: `Presupuesto_${budget.id}_${patient.fullname.replace(/\s+/g, '_')}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            try {
+                if (typeof html2pdf !== 'undefined') {
+                    await html2pdf().from(publicContent).set(opt).save();
+                } else {
+                    window.print();
+                }
+            } catch (pdfErr) {
+                console.error("Public PDF Generation Error:", pdfErr);
+            }
+        };
+
+    } catch (err) {
+        console.error("Error displaying public budget view:", err);
+        publicContent.innerHTML = `<div class="text-center text-red" style="padding:40px;"><i class="fa-solid fa-circle-xmark" style="font-size:2rem;"></i><br><br>Error al recuperar el presupuesto del servidor.</div>`;
     }
 }
