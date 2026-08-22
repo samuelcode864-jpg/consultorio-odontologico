@@ -654,6 +654,7 @@ h4 { font-size: 1rem; }
 .stat-card.border-green { border-top: 3px solid var(--status-proposed); }
 .stat-card.border-purple { border-top: 3px solid var(--accent-purple); }
 .stat-card.border-red { border-top: 3px solid var(--status-patology); }
+.stat-card.border-blue { border-top: 3px solid #3b82f6; }
 
 .stat-header {
     display: flex;
@@ -678,6 +679,7 @@ h4 { font-size: 1rem; }
 .stat-icon.green { background: rgba(16, 185, 129, 0.1); color: var(--status-proposed); }
 .stat-icon.purple { background: rgba(124, 58, 237, 0.1); color: var(--accent-purple); }
 .stat-icon.red { background: rgba(239, 68, 68, 0.1); color: var(--status-patology); }
+.stat-icon.blue { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
 
 .stat-card h2 {
     font-size: 1.8rem;

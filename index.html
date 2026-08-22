@@ -241,6 +241,15 @@
                             <h2 id="metric-receivables">$640.00</h2>
                             <small class="text-muted">4 pacientes con saldo pendiente</small>
                         </div>
+
+                        <div class="stat-card border-blue" id="card-attended-patients" style="cursor: pointer;" title="Haga clic para ver los pacientes atendidos">
+                            <div class="stat-header">
+                                <span>Pacientes Atendidos</span>
+                                <div class="stat-icon blue"><i class="fa-solid fa-user-check"></i></div>
+                            </div>
+                            <h2 id="metric-attended-today">0</h2>
+                            <small class="text-muted">Haga clic para ver detalles</small>
+                        </div>
                     </div>
 
                     <!-- Main Dashboard Sections -->
@@ -2565,13 +2574,49 @@
         </div>
     </div>
 
+    <!-- MODAL: PACIENTES ATENDIDOS DEL DÍA -->
+    <div class="modal-overlay hidden" id="modal-attended-details">
+        <div class="modal-dialog" style="max-width: 750px; width: 100%;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-user-check text-blue"></i> Pacientes Atendidos</h3>
+                <button class="modal-close" data-close="modal-attended-details">&times;</button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto; display: flex; flex-direction: column; gap: 15px;">
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: rgba(0,0,0,0.01); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <label style="font-weight: 700; font-size: 0.88rem; color: var(--text-main);">Filtrar por Fecha:</label>
+                    <input type="date" id="attended-filter-date" class="form-input" style="width: auto; max-width: 180px; padding: 6px 12px; height: 36px; border-radius: 6px;">
+                </div>
+                
+                <div class="table-container" style="border: 1px solid var(--border-color); border-radius: 8px;">
+                    <table class="table table-compact" style="margin:0;">
+                        <thead>
+                            <tr>
+                                <th style="width: 15%;">Cédula / ID</th>
+                                <th style="width: 25%;">Paciente</th>
+                                <th style="width: 15%;">Hora</th>
+                                <th style="width: 15%;">Tipo de Registro</th>
+                                <th style="width: 30%;">Detalle / Procedimiento</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attended-details-tbody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" data-close="modal-attended-details">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=71"></script>
-    <script src="supabaseClient.js?v=71"></script>
-    <script src="odontogram.js?v=71"></script>
-    <script src="signature.js?v=71"></script>
-    <script src="whatsapp.js?v=71"></script>
-    <script src="kardex.js?v=71"></script>
-    <script src="app.js?v=71"></script>
+    <script src="seededData.js?v=72"></script>
+    <script src="supabaseClient.js?v=72"></script>
+    <script src="odontogram.js?v=72"></script>
+    <script src="signature.js?v=72"></script>
+    <script src="whatsapp.js?v=72"></script>
+    <script src="kardex.js?v=72"></script>
+    <script src="app.js?v=72"></script>
 </body>
 </html>

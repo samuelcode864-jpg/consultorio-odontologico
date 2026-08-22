@@ -1972,6 +1972,33 @@ async function renderDashboard() {
             dayIcon.className = 'fa-solid fa-dollar-sign';
         }
     }
+
+    // Calculate attended patients count for today
+    try {
+        const allPatients = await SupabaseDataService.getPatients();
+        const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local format
+        let attendedCount = 0;
+        allPatients.forEach(p => {
+            let hasSessionToday = false;
+            if (p.sessions && p.sessions.length > 0) {
+                hasSessionToday = p.sessions.some(s => s.datetime && s.datetime.startsWith(todayStr));
+            }
+            let hasNoteToday = false;
+            if (p.clinicalNotes && p.clinicalNotes.length > 0) {
+                hasNoteToday = p.clinicalNotes.some(n => n.datetime && n.datetime.replace('T', ' ').startsWith(todayStr));
+            }
+            if (hasSessionToday || hasNoteToday) {
+                attendedCount++;
+            }
+        });
+
+        const metricAttendedToday = document.getElementById('metric-attended-today');
+        if (metricAttendedToday) {
+            metricAttendedToday.innerText = attendedCount.toString();
+        }
+    } catch (e) {
+        console.warn("Error calculating attended patients for dashboard:", e);
+    }
 }
 
 window.deleteAppointment = async function(apptId) {
@@ -4515,6 +4542,27 @@ function initGlobalEvents() {
         };
     }
     initSplitPaymentHandlers();
+
+    // Attended patients modal event setup
+    const cardAttended = document.getElementById('card-attended-patients');
+    if (cardAttended) {
+        cardAttended.onclick = () => {
+            const todayStr = new Date().toLocaleDateString('en-CA');
+            const dateInput = document.getElementById('attended-filter-date');
+            if (dateInput) {
+                dateInput.value = todayStr;
+            }
+            renderAttendedPatientsModal(todayStr);
+            openModal('modal-attended-details');
+        };
+    }
+
+    const dateFilter = document.getElementById('attended-filter-date');
+    if (dateFilter) {
+        dateFilter.onchange = (e) => {
+            renderAttendedPatientsModal(e.target.value);
+        };
+    }
 }
 
 function initSplitPaymentHandlers() {
@@ -7292,3 +7340,73 @@ window.downloadSessionReceiptPDF = async (patient, sessionObj) => {
         document.body.removeChild(element);
     }
 };
+
+async function renderAttendedPatientsModal(dateStr) {
+    const tbody = document.getElementById('attended-details-tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center">Cargando...</td></tr>';
+    
+    try {
+        const allPatients = await SupabaseDataService.getPatients();
+        const records = [];
+
+        allPatients.forEach(p => {
+            // Check sessions
+            if (p.sessions && p.sessions.length > 0) {
+                p.sessions.forEach(s => {
+                    if (s.datetime && s.datetime.startsWith(dateStr)) {
+                        const timePart = s.datetime.slice(11).trim() || 'N/A';
+                        records.push({
+                            id: p.id,
+                            name: p.fullname,
+                            time: timePart,
+                            type: 'Evolución de Sesión',
+                            details: `Sesión N° ${s.sessionNum}: ${s.procedure}`
+                        });
+                    }
+                });
+            }
+            // Check clinicalNotes
+            if (p.clinicalNotes && p.clinicalNotes.length > 0) {
+                p.clinicalNotes.forEach(n => {
+                    const cleanDt = n.datetime.replace('T', ' ');
+                    if (cleanDt.startsWith(dateStr)) {
+                        const timePart = cleanDt.slice(11).trim() || 'N/A';
+                        records.push({
+                            id: p.id,
+                            name: p.fullname,
+                            time: timePart,
+                            type: 'Nota Clínica / Evolución',
+                            details: n.content
+                        });
+                    }
+                });
+            }
+        });
+
+        // Sort by time ascending
+        records.sort((a, b) => a.time.localeCompare(b.time));
+
+        tbody.innerHTML = '';
+        if (records.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No se registraron pacientes atendidos en esta fecha.</td></tr>';
+            return;
+        }
+
+        records.forEach(rec => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${rec.id}</strong></td>
+                <td><strong>${rec.name}</strong></td>
+                <td><i class="fa-solid fa-clock text-blue"></i> ${rec.time}</td>
+                <td><span class="badge-tag ${rec.type.includes('Sesión') ? 'green' : 'blue'}">${rec.type}</span></td>
+                <td><small style="font-size:0.8rem; color:var(--text-muted);">${rec.details}</small></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (err) {
+        console.error("Error loading attended patients modal table:", err);
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-red">Error al cargar datos de pacientes.</td></tr>';
+    }
+}
