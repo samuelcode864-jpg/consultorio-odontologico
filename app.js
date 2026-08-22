@@ -5160,7 +5160,7 @@ function initPatientStepperWizard() {
 }
 
 function toggleStep1InputsReadonly(isReadonly) {
-    const ids = ['p-type', 'p-id', 'p-firstname', 'p-lastname', 'p-birthdate', 'p-age', 'p-gender', 'p-profession', 'p-mobile-phone', 'p-local-phone', 'p-work-phone', 'p-email', 'p-address', 'p-consult-reason', 'p-rep-name', 'p-rep-id', 'p-rep-phone', 'p-rep-relation'];
+    const ids = ['p-type', 'p-id', 'p-firstname', 'p-lastname', 'p-birthdate', 'p-age', 'p-gender', 'p-profession', 'p-mobile-phone', 'p-local-phone', 'p-work-phone', 'p-email', 'p-address', 'p-rep-name', 'p-rep-id', 'p-rep-phone', 'p-rep-relation'];
     ids.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
