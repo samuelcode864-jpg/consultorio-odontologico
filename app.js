@@ -4569,6 +4569,44 @@ async function updateConflictInfoForSession(dateVal, sessionNum) {
     }
 }
 
+window.toggleAccordion = (headerEl) => {
+    const content = headerEl.nextElementSibling;
+    const arrow = headerEl.querySelector('.accordion-arrow');
+    const isOpen = content.style.display === 'block';
+    
+    content.style.display = isOpen ? 'none' : 'block';
+    arrow.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+};
+
+window.updateAccordionHeaderSummary = (sessionNum) => {
+    const container = document.getElementById('plan-sessions-container');
+    if (!container) return;
+
+    const header = container.querySelector(`.accordion-header[data-session="${sessionNum}"]`);
+    if (!header) return;
+
+    const summarySpan = header.querySelector('.session-header-summary');
+    if (!summarySpan) return;
+
+    const dateInput = container.querySelector(`.session-date-input[data-session="${sessionNum}"]`);
+    const timeSelect = container.querySelector(`.session-time-select[data-session="${sessionNum}"]`);
+    const checkedServices = container.querySelectorAll(`.session-service-checkbox[data-session="${sessionNum}"]:checked`);
+
+    const dateVal = dateInput ? dateInput.value : '';
+    const timeVal = timeSelect ? timeSelect.value : '';
+    const servicesCount = checkedServices.length;
+
+    let summaryText = '';
+    if (dateVal) {
+        summaryText += `📅 ${dateVal} ${timeVal ? `a las ${timeVal}` : ''} | `;
+    } else {
+        summaryText += `📅 Sin fecha | `;
+    }
+    summaryText += `⚙️ ${servicesCount} serv.`;
+
+    summarySpan.textContent = `(${summaryText})`;
+};
+
 function renderSessionsPlanner() {
     const container = document.getElementById('plan-sessions-container');
     if (!container) return;
@@ -4635,27 +4673,38 @@ function renderSessionsPlanner() {
             timeOptionsHtml += `<option value="${t}" ${isSel}>${t}</option>`;
         });
 
+        const isExpanded = (i === 1) ? 'block' : 'none';
+        const arrowRotation = (i === 1) ? 'rotate(180deg)' : 'rotate(0deg)';
+
         html += `
-            <div class="card" style="padding: 12px; border: 1px solid var(--border-color); background: var(--bg-card); border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:10px;">
-                    <strong style="color:var(--primary-cyan); font-size:0.9rem;"><i class="fa-solid fa-calendar-day"></i> Sesión ${i}</strong>
-                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                        <div style="display:flex; align-items:center; gap:6px;">
-                            <label style="font-size:0.78rem; margin:0; font-weight:600; color:var(--text-muted);">Fecha:</label>
-                            <input type="date" class="form-control session-date-input" data-session="${i}" value="${defaultDate}" style="padding:4px 8px; font-size:0.8rem; width:135px; border-radius:4px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-main);">
-                        </div>
-                        <div style="display:flex; align-items:center; gap:6px;">
-                            <label style="font-size:0.78rem; margin:0; font-weight:600; color:var(--text-muted);">Hora:</label>
-                            <select class="form-control session-time-select" data-session="${i}" style="padding:4px 8px; font-size:0.8rem; width:110px; border-radius:4px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-main);">
-                                ${timeOptionsHtml}
-                            </select>
+            <div class="accordion-item card" style="margin-bottom: 10px; border: 1px solid var(--border-color); background: var(--bg-card); border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); overflow: hidden;">
+                <div class="accordion-header" data-session="${i}" onclick="window.toggleAccordion(this)" style="display:flex; justify-content:space-between; align-items:center; padding: 12px; cursor:pointer; background: rgba(13, 148, 136, 0.04); border-bottom: 1px solid var(--border-color);">
+                    <strong style="color:var(--primary-cyan); font-size:0.9rem;">
+                        <i class="fa-solid fa-calendar-day"></i> Sesión ${i}
+                        <span class="session-header-summary" style="font-weight:normal; font-size:0.8rem; margin-left:10px; color: var(--text-muted);"></span>
+                    </strong>
+                    <i class="fa-solid fa-chevron-down accordion-arrow" style="transition: transform 0.2s; transform: ${arrowRotation}; color: var(--text-muted);"></i>
+                </div>
+                <div class="accordion-content" style="padding: 12px; display: ${isExpanded};">
+                    <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:10px;">
+                        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <label style="font-size:0.78rem; margin:0; font-weight:600; color:var(--text-muted);">Fecha:</label>
+                                <input type="date" class="form-control session-date-input" data-session="${i}" value="${defaultDate}" style="padding:4px 8px; font-size:0.8rem; width:135px; border-radius:4px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-main);">
+                            </div>
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <label style="font-size:0.78rem; margin:0; font-weight:600; color:var(--text-muted);">Hora:</label>
+                                <select class="form-control session-time-select" data-session="${i}" style="padding:4px 8px; font-size:0.8rem; width:110px; border-radius:4px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-main);">
+                                    ${timeOptionsHtml}
+                                </select>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="session-conflict-info" id="conflict-info-${i}" style="font-size:0.8rem; margin-bottom:10px; padding:6px 10px; border-radius:6px; display:none;"></div>
-                <div style="font-size:0.75rem; font-weight:600; color:var(--text-muted); margin-bottom:6px; border-bottom:1px dashed var(--border-color); padding-bottom:4px;">Servicios a realizar:</div>
-                <div class="session-services-list" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:8px;">
-                    ${servicesHtml}
+                    <div class="session-conflict-info" id="conflict-info-${i}" style="font-size:0.8rem; margin-bottom:10px; padding:6px 10px; border-radius:6px; display:none;"></div>
+                    <div style="font-size:0.75rem; font-weight:600; color:var(--text-muted); margin-bottom:6px; border-bottom:1px dashed var(--border-color); padding-bottom:4px;">Servicios a realizar:</div>
+                    <div class="session-services-list" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:8px;">
+                        ${servicesHtml}
+                    </div>
                 </div>
             </div>
         `;
@@ -4663,25 +4712,43 @@ function renderSessionsPlanner() {
 
     container.innerHTML = html;
 
-    // Attach dynamic date change listener for conflicts checking
-    container.querySelectorAll('.session-date-input').forEach(input => {
-        const sNum = input.dataset.session;
+    // Attach listeners and check conflict immediately
+    for (let i = 1; i <= sessionsCount; i++) {
+        window.updateAccordionHeaderSummary(i);
         
-        // Check conflict immediately if a date already exists
-        if (input.value) {
-            const infoDiv = document.getElementById(`conflict-info-${sNum}`);
-            if (infoDiv) infoDiv.style.display = 'block';
-            updateConflictInfoForSession(input.value, sNum);
+        const dateInput = container.querySelector(`.session-date-input[data-session="${i}"]`);
+        const timeSelect = container.querySelector(`.session-time-select[data-session="${i}"]`);
+        
+        if (dateInput) {
+            // Check conflict immediately if a date already exists
+            if (dateInput.value) {
+                const infoDiv = document.getElementById(`conflict-info-${i}`);
+                if (infoDiv) infoDiv.style.display = 'block';
+                updateConflictInfoForSession(dateInput.value, i);
+            }
+
+            dateInput.onchange = async () => {
+                const infoDiv = document.getElementById(`conflict-info-${i}`);
+                if (infoDiv) {
+                    infoDiv.style.display = dateInput.value ? 'block' : 'none';
+                }
+                await updateConflictInfoForSession(dateInput.value, i);
+                window.updateAccordionHeaderSummary(i);
+            };
+        }
+        
+        if (timeSelect) {
+            timeSelect.onchange = () => {
+                window.updateAccordionHeaderSummary(i);
+            };
         }
 
-        input.onchange = async () => {
-            const infoDiv = document.getElementById(`conflict-info-${sNum}`);
-            if (infoDiv) {
-                infoDiv.style.display = input.value ? 'block' : 'none';
-            }
-            await updateConflictInfoForSession(input.value, sNum);
-        };
-    });
+        container.querySelectorAll(`.session-service-checkbox[data-session="${i}"]`).forEach(cb => {
+            cb.onchange = () => {
+                window.updateAccordionHeaderSummary(i);
+            };
+        });
+    }
 }
 
 function initPatientStepperWizard() {
@@ -5162,8 +5229,10 @@ function loadPatientDataIntoForm(p) {
         });
     }
 
-    document.getElementById('p-medication').value = p.medication || '';
-    document.getElementById('p-emergency').value = p.emergencyContact || '';
+    const medEl = document.getElementById('p-medication');
+    if (medEl) medEl.value = p.medication || '';
+    const emergEl = document.getElementById('p-emergency');
+    if (emergEl) emergEl.value = p.emergencyContact || '';
 
     if (p.metadata?.medicalTreatment) document.getElementById('p-medical-treatment').value = p.metadata.medicalTreatment;
     if (p.metadata?.medicalTreatmentDetails) document.getElementById('p-medical-treatment-details').value = p.metadata.medicalTreatmentDetails;
