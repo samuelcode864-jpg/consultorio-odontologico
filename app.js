@@ -238,11 +238,18 @@ function getCurrentUser() {
 function checkAuthSession() {
     const urlParams = new URLSearchParams(window.location.search);
     const isPublicBudget = urlParams.get('view') === 'budget' && urlParams.get('patientId');
+    const isPublicReceipt = urlParams.get('view') === 'receipt' && urlParams.get('patientId');
     const loginOverlay = document.getElementById('login-screen');
 
     if (isPublicBudget) {
         if (loginOverlay) loginOverlay.classList.add('hidden');
         renderPublicBudgetView();
+        return;
+    }
+
+    if (isPublicReceipt) {
+        if (loginOverlay) loginOverlay.classList.add('hidden');
+        renderPublicSessionReceiptView();
         return;
     }
 
@@ -1417,20 +1424,28 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                         matsHtml += '</div>';
                     }
 
-                    const deleteSessionBtn = isAssistant ? '' : `<button class="btn btn-xs btn-outline text-red" style="margin-left:8px;" onclick="deleteSessionFromPatient('${activePatient.id}', ${s.sessionNum})" title="Eliminar Sesión"><i class="fa-solid fa-trash"></i></button>`;
+                    const deleteSessionBtn = isAssistant ? '' : `<button class="btn btn-xs btn-outline text-red" style="margin-left:4px;" onclick="deleteSessionFromPatient('${activePatient.id}', ${s.sessionNum})" title="Eliminar Sesión"><i class="fa-solid fa-trash"></i></button>`;
+
+                    let payInfoHtml = '';
+                    if (s.paymentUSD > 0) {
+                        payInfoHtml = `<div style="margin-top: 6px; font-size: 0.8rem; color: #15803d; font-weight: 600;"><i class="fa-solid fa-money-bill-wave"></i> Cobrado: $${s.paymentUSD.toFixed(2)} USD (${s.paymentMethodLabel || 'Efectivo'})</div>`;
+                    }
 
                     const div = document.createElement('div');
                     div.className = 'timeline-item';
                     div.innerHTML = `
-                        <div class="timeline-meta" style="display:flex; justify-content:space-between; align-items:center;">
+                        <div class="timeline-meta" style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 6px;">
                             <span><strong>Sesión N° ${s.sessionNum}</strong> — <i class="fa-solid fa-clock"></i> ${s.datetime}</span>
-                            <div>
+                            <div style="display: flex; gap: 4px; align-items: center;">
+                                <button class="btn btn-xs btn-outline" style="color: #15803d; border-color: #22c55e;" onclick="sendSessionReceiptWhatsApp('${activePatient.id}', ${s.sessionNum})" title="Enviar Recibo por WhatsApp"><i class="fa-brands fa-whatsapp"></i> Recibo</button>
+                                <button class="btn btn-xs btn-outline" onclick="downloadSessionReceiptPDFById('${activePatient.id}', ${s.sessionNum})" title="Descargar Recibo en PDF"><i class="fa-solid fa-file-pdf text-blue"></i> PDF</button>
                                 <span class="badge-tag green">Evolución</span>
                                 ${deleteSessionBtn}
                             </div>
                         </div>
                         <p style="margin:8px 0; font-size:0.88rem; color:#1e293b;">${s.procedure}</p>
                         ${s.indications ? `<p style="margin:4px 0; font-size:0.8rem; color:#0284c7;"><strong>Indicaciones:</strong> ${s.indications}</p>` : ''}
+                        ${payInfoHtml}
                         ${matsHtml}
                         ${s.signatureData ? `
                         <div style="margin-top:10px; display:flex; align-items:center; gap:10px;">
@@ -2694,129 +2709,172 @@ function initGlobalEvents() {
         };
     }
 
-    const saveSessionBtn = document.getElementById('btn-save-session');
-    if (saveSessionBtn) {
-        saveSessionBtn.onclick = async (e) => {
-            e.preventDefault();
-            const activeId = getActivePatientId();
-            if (!activeId) return;
+    async function processSaveSession(sendWhatsApp = false) {
+        const activeId = getActivePatientId();
+        if (!activeId) return;
 
-            const sessionNum = parseInt(document.getElementById('s-num').value);
-            const datetime = document.getElementById('s-datetime').value.replace('T', ' ');
-            const procedure = document.getElementById('s-procedure').value.trim();
-            const indications = document.getElementById('s-next-notes').value.trim();
+        const sessionNum = parseInt(document.getElementById('s-num').value);
+        const datetime = document.getElementById('s-datetime').value.replace('T', ' ');
+        const procedure = document.getElementById('s-procedure').value.trim();
+        const indications = document.getElementById('s-next-notes').value.trim();
 
-            if (!procedure) {
-                Swal.fire({ icon: 'warning', title: 'Campos Vacíos', text: 'Por favor describa la evolución o procedimiento de la sesión.' });
-                return;
+        if (!procedure) {
+            Swal.fire({ icon: 'warning', title: 'Campos Vacíos', text: 'Por favor describa la evolución o procedimiento de la sesión.' });
+            return;
+        }
+
+        if (window.sessionSigPad && window.sessionSigPad.isEmpty()) {
+            Swal.fire({ icon: 'warning', title: 'Firma Requerida', text: 'El paciente debe firmar digitalmente la sesión para constatar conformidad.' });
+            return;
+        }
+
+        const signatureData = window.sessionSigPad ? window.sessionSigPad.getDataURL() : '';
+
+        // Extract payment info
+        const paymentUSD = parseFloat(document.getElementById('s-payment-amount').value) || 0;
+        const paymentMethod = document.getElementById('s-payment-method').value || 'cash';
+        let splitPayments = null;
+        let paymentMethodLabel = getPaymentMethodLabel(paymentMethod);
+
+        if (paymentMethod === 'split') {
+            splitPayments = {};
+            document.querySelectorAll('.s-split-input').forEach(inp => {
+                const methodKey = inp.dataset.method;
+                const val = parseFloat(inp.value) || 0;
+                if (val > 0) splitPayments[methodKey] = val;
+            });
+            paymentMethodLabel = 'Pago Mixto';
+        }
+
+        // Extract materials used
+        const materials = [];
+        const checkboxes = document.querySelectorAll('.session-mat-checkbox:checked');
+        for (const chk of checkboxes) {
+            const code = chk.dataset.code;
+            const qtyInput = document.querySelector(`.session-mat-qty[data-code="${code}"]`);
+            const qty = parseInt(qtyInput.value) || 1;
+            materials.push({ code, qty });
+        }
+
+        try {
+            // Fetch active patient
+            const patients = await SupabaseDataService.getPatients();
+            const patient = patients.find(p => p.id === activeId);
+            if (!patient) return;
+
+            if (!patient.sessions) patient.sessions = [];
+            
+            // Construct new session
+            const sessionObj = {
+                sessionNum,
+                datetime,
+                procedure,
+                indications,
+                signatureData,
+                materials: [],
+                paymentUSD,
+                paymentMethod,
+                paymentMethodLabel,
+                splitPayments
+            };
+
+            // Deduct materials from stock
+            const inventory = await SupabaseDataService.getInventory();
+            for (const m of materials) {
+                const item = inventory.find(inv => inv.code === m.code);
+                if (item) {
+                    const portionsPerUnit = parsePortions(item.unit);
+                    const qtyToDeduct = portionsPerUnit ? (m.qty / portionsPerUnit) : m.qty;
+                    const newStock = Math.max(0, item.currentStock - qtyToDeduct);
+                    item.currentStock = newStock;
+                    
+                    // Update stock locally and in cloud
+                    await SupabaseDataService.saveInventoryItem(item);
+                    
+                    sessionObj.materials.push({
+                        code: m.code,
+                        name: item.name,
+                        qty: m.qty,
+                        unit: portionsPerUnit ? 'porciones' : item.unit
+                    });
+                }
             }
 
-            if (window.sessionSigPad && window.sessionSigPad.isEmpty()) {
-                Swal.fire({ icon: 'warning', title: 'Firma Requerida', text: 'El paciente debe firmar digitalmente la sesión para constatar conformidad.' });
-                return;
+            patient.sessions.push(sessionObj);
+
+            // Record payment in patient payments history if any
+            if (paymentUSD > 0) {
+                if (!patient.payments) patient.payments = [];
+                patient.payments.unshift({
+                    date: datetime.split(' ')[0] || new Date().toISOString().split('T')[0],
+                    concept: `Abono en Sesión #${sessionNum} (${procedure.substring(0, 35)}...)`,
+                    totalUSD: paymentUSD,
+                    paidUSD: paymentUSD,
+                    balanceUSD: 0.00,
+                    status: 'Pagado',
+                    method: paymentMethod,
+                    splitPayments
+                });
             }
 
-            const signatureData = window.sessionSigPad ? window.sessionSigPad.getDataURL() : '';
+            await SupabaseDataService.savePatient(patient);
 
-            // Extract materials used
-            const materials = [];
-            const checkboxes = document.querySelectorAll('.session-mat-checkbox:checked');
-            for (const chk of checkboxes) {
-                const code = chk.dataset.code;
-                const qtyInput = document.querySelector(`.session-mat-qty[data-code="${code}"]`);
-                const qty = parseInt(qtyInput.value) || 1;
-                materials.push({ code, qty });
-            }
-
-            try {
-                // Fetch active patient
-                const patients = await SupabaseDataService.getPatients();
-                const patient = patients.find(p => p.id === activeId);
-                if (!patient) return;
-
-                if (!patient.sessions) patient.sessions = [];
-                
-                // Construct new session
-                const sessionObj = {
-                    sessionNum,
-                    datetime,
-                    procedure,
-                    indications,
-                    signatureData,
-                    materials: []
-                };
-
-                // Deduct materials from stock
-                const inventory = await SupabaseDataService.getInventory();
-                for (const m of materials) {
-                    const item = inventory.find(inv => inv.code === m.code);
-                    if (item) {
-                        const portionsPerUnit = parsePortions(item.unit);
-                        const qtyToDeduct = portionsPerUnit ? (m.qty / portionsPerUnit) : m.qty;
-                        const newStock = Math.max(0, item.currentStock - qtyToDeduct);
-                        item.currentStock = newStock;
-                        
-                        // Update stock locally and in cloud
-                        await SupabaseDataService.saveInventoryItem(item);
-                        
-                        sessionObj.materials.push({
-                            code: m.code,
-                            name: item.name,
-                            qty: m.qty,
-                            unit: portionsPerUnit ? 'porciones' : item.unit
-                        });
+            let apptUpdated = false;
+            if (window.activeAttendingAppointmentId) {
+                try {
+                    const appts = await SupabaseDataService.getAppointments();
+                    const appt = appts.find(a => a.id === window.activeAttendingAppointmentId);
+                    if (appt) {
+                        appt.status = 'Completada';
+                        await SupabaseDataService.saveAppointment(appt);
+                        apptUpdated = true;
                     }
+                } catch(e) {
+                    console.error("Error updating appointment status:", e);
+                }
+            }
+
+            closeModal('modal-session');
+            await renderEHRView();
+            await renderInventoryTable();
+            await renderDashboard();
+            await renderCashFlow();
+            if (apptUpdated) {
+                await renderAgendaView();
+            }
+
+            // Launch WhatsApp if requested
+            if (sendWhatsApp && patient.phone) {
+                const receiptUrl = `${window.location.origin}/?patientId=${patient.id}&view=receipt&sessionNum=${sessionNum}`;
+                const msg = WhatsAppService.generateSessionReceiptMessage(patient, sessionObj, receiptUrl);
+                WhatsAppService.sendToPatient(patient.phone, msg);
+            }
+
+            // Show success alert with Receipt print/download/WhatsApp options
+            Swal.fire({
+                icon: 'success',
+                title: 'Sesión Registrada',
+                text: 'La evolución de la sesión y firma de conformidad fueron guardadas exitosamente.',
+                showCancelButton: true,
+                showDenyButton: true,
+                confirmButtonText: '<i class="fa-brands fa-whatsapp text-green"></i> Enviar WhatsApp',
+                denyButtonText: '<i class="fa-solid fa-file-pdf"></i> Descargar PDF',
+                cancelButtonText: 'Cerrar',
+                confirmButtonColor: '#10b981',
+                denyButtonColor: '#0284c7',
+                cancelButtonColor: '#64748b'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const receiptUrl = `${window.location.origin}/?patientId=${patient.id}&view=receipt&sessionNum=${sessionNum}`;
+                    const msg = WhatsAppService.generateSessionReceiptMessage(patient, sessionObj, receiptUrl);
+                    WhatsAppService.sendToPatient(patient.phone, msg);
+                } else if (result.isDenied) {
+                    window.downloadSessionReceiptPDF(patient, sessionObj);
                 }
 
-                patient.sessions.push(sessionObj);
-                await SupabaseDataService.savePatient(patient);
-
-                let apptUpdated = false;
+                // Prompt to schedule next session if attended from Agenda
                 if (window.activeAttendingAppointmentId) {
-                    try {
-                        const appts = await SupabaseDataService.getAppointments();
-                        const appt = appts.find(a => a.id === window.activeAttendingAppointmentId);
-                        if (appt) {
-                            appt.status = 'Completada';
-                            await SupabaseDataService.saveAppointment(appt);
-                            apptUpdated = true;
-                        }
-                    } catch(e) {
-                        console.error("Error updating appointment status:", e);
-                    }
-                }
-
-                closeModal('modal-session');
-                await renderEHRView();
-                await renderInventoryTable();
-                await renderDashboard();
-                if (apptUpdated) {
-                    await renderAgendaView();
-                }
-
-                // Show success alert with Receipt print/download options
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Sesión Registrada',
-                    text: 'La evolución de la sesión y firma de conformidad fueron guardadas exitosamente.',
-                    showCancelButton: true,
-                    showDenyButton: true,
-                    confirmButtonText: '<i class="fa-solid fa-file-pdf"></i> Descargar PDF',
-                    denyButtonText: '<i class="fa-solid fa-print"></i> Imprimir Recibo',
-                    cancelButtonText: 'Cerrar',
-                    confirmButtonColor: 'var(--primary-cyan)',
-                    denyButtonColor: '#475569',
-                    cancelButtonColor: '#64748b'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        window.downloadSessionReceiptPDF(patient, sessionObj);
-                    } else if (result.isDenied) {
-                        window.printSessionReceipt(patient, sessionObj);
-                    }
-
-                    // Prompt to schedule next session if attended from Agenda
-                    if (window.activeAttendingAppointmentId) {
-                        window.activeAttendingAppointmentId = null;
+                    window.activeAttendingAppointmentId = null;
 
                         setTimeout(() => {
                             Swal.fire({
@@ -2838,10 +2896,25 @@ function initGlobalEvents() {
                         }, 600);
                     }
                 });
-            } catch(err) {
-                console.error("Error saving patient session:", err);
-                Swal.fire({ icon: 'error', title: 'Error al Guardar', text: err.message || err });
-            }
+        } catch(err) {
+            console.error("Error saving patient session:", err);
+            Swal.fire({ icon: 'error', title: 'Error al Guardar', text: err.message || err });
+        }
+    }
+
+    const saveSessionBtn = document.getElementById('btn-save-session');
+    if (saveSessionBtn) {
+        saveSessionBtn.onclick = (e) => {
+            e.preventDefault();
+            processSaveSession(false);
+        };
+    }
+
+    const saveSendSessionWhatsAppBtn = document.getElementById('btn-save-send-session-whatsapp');
+    if (saveSendSessionWhatsAppBtn) {
+        saveSendSessionWhatsAppBtn.onclick = (e) => {
+            e.preventDefault();
+            processSaveSession(true);
         };
     }
 
@@ -4677,6 +4750,103 @@ function initGlobalEvents() {
                 portionsCont.classList.add('hidden');
             }
         };
+    }
+
+    // Account Transfers (Traslados entre cuentas)
+    const btnOpenTransfer = document.getElementById('btn-open-transfer-modal');
+    if (btnOpenTransfer) {
+        btnOpenTransfer.onclick = () => {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const dateInp = document.getElementById('transfer-date');
+            if (dateInp) dateInp.value = todayStr;
+            openModal('modal-account-transfer');
+        };
+    }
+
+    const btnSaveTransfer = document.getElementById('btn-save-account-transfer');
+    if (btnSaveTransfer) {
+        btnSaveTransfer.onclick = async (e) => {
+            e.preventDefault();
+            const fromAccount = document.getElementById('transfer-from').value;
+            const toAccount = document.getElementById('transfer-to').value;
+            const amountSent = parseFloat(document.getElementById('transfer-amount-sent').value) || 0;
+            const amountReceived = parseFloat(document.getElementById('transfer-amount-received').value) || amountSent;
+            const date = document.getElementById('transfer-date').value || new Date().toISOString().split('T')[0];
+            const notes = document.getElementById('transfer-notes').value.trim();
+
+            if (fromAccount === toAccount) {
+                Swal.fire({ icon: 'warning', title: 'Cuentas Iguales', text: 'La cuenta origen y destino deben ser distintas.' });
+                return;
+            }
+            if (amountSent <= 0 || amountReceived <= 0) {
+                Swal.fire({ icon: 'warning', title: 'Monto Inválido', text: 'Ingrese un monto mayor a 0.' });
+                return;
+            }
+
+            const transferObj = {
+                id: 'TRANS-' + Date.now(),
+                date,
+                fromAccount,
+                toAccount,
+                amountSent,
+                amountReceived,
+                notes
+            };
+
+            let transfers = JSON.parse(localStorage.getItem('dental_account_transfers')) || [];
+            transfers.unshift(transferObj);
+            localStorage.setItem('dental_account_transfers', JSON.stringify(transfers));
+
+            closeModal('modal-account-transfer');
+            await renderCashFlow();
+            Swal.fire({
+                icon: 'success',
+                title: '¡Traslado Registrado!',
+                text: `Se trasladaron $${amountSent.toFixed(2)} de ${getPaymentMethodLabel(fromAccount)} a ${getPaymentMethodLabel(toAccount)}.`,
+                timer: 2000,
+                showConfirmButton: false
+            });
+        };
+    }
+
+    // Auto-update amount sent to amount received when typing in transfer modal
+    const sentInput = document.getElementById('transfer-amount-sent');
+    const recvInput = document.getElementById('transfer-amount-received');
+    if (sentInput && recvInput) {
+        sentInput.oninput = (e) => {
+            if (!recvInput.dataset.manual) {
+                recvInput.value = e.target.value;
+            }
+        };
+        recvInput.oninput = () => {
+            recvInput.dataset.manual = 'true';
+        };
+    }
+
+    // Session Modal Payment Method Toggle
+    const sessionPayMethod = document.getElementById('s-payment-method');
+    const sessionSplitContainer = document.getElementById('s-split-payment-container');
+    const sessionSplitInputs = document.querySelectorAll('.s-split-input');
+    const sessionPayAmount = document.getElementById('s-payment-amount');
+
+    if (sessionPayMethod && sessionSplitContainer) {
+        sessionPayMethod.onchange = (e) => {
+            if (e.target.value === 'split') {
+                sessionSplitContainer.classList.remove('hidden');
+            } else {
+                sessionSplitContainer.classList.add('hidden');
+            }
+        };
+    }
+
+    if (sessionSplitInputs && sessionPayAmount) {
+        sessionSplitInputs.forEach(inp => {
+            inp.oninput = () => {
+                let total = 0;
+                sessionSplitInputs.forEach(i => total += parseFloat(i.value) || 0);
+                sessionPayAmount.value = total.toFixed(2);
+            };
+        });
     }
 }
 
@@ -6751,7 +6921,8 @@ async function renderCashFlow() {
         'pagomovil': 0,
         'cash': 0,
         'zelle': 0,
-        'binance': 0
+        'binance': 0,
+        'punto': 0
     };
 
     patients.forEach(p => {
@@ -6761,7 +6932,17 @@ async function renderCashFlow() {
                 
                 // Map and track breakdown totals
                 const m = pay.method ? pay.method.toLowerCase() : 'cash';
-                if (methodTotals[m] !== undefined) {
+                if (m === 'split' && pay.splitPayments) {
+                    for (const sm in pay.splitPayments) {
+                        const subAmt = parseFloat(pay.splitPayments[sm]) || 0;
+                        const cleanSm = sm.toLowerCase();
+                        if (methodTotals[cleanSm] !== undefined) {
+                            methodTotals[cleanSm] += subAmt;
+                        } else {
+                            methodTotals['cash'] += subAmt;
+                        }
+                    }
+                } else if (methodTotals[m] !== undefined) {
                     methodTotals[m] += pay.paidUSD;
                 } else {
                     // Backwards compatibility mapping for old records
@@ -6771,6 +6952,8 @@ async function renderCashFlow() {
                         methodTotals['pagomovil'] += pay.paidUSD;
                     } else if (m.includes('zelle')) {
                         methodTotals['zelle'] += pay.paidUSD;
+                    } else if (m.includes('binance')) {
+                        methodTotals['binance'] += pay.paidUSD;
                     } else {
                         methodTotals['cash'] += pay.paidUSD;
                     }
@@ -6784,6 +6967,32 @@ async function renderCashFlow() {
                     amount: pay.paidUSD
                 });
             }
+        });
+    });
+
+    // Account Transfers (Traslados entre cuentas)
+    const transfers = JSON.parse(localStorage.getItem('dental_account_transfers')) || [];
+    transfers.forEach(t => {
+        const fromM = (t.fromAccount || '').toLowerCase();
+        const toM = (t.toAccount || '').toLowerCase();
+        const amountSent = parseFloat(t.amountSent) || 0;
+        const amountReceived = parseFloat(t.amountReceived) || 0;
+
+        if (methodTotals[fromM] !== undefined) {
+            methodTotals[fromM] -= amountSent;
+        }
+        if (methodTotals[toM] !== undefined) {
+            methodTotals[toM] += amountReceived;
+        }
+
+        transactions.push({
+            id: t.id,
+            date: t.date,
+            concept: `Traslado Interno: De ${getPaymentMethodLabel(fromM)} a ${getPaymentMethodLabel(toM)} ${t.notes ? `(${t.notes})` : ''}`,
+            type: 'Traslado',
+            method: `${getPaymentMethodLabel(fromM)} ➔ ${getPaymentMethodLabel(toM)}`,
+            amount: amountSent,
+            isTransfer: true
         });
     });
 
@@ -6834,20 +7043,53 @@ async function renderCashFlow() {
     }
 
     transactions.forEach(t => {
-        const typeClass = t.type === 'Ingreso' ? 'text-green' : 'text-red';
-        const typeBadge = t.type === 'Ingreso' ? '<span class="badge-tag green">Ingreso</span>' : '<span class="badge-tag red">Egreso</span>';
+        let typeClass = 'text-green';
+        let typeBadge = '<span class="badge-tag green">Ingreso</span>';
+        let sign = '+';
+
+        if (t.type === 'Egreso') {
+            typeClass = 'text-red';
+            typeBadge = '<span class="badge-tag red">Egreso</span>';
+            sign = '-';
+        } else if (t.type === 'Traslado') {
+            typeClass = 'text-blue';
+            typeBadge = '<span class="badge-tag blue" style="background: rgba(124, 58, 237, 0.1); color: #7c3aed;">Traslado</span>';
+            sign = '⇄ ';
+        }
+
+        const deleteTransferBtn = t.isTransfer ? `<button class="btn btn-xs btn-outline text-red" style="margin-left:6px; padding:2px 6px;" onclick="deleteAccountTransfer('${t.id}')" title="Eliminar Traslado"><i class="fa-solid fa-trash"></i></button>` : '';
         
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${t.date}</td>
-            <td><strong>${t.concept}</strong></td>
+            <td><strong>${t.concept}</strong> ${deleteTransferBtn}</td>
             <td>${typeBadge}</td>
             <td>${t.method}</td>
-            <td class="${typeClass}"><strong>${t.type === 'Ingreso' ? '+' : '-'}$${t.amount.toFixed(2)}</strong></td>
+            <td class="${typeClass}"><strong>${sign}$${t.amount.toFixed(2)}</strong></td>
         `;
         tbody.appendChild(tr);
     });
 }
+
+window.deleteAccountTransfer = async function(transferId) {
+    const { value: confirm } = await Swal.fire({
+        title: '¿Revertir traslado?',
+        text: '¿Desea eliminar este registro de traslado entre cuentas?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#ef4444'
+    });
+
+    if (confirm) {
+        let transfers = JSON.parse(localStorage.getItem('dental_account_transfers')) || [];
+        transfers = transfers.filter(t => t.id !== transferId);
+        localStorage.setItem('dental_account_transfers', JSON.stringify(transfers));
+        await renderCashFlow();
+        Swal.fire({ icon: 'success', title: 'Traslado revertido', timer: 1500, showConfirmButton: false });
+    }
+};
 
 // --- CONFIGURACIÓN DE PAPELERÍA ---
 
@@ -7749,5 +7991,235 @@ async function renderPublicBudgetView() {
     } catch (err) {
         console.error("Error displaying public budget view:", err);
         publicContent.innerHTML = `<div class="text-center text-red" style="padding:40px;"><i class="fa-solid fa-circle-xmark" style="font-size:2rem;"></i><br><br>Error al recuperar el presupuesto del servidor.</div>`;
+    }
+}
+
+window.sendSessionReceiptWhatsApp = async function(patientId, sessionNum) {
+    try {
+        const patients = await SupabaseDataService.getPatients();
+        const patient = patients.find(p => p.id === patientId);
+        if (!patient || !patient.sessions) {
+            Swal.fire({ icon: 'error', text: 'No se encontró la sesión del paciente.' });
+            return;
+        }
+
+        const sessionObj = patient.sessions.find(s => s.sessionNum === sessionNum);
+        if (!sessionObj) {
+            Swal.fire({ icon: 'error', text: 'Sesión no encontrada.' });
+            return;
+        }
+
+        if (!patient.phone) {
+            Swal.fire({ icon: 'warning', text: 'El paciente no tiene un número de teléfono registrado.' });
+            return;
+        }
+
+        const receiptUrl = `${window.location.origin}/?patientId=${patient.id}&view=receipt&sessionNum=${sessionNum}`;
+        const msg = WhatsAppService.generateSessionReceiptMessage(patient, sessionObj, receiptUrl);
+        WhatsAppService.sendToPatient(patient.phone, msg);
+    } catch(err) {
+        console.error("Error sending session receipt via WhatsApp:", err);
+    }
+};
+
+window.downloadSessionReceiptPDFById = async function(patientId, sessionNum) {
+    try {
+        const patients = await SupabaseDataService.getPatients();
+        const patient = patients.find(p => p.id === patientId);
+        if (!patient || !patient.sessions) return;
+        const sessionObj = patient.sessions.find(s => s.sessionNum === sessionNum);
+        if (!sessionObj) return;
+
+        window.downloadSessionReceiptPDF(patient, sessionObj);
+    } catch(err) {
+        console.error("Error preparing session receipt PDF:", err);
+    }
+};
+
+async function renderPublicSessionReceiptView() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const patientId = urlParams.get('patientId');
+    const sessionNum = parseInt(urlParams.get('sessionNum'));
+
+    const publicScreen = document.getElementById('public-session-screen');
+    const publicContent = document.getElementById('public-session-content');
+
+    if (!publicScreen || !publicContent) return;
+
+    publicScreen.classList.remove('hidden');
+    publicContent.innerHTML = '<div style="padding:40px; text-align:center;"><i class="fa-solid fa-arrows-rotate fa-spin" style="font-size:2rem; color:var(--primary-cyan);"></i><br><br>Cargando recibo de atención...</div>';
+
+    try {
+        const patients = await SupabaseDataService.getPatients();
+        const patient = patients.find(p => p.id === patientId);
+        if (!patient || !patient.sessions) {
+            publicContent.innerHTML = '<div class="text-center text-red" style="padding:40px;"><i class="fa-solid fa-circle-xmark" style="font-size:2rem;"></i><br><br>No se encontró el paciente o su registro clínico.</div>';
+            return;
+        }
+
+        const session = patient.sessions.find(s => s.sessionNum === sessionNum);
+        if (!session) {
+            publicContent.innerHTML = '<div class="text-center text-red" style="padding:40px;"><i class="fa-solid fa-circle-xmark" style="font-size:2rem;"></i><br><br>No se encontró la sesión médica solicitada.</div>';
+            return;
+        }
+
+        const stationery = await SupabaseDataService.getStationeryConfig();
+        const rate = parseFloat(localStorage.getItem('dental_exchange_rate')) || 36.5;
+        const totalUSD = session.paymentUSD || 0;
+        const totalVES = (totalUSD * rate).toFixed(2);
+
+        let logoImgHtml = '';
+        if (stationery && stationery.logo_url) {
+            logoImgHtml = `<img src="${stationery.logo_url}" style="max-height: 70px; max-width: 150px; object-fit: contain; margin-bottom: 10px;" alt="Logo Clínica">`;
+        }
+
+        let matsHtml = '';
+        if (session.materials && session.materials.length > 0) {
+            matsHtml = `
+                <div style="margin-top: 15px; padding-top: 12px; border-top: 1px dashed #cbd5e1; font-size: 0.82rem; color: #475569;">
+                    <strong>Insumos Clínicos Utilizados:</strong>
+                    <ul style="margin: 6px 0 0 18px; padding: 0;">
+                        ${session.materials.map(m => `<li>${m.name} (${m.qty} ${m.unit || 'U.'})</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
+        let paymentBreakdownHtml = '';
+        if (totalUSD > 0) {
+            let methodText = session.paymentMethodLabel || 'Efectivo';
+            if (session.paymentMethod === 'split' && session.splitPayments) {
+                const parts = [];
+                if (session.splitPayments.cash > 0) parts.push(`Efectivo: $${session.splitPayments.cash.toFixed(2)}`);
+                if (session.splitPayments.pagomovil > 0) parts.push(`Pago Móvil: $${session.splitPayments.pagomovil.toFixed(2)}`);
+                if (session.splitPayments.zelle > 0) parts.push(`Zelle: $${session.splitPayments.zelle.toFixed(2)}`);
+                if (session.splitPayments.binance > 0) parts.push(`Binance: $${session.splitPayments.binance.toFixed(2)}`);
+                if (session.splitPayments.punto > 0) parts.push(`Punto: $${session.splitPayments.punto.toFixed(2)}`);
+                methodText = `Pago Mixto (${parts.join(' + ')})`;
+            }
+
+            paymentBreakdownHtml = `
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin: 20px 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span style="font-weight: 700; color: #1e293b;">Monto Cancelado por la Sesión:</span>
+                        <strong style="font-size: 1.1rem; color: #15803d;">$${totalUSD.toFixed(2)} USD <span style="font-size: 0.9rem; color: #0891b2;">(Bs. ${totalVES})</span></strong>
+                    </div>
+                    <div style="font-size: 0.85rem; color: #475569;">
+                        <strong>Método / Forma de Pago:</strong> ${methodText}
+                    </div>
+                </div>
+            `;
+        } else {
+            paymentBreakdownHtml = `
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin: 20px 0; font-size: 0.85rem; color: #64748b;">
+                    <i class="fa-solid fa-circle-info"></i> Esta sesión forma parte del plan de tratamiento general en curso.
+                </div>
+            `;
+        }
+
+        let signatureHtml = '';
+        if (session.signatureData) {
+            signatureHtml = `
+                <div style="margin-top: 30px; text-align: center; display: inline-block;">
+                    <div style="border-bottom: 1px solid #334155; padding-bottom: 5px; width: 260px; margin: 0 auto;">
+                        <img src="${session.signatureData}" style="max-height: 60px; max-width: 240px; display: block; margin: 0 auto;" alt="Firma de Conformidad">
+                    </div>
+                    <div style="font-size: 0.8rem; font-weight: 700; color: #0f172a; margin-top: 6px;">${patient.fullname}</div>
+                    <div style="font-size: 0.75rem; color: #64748b;">C.I. / ID: ${patient.id} - Firma de Conformidad</div>
+                </div>
+            `;
+        }
+
+        const html = `
+            <div id="public-receipt-printable-doc" style="font-family: inherit; color: #0f172a; line-height: 1.5;">
+                <!-- HEADER -->
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0891b2; padding-bottom: 20px; margin-bottom: 20px;">
+                    <div>
+                        ${logoImgHtml}
+                        <h2 style="margin: 0; font-size: 1.3rem; color: #0891b2;">DENTALCARE PRO</h2>
+                        <p style="margin: 4px 0 0 0; font-size: 0.82rem; color: #475569; white-space: pre-line;">${stationery.headerText || 'Clínica Odontológica Especializada'}</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <span class="badge-tag green" style="font-size: 0.85rem; padding: 4px 10px; border-radius: 6px;">COMPROBANTE DE ATENCIÓN</span>
+                        <div style="font-size: 0.82rem; color: #64748b; margin-top: 6px;">
+                            <strong>Sesión N°:</strong> ${session.sessionNum}<br>
+                            <strong>Fecha y Hora:</strong> ${session.datetime}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PATIENT INFO -->
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.85rem;">
+                    <div>
+                        <span style="font-size: 0.72rem; color: #64748b; font-weight: 800; text-transform: uppercase;">Paciente:</span>
+                        <strong style="display: block; font-size: 1rem; color: #0f172a;">${patient.fullname}</strong>
+                        <span style="color: #475569;">Cédula / Documento: <strong>${patient.id}</strong></span>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="font-size: 0.72rem; color: #64748b; font-weight: 800; text-transform: uppercase;">Contacto:</span>
+                        <span style="display: block; color: #475569;">Teléfono: <strong>${patient.phone}</strong></span>
+                        <span style="color: #475569;">Email: ${patient.email || 'N/A'}</span>
+                    </div>
+                </div>
+
+                <!-- PROCEDURE DETAILS -->
+                <div style="margin-bottom: 20px;">
+                    <h4 style="margin: 0 0 8px 0; color: #0891b2; font-size: 0.95rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
+                        <i class="fa-solid fa-stethoscope"></i> Procedimiento Realizado
+                    </h4>
+                    <p style="margin: 0; font-size: 0.9rem; color: #1e293b; background: #ffffff; padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px;">
+                        ${session.procedure}
+                    </p>
+                    ${session.indications ? `
+                        <div style="margin-top: 10px; font-size: 0.85rem; color: #0284c7; background: #f0f9ff; padding: 8px 12px; border-radius: 6px; border-left: 3px solid #0284c7;">
+                            <strong>Indicaciones Médicas:</strong> ${session.indications}
+                        </div>
+                    ` : ''}
+                    ${matsHtml}
+                </div>
+
+                <!-- PAYMENT -->
+                ${paymentBreakdownHtml}
+
+                <!-- SIGNATURE & CONFORMITY -->
+                <div style="text-align: center; margin-top: 35px;">
+                    ${signatureHtml}
+                    <p style="font-size: 0.75rem; color: #64748b; margin-top: 15px; font-style: italic;">
+                        El paciente constata su conformidad y satisfacción con el tratamiento odontológico recibido en esta fecha.
+                    </p>
+                </div>
+
+                <!-- FOOTER -->
+                <div style="border-top: 1px solid #e2e8f0; margin-top: 25px; padding-top: 12px; text-align: center; font-size: 0.75rem; color: #94a3b8;">
+                    ${stationery.footerText || 'Gracias por su confianza. Todo tratamiento dental requiere control periódico.'}
+                </div>
+            </div>
+        `;
+
+        publicContent.innerHTML = html;
+
+        document.getElementById('btn-public-session-print').onclick = () => window.print();
+        document.getElementById('btn-public-session-download-pdf').onclick = async () => {
+            const opt = {
+                margin: 10,
+                filename: `Recibo_Sesion_${session.sessionNum}_${patient.fullname.replace(/\s+/g, '_')}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            try {
+                if (typeof html2pdf !== 'undefined') {
+                    await html2pdf().from(publicContent).set(opt).save();
+                } else {
+                    window.print();
+                }
+            } catch (pdfErr) {
+                console.error("Public Session PDF Generation Error:", pdfErr);
+            }
+        };
+
+    } catch(err) {
+        console.error("Error loading public session receipt view:", err);
+        publicContent.innerHTML = `<div class="text-center text-red" style="padding:40px;"><i class="fa-solid fa-circle-xmark" style="font-size:2rem;"></i><br><br>Error al recuperar el recibo del servidor.</div>`;
     }
 }

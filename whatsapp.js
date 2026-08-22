@@ -60,6 +60,45 @@ class WhatsAppService {
         return msg;
     }
 
+    static generateSessionReceiptMessage(patient, session, receiptUrl) {
+        const exchangeRate = parseFloat(localStorage.getItem('dental_exchange_rate')) || 36.5;
+        const totalUSD = session.paymentUSD || 0;
+        const totalVES = (totalUSD * exchangeRate).toFixed(2);
+        const clinica = "DentalCare Pro";
+
+        let paymentDetail = session.paymentMethodLabel || 'Efectivo';
+        if (session.paymentMethod === 'split' && session.splitPayments) {
+            const parts = [];
+            if (session.splitPayments.cash > 0) parts.push(`Efectivo: $${session.splitPayments.cash.toFixed(2)}`);
+            if (session.splitPayments.pagomovil > 0) parts.push(`Pago Móvil: $${session.splitPayments.pagomovil.toFixed(2)}`);
+            if (session.splitPayments.zelle > 0) parts.push(`Zelle: $${session.splitPayments.zelle.toFixed(2)}`);
+            if (session.splitPayments.binance > 0) parts.push(`Binance: $${session.splitPayments.binance.toFixed(2)}`);
+            if (session.splitPayments.punto > 0) parts.push(`Punto: $${session.splitPayments.punto.toFixed(2)}`);
+            if (parts.length > 0) paymentDetail = `Pago Mixto (${parts.join(', ')})`;
+        }
+
+        let msg = `🦷 *${clinica} - RECIBO DE ATENCIÓN CLÍNICA*\n\n` +
+                  `Estimado(a) *${patient.fullname}*,\n` +
+                  `Adjuntamos el comprobante y constancia de conformidad de su sesión odontológica:\n\n` +
+                  `📋 *N° de Sesión:* Sesión #${session.sessionNum}\n` +
+                  `📅 *Fecha y Hora:* ${session.datetime}\n` +
+                  `🩺 *Procedimiento:* ${session.procedure}\n`;
+
+        if (totalUSD > 0) {
+            msg += `💰 *Monto Cancelado:* *$${totalUSD.toFixed(2)} USD* / *(Bs. ${totalVES})*\n` +
+                   `💳 *Forma de Pago:* ${paymentDetail}\n`;
+        }
+
+        if (session.indications) {
+            msg += `📝 *Indicaciones:* ${session.indications}\n`;
+        }
+
+        msg += `\n📄 *Ver y Descargar su Recibo en PDF:* ${receiptUrl}\n\n` +
+               `¡Muchas gracias por su confianza! Contáctenos ante cualquier duda.`;
+
+        return msg;
+    }
+
     static sendToPatient(phone, message) {
         if (!phone) return;
         const cleanPhone = phone.replace(/[^0-9]/g, '');

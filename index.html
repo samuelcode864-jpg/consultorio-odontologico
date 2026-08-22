@@ -1428,8 +1428,11 @@
 
                         <!-- Statement of Flows -->
                         <div class="card">
-                            <div class="card-header border-bottom">
+                            <div class="card-header border-bottom" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                                 <h3><i class="fa-solid fa-chart-line text-cyan"></i> Historial Detallado de Flujo de Caja</h3>
+                                <button class="btn btn-sm btn-primary" id="btn-open-transfer-modal" style="background: #7c3aed !important; border: none !important; display: flex; align-items: center; gap: 6px; font-weight: 600; padding: 6px 14px; border-radius: 6px; cursor: pointer;">
+                                    <i class="fa-solid fa-right-left"></i> + Traslado / Cambio de Cuenta
+                                </button>
                             </div>
                             <div class="card-body p-0">
                                 <div class="table-responsive">
@@ -2568,6 +2571,57 @@
                         <input type="text" id="s-next-notes" placeholder="ej: Tomar Ibuprofeno 400mg c/8h si hay dolor, control en 15 días...">
                     </div>
 
+                    <!-- Payment Details for this Session -->
+                    <div class="form-group mb-15" style="background: rgba(37, 99, 235, 0.04); border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px;">
+                        <label style="font-weight: 700; color: #1e40af; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-money-bill-wave text-green"></i> Cobro / Abono de la Sesión (Opcional)
+                        </label>
+                        <div class="grid-form" style="grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div>
+                                <label style="font-size: 0.8rem; font-weight: 600;">Monto Cobrado ($ USD)</label>
+                                <input type="number" id="s-payment-amount" class="form-input" min="0" step="0.01" value="0.00" placeholder="0.00" style="font-weight: 700; color: #15803d;">
+                            </div>
+                            <div>
+                                <label style="font-size: 0.8rem; font-weight: 600;">Método de Pago</label>
+                                <select id="s-payment-method" class="form-input">
+                                    <option value="cash">Efectivo / Cash ($ USD / Bs.)</option>
+                                    <option value="pagomovil">Pago Móvil / Transferencia</option>
+                                    <option value="zelle">Zelle</option>
+                                    <option value="binance">Binance (USDT)</option>
+                                    <option value="punto">Punto de Venta / Tarjeta</option>
+                                    <option value="split">⚡ Pago Mixto (Varios Métodos)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Split Payment Container for Session -->
+                        <div id="s-split-payment-container" class="hidden" style="margin-top: 10px; padding: 10px; background: #ffffff; border-radius: 6px; border: 1px dashed #93c5fd;">
+                            <div style="font-size: 0.75rem; font-weight: 700; color: #1e3a8a; margin-bottom: 6px;">Desglose de Pago Mixto:</div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.8rem;">
+                                <div>
+                                    <label style="font-size: 0.75rem; color: #64748b;">Efectivo ($ USD):</label>
+                                    <input type="number" class="s-split-input form-input" data-method="cash" step="0.01" value="0.00" style="padding: 4px 8px; font-size: 0.8rem;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; color: #64748b;">Pago Móvil ($ USD eq.):</label>
+                                    <input type="number" class="s-split-input form-input" data-method="pagomovil" step="0.01" value="0.00" style="padding: 4px 8px; font-size: 0.8rem;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; color: #64748b;">Zelle ($ USD):</label>
+                                    <input type="number" class="s-split-input form-input" data-method="zelle" step="0.01" value="0.00" style="padding: 4px 8px; font-size: 0.8rem;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; color: #64748b;">Binance USDT ($ USD):</label>
+                                    <input type="number" class="s-split-input form-input" data-method="binance" step="0.01" value="0.00" style="padding: 4px 8px; font-size: 0.8rem;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; color: #64748b;">Punto de Venta ($ USD):</label>
+                                    <input type="number" class="s-split-input form-input" data-method="punto" step="0.01" value="0.00" style="padding: 4px 8px; font-size: 0.8rem;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Signature Pad -->
                     <div class="form-group mb-15">
                         <label><strong>Firma Digital de Conformidad del Paciente *</strong></label>
@@ -2579,8 +2633,11 @@
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap;">
                 <button class="btn btn-outline" data-close="modal-session">Cancelar</button>
+                <button class="btn btn-outline" id="btn-save-send-session-whatsapp" style="color: #15803d; border-color: #22c55e; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-brands fa-whatsapp text-green"></i> Guardar y Enviar WhatsApp
+                </button>
                 <button class="btn btn-primary" id="btn-save-session">Guardar Sesión</button>
             </div>
         </div>
@@ -2640,13 +2697,85 @@
         </div>
     </div>
 
+    <!-- MODAL: TRASLADO / CAMBIO ENTRE CUENTAS -->
+    <div class="modal-overlay hidden" id="modal-account-transfer">
+        <div class="modal-dialog" style="max-width: 500px; width: 100%;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-right-left text-purple"></i> Traslado / Cambio entre Cuentas</h3>
+                <button class="modal-close" data-close="modal-account-transfer">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-account-transfer" class="grid-form" style="grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                        <label>Cuenta Origen (Sale dinero) *</label>
+                        <select id="transfer-from" required class="form-input">
+                            <option value="zelle">Zelle ($ USD)</option>
+                            <option value="binance">Binance (USDT)</option>
+                            <option value="pagomovil">Pago Móvil (Bs.)</option>
+                            <option value="cash">Cash (Efectivo)</option>
+                            <option value="punto">Punto de Venta</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Cuenta Destino (Entra dinero) *</label>
+                        <select id="transfer-to" required class="form-input">
+                            <option value="cash" selected>Cash (Efectivo)</option>
+                            <option value="pagomovil">Pago Móvil (Bs.)</option>
+                            <option value="zelle">Zelle ($ USD)</option>
+                            <option value="binance">Binance (USDT)</option>
+                            <option value="punto">Punto de Venta</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Monto a Retirar / Saliente ($ USD) *</label>
+                        <input type="number" id="transfer-amount-sent" class="form-input" min="0.01" step="0.01" required placeholder="100.00" style="font-weight: 700; color: #dc2626;">
+                    </div>
+                    <div class="form-group">
+                        <label>Monto Recibido en Destino ($ USD) *</label>
+                        <input type="number" id="transfer-amount-received" class="form-input" min="0.01" step="0.01" required placeholder="100.00" style="font-weight: 700; color: #16a34a;">
+                    </div>
+                    <div class="form-group span-2">
+                        <label>Fecha de la Operación *</label>
+                        <input type="date" id="transfer-date" class="form-input" required>
+                    </div>
+                    <div class="form-group span-2">
+                        <label>Nota / Motivo del Cambio</label>
+                        <input type="text" id="transfer-notes" class="form-input" placeholder="ej: Cambio de Zelle a dólares en efectivo, compra de divisas...">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" data-close="modal-account-transfer">Cancelar</button>
+                <button class="btn btn-primary" id="btn-save-account-transfer" style="background: #7c3aed !important;">Registrar Traslado</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PUBLIC SESSION RECEIPT SCREEN (Bypasses auth for client viewing) -->
+    <div id="public-session-screen" class="hidden" style="position: fixed; inset: 0; background: #f1f5f9; z-index: 999999; overflow-y: auto; padding: 20px;">
+        <div style="max-width: 800px; margin: 0 auto 30px auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); overflow: hidden;">
+            <div style="background: #ffffff; border-bottom: 1px solid #e2e8f0; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100;">
+                <div style="font-weight: 800; font-size: 1.1rem; color: #0891b2; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-tooth text-cyan"></i> DENTALCARE PRO - RECIBO DE ATENCIÓN
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-sm btn-primary" id="btn-public-session-download-pdf" style="background: #0891b2 !important; color: #ffffff !important; border: none !important; font-weight: 600; padding: 8px 16px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-download"></i> Descargar PDF</button>
+                    <button class="btn btn-sm btn-outline" id="btn-public-session-print" style="font-weight: 600; padding: 8px 16px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155;"><i class="fa-solid fa-print"></i> Imprimir</button>
+                </div>
+            </div>
+            <div id="public-session-content" style="padding: 30px; background: #ffffff;">
+                <!-- Loaded dynamically -->
+            </div>
+        </div>
+    </div>
+
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=74"></script>
-    <script src="supabaseClient.js?v=74"></script>
-    <script src="odontogram.js?v=74"></script>
-    <script src="signature.js?v=74"></script>
-    <script src="whatsapp.js?v=74"></script>
-    <script src="kardex.js?v=74"></script>
-    <script src="app.js?v=74"></script>
+    <script src="seededData.js?v=75"></script>
+    <script src="supabaseClient.js?v=75"></script>
+    <script src="odontogram.js?v=75"></script>
+    <script src="signature.js?v=75"></script>
+    <script src="whatsapp.js?v=75"></script>
+    <script src="kardex.js?v=75"></script>
+    <script src="app.js?v=75"></script>
 </body>
 </html>
