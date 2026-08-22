@@ -102,12 +102,24 @@ function initStorage() {
 // ==========================================
 async function fetchLiveExchangeRate() {
     const currencyBtn = document.getElementById('currency-btn');
+    const currencyType = localStorage.getItem('dental_exchange_currency') || 'USD';
+    
+    // Synchronize header dropdown selector state
+    const headerSelector = document.getElementById('header-currency-selector');
+    if (headerSelector) {
+        headerSelector.value = currencyType;
+    }
+
     if (currencyBtn) {
         currencyBtn.innerHTML = `<i class="fa-solid fa-arrows-rotate fa-spin"></i> Obteniendo BCV...`;
     }
 
     try {
-        const response = await fetch('https://ve.dolarapi.com/v1/dolares/oficial');
+        const endpoint = currencyType === 'EUR' 
+            ? 'https://ve.dolarapi.com/v1/euros/oficial' 
+            : 'https://ve.dolarapi.com/v1/dolares/oficial';
+
+        const response = await fetch(endpoint);
         if (!response.ok) throw new Error('API Response Error');
         const data = await response.json();
 
@@ -130,13 +142,14 @@ async function fetchLiveExchangeRate() {
 
 function updateCurrencyBadge(rate, isLive) {
     const currencyBtn = document.getElementById('currency-btn');
+    const currencyType = localStorage.getItem('dental_exchange_currency') || 'USD';
     if (currencyBtn) {
         const formattedRate = rate.toFixed(2);
         if (isLive) {
-            currencyBtn.innerHTML = `<i class="fa-solid fa-dollar-sign text-green"></i> BCV: <strong>Bs. ${formattedRate}</strong> <small class="text-muted" style="font-size:0.68rem; margin-left:2px;">(En vivo)</small>`;
+            currencyBtn.innerHTML = `<i class="fa-solid fa-coins text-green"></i> BCV ${currencyType}: <strong>Bs. ${formattedRate}</strong> <small class="text-muted" style="font-size:0.68rem; margin-left:2px;">(En vivo)</small>`;
             currencyBtn.style.border = '1px solid #10b981';
         } else {
-            currencyBtn.innerHTML = `<i class="fa-solid fa-dollar-sign text-amber"></i> BCV: <strong>Bs. ${formattedRate}</strong>`;
+            currencyBtn.innerHTML = `<i class="fa-solid fa-coins text-amber"></i> BCV ${currencyType}: <strong>Bs. ${formattedRate}</strong>`;
         }
     }
 
@@ -1018,7 +1031,8 @@ async function renderBudgetTable() {
     
     const vesTitleLabel = document.getElementById('ves-title-label');
     if (vesTitleLabel) {
-        vesTitleLabel.innerText = `Total Final en Bolívares (Tasa BCV ${rate.toFixed(2)}):`;
+        const activeCurrency = localStorage.getItem('dental_exchange_currency') || 'USD';
+        vesTitleLabel.innerText = `Total Final en Bolívares (Tasa BCV ${activeCurrency} ${rate.toFixed(2)}):`;
     }
 }
 
@@ -2489,6 +2503,14 @@ window.deleteUser = async function(userId) {
 function initGlobalEvents() {
     initPatientStepperWizard();
     initSettingsEvents();
+
+    const headerSelector = document.getElementById('header-currency-selector');
+    if (headerSelector) {
+        headerSelector.onchange = async (e) => {
+            localStorage.setItem('dental_exchange_currency', e.target.value);
+            await fetchLiveExchangeRate();
+        };
+    }
 
     // Conditional display for Doctor role in User Modal
     const uRoleSelect = document.getElementById('u-role');

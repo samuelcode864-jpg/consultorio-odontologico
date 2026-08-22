@@ -163,8 +163,12 @@
 
                 <div class="header-actions">
                     <!-- Live DolarApi Exchange Rate Badge -->
-                    <div class="currency-toggle">
-                        <button id="currency-btn" class="badge-btn" title="Haga clic para actualizar la tasa oficial desde ve.dolarapi.com">
+                    <div class="currency-toggle" style="display: flex; align-items: center; gap: 8px;">
+                        <select id="header-currency-selector" style="font-size: 0.8rem; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-weight: 600; cursor: pointer; outline: none; height: 32px;">
+                            <option value="USD">USD ($)</option>
+                            <option value="EUR">EUR (€)</option>
+                        </select>
+                        <button id="currency-btn" class="badge-btn" title="Haga clic para actualizar la tasa oficial desde ve.dolarapi.com" style="height: 32px; padding: 0 10px; display: flex; align-items: center; gap: 6px; border-radius: 6px;">
                             <i class="fa-solid fa-arrows-rotate fa-spin"></i> Cargando...
                         </button>
                     </div>
@@ -401,9 +405,9 @@
                                 </div>
                                 <div style="flex: 0.8; min-width: 150px;">
                                     <select id="budget-status-filter" class="form-control" style="width: 100%; border-radius: 8px; height: 38px; border: 1px solid var(--border-color); background: var(--bg-card);">
-                                        <option value="all">Todos los Estatus</option>
-                                        <option value="Presupuesto">Presupuestos / Cotizaciones</option>
-                                        <option value="Aprobado">Aprobados / Facturados</option>
+                                        <option value="all" selected>Todos los Presupuestos (Borradores y Aprobados)</option>
+                                        <option value="Presupuesto">Solo Borradores / Cotizaciones</option>
+                                        <option value="Aprobado">Solo Aprobados / Certificados</option>
                                     </select>
                                 </div>
                             </div>
@@ -2562,12 +2566,12 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=68"></script>
-    <script src="supabaseClient.js?v=68"></script>
-    <script src="odontogram.js?v=68"></script>
-    <script src="signature.js?v=68"></script>
-    <script src="whatsapp.js?v=68"></script>
-    <script src="kardex.js?v=68"></script>
-    <script src="app.js?v=68"></script>
+    <script src="seededData.js?v=69"></script>
+    <script src="supabaseClient.js?v=69"></script>
+    <script src="odontogram.js?v=69"></script>
+    <script src="signature.js?v=69"></script>
+    <script src="whatsapp.js?v=69"></script>
+    <script src="kardex.js?v=69"></script>
+    <script src="app.js?v=69"></script>
 </body>
 </html>
