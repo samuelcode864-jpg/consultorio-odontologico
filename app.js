@@ -666,8 +666,9 @@ async function renderBudgetListView() {
             const spec = b.items && b.items[0] && b.items[0].specialist ? b.items[0].specialist : 'Varios';
             
             const isApproved = b.status === 'Aprobado';
-            const badgeClass = isApproved ? 'badge-tag green' : 'badge-tag orange';
-            const statusLabel = isApproved ? 'Aprobado' : 'Borrador';
+            const isFacturado = b.status === 'Facturado';
+            const badgeClass = isFacturado ? 'badge-tag blue' : (isApproved ? 'badge-tag green' : 'badge-tag orange');
+            const statusLabel = isFacturado ? 'Finalizado' : (isApproved ? 'Aprobado' : 'Borrador');
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
@@ -678,7 +679,10 @@ async function renderBudgetListView() {
                 <td>${spec}</td>
                 <td><span class="${badgeClass}" style="font-size:0.75rem; text-transform:none; padding: 2px 6px;">${statusLabel}</span></td>
                 <td style="text-align: center;">
-                    <button class="btn btn-xs btn-outline" onclick="loadBudgetIntoEditor('${b.id}')" style="padding: 4px 8px; font-weight:600; border-radius:4px; cursor: pointer;"><i class="fa-solid fa-folder-open"></i> Abrir</button>
+                    <div style="display: flex; gap: 4px; justify-content: center;">
+                        <button class="btn btn-xs btn-outline" onclick="loadBudgetIntoEditor('${b.id}')" style="padding: 4px 8px; font-weight:600; border-radius:4px; cursor: pointer;"><i class="fa-solid fa-folder-open"></i> Abrir</button>
+                        ${isApproved ? `<button class="btn btn-xs btn-success" onclick="closeBudgetFinanciallyDirect('${b.id}')" style="padding: 4px 8px; font-weight:600; border-radius:4px; cursor: pointer; background:#10b981; border:none; color:#fff;" title="Cerrar Financieramente con Factura Física"><i class="fa-solid fa-check-double"></i> Cerrar Físico</button>` : ''}
+                    </div>
                 </td>
             `;
             tableBody.appendChild(tr);
@@ -4359,6 +4363,26 @@ function initGlobalEvents() {
                 renderBillingItemsTable();
                 Swal.fire({ icon: 'success', title: 'Presupuesto cargado en Factura', text: 'Los tratamientos se cargaron en el módulo de facturación.', timer: 2000, showConfirmButton: false });
             }, 200);
+        };
+    }
+
+    const btnCloseFinancialDirect = document.getElementById('btn-close-financial-direct');
+    if (btnCloseFinancialDirect) {
+        btnCloseFinancialDirect.onclick = async () => {
+            if (activeEditingBudgetId) {
+                await window.closeBudgetFinanciallyDirect(activeEditingBudgetId);
+                // Go back to the budget list view
+                const listContainer = document.getElementById('odontogram-list-container');
+                const editorContainer = document.getElementById('odontogram-editor-container');
+                if (listContainer) listContainer.classList.remove('hidden');
+                if (editorContainer) editorContainer.classList.add('hidden');
+            } else {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Presupuesto no guardado',
+                    text: 'Por favor apruebe o guarde el presupuesto primero para asignarle un número de control.'
+                });
+            }
         };
     }
 
