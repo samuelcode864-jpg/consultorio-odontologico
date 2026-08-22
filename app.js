@@ -2818,10 +2818,25 @@ function initGlobalEvents() {
             const doctors = await getDoctorsList();
             const defaultDoc = doctors[0] ? doctors[0].fullname : 'Dr. Alejandro Silva';
 
+            const toothNum = parseInt(toothVal);
+            let itemKey = 'custom-' + Date.now();
+            let faceVal = 'Gnl';
+
+            if (!isNaN(toothNum) && toothNum > 0) {
+                itemKey = `${toothNum}-center`;
+                faceVal = 'center';
+                
+                // Color center face (Oclusal) as Lesión (patology) on odontogram
+                if (window.odontogram) {
+                    window.odontogram.toothData[itemKey] = 'patology';
+                    window.odontogram.render();
+                }
+            }
+
             currentBudgetItems.push({
-                key: 'custom-' + Date.now(),
+                key: itemKey,
                 tooth: toothVal,
-                face: toothVal.toLowerCase() === 'general' ? 'Gnl' : 'Gnl',
+                face: faceVal,
                 serviceCode: '',
                 name: nameVal,
                 price: priceVal,
