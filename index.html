@@ -1881,6 +1881,15 @@
                         <label>Stock Mínimo Requerido *</label>
                         <input type="number" id="mat-min-stock" required value="10" min="1">
                     </div>
+                    <div class="form-group span-2" style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+                        <input type="checkbox" id="mat-has-portions" style="width: auto; height: auto; cursor: pointer;">
+                        <label for="mat-has-portions" style="margin: 0; font-weight: 600; cursor: pointer; color: var(--text-main);">¿Es un insumo fraccionado? (Se descuenta por porciones, ej: Jeringa de Resina)</label>
+                    </div>
+                    <div id="mat-portions-container" class="form-group span-2 hidden" style="background: rgba(2, 132, 199, 0.05); padding: 10px; border-radius: 8px; border: 1px dashed var(--primary-cyan);">
+                        <label style="color: var(--primary-cyan); font-weight: 700;">Porciones estimadas por Unidad *</label>
+                        <input type="number" id="mat-portions-per-unit" value="30" min="1" placeholder="ej: 30 porciones por jeringa">
+                        <small class="text-muted" style="font-size: 0.75rem; display: block; margin-top: 4px;">Al atender una sesión clínica podrás descontar la cantidad exacta de porciones utilizadas sin gastar la unidad entera.</small>
+                    </div>
                     <div class="form-group span-2">
                         <label>Fecha de Caducidad</label>
                         <input type="date" id="mat-expiry">
@@ -2632,12 +2641,12 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=73"></script>
-    <script src="supabaseClient.js?v=73"></script>
-    <script src="odontogram.js?v=73"></script>
-    <script src="signature.js?v=73"></script>
-    <script src="whatsapp.js?v=73"></script>
-    <script src="kardex.js?v=73"></script>
-    <script src="app.js?v=73"></script>
+    <script src="seededData.js?v=74"></script>
+    <script src="supabaseClient.js?v=74"></script>
+    <script src="odontogram.js?v=74"></script>
+    <script src="signature.js?v=74"></script>
+    <script src="whatsapp.js?v=74"></script>
+    <script src="kardex.js?v=74"></script>
+    <script src="app.js?v=74"></script>
 </body>
 </html>

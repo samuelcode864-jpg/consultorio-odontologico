@@ -1455,28 +1455,7 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
 
                     const inventory = await SupabaseDataService.getInventory();
                     const container = document.getElementById('session-materials-container');
-                    container.innerHTML = '';
-                    inventory.forEach(item => {
-                        const row = document.createElement('div');
-                        row.style.display = 'flex';
-                        row.style.justifyContent = 'space-between';
-                        row.style.alignItems = 'center';
-                        row.style.padding = '4px 0';
-                        row.style.borderBottom = '1px dashed var(--border-color)';
-                        row.innerHTML = `
-                            <label style="font-size:0.8rem; cursor:pointer; display:flex; align-items:center; gap:6px;">
-                                <input type="checkbox" class="session-mat-checkbox" data-code="${item.code}">
-                                <span>${item.name} <small class="text-muted">(${item.currentStock} ${item.unit})</small></span>
-                            </label>
-                            <input type="number" class="session-mat-qty form-control" data-code="${item.code}" min="1" max="${item.currentStock}" value="1" style="width:60px; padding:2px; font-size:0.8rem;" disabled>
-                        `;
-                        const chk = row.querySelector('.session-mat-checkbox');
-                        const qtyIn = row.querySelector('.session-mat-qty');
-                        chk.onchange = () => {
-                            qtyIn.disabled = !chk.checked;
-                        };
-                        container.appendChild(row);
-                    });
+                    renderSessionMaterialsList(inventory, container);
 
                     window.sessionSigPad = setupSignaturePad('session-signature-canvas', 'btn-clear-session-signature');
                     openModal('modal-session');
@@ -2179,30 +2158,7 @@ window.atenderAppointmentFromAgenda = async (apptId) => {
         // Load inventory materials
         const inventory = await SupabaseDataService.getInventory();
         const container = document.getElementById('session-materials-container');
-        if (container) {
-            container.innerHTML = '';
-            inventory.forEach(item => {
-                const row = document.createElement('div');
-                row.style.display = 'flex';
-                row.style.justifyContent = 'space-between';
-                row.style.alignItems = 'center';
-                row.style.padding = '4px 0';
-                row.style.borderBottom = '1px dashed var(--border-color)';
-                row.innerHTML = `
-                    <label style="font-size:0.8rem; cursor:pointer; display:flex; align-items:center; gap:6px; color: var(--text-main);">
-                        <input type="checkbox" class="session-mat-checkbox" data-code="${item.code}">
-                        <span>${item.name} <small class="text-muted">(${item.currentStock} ${item.unit})</small></span>
-                    </label>
-                    <input type="number" class="session-mat-qty form-control" data-code="${item.code}" min="1" max="${item.currentStock}" value="1" style="width:60px; padding:2px; font-size:0.8rem; border:1px solid var(--border-color); background:var(--bg-main); color:var(--text-main);" disabled>
-                `;
-                const chk = row.querySelector('.session-mat-checkbox');
-                const qtyIn = row.querySelector('.session-mat-qty');
-                chk.onchange = () => {
-                    qtyIn.disabled = !chk.checked;
-                };
-                container.appendChild(row);
-            });
-        }
+        renderSessionMaterialsList(inventory, container);
 
         // Init signature
         window.sessionSigPad = setupSignaturePad('session-signature-canvas', 'btn-clear-session-signature');
@@ -2304,6 +2260,59 @@ window.sendRemindersForAllTomorrow = async function() {
     });
 };
 
+function parsePortions(unitStr) {
+    if (!unitStr) return null;
+    const match = unitStr.match(/\((\d+)\s*porciones\)/i);
+    if (match) return parseInt(match[1]);
+    const matchSimple = unitStr.match(/\((\d+)\)/);
+    if (matchSimple) return parseInt(matchSimple[1]);
+    return null;
+}
+
+function renderSessionMaterialsList(inventory, container) {
+    if (!container) return;
+    container.innerHTML = '';
+    
+    inventory.forEach(item => {
+        const portionsPerUnit = parsePortions(item.unit);
+        let stockDesc = `${item.currentStock} ${item.unit}`;
+        let maxQty = item.currentStock;
+        let qtyLabel = 'U.';
+
+        if (portionsPerUnit) {
+            const units = Math.floor(item.currentStock);
+            const portions = Math.round((item.currentStock - units) * portionsPerUnit);
+            const baseUnit = item.unit.replace(/\s*\(\d+\s*porciones\)/i, '').trim();
+            stockDesc = `${units} ${baseUnit} y ${portions} porc.`;
+            maxQty = Math.round(item.currentStock * portionsPerUnit);
+            qtyLabel = 'porc.';
+        }
+
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.justifyContent = 'space-between';
+        row.style.alignItems = 'center';
+        row.style.padding = '4px 0';
+        row.style.borderBottom = '1px dashed var(--border-color)';
+        row.innerHTML = `
+            <label style="font-size:0.8rem; cursor:pointer; display:flex; align-items:center; gap:6px; color: var(--text-main); margin:0;">
+                <input type="checkbox" class="session-mat-checkbox" data-code="${item.code}">
+                <span>${item.name} <small class="text-muted">(${stockDesc})</small></span>
+            </label>
+            <div style="display:flex; align-items:center; gap:4px;">
+                <input type="number" class="session-mat-qty form-control" data-code="${item.code}" min="1" max="${maxQty}" value="1" style="width:60px; padding:2px; font-size:0.8rem; border:1px solid var(--border-color); background:var(--bg-main); color:var(--text-main);" disabled>
+                <span style="font-size:0.75rem; color:var(--text-muted);">${qtyLabel}</span>
+            </div>
+        `;
+        const chk = row.querySelector('.session-mat-checkbox');
+        const qtyIn = row.querySelector('.session-mat-qty');
+        chk.onchange = () => {
+            qtyIn.disabled = !chk.checked;
+        };
+        container.appendChild(row);
+    });
+}
+
 // ==========================================
 // INVENTORY KARDEX & PRICING TABLES WITH DELETE
 // ==========================================
@@ -2355,13 +2364,26 @@ async function renderInventoryTable(filter = 'all', searchQuery = '') {
 
         const deleteMatBtn = isAssistant ? '' : `<button class="btn btn-xs btn-outline text-red" onclick="deleteInventoryItem('${item.code}')" title="Eliminar Insumo"><i class="fa-solid fa-trash"></i></button>`;
 
+        // Parse portions if fraccionado
+        let stockDisplay = `${item.currentStock} ${item.unit}`;
+        let minStockDisplay = `${item.minStock} ${item.unit}`;
+        
+        const portionsPerUnit = parsePortions(item.unit);
+        if (portionsPerUnit) {
+            const units = Math.floor(item.currentStock);
+            const portions = Math.round((item.currentStock - units) * portionsPerUnit);
+            const baseUnit = item.unit.replace(/\s*\(\d+\s*porciones\)/i, '').trim();
+            stockDisplay = `<strong>${units}</strong> ${baseUnit} y <strong>${portions}</strong> / ${portionsPerUnit} porc.`;
+            minStockDisplay = `${item.minStock} ${baseUnit}`;
+        }
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td><strong>${item.code}</strong></td>
             <td>${item.name}</td>
             <td>${item.category}</td>
-            <td><strong>${item.currentStock} ${item.unit}</strong></td>
-            <td>${item.minStock} ${item.unit}</td>
+            <td>${stockDisplay}</td>
+            <td>${minStockDisplay}</td>
             <td>${item.expiryDate || 'N/A'}</td>
             <td>${statusBadge}</td>
             <td>
@@ -2729,17 +2751,19 @@ function initGlobalEvents() {
                 for (const m of materials) {
                     const item = inventory.find(inv => inv.code === m.code);
                     if (item) {
-                        const newStock = Math.max(0, item.currentStock - m.qty);
+                        const portionsPerUnit = parsePortions(item.unit);
+                        const qtyToDeduct = portionsPerUnit ? (m.qty / portionsPerUnit) : m.qty;
+                        const newStock = Math.max(0, item.currentStock - qtyToDeduct);
                         item.currentStock = newStock;
                         
                         // Update stock locally and in cloud
-                        if (window.kardex) window.kardex.updateStock(m.code, newStock);
                         await SupabaseDataService.saveInventoryItem(item);
                         
                         sessionObj.materials.push({
                             code: m.code,
                             name: item.name,
-                            qty: m.qty
+                            qty: m.qty,
+                            unit: portionsPerUnit ? 'porciones' : item.unit
                         });
                     }
                 }
@@ -2998,10 +3022,17 @@ function initGlobalEvents() {
             const code = document.getElementById('mat-code').value.trim();
             const name = document.getElementById('mat-name').value.trim();
             const category = document.getElementById('mat-category').value;
-            const unit = document.getElementById('mat-unit').value.trim() || 'Unidades';
+            let unit = document.getElementById('mat-unit').value.trim() || 'Unidades';
             const stock = parseInt(document.getElementById('mat-stock').value) || 0;
             const minStock = parseInt(document.getElementById('mat-min-stock').value) || 5;
             const expiryDate = document.getElementById('mat-expiry').value;
+
+            // Handle portions unit encoding
+            const hasPortionsChk = document.getElementById('mat-has-portions');
+            if (hasPortionsChk && hasPortionsChk.checked) {
+                const portionsPerUnit = parseInt(document.getElementById('mat-portions-per-unit').value) || 30;
+                unit = `${unit} (${portionsPerUnit} porciones)`;
+            }
 
             if (!code || !name) {
                 Swal.fire({ icon: 'warning', title: 'Campos requeridos', text: 'Por favor complete los campos obligatorios (*)' });
@@ -4632,6 +4663,19 @@ function initGlobalEvents() {
     if (dateFilter) {
         dateFilter.onchange = (e) => {
             renderAttendedPatientsModal(e.target.value);
+        };
+    }
+
+    // Fractional inventory checkbox toggle
+    const hasPortionsChk = document.getElementById('mat-has-portions');
+    const portionsCont = document.getElementById('mat-portions-container');
+    if (hasPortionsChk && portionsCont) {
+        hasPortionsChk.onchange = (e) => {
+            if (e.target.checked) {
+                portionsCont.classList.remove('hidden');
+            } else {
+                portionsCont.classList.add('hidden');
+            }
         };
     }
 }
