@@ -945,6 +945,26 @@ async function renderBudgetTable() {
     const rate = getExchangeRate();
     const doctors = await getDoctorsList();
 
+    const activeCurrency = localStorage.getItem('dental_exchange_currency') || 'USD';
+    const curSymbol = activeCurrency === 'EUR' ? '€' : '$';
+    const curLabel = activeCurrency === 'EUR' ? 'EUR' : 'USD';
+
+    // Update labels in index.html to show correct reference currency
+    const refTitleLabel = document.getElementById('ref-title-label');
+    if (refTitleLabel) {
+        refTitleLabel.innerText = activeCurrency === 'EUR' 
+            ? 'Total Final en Euros (€):' 
+            : 'Total Final en Dólares ($):';
+    }
+    const customPriceLabel = document.getElementById('custom-price-label');
+    if (customPriceLabel) {
+        customPriceLabel.innerText = `Precio (${curSymbol} ${curLabel})`;
+    }
+    const budgetPriceHeader = document.getElementById('budget-price-header');
+    if (budgetPriceHeader) {
+        budgetPriceHeader.innerText = `Precio (${curSymbol} ${curLabel})`;
+    }
+
     // Setup global discount listener once
     const discInput = document.getElementById('budget-discount-input');
     if (discInput && !discInput.dataset.hasListener) {
@@ -956,11 +976,11 @@ async function renderBudgetTable() {
 
     if (currentBudgetItems.length === 0) {
         tbody.innerHTML = `<tr class="empty-row"><td colspan="6" class="text-center text-muted">Haga clic en el odontodiagrama o en "+ Agregar Item" para armar el presupuesto.</td></tr>`;
-        document.getElementById('budget-subtotal').innerText = '$0.00';
+        document.getElementById('budget-subtotal').innerText = `${curSymbol}0.00`;
         document.getElementById('budget-subtotal-bs').innerText = 'Bs. 0.00';
-        document.getElementById('budget-discount-amount').innerText = '$0.00';
+        document.getElementById('budget-discount-amount').innerText = `${curSymbol}0.00`;
         document.getElementById('budget-discount-ves').innerText = 'Bs. 0.00';
-        document.getElementById('budget-total-amount').innerText = '$0.00';
+        document.getElementById('budget-total-amount').innerText = `${curSymbol}0.00`;
         document.getElementById('budget-total-ves').innerText = 'Bs. 0.00';
         return;
     }
@@ -986,7 +1006,7 @@ async function renderBudgetTable() {
             </td>
             <td>
                 <div style="display: flex; align-items: center; gap: 4px; font-weight: 600;">
-                    $ <input type="number" class="form-control btn-xs srv-price-input" style="width: 70px; padding: 4px 6px; height: auto; text-align: center; border-radius: 4px;" value="${item.price}" step="0.01" data-idx="${index}"> USD
+                    ${curSymbol} <input type="number" class="form-control btn-xs srv-price-input" style="width: 70px; padding: 4px 6px; height: auto; text-align: center; border-radius: 4px;" value="${item.price}" step="0.01" data-idx="${index}"> ${curLabel}
                 </div>
             </td>
             <td style="font-weight: 700; color: #1e3a8a;">${(item.price * rate).toFixed(2)} Bs</td>
@@ -1021,12 +1041,12 @@ async function renderBudgetTable() {
     const totalVES = (totalUSD * rate).toFixed(2);
 
     // Update labels and values
-    document.getElementById('budget-subtotal').innerText = `$${subtotalUSD.toFixed(2)}`;
+    document.getElementById('budget-subtotal').innerText = `${curSymbol}${subtotalUSD.toFixed(2)}`;
     document.getElementById('budget-subtotal-bs').innerText = `Bs. ${subtotalVES}`;
-    document.getElementById('budget-discount-amount').innerText = `$${discountAmountUSD.toFixed(2)}`;
+    document.getElementById('budget-discount-amount').innerText = `${curSymbol}${discountAmountUSD.toFixed(2)}`;
     document.getElementById('budget-discount-ves').innerText = `Bs. ${discountVES}`;
     
-    document.getElementById('budget-total-amount').innerText = `$${totalUSD.toFixed(2)} USD`;
+    document.getElementById('budget-total-amount').innerText = `${curSymbol}${totalUSD.toFixed(2)} ${curLabel}`;
     document.getElementById('budget-total-ves').innerText = `${totalVES} Bs`;
     
     const vesTitleLabel = document.getElementById('ves-title-label');
@@ -1925,6 +1945,33 @@ async function renderDashboard() {
             alertBox.innerHTML = `<span class="text-muted">Todos los insumos con stock suficiente.</span>`;
         }
     }
+
+    // Dynamic currency symbols for dashboard metrics
+    const activeCurrency = localStorage.getItem('dental_exchange_currency') || 'USD';
+    const curSymbol = activeCurrency === 'EUR' ? '€' : '$';
+    
+    const metricToday = document.getElementById('metric-today-income');
+    if (metricToday) metricToday.innerText = `${curSymbol}420.00`;
+    
+    const metricMonth = document.getElementById('metric-month-income');
+    if (metricMonth) metricMonth.innerText = `${curSymbol}4,850.00`;
+    
+    const metricReceivables = document.getElementById('metric-receivables');
+    if (metricReceivables) metricReceivables.innerText = `${curSymbol}640.00`;
+
+    const targetLabel = document.querySelector('#metric-month-income + .text-muted');
+    if (targetLabel) {
+        targetLabel.innerText = `Meta mensual: ${curSymbol}6,000`;
+    }
+
+    const dayIcon = document.querySelector('.stat-card.border-cyan .stat-icon i');
+    if (dayIcon) {
+        if (curSymbol === '€') {
+            dayIcon.className = 'fa-solid fa-euro-sign';
+        } else {
+            dayIcon.className = 'fa-solid fa-dollar-sign';
+        }
+    }
 }
 
 window.deleteAppointment = async function(apptId) {
@@ -2509,6 +2556,7 @@ function initGlobalEvents() {
         headerSelector.onchange = async (e) => {
             localStorage.setItem('dental_exchange_currency', e.target.value);
             await fetchLiveExchangeRate();
+            await renderDashboard();
         };
     }
 
