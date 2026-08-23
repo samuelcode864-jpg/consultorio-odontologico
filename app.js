@@ -2692,6 +2692,15 @@ function initGlobalEvents() {
     const logoutBtn = document.getElementById('btn-logout');
     if (logoutBtn) {
         logoutBtn.onclick = () => {
+            if (window.closeMobileSidebar) {
+                window.closeMobileSidebar();
+            } else {
+                const sb = document.querySelector('.sidebar');
+                const bd = document.getElementById('mobile-sidebar-backdrop');
+                if (sb) sb.classList.remove('mobile-open');
+                if (bd) bd.classList.add('hidden');
+            }
+
             Swal.fire({
                 title: '¿Cerrar sesión?',
                 text: '¿Está seguro de que desea salir del sistema?',
@@ -6109,6 +6118,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (sidebar) sidebar.classList.remove('mobile-open');
         if (mobileBackdrop) mobileBackdrop.classList.add('hidden');
     }
+    window.closeMobileSidebar = closeMobileSidebar;
 
     if (mobileToggleBtn && sidebar && mobileBackdrop) {
         mobileToggleBtn.onclick = () => {
