@@ -2958,20 +2958,58 @@ html, body {
 }
 
 /* ==========================================================================
-   FINAL OVERRIDE: ULTIMATE RESPONSIVE & MOBILE POLISH (MOBILE-FIRST GUARANTEE)
+   FINAL OVERRIDE: ULTIMATE RESPONSIVE & MOBILE POLISH (UNIVERSAL ADAPTATION)
    ========================================================================== */
 @media (max-width: 991px) {
-    /* Settings View Mobile Stacking */
-    .settings-layout {
+    /* Universal viewport safety */
+    html, body, .app-container, .main-content, .content-body, .tab-view {
+        width: 100% !important;
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box !important;
+    }
+
+    /* All layout grids to 1 column */
+    .grid-2-col,
+    .grid-30-70,
+    .billing-layout,
+    .odontogram-layout,
+    .settings-layout,
+    .stationery-layout {
         display: flex !important;
         flex-direction: column !important;
         grid-template-columns: 1fr !important;
         gap: 16px !important;
-        min-height: auto !important;
         width: 100% !important;
-        max-width: 100% !important;
+        min-height: auto !important;
     }
 
+    /* All forms and inline grids to 1 column */
+    .grid-form,
+    .form-grid-2,
+    .form-grid-3,
+    #ehr-summary-filiation,
+    .signatures-grid,
+    .tissues-grid,
+    .checkbox-group,
+    [style*="grid-template-columns: 1fr 1fr"],
+    [style*="grid-template-columns: repeat(3, 1fr)"],
+    [style*="grid-template-columns: 1fr 2fr"],
+    [style*="grid-template-columns: 1.15fr 0.85fr"] {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .grid-form [style*="grid-column: span 2"],
+    .span-2,
+    [style*="grid-column: span 2"] {
+        grid-column: span 1 !important;
+    }
+
+    /* Settings View Mobile Stacking */
     .settings-sidebar {
         display: flex !important;
         flex-direction: row !important;
@@ -3005,28 +3043,10 @@ html, body {
         gap: 12px !important;
     }
 
-    /* EHR Grid & Filiation Form Mobile */
-    #ehr-summary-filiation,
-    .grid-form,
-    .form-grid-2,
-    .form-grid-3,
-    .grid-2-col,
-    .grid-30-70 {
-        display: grid !important;
-        grid-template-columns: 1fr !important;
-        gap: 12px !important;
-        width: 100% !important;
-    }
-
-    .grid-form [style*="grid-column: span 2"],
-    .span-2 {
-        grid-column: span 1 !important;
-    }
-
-    /* Header adjustments */
+    /* Top Header Bar */
     .top-header {
         height: auto !important;
-        padding: 8px 10px !important;
+        padding: 8px 12px !important;
         row-gap: 8px !important;
     }
 
@@ -3053,24 +3073,205 @@ html, body {
         padding: 4px 8px !important;
         font-size: 0.74rem !important;
         height: 30px !important;
+        white-space: nowrap !important;
     }
 
-    /* Modals & SweetAlert */
-    .swal2-container {
-        z-index: 2147483647 !important;
+    /* View Headers & Action Rows */
+    .view-header {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+        margin-bottom: 15px !important;
     }
 
-    .modal-overlay {
-        z-index: 100000 !important;
+    .view-header > div:last-child {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        width: 100% !important;
     }
 
-    /* Responsive Tables */
-    .table-container, .table-responsive {
+    .view-header > div:last-child .btn,
+    .actions-bar .btn {
+        flex: 1 1 auto !important;
+        justify-content: center !important;
+    }
+
+    /* Cards and Containers */
+    .card {
+        padding: 14px !important;
+        border-radius: var(--radius-md) !important;
+        margin-bottom: 15px !important;
+        box-sizing: border-box !important;
+    }
+
+    .card-header {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+        padding: 10px 0 !important;
+    }
+
+    .card-header > div:last-child {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+        width: 100% !important;
+    }
+
+    .card-header > div:last-child .btn {
+        flex: 1 1 auto !important;
+        justify-content: center !important;
+    }
+
+    /* Subtabs Navigation */
+    .subtabs {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        flex-wrap: nowrap !important;
+        width: 100% !important;
+        padding-bottom: 4px !important;
+        gap: 4px !important;
+    }
+
+    .subtab-btn {
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+        padding: 8px 12px !important;
+        font-size: 0.8rem !important;
+    }
+
+    /* Stats Grids */
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px !important;
+    }
+
+    /* Odontogram & Canvas Signatures */
+    .odontogram-grid-layout {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+    }
+
+    .odontogram-grid-layout::before,
+    .odontogram-grid-layout::after {
+        display: none !important;
+    }
+
+    .odontogram-viewport {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        width: 100% !important;
+        padding: 8px 0 !important;
+    }
+
+    .sig-canvas-wrapper {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+    }
+
+    .sig-canvas-wrapper canvas {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 120px !important;
+        touch-action: none !important;
+    }
+
+    /* Tables & Horizontally Scrollable Paper */
+    .table-container,
+    .table-responsive {
         width: 100% !important;
         max-width: 100% !important;
         overflow-x: auto !important;
         -webkit-overflow-scrolling: touch !important;
         display: block !important;
+    }
+
+    .invoice-paper-container,
+    #stationery-live-paper {
+        padding: 15px !important;
+        font-size: 0.78rem !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Modals & Dialogs */
+    .modal-overlay {
+        z-index: 100000 !important;
+        padding: 10px !important;
+        align-items: flex-end !important;
+    }
+
+    .modal-dialog,
+    .modal-dialog.modal-lg,
+    .modal-dialog.modal-sm,
+    .modal-dialog.modal-xl {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        border-radius: 20px 20px 0 0 !important;
+        max-height: 90vh !important;
+        max-height: 90dvh !important;
+        display: flex !important;
+        flex-direction: column !important;
+        box-sizing: border-box !important;
+    }
+
+    .modal-header {
+        flex-shrink: 0 !important;
+        padding: 16px 18px 12px !important;
+    }
+
+    .modal-body {
+        flex: 1 1 auto !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        padding: 14px 18px 24px !important;
+    }
+
+    .modal-footer {
+        flex-shrink: 0 !important;
+        padding: 12px 18px !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+
+    .modal-footer .btn {
+        flex: 1 1 auto !important;
+        justify-content: center !important;
+    }
+
+    /* SweetAlert Priority */
+    .swal2-container {
+        z-index: 2147483647 !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-grid {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+    }
+
+    .stat-card {
+        padding: 10px 12px !important;
+    }
+
+    .stat-card h3 {
+        font-size: 1.2rem !important;
+    }
+
+    .stat-card p {
+        font-size: 0.75rem !important;
+    }
+
+    .btn {
+        padding: 8px 12px !important;
+        font-size: 0.82rem !important;
     }
 }
 
