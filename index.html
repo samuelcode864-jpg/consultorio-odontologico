@@ -18,7 +18,7 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=79">
+    <link rel="stylesheet" href="styles.css?v=80">
 </head>
 <body class="light-theme">
 
@@ -318,7 +318,7 @@
                             <button class="filter-btn" data-filter="Presupuesto Pendiente">Presupuesto Pendiente</button>
                         </div>
                         <div class="search-box">
-                            <input type="text" id="patient-table-search" placeholder="Filtrar por nombre, cédula o diagnóstico...">
+                            <input type="text" id="patient-table-search" placeholder="Buscar paciente o cédula...">
                         </div>
                     </div>
 
@@ -365,7 +365,7 @@
                             <button class="filter-btn" data-filter="Completada">Completadas</button>
                         </div>
                         <div class="search-box">
-                            <input type="text" id="agenda-table-search" placeholder="Filtrar por paciente, procedimiento o médico...">
+                            <input type="text" id="agenda-table-search" placeholder="Buscar cita o paciente...">
                         </div>
                     </div>
 
@@ -403,12 +403,12 @@
                         <div class="card mb-20">
                             <div class="card-body" style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center; padding: 15px;">
                                 <div style="flex: 1.5; min-width: 250px; position: relative;">
-                                    <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
-                                    <input type="text" id="budget-search-input" class="form-input" placeholder="Buscar por paciente, especialista o código de presupuesto..." style="padding-left: 35px; width: 100%; border-radius: 8px; height: 38px; border: 1px solid var(--border-color);">
+                                    <input type="text" id="budget-search-input" class="form-input" placeholder="Buscar paciente o código..." style="padding: 9px 38px 9px 14px; width: 100%; border-radius: 8px; height: 42px; min-height: 42px; line-height: normal; border: 1px solid var(--border-color); font-size: 0.88rem; box-sizing: border-box;">
+                                    <i class="fa-solid fa-magnifying-glass" style="position: absolute; right: 14px; left: auto; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; font-size: 0.9rem;"></i>
                                 </div>
                                 <div style="flex: 0.8; min-width: 150px;">
-                                    <select id="budget-status-filter" class="form-control" style="width: 100%; border-radius: 8px; height: 38px; border: 1px solid var(--border-color); background: var(--bg-card);">
-                                        <option value="all" selected>Todos los Presupuestos (Borradores y Aprobados)</option>
+                                    <select id="budget-status-filter" class="form-control" style="width: 100%; border-radius: 8px; height: 42px; min-height: 42px; line-height: 1.4; padding: 8px 12px; border: 1px solid var(--border-color); background: var(--bg-card); font-size: 0.88rem; box-sizing: border-box;">
+                                        <option value="all" selected>Todos los Presupuestos</option>
                                         <option value="Presupuesto">Solo Borradores / Cotizaciones</option>
                                         <option value="Aprobado">Solo Aprobados / Certificados</option>
                                     </select>
@@ -499,12 +499,12 @@
                                 <div class="form-group mb-0" style="display: flex; flex-direction: column; gap: 8px;">
                                     <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: var(--text-main); margin-bottom: 2px;">Buscar / Seleccionar Paciente</label>
                                     <div style="position: relative; width: 100%;">
-                                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.9rem;"></i>
-                                        <input type="text" id="od-patient-search-input" class="form-input" placeholder="Buscar por Nombre o Cédula..." style="padding-left: 35px; width: 100%; border-radius: 8px; height: 40px; border: 1px solid var(--border-color);" autocomplete="off">
+                                        <input type="text" id="od-patient-search-input" class="form-input" placeholder="Buscar por Nombre o Cédula..." style="padding: 9px 38px 9px 14px; width: 100%; border-radius: 8px; height: 42px; min-height: 42px; line-height: normal; border: 1px solid var(--border-color); font-size: 0.88rem; box-sizing: border-box;" autocomplete="off">
+                                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; right: 14px; left: auto; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.9rem; pointer-events: none;"></i>
                                         <!-- Floating Autocomplete Results Container -->
-                                        <div id="od-patient-search-results" style="position: absolute; top: 45px; left: 0; right: 0; background: #ffffff; border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); z-index: 9999; max-height: 220px; overflow-y: auto; display: none;"></div>
+                                        <div id="od-patient-search-results" style="position: absolute; top: 48px; left: 0; right: 0; background: #ffffff; border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); z-index: 9999; max-height: 220px; overflow-y: auto; display: none;"></div>
                                     </div>
-                                    <select id="od-patient-select" class="form-control select-lg patient-dropdown-main" style="width: 100%; border-radius: 8px; height: 40px; border: 1px solid var(--border-color); background-color: var(--bg-card);">
+                                    <select id="od-patient-select" class="form-control select-lg patient-dropdown-main" style="width: 100%; border-radius: 8px; height: 42px; min-height: 42px; line-height: 1.4; padding: 8px 12px; border: 1px solid var(--border-color); background-color: var(--bg-card); font-size: 0.88rem; box-sizing: border-box;">
                                         <!-- Filled dynamically -->
                                     </select>
                                 </div>
@@ -802,7 +802,7 @@
                             <div class="card-header" style="flex-direction: column; align-items: stretch; gap: 8px;">
                                 <h3><i class="fa-solid fa-users"></i> Seleccionar Paciente</h3>
                                 <div class="search-box" style="margin-top: 5px; width: 100%;">
-                                    <input type="text" id="ehr-patient-search" placeholder="Buscar paciente por nombre o C.I..." style="width: 100%; padding: 8px 12px; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 6px;">
+                                    <input type="text" id="ehr-patient-search" placeholder="Buscar paciente o C.I..." style="width: 100%;">
                                 </div>
                                 <div class="filter-group" style="display: flex; gap: 5px; margin-top: 5px; flex-wrap: wrap;">
                                     <button class="filter-btn active btn-xs" data-filter="all" style="padding: 2px 8px; font-size: 0.72rem;">Todos</button>
@@ -959,7 +959,7 @@
                             <button class="filter-btn" data-filter="expired">Vencidos / Por Vencer</button>
                         </div>
                         <div class="search-box">
-                            <input type="text" id="inventory-table-search" placeholder="Filtrar por código, nombre o lote...">
+                            <input type="text" id="inventory-table-search" placeholder="Buscar insumo o código...">
                         </div>
                     </div>
 
@@ -1018,7 +1018,7 @@
                             <button class="filter-btn" data-filter="Estética">Estética</button>
                         </div>
                         <div class="search-box">
-                            <input type="text" id="pricing-table-search" placeholder="Filtrar por código, nombre o categoría...">
+                            <input type="text" id="pricing-table-search" placeholder="Buscar servicio o código...">
                         </div>
                     </div>
 
@@ -1067,7 +1067,7 @@
                             <button class="filter-btn" data-filter="Asistente">Asistentes</button>
                         </div>
                         <div class="search-box">
-                            <input type="text" id="users-table-search" placeholder="Filtrar por nombre, correo o rol...">
+                            <input type="text" id="users-table-search" placeholder="Buscar usuario o rol...">
                         </div>
                     </div>
 
@@ -2811,12 +2811,12 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=79"></script>
-    <script src="supabaseClient.js?v=79"></script>
-    <script src="odontogram.js?v=79"></script>
-    <script src="signature.js?v=79"></script>
-    <script src="whatsapp.js?v=79"></script>
-    <script src="kardex.js?v=79"></script>
-    <script src="app.js?v=79"></script>
+    <script src="seededData.js?v=80"></script>
+    <script src="supabaseClient.js?v=80"></script>
+    <script src="odontogram.js?v=80"></script>
+    <script src="signature.js?v=80"></script>
+    <script src="whatsapp.js?v=80"></script>
+    <script src="kardex.js?v=80"></script>
+    <script src="app.js?v=80"></script>
 </body>
 </html>

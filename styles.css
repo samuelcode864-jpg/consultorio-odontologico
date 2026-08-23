@@ -566,16 +566,37 @@ h4 { font-size: 1rem; }
 .search-box {
     position: relative !important;
     width: 320px !important;
+    max-width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+.search-box::after {
+    content: "\f002";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    position: absolute;
+    right: 14px;
+    left: auto;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+    font-size: 0.85rem;
 }
 
 .search-box input {
     width: 100% !important;
     background: var(--bg-input) !important;
     border: 1px solid var(--border-color) !important;
-    border-radius: 20px !important;
-    padding: 8px 16px 8px 36px !important;
-    font-size: 0.84rem !important;
+    border-radius: 8px !important;
+    padding: 9px 38px 9px 14px !important;
+    font-size: 0.88rem !important;
+    line-height: normal !important;
     color: var(--text-main) !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    box-sizing: border-box !important;
     transition: all 0.2s !important;
 }
 
@@ -1270,15 +1291,29 @@ h4 { font-size: 1rem; }
     font-weight: 500;
 }
 
-.form-control, input[type="text"], input[type="date"], input[type="datetime-local"], input[type="tel"], input[type="email"], input[type="number"], input[type="password"], select, textarea {
+.form-control, .form-input, input[type="text"], input[type="date"], input[type="datetime-local"], input[type="tel"], input[type="email"], input[type="number"], input[type="password"], select, textarea {
     background: var(--bg-input);
     border: 1px solid var(--border-color);
-    border-radius: 6px;
+    border-radius: 8px;
     padding: 9px 12px;
     color: var(--text-main);
     font-size: 0.88rem;
+    line-height: normal;
     font-family: inherit;
     transition: border-color 0.2s;
+    box-sizing: border-box;
+    min-height: 42px;
+}
+
+select, .form-select, select.form-control {
+    min-height: 42px !important;
+    height: 42px !important;
+    line-height: 1.4 !important;
+    padding: 8px 12px !important;
+    font-size: 0.88rem !important;
+    box-sizing: border-box !important;
+    background-color: var(--bg-card) !important;
+    color: var(--text-main) !important;
 }
 
 .form-control:focus, input:focus, select:focus, textarea:focus {
@@ -3348,5 +3383,51 @@ html, body {
     .btn-text-short {
         display: inline !important;
     }
+}
+
+/* Universal Polish for Search Boxes & Selects */
+.search-box {
+    position: relative !important;
+    width: 320px !important;
+    max-width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+.search-box::after {
+    content: "\f002";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    position: absolute;
+    right: 14px !important;
+    left: auto !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    color: var(--text-muted) !important;
+    pointer-events: none !important;
+    font-size: 0.85rem !important;
+}
+
+.search-box input {
+    width: 100% !important;
+    background: var(--bg-input) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 8px !important;
+    padding: 9px 38px 9px 14px !important;
+    font-size: 0.88rem !important;
+    line-height: normal !important;
+    color: var(--text-main) !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    box-sizing: border-box !important;
+}
+
+select, .form-select, select.form-control {
+    min-height: 42px !important;
+    height: 42px !important;
+    line-height: 1.4 !important;
+    padding: 8px 12px !important;
+    font-size: 0.88rem !important;
+    box-sizing: border-box !important;
 }
 
