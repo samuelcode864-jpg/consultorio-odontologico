@@ -18,7 +18,7 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=80">
+    <link rel="stylesheet" href="styles.css?v=81">
 </head>
 <body class="light-theme">
 
@@ -70,23 +70,23 @@
             </div>
 
             <nav class="nav-menu">
-                <a href="#dashboard" class="nav-item active" data-tab="dashboard">
+                <a href="#dashboard" class="nav-item active mobile-sidebar-hide" data-tab="dashboard">
                     <i class="fa-solid fa-chart-pie"></i>
                     <span>Home</span>
                 </a>
-                <a href="#patients" class="nav-item" data-tab="patients">
+                <a href="#patients" class="nav-item mobile-sidebar-hide" data-tab="patients">
                     <i class="fa-solid fa-hospital-user"></i>
                     <span>Pacientes</span>
                 </a>
-                <a href="#odontogram" class="nav-item" data-tab="odontogram">
+                <a href="#odontogram" class="nav-item mobile-sidebar-hide" data-tab="odontogram">
                     <i class="fa-solid fa-file-invoice-dollar"></i>
                     <span>Presupuesto</span>
                 </a>
-                <a href="#agenda" class="nav-item" data-tab="agenda">
+                <a href="#agenda" class="nav-item mobile-sidebar-hide" data-tab="agenda">
                     <i class="fa-solid fa-calendar-day"></i>
                     <span>Agenda</span>
                 </a>
-                <a href="#billing" class="nav-item" data-tab="billing">
+                <a href="#billing" class="nav-item mobile-sidebar-hide" data-tab="billing">
                     <i class="fa-solid fa-receipt"></i>
                     <span>Facturación</span>
                 </a>
@@ -94,7 +94,7 @@
                     <i class="fa-solid fa-notes-medical"></i>
                     <span>Historias</span>
                 </a>
-                <a href="#pricing" class="nav-item" data-tab="pricing">
+                <a href="#pricing" class="nav-item mobile-sidebar-hide" data-tab="pricing">
                     <i class="fa-solid fa-tags"></i>
                     <span>Servicios</span>
                 </a>
@@ -102,7 +102,7 @@
                     <i class="fa-solid fa-boxes-stacked"></i>
                     <span>Insumos</span>
                 </a>
-                <a href="#finance" class="nav-item" data-tab="finance">
+                <a href="#finance" class="nav-item mobile-sidebar-hide" data-tab="finance">
                     <i class="fa-solid fa-wallet"></i>
                     <span>Finanzas</span>
                 </a>
@@ -2810,13 +2810,105 @@
         </div>
     </div>
 
+    <!-- ==========================================================================
+         MOBILE-EXCLUSIVE NAVIGATION (5 BOTTOM BUTTONS, FAB & ACTION SHEET)
+         ========================================================================== -->
+
+    <!-- 1. MOBILE BOTTOM NAVIGATION BAR -->
+    <nav id="mobile-bottom-nav" class="mobile-bottom-bar">
+        <button type="button" class="mobile-nav-btn active" data-tab="dashboard" id="mob-nav-home">
+            <i class="fa-solid fa-house"></i>
+            <span>Home</span>
+        </button>
+        <button type="button" class="mobile-nav-btn" data-tab="agenda" id="mob-nav-agenda">
+            <i class="fa-solid fa-calendar-days"></i>
+            <span>Agenda</span>
+        </button>
+        <button type="button" class="mobile-nav-btn" data-tab="pricing" id="mob-nav-pricing">
+            <i class="fa-solid fa-tags"></i>
+            <span>Servicios</span>
+        </button>
+        <button type="button" class="mobile-nav-btn" data-tab="finance" id="mob-nav-finance">
+            <i class="fa-solid fa-wallet"></i>
+            <span>Finanzas</span>
+        </button>
+        <button type="button" class="mobile-nav-btn" data-tab="odontogram" id="mob-nav-odontogram">
+            <i class="fa-solid fa-file-invoice-dollar"></i>
+            <span>Presupuesto</span>
+        </button>
+    </nav>
+
+    <!-- 2. MOBILE FLOATING ACTION BUTTON (FAB +) -->
+    <button type="button" id="mobile-fab-btn" class="mobile-fab" title="Acciones Rápidas">
+        <i class="fa-solid fa-plus"></i>
+    </button>
+
+    <!-- 3. MOBILE QUICK ACTIONS BOTTOM SHEET MODAL -->
+    <div id="modal-mobile-quick-actions" class="modal-overlay hidden" style="z-index: 100005 !important;">
+        <div class="mobile-action-sheet">
+            <!-- Sheet handle bar -->
+            <div class="sheet-handle-bar"></div>
+            
+            <div class="sheet-header">
+                <h3>Opciones & Creación Rápida</h3>
+                <button type="button" class="btn-close-sheet" data-close="modal-mobile-quick-actions"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="sheet-body">
+                <!-- Bloque Clínico -->
+                <div class="sheet-section-title"><i class="fa-solid fa-stethoscope text-cyan"></i> GESTIÓN CLÍNICA</div>
+                <div class="sheet-grid">
+                    <button type="button" class="sheet-grid-card" id="fab-act-patient">
+                        <div class="sheet-card-icon cyan"><i class="fa-solid fa-user-plus"></i></div>
+                        <span>Registrar Paciente</span>
+                    </button>
+                    <button type="button" class="sheet-grid-card" id="fab-act-appointment">
+                        <div class="sheet-card-icon purple"><i class="fa-solid fa-calendar-plus"></i></div>
+                        <span>Agendar Cita</span>
+                    </button>
+                    <button type="button" class="sheet-grid-card" id="fab-act-budget">
+                        <div class="sheet-card-icon green"><i class="fa-solid fa-file-circle-plus"></i></div>
+                        <span>Nuevo Presupuesto</span>
+                    </button>
+                    <button type="button" class="sheet-grid-card" id="fab-act-evolution">
+                        <div class="sheet-card-icon blue"><i class="fa-solid fa-notes-medical"></i></div>
+                        <span>Agregar Evolución</span>
+                    </button>
+                </div>
+
+                <div class="sheet-divider"></div>
+
+                <!-- Bloque Financiero / Administrativo -->
+                <div class="sheet-section-title"><i class="fa-solid fa-coins text-cyan"></i> FINANZAS & FACTURACIÓN</div>
+                <div class="sheet-grid">
+                    <button type="button" class="sheet-grid-card" id="fab-act-expense">
+                        <div class="sheet-card-icon red"><i class="fa-solid fa-arrow-down-long"></i></div>
+                        <span>Registrar Gasto</span>
+                    </button>
+                    <button type="button" class="sheet-grid-card" id="fab-act-income">
+                        <div class="sheet-card-icon emerald"><i class="fa-solid fa-arrow-up-long"></i></div>
+                        <span>Registrar Ingreso</span>
+                    </button>
+                    <button type="button" class="sheet-grid-card" id="fab-act-transfer">
+                        <div class="sheet-card-icon violet"><i class="fa-solid fa-arrow-right-arrow-left"></i></div>
+                        <span>Transferencia / Traslado</span>
+                    </button>
+                    <button type="button" class="sheet-grid-card" id="fab-act-billing">
+                        <div class="sheet-card-icon amber"><i class="fa-solid fa-receipt"></i></div>
+                        <span>Facturación</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=80"></script>
-    <script src="supabaseClient.js?v=80"></script>
-    <script src="odontogram.js?v=80"></script>
-    <script src="signature.js?v=80"></script>
-    <script src="whatsapp.js?v=80"></script>
-    <script src="kardex.js?v=80"></script>
-    <script src="app.js?v=80"></script>
+    <script src="seededData.js?v=81"></script>
+    <script src="supabaseClient.js?v=81"></script>
+    <script src="odontogram.js?v=81"></script>
+    <script src="signature.js?v=81"></script>
+    <script src="whatsapp.js?v=81"></script>
+    <script src="kardex.js?v=81"></script>
+    <script src="app.js?v=81"></script>
 </body>
 </html>

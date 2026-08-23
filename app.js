@@ -512,79 +512,226 @@ let activeEditingBudgetId = null;
 // ==========================================
 // NAVIGATION & TABS
 // ==========================================
-function initNavigation() {
+window.navigateToTab = async function(tabName) {
     const navItems = document.querySelectorAll('.nav-item');
+    const mobNavBtns = document.querySelectorAll('.mobile-nav-btn');
     const tabViews = document.querySelectorAll('.tab-view');
 
+    // RBAC Navigation Guard
+    const user = getCurrentUser();
+    if (user) {
+        const r = (user.role || '').toLowerCase();
+        const isAdmin = r.includes('admin') || r.includes('super');
+        const isDoctor = r.includes('medico') || r.includes('odont') || r.includes('doctor') || r.includes('dentista') || r.includes('médico');
+        const roleType = isAdmin ? 'admin' : (isDoctor ? 'doctor' : 'assistant');
+        const allowedTabs = {
+            admin: ['dashboard', 'patients', 'agenda', 'odontogram', 'ehr', 'inventory', 'pricing', 'users', 'billing', 'finance', 'stationery', 'settings', 'help'],
+            doctor: ['dashboard', 'patients', 'odontogram', 'ehr', 'settings', 'help'],
+            assistant: ['dashboard', 'patients', 'agenda', 'billing', 'settings', 'help']
+        }[roleType] || ['dashboard', 'help'];
+
+        if (!allowedTabs.includes(tabName)) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Acceso Denegado',
+                text: 'Su rol no cuenta con permisos para ver este módulo.'
+            });
+            return;
+        }
+    }
+
+    navItems.forEach(n => {
+        if (n.dataset.tab === tabName) n.classList.add('active');
+        else n.classList.remove('active');
+    });
+
+    mobNavBtns.forEach(m => {
+        if (m.dataset.tab === tabName) m.classList.add('active');
+        else m.classList.remove('active');
+    });
+
+    tabViews.forEach(v => v.classList.remove('active'));
+
+    const targetView = document.getElementById(`view-${tabName}`);
+    if (targetView) targetView.classList.add('active');
+
+    // Close mobile sidebar if open
+    if (window.closeMobileSidebar) window.closeMobileSidebar();
+
+    if (tabName === 'odontogram') {
+        const editorContainer = document.getElementById('odontogram-editor-container');
+        if (editorContainer && !editorContainer.classList.contains('hidden')) {
+            // Do nothing, stay in editor view
+        } else {
+            await renderBudgetListView();
+        }
+    } else if (tabName === 'patients') {
+        await renderPatientsTable();
+    } else if (tabName === 'agenda') {
+        await renderAgendaView();
+    } else if (tabName === 'dashboard') {
+        await renderDashboard();
+    } else if (tabName === 'ehr') {
+        await renderEHRView();
+    } else if (tabName === 'inventory') {
+        await renderInventoryTable();
+    } else if (tabName === 'pricing') {
+        await renderPricingTable();
+    } else if (tabName === 'users') {
+        await renderUsersTable();
+    } else if (tabName === 'billing') {
+        await renderBillingView();
+    } else if (tabName === 'finance') {
+        await renderFinanceView();
+    } else if (tabName === 'stationery') {
+        await renderStationeryView();
+    } else if (tabName === 'settings') {
+        await renderSettingsView();
+    } else if (tabName === 'help') {
+        await renderHelpView();
+    }
+};
+
+function initNavigation() {
+    const navItems = document.querySelectorAll('.nav-item');
     navItems.forEach(item => {
         item.addEventListener('click', async (e) => {
             e.preventDefault();
             const tabName = item.dataset.tab;
-
-            // RBAC Navigation Guard
-            const user = getCurrentUser();
-            if (user) {
-                const r = (user.role || '').toLowerCase();
-                const isAdmin = r.includes('admin') || r.includes('super');
-                const isDoctor = r.includes('medico') || r.includes('odont') || r.includes('doctor') || r.includes('dentista') || r.includes('médico');
-                const roleType = isAdmin ? 'admin' : (isDoctor ? 'doctor' : 'assistant');
-                const allowedTabs = {
-                    admin: ['dashboard', 'patients', 'agenda', 'odontogram', 'ehr', 'inventory', 'pricing', 'users', 'billing', 'finance', 'stationery', 'settings', 'help'],
-                    doctor: ['dashboard', 'patients', 'odontogram', 'ehr', 'settings', 'help'],
-                    assistant: ['dashboard', 'patients', 'agenda', 'billing', 'settings', 'help']
-                }[roleType] || ['dashboard', 'help'];
-
-                if (!allowedTabs.includes(tabName)) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Acceso Denegado',
-                        text: 'Su rol no cuenta con permisos para ver este módulo.'
-                    });
-                    return;
-                }
-            }
-
-            navItems.forEach(n => n.classList.remove('active'));
-            tabViews.forEach(v => v.classList.remove('active'));
-
-            item.classList.add('active');
-            const targetView = document.getElementById(`view-${tabName}`);
-            if (targetView) targetView.classList.add('active');
-
-            if (tabName === 'odontogram') {
-                const editorContainer = document.getElementById('odontogram-editor-container');
-                if (editorContainer && !editorContainer.classList.contains('hidden')) {
-                    // Do nothing, stay in editor view
-                } else {
-                    await renderBudgetListView();
-                }
-            } else if (tabName === 'patients') {
-                await renderPatientsTable();
-            } else if (tabName === 'agenda') {
-                await renderAgendaView();
-            } else if (tabName === 'dashboard') {
-                await renderDashboard();
-            } else if (tabName === 'ehr') {
-                await renderEHRView();
-            } else if (tabName === 'inventory') {
-                await renderInventoryTable();
-            } else if (tabName === 'pricing') {
-                await renderPricingTable();
-            } else if (tabName === 'users') {
-                await renderUsersTable();
-            } else if (tabName === 'billing') {
-                await renderBillingView();
-            } else if (tabName === 'finance') {
-                await renderFinanceView();
-            } else if (tabName === 'stationery') {
-                await renderStationeryView();
-            } else if (tabName === 'settings') {
-                await renderSettingsView();
-            } else if (tabName === 'help') {
-                await renderHelpView();
+            if (tabName) {
+                await window.navigateToTab(tabName);
             }
         });
     });
+
+    const mobNavBtns = document.querySelectorAll('.mobile-nav-btn');
+    mobNavBtns.forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const tabName = btn.dataset.tab;
+            if (tabName) {
+                await window.navigateToTab(tabName);
+            }
+        });
+    });
+
+    // Mobile FAB button
+    const fabBtn = document.getElementById('mobile-fab-btn');
+    if (fabBtn) {
+        fabBtn.onclick = () => {
+            openModal('modal-mobile-quick-actions');
+        };
+    }
+
+    // Bind all FAB actions
+    initMobileFabActions();
+}
+
+function initMobileFabActions() {
+    // 1. Registrar Paciente
+    const actPatient = document.getElementById('fab-act-patient');
+    if (actPatient) {
+        actPatient.onclick = () => {
+            closeModal('modal-mobile-quick-actions');
+            const patientForm = document.getElementById('form-patient');
+            if (patientForm) patientForm.reset();
+            const patientIdInput = document.getElementById('patient-id');
+            if (patientIdInput) patientIdInput.value = '';
+            openModal('modal-patient');
+        };
+    }
+
+    // 2. Agendar Cita
+    const actAppointment = document.getElementById('fab-act-appointment');
+    if (actAppointment) {
+        actAppointment.onclick = async () => {
+            closeModal('modal-mobile-quick-actions');
+            await populateAppointmentPatientSelect();
+            openModal('modal-appointment');
+        };
+    }
+
+    // 3. Nuevo Presupuesto
+    const actBudget = document.getElementById('fab-act-budget');
+    if (actBudget) {
+        actBudget.onclick = async () => {
+            closeModal('modal-mobile-quick-actions');
+            await window.navigateToTab('odontogram');
+            const newBudgetBtn = document.getElementById('btn-new-budget');
+            if (newBudgetBtn) newBudgetBtn.click();
+        };
+    }
+
+    // 4. Agregar Evolución
+    const actEvolution = document.getElementById('fab-act-evolution');
+    if (actEvolution) {
+        actEvolution.onclick = async () => {
+            closeModal('modal-mobile-quick-actions');
+            const activeId = getActivePatientId();
+            if (activeId) {
+                const sessionPatientId = document.getElementById('session-patient-id');
+                if (sessionPatientId) sessionPatientId.value = activeId;
+                openModal('modal-session');
+            } else {
+                await window.navigateToTab('ehr');
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Seleccione un Paciente',
+                    text: 'Seleccione un paciente de la lista para registrar una nueva sesión o evolución clínica.'
+                });
+            }
+        };
+    }
+
+    // 5. Registrar Gasto
+    const actExpense = document.getElementById('fab-act-expense');
+    if (actExpense) {
+        actExpense.onclick = () => {
+            closeModal('modal-mobile-quick-actions');
+            const billForm = document.getElementById('form-provider-bill');
+            if (billForm) billForm.reset();
+            openModal('modal-provider-bill');
+        };
+    }
+
+    // 6. Registrar Ingreso / Abono
+    const actIncome = document.getElementById('fab-act-income');
+    if (actIncome) {
+        actIncome.onclick = async () => {
+            closeModal('modal-mobile-quick-actions');
+            const activeId = getActivePatientId();
+            if (activeId) {
+                const paymentPatientId = document.getElementById('payment-patient-id');
+                if (paymentPatientId) paymentPatientId.value = activeId;
+                openModal('modal-payment');
+            } else {
+                await window.navigateToTab('finance');
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Registro de Abonos / Ingresos',
+                    text: 'Puede registrar abonos desde la ficha de cada paciente en Historias Clínicas o Cuentas por Cobrar.'
+                });
+            }
+        };
+    }
+
+    // 7. Transferencia / Traslado entre Cuentas
+    const actTransfer = document.getElementById('fab-act-transfer');
+    if (actTransfer) {
+        actTransfer.onclick = () => {
+            closeModal('modal-mobile-quick-actions');
+            openModal('modal-account-transfer');
+        };
+    }
+
+    // 8. Facturación
+    const actBilling = document.getElementById('fab-act-billing');
+    if (actBilling) {
+        actBilling.onclick = async () => {
+            closeModal('modal-mobile-quick-actions');
+            await window.navigateToTab('billing');
+        };
+    }
 }
 
 async function updateActivePatientUI(filterText = '') {
