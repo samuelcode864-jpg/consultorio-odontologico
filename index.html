@@ -18,7 +18,7 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=78">
+    <link rel="stylesheet" href="styles.css?v=79">
 </head>
 <body class="light-theme">
 
@@ -172,12 +172,6 @@
                             <i class="fa-solid fa-arrows-rotate fa-spin"></i> Cargando...
                         </button>
                     </div>
-
-                    <!-- Light / Dark Theme Switcher Button -->
-                    <button id="btn-theme-toggle" class="theme-toggle-btn" title="Cambiar Tema (Modo Claro / Modo Oscuro)">
-                        <i class="fa-solid fa-moon" id="theme-icon"></i>
-                        <span id="theme-text">Modo Oscuro</span>
-                    </button>
 
                     <button class="btn btn-primary btn-quick-patient-main" id="btn-quick-patient">
                         <i class="fa-solid fa-user-plus"></i> <span>Nuevo Paciente</span>
@@ -1576,6 +1570,10 @@
                                 <i class="fa-solid fa-user-gear"></i>
                                 <span>Mi Perfil Personal</span>
                             </button>
+                            <button class="settings-nav-btn" data-pane="appearance" id="btn-pane-appearance">
+                                <i class="fa-solid fa-palette"></i>
+                                <span>Apariencia y Tema</span>
+                            </button>
                         </div>
 
                         <!-- Panel de Contenido -->
@@ -1705,6 +1703,49 @@
                                         <button type="submit" class="btn btn-primary" id="btn-save-settings-profile">Actualizar Perfil</button>
                                     </div>
                                 </form>
+                            </div>
+
+                            <!-- PANE 3: Apariencia y Tema Visual -->
+                            <div class="settings-pane" id="pane-appearance">
+                                <h3 style="margin-top:0; margin-bottom:15px; color:var(--text-heading); font-weight:700;"><i class="fa-solid fa-palette text-cyan"></i> Tema y Apariencia Visual</h3>
+                                <p class="text-muted" style="font-size:0.88rem; margin-bottom:25px;">Seleccione el estilo visual preferido para el sistema. Puede alternar entre el Modo Claro (predeterminado para la práctica clínica diurna) y el Modo Oscuro (ideal para reducir la fatiga visual nocturna).</p>
+                                
+                                <div class="theme-selection-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 25px;">
+                                    
+                                    <!-- Card Modo Claro -->
+                                    <div class="theme-card-option" id="card-theme-light" style="border: 2px solid #0284c7; border-radius: 12px; padding: 20px; background: #ffffff; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.1);">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                            <div style="width: 42px; height: 42px; border-radius: 50%; background: #f0f9ff; display: flex; align-items: center; justify-content: center; color: #0284c7; font-size: 1.3rem;">
+                                                <i class="fa-solid fa-sun"></i>
+                                            </div>
+                                            <span class="badge-tag green" id="badge-theme-light" style="font-size: 0.75rem; font-weight: 700;">✓ Activo</span>
+                                        </div>
+                                        <h4 style="margin: 0 0 6px 0; color: #0f172a; font-weight: 700; font-size: 1.05rem;">Modo Claro</h4>
+                                        <p class="text-muted" style="font-size: 0.82rem; margin: 0; line-height: 1.4;">Interfaz brillante, pulcra y optimizada para iluminación clínica y lectura de historias odontológicas.</p>
+                                    </div>
+
+                                    <!-- Card Modo Oscuro -->
+                                    <div class="theme-card-option" id="card-theme-dark" style="border: 2px solid #e2e8f0; border-radius: 12px; padding: 20px; background: #121824; cursor: pointer; transition: all 0.2s ease;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                            <div style="width: 42px; height: 42px; border-radius: 50%; background: #1a2333; display: flex; align-items: center; justify-content: center; color: #00f2fe; font-size: 1.3rem;">
+                                                <i class="fa-solid fa-moon"></i>
+                                            </div>
+                                            <span class="badge-tag blue hidden" id="badge-theme-dark" style="font-size: 0.75rem; font-weight: 700;">✓ Activo</span>
+                                        </div>
+                                        <h4 style="margin: 0 0 6px 0; color: #ffffff; font-weight: 700; font-size: 1.05rem;">Modo Oscuro</h4>
+                                        <p style="color: #94a3b8; font-size: 0.82rem; margin: 0; line-height: 1.4;">Fondo azul marino oscuro con contrastes suaves, ideal para trabajar en ambientes de baja luz.</p>
+                                    </div>
+                                </div>
+
+                                <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                                    <div>
+                                        <strong style="display: block; font-size: 0.95rem; color: var(--text-heading);">Alternar Tema</strong>
+                                        <span class="text-muted" style="font-size: 0.82rem;" id="theme-status-text">Actualmente en Modo Claro</span>
+                                    </div>
+                                    <button type="button" class="btn btn-primary" id="btn-theme-toggle-settings" style="display: flex; align-items: center; gap: 8px; font-weight: 600;">
+                                        <i class="fa-solid fa-moon" id="theme-icon-settings"></i> <span id="theme-btn-text-settings">Cambiar a Modo Oscuro</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -2770,12 +2811,12 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=78"></script>
-    <script src="supabaseClient.js?v=78"></script>
-    <script src="odontogram.js?v=78"></script>
-    <script src="signature.js?v=78"></script>
-    <script src="whatsapp.js?v=78"></script>
-    <script src="kardex.js?v=78"></script>
-    <script src="app.js?v=78"></script>
+    <script src="seededData.js?v=79"></script>
+    <script src="supabaseClient.js?v=79"></script>
+    <script src="odontogram.js?v=79"></script>
+    <script src="signature.js?v=79"></script>
+    <script src="whatsapp.js?v=79"></script>
+    <script src="kardex.js?v=79"></script>
+    <script src="app.js?v=79"></script>
 </body>
 </html>

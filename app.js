@@ -199,30 +199,80 @@ function initTheme() {
     }
     applyTheme(savedTheme);
 
-    const themeBtn = document.getElementById('btn-theme-toggle');
-    if (themeBtn) {
-        themeBtn.onclick = () => {
+    // Theme toggle button in Settings -> Appearance
+    const settingsThemeBtn = document.getElementById('btn-theme-toggle-settings');
+    if (settingsThemeBtn) {
+        settingsThemeBtn.onclick = () => {
             const currentTheme = document.body.classList.contains('dark-theme') ? 'dark' : 'light';
             const nextTheme = currentTheme === 'light' ? 'dark' : 'light';
             applyTheme(nextTheme);
         };
+    }
+
+    const cardLight = document.getElementById('card-theme-light');
+    if (cardLight) {
+        cardLight.onclick = () => applyTheme('light');
+    }
+
+    const cardDark = document.getElementById('card-theme-dark');
+    if (cardDark) {
+        cardDark.onclick = () => applyTheme('dark');
     }
 }
 
 function applyTheme(theme) {
     const icon = document.getElementById('theme-icon');
     const text = document.getElementById('theme-text');
+    const iconSettings = document.getElementById('theme-icon-settings');
+    const btnTextSettings = document.getElementById('theme-btn-text-settings');
+    const statusTextSettings = document.getElementById('theme-status-text');
+    const cardLight = document.getElementById('card-theme-light');
+    const cardDark = document.getElementById('card-theme-dark');
+    const badgeLight = document.getElementById('badge-theme-light');
+    const badgeDark = document.getElementById('badge-theme-dark');
 
     if (theme === 'dark') {
         document.body.classList.remove('light-theme');
         document.body.classList.add('dark-theme');
         if (icon) icon.className = 'fa-solid fa-sun';
         if (text) text.innerText = 'Modo Claro';
+
+        if (iconSettings) iconSettings.className = 'fa-solid fa-sun';
+        if (btnTextSettings) btnTextSettings.innerText = 'Cambiar a Modo Claro';
+        if (statusTextSettings) statusTextSettings.innerText = 'Actualmente en Modo Oscuro';
+
+        if (cardDark) {
+            cardDark.style.border = '2px solid #00f2fe';
+            cardDark.style.boxShadow = '0 4px 12px rgba(0, 242, 254, 0.15)';
+        }
+        if (badgeDark) badgeDark.classList.remove('hidden');
+
+        if (cardLight) {
+            cardLight.style.border = '2px solid var(--border-color)';
+            cardLight.style.boxShadow = 'none';
+        }
+        if (badgeLight) badgeLight.classList.add('hidden');
     } else {
         document.body.classList.remove('dark-theme');
         document.body.classList.add('light-theme');
         if (icon) icon.className = 'fa-solid fa-moon';
         if (text) text.innerText = 'Modo Oscuro';
+
+        if (iconSettings) iconSettings.className = 'fa-solid fa-moon';
+        if (btnTextSettings) btnTextSettings.innerText = 'Cambiar a Modo Oscuro';
+        if (statusTextSettings) statusTextSettings.innerText = 'Actualmente en Modo Claro';
+
+        if (cardLight) {
+            cardLight.style.border = '2px solid #0284c7';
+            cardLight.style.boxShadow = '0 4px 12px rgba(2, 132, 199, 0.1)';
+        }
+        if (badgeLight) badgeLight.classList.remove('hidden');
+
+        if (cardDark) {
+            cardDark.style.border = '2px solid var(--border-color)';
+            cardDark.style.boxShadow = 'none';
+        }
+        if (badgeDark) badgeDark.classList.add('hidden');
     }
     localStorage.setItem('dental_theme', theme);
 }
