@@ -364,8 +364,8 @@ function applyRolePermissionsUI(role) {
 
     const permissions = {
         admin: ['dashboard', 'patients', 'agenda', 'odontogram', 'ehr', 'inventory', 'pricing', 'users', 'billing', 'finance', 'stationery', 'settings', 'help'],
-        doctor: ['dashboard', 'patients', 'odontogram', 'ehr', 'settings', 'help'],
-        assistant: ['dashboard', 'patients', 'agenda', 'billing', 'settings', 'help']
+        doctor: ['dashboard', 'patients', 'agenda', 'odontogram', 'ehr', 'pricing', 'settings', 'help'],
+        assistant: ['dashboard', 'patients', 'agenda', 'billing', 'finance', 'pricing', 'settings', 'help']
     };
 
     const allowedTabs = permissions[roleType] || permissions.assistant;
@@ -380,6 +380,9 @@ function applyRolePermissionsUI(role) {
             }
         }
     }
+
+    // Adapt Mobile Navigation Bar & FAB based on role
+    renderMobileNavigationForRole(roleType);
 
     // Toggle business settings tab based on admin role
     const paneBusBtn = document.getElementById('btn-pane-business');
@@ -420,6 +423,111 @@ function applyRolePermissionsUI(role) {
         } else {
             docSigSection.classList.add('hidden');
         }
+    }
+}
+
+function renderMobileNavigationForRole(roleType) {
+    const bottomNav = document.getElementById('mobile-bottom-nav');
+    if (!bottomNav) return;
+
+    let bottomButtons = [];
+    if (roleType === 'doctor') {
+        // DOCTOR: Enfoque clínico prioritario
+        bottomButtons = [
+            { tab: 'dashboard', icon: 'fa-house', label: 'Home' },
+            { tab: 'agenda', icon: 'fa-calendar-days', label: 'Agenda' },
+            { tab: 'odontogram', icon: 'fa-file-invoice-dollar', label: 'Presupuesto' },
+            { tab: 'ehr', icon: 'fa-notes-medical', label: 'Historias' },
+            { tab: 'pricing', icon: 'fa-tags', label: 'Servicios' }
+        ];
+    } else if (roleType === 'assistant') {
+        // ASISTENTE: Enfoque de recepción, agenda y facturación
+        bottomButtons = [
+            { tab: 'dashboard', icon: 'fa-house', label: 'Home' },
+            { tab: 'agenda', icon: 'fa-calendar-days', label: 'Agenda' },
+            { tab: 'patients', icon: 'fa-hospital-user', label: 'Pacientes' },
+            { tab: 'billing', icon: 'fa-receipt', label: 'Facturación' },
+            { tab: 'pricing', icon: 'fa-tags', label: 'Servicios' }
+        ];
+    } else {
+        // SUPER ADMIN: Acceso integral
+        bottomButtons = [
+            { tab: 'dashboard', icon: 'fa-house', label: 'Home' },
+            { tab: 'agenda', icon: 'fa-calendar-days', label: 'Agenda' },
+            { tab: 'pricing', icon: 'fa-tags', label: 'Servicios' },
+            { tab: 'finance', icon: 'fa-wallet', label: 'Finanzas' },
+            { tab: 'odontogram', icon: 'fa-file-invoice-dollar', label: 'Presupuesto' }
+        ];
+    }
+
+    // Determine currently active view
+    const currentActiveView = document.querySelector('.tab-view.active');
+    const currentTab = currentActiveView ? currentActiveView.id.replace('view-', '') : 'dashboard';
+
+    bottomNav.innerHTML = bottomButtons.map(btn => `
+        <button type="button" class="mobile-nav-btn ${btn.tab === currentTab ? 'active' : ''}" data-tab="${btn.tab}">
+            <i class="fa-solid ${btn.icon}"></i>
+            <span>${btn.label}</span>
+        </button>
+    `).join('');
+
+    // Rebind click events on bottom buttons
+    bottomNav.querySelectorAll('.mobile-nav-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            await window.navigateToTab(btn.dataset.tab);
+        });
+    });
+
+    // Adjust Mobile Drawer (hide tabs present in the bottom bar)
+    const bottomTabNames = bottomButtons.map(b => b.tab);
+    document.querySelectorAll('.nav-menu .nav-item').forEach(item => {
+        const itemTab = item.dataset.tab;
+        if (bottomTabNames.includes(itemTab)) {
+            item.classList.add('mobile-sidebar-hide');
+        } else {
+            item.classList.remove('mobile-sidebar-hide');
+        }
+    });
+
+    // Adjust FAB Quick Action Cards by Role
+    const fabPatient = document.getElementById('fab-act-patient');
+    const fabAppt = document.getElementById('fab-act-appointment');
+    const fabBudget = document.getElementById('fab-act-budget');
+    const fabEvol = document.getElementById('fab-act-evolution');
+    const fabExpense = document.getElementById('fab-act-expense');
+    const fabIncome = document.getElementById('fab-act-income');
+    const fabTransfer = document.getElementById('fab-act-transfer');
+    const fabBilling = document.getElementById('fab-act-billing');
+
+    if (roleType === 'doctor') {
+        if (fabPatient) fabPatient.style.display = 'none'; // Doctors don't handle frontdesk patient creation
+        if (fabAppt) fabAppt.style.display = 'flex';
+        if (fabBudget) fabBudget.style.display = 'flex';
+        if (fabEvol) fabEvol.style.display = 'flex';
+        if (fabExpense) fabExpense.style.display = 'none';
+        if (fabIncome) fabIncome.style.display = 'none';
+        if (fabTransfer) fabTransfer.style.display = 'none';
+        if (fabBilling) fabBilling.style.display = 'flex';
+    } else if (roleType === 'assistant') {
+        if (fabPatient) fabPatient.style.display = 'flex';
+        if (fabAppt) fabAppt.style.display = 'flex';
+        if (fabBudget) fabBudget.style.display = 'none'; // Doctors formulate clinical budgets
+        if (fabEvol) fabEvol.style.display = 'none'; // Doctors formulate clinical notes
+        if (fabExpense) fabExpense.style.display = 'flex';
+        if (fabIncome) fabIncome.style.display = 'flex';
+        if (fabTransfer) fabTransfer.style.display = 'none';
+        if (fabBilling) fabBilling.style.display = 'flex';
+    } else {
+        // Admin: all actions enabled
+        if (fabPatient) fabPatient.style.display = 'flex';
+        if (fabAppt) fabAppt.style.display = 'flex';
+        if (fabBudget) fabBudget.style.display = 'flex';
+        if (fabEvol) fabEvol.style.display = 'flex';
+        if (fabExpense) fabExpense.style.display = 'flex';
+        if (fabIncome) fabIncome.style.display = 'flex';
+        if (fabTransfer) fabTransfer.style.display = 'flex';
+        if (fabBilling) fabBilling.style.display = 'flex';
     }
 }
 
@@ -526,8 +634,8 @@ window.navigateToTab = async function(tabName) {
         const roleType = isAdmin ? 'admin' : (isDoctor ? 'doctor' : 'assistant');
         const allowedTabs = {
             admin: ['dashboard', 'patients', 'agenda', 'odontogram', 'ehr', 'inventory', 'pricing', 'users', 'billing', 'finance', 'stationery', 'settings', 'help'],
-            doctor: ['dashboard', 'patients', 'odontogram', 'ehr', 'settings', 'help'],
-            assistant: ['dashboard', 'patients', 'agenda', 'billing', 'settings', 'help']
+            doctor: ['dashboard', 'patients', 'agenda', 'odontogram', 'ehr', 'pricing', 'settings', 'help'],
+            assistant: ['dashboard', 'patients', 'agenda', 'billing', 'finance', 'pricing', 'settings', 'help']
         }[roleType] || ['dashboard', 'help'];
 
         if (!allowedTabs.includes(tabName)) {
