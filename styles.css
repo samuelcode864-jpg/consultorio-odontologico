@@ -3251,27 +3251,102 @@ html, body {
     }
 }
 
-@media (max-width: 480px) {
-    .stats-grid {
-        grid-template-columns: 1fr 1fr !important;
-        gap: 8px !important;
+/* Appointment & Timeline Card Responsive Styling */
+.timeline-item {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-color) !important;
+    border-left: 4px solid var(--primary-cyan) !important;
+    border-radius: var(--radius-sm) !important;
+    padding: 12px 14px !important;
+    margin-bottom: 12px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.timeline-meta {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    margin-bottom: 8px !important;
+}
+
+.timeline-time-status {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex-wrap: nowrap !important;
+}
+
+.timeline-time {
+    white-space: nowrap !important;
+    font-weight: 700 !important;
+    font-size: 0.88rem !important;
+    color: var(--text-heading) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+}
+
+.timeline-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex-wrap: wrap !important;
+    margin-left: auto !important;
+}
+
+.timeline-actions .btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 4px 8px !important;
+    font-size: 0.76rem !important;
+    white-space: nowrap !important;
+    border-radius: 6px !important;
+    height: 28px !important;
+}
+
+.btn-text-short {
+    display: none !important;
+}
+
+@media (max-width: 640px) {
+    .timeline-meta {
+        flex-direction: row !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        gap: 6px !important;
+        row-gap: 8px !important;
     }
 
-    .stat-card {
-        padding: 10px 12px !important;
+    .timeline-time-status {
+        width: auto !important;
     }
 
-    .stat-card h3 {
-        font-size: 1.2rem !important;
+    .timeline-actions {
+        width: 100% !important;
+        justify-content: flex-start !important;
+        gap: 6px !important;
+        padding-top: 6px !important;
+        border-top: 1px dashed var(--border-color) !important;
     }
 
-    .stat-card p {
-        font-size: 0.75rem !important;
+    .timeline-actions .btn {
+        flex: 1 1 auto !important;
+        justify-content: center !important;
+        height: 32px !important;
+        font-size: 0.78rem !important;
+        padding: 4px 6px !important;
     }
 
-    .btn {
-        padding: 8px 12px !important;
-        font-size: 0.82rem !important;
+    .btn-text-full {
+        display: none !important;
+    }
+
+    .btn-text-short {
+        display: inline !important;
     }
 }
 

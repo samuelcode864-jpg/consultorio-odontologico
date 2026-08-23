@@ -1879,18 +1879,18 @@ async function renderDashboard() {
             let whatsappBtnHtml = '';
             if (isTomorrowAppt) {
                 whatsappBtnHtml = `
-                    <button class="btn btn-xs btn-success" style="margin-left: 6px;" onclick="sendWhatsAppReminderForAppt('${app.id}')" title="Enviar recordatorio de cita para mañana">
-                        <i class="fa-brands fa-whatsapp"></i> Recordar (Mañana)
+                    <button class="btn btn-xs btn-success btn-appt-reminder" onclick="sendWhatsAppReminderForAppt('${app.id}')" title="Enviar recordatorio de cita para mañana">
+                        <i class="fa-brands fa-whatsapp"></i> <span class="btn-text-full">Recordar (Mañana)</span><span class="btn-text-short">Recordar</span>
                     </button>
                 `;
             } else {
-                whatsappBtnHtml = `<span class="badge-tag green" style="margin-left:6px; font-size:0.7rem;">Cita de Hoy</span>`;
+                whatsappBtnHtml = `<span class="badge-tag green" style="font-size:0.75rem;">Cita de Hoy</span>`;
             }
 
-            const deleteApptBtn = isAssistant ? '' : `<button class="btn btn-xs btn-outline text-red" style="margin-left: 6px;" onclick="deleteAppointment('${app.id}')" title="Eliminar Cita"><i class="fa-solid fa-trash"></i></button>`;
+            const deleteApptBtn = isAssistant ? '' : `<button class="btn btn-xs btn-outline text-red" onclick="deleteAppointment('${app.id}')" title="Eliminar Cita"><i class="fa-solid fa-trash"></i></button>`;
 
             const atenderBtn = (!isAssistant && app.status === 'Programada') 
-                ? `<button class="btn btn-xs btn-primary" style="margin-left: 6px; background-color: var(--primary-cyan) !important; color: white !important; border: none !important;" onclick="window.atenderAppointmentFromAgenda('${app.id}')" title="Atender esta cita ahora"><i class="fa-solid fa-user-doctor"></i> Atender</button>`
+                ? `<button class="btn btn-xs btn-primary btn-appt-attend" style="background-color: var(--primary-cyan) !important; color: white !important; border: none !important;" onclick="window.atenderAppointmentFromAgenda('${app.id}')" title="Atender esta cita ahora"><i class="fa-solid fa-user-doctor"></i> Atender</button>`
                 : '';
 
             const div = document.createElement('div');
@@ -1898,9 +1898,11 @@ async function renderDashboard() {
             div.style.marginBottom = '12px';
             div.innerHTML = `
                 <div class="timeline-meta">
-                    <span class="timeline-time"><i class="fa-solid fa-clock"></i> ${app.time}</span>
-                    <div class="timeline-actions">
+                    <div class="timeline-time-status">
+                        <span class="timeline-time"><i class="fa-solid fa-clock text-cyan"></i> ${app.time}</span>
                         <span class="badge-tag blue">${app.status}</span>
+                    </div>
+                    <div class="timeline-actions">
                         ${whatsappBtnHtml}
                         ${atenderBtn}
                         ${deleteApptBtn}
@@ -2084,24 +2086,24 @@ async function renderAgendaView(filter = 'all', searchQuery = '') {
         let whatsappBtnHtml = '';
         if (isTomorrowAppt) {
             whatsappBtnHtml = `
-                <button class="btn btn-xs btn-success" style="margin-left: 6px;" onclick="sendWhatsAppReminderForAppt('${app.id}')" title="Enviar recordatorio de cita para mañana">
-                    <i class="fa-brands fa-whatsapp"></i> Recordar (Mañana)
+                <button class="btn btn-xs btn-success btn-appt-reminder" onclick="sendWhatsAppReminderForAppt('${app.id}')" title="Enviar recordatorio de cita para mañana">
+                    <i class="fa-brands fa-whatsapp"></i> <span class="btn-text-full">Recordar (Mañana)</span><span class="btn-text-short">Recordar</span>
                 </button>
             `;
         } else {
-            whatsappBtnHtml = `<span class="badge-tag green" style="margin-left:6px; font-size:0.7rem;">Cita de Hoy</span>`;
+            whatsappBtnHtml = `<span class="badge-tag green" style="font-size:0.75rem;">Cita de Hoy</span>`;
         }
 
-        const deleteApptBtn = isAssistant ? '' : `<button class="btn btn-xs btn-outline text-red" style="margin-left: 6px;" onclick="deleteAppointment('${app.id}')" title="Eliminar Cita"><i class="fa-solid fa-trash"></i></button>`;
+        const deleteApptBtn = isAssistant ? '' : `<button class="btn btn-xs btn-outline text-red" onclick="deleteAppointment('${app.id}')" title="Eliminar Cita"><i class="fa-solid fa-trash"></i></button>`;
 
         const gCalBtn = `
-            <button class="btn btn-xs btn-outline" style="margin-left: 6px; border-color: #2563eb; color: #2563eb;" onclick="addApptToGoogleCalendarDirect('${app.id}')" title="Añadir a Google Calendar">
-                <i class="fa-solid fa-calendar-plus"></i> Calendar
+            <button class="btn btn-xs btn-outline btn-appt-gcal" style="border-color: #2563eb; color: #2563eb;" onclick="addApptToGoogleCalendarDirect('${app.id}')" title="Añadir a Google Calendar">
+                <i class="fa-solid fa-calendar-plus"></i> <span class="btn-text-full">Calendar</span>
             </button>
         `;
 
         const atenderBtn = (!isAssistant && app.status === 'Programada') 
-            ? `<button class="btn btn-xs btn-primary" style="margin-left: 6px; background-color: var(--primary-cyan) !important; color: white !important; border: none !important;" onclick="window.atenderAppointmentFromAgenda('${app.id}')" title="Atender esta cita ahora"><i class="fa-solid fa-user-doctor"></i> Atender</button>`
+            ? `<button class="btn btn-xs btn-primary btn-appt-attend" style="background-color: var(--primary-cyan) !important; color: white !important; border: none !important;" onclick="window.atenderAppointmentFromAgenda('${app.id}')" title="Atender esta cita ahora"><i class="fa-solid fa-user-doctor"></i> Atender</button>`
             : '';
 
         const div = document.createElement('div');
@@ -2109,9 +2111,11 @@ async function renderAgendaView(filter = 'all', searchQuery = '') {
         div.style.marginBottom = '12px';
         div.innerHTML = `
             <div class="timeline-meta">
-                <span class="timeline-time"><i class="fa-solid fa-clock"></i> ${app.time}</span>
-                <div class="timeline-actions">
+                <div class="timeline-time-status">
+                    <span class="timeline-time"><i class="fa-solid fa-clock text-cyan"></i> ${app.time}</span>
                     <span class="badge-tag blue">${app.status}</span>
+                </div>
+                <div class="timeline-actions">
                     ${whatsappBtnHtml}
                     ${gCalBtn}
                     ${atenderBtn}
