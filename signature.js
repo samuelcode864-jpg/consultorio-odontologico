@@ -75,6 +75,21 @@ class SignaturePad {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
+    loadFromDataURL(dataUrl) {
+        if (!dataUrl) return;
+        const img = new Image();
+        img.onload = () => {
+            this.clear();
+            const scale = Math.min(this.canvas.width / img.width, this.canvas.height / img.height);
+            const w = img.width * scale;
+            const h = img.height * scale;
+            const x = (this.canvas.width - w) / 2;
+            const y = (this.canvas.height - h) / 2;
+            this.ctx.drawImage(img, x, y, w, h);
+        };
+        img.src = dataUrl;
+    }
+
     isEmpty() {
         const blank = document.createElement('canvas');
         blank.width = this.canvas.width;

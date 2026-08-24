@@ -3702,5 +3702,135 @@ select, .form-select, select.form-control {
         background: var(--border-color) !important;
         margin: 12px 0 16px 0 !important;
     }
+
+    /* Budget Editor Mobile Polish (Spacious & Non-truncated) */
+    .content-body {
+        padding: 10px 8px 85px 8px !important;
+    }
+
+    .card {
+        margin-bottom: 14px !important;
+        border-radius: 12px !important;
+    }
+
+    .card-body {
+        padding: 14px 12px !important;
+    }
+
+    .card-header {
+        padding: 12px 14px !important;
+    }
+
+    /* Section 1 header & buttons */
+    .action-buttons-sec1 {
+        width: 100% !important;
+        min-width: 100% !important;
+    }
+
+    /* Section 2: Patient identification */
+    .patient-select-section-card .card-body {
+        flex-direction: column !important;
+        gap: 14px !important;
+    }
+
+    .patient-select-section-card .card-body > div,
+    .patient-detail-box {
+        width: 100% !important;
+        min-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Section 4: Custom item form row */
+    .custom-item-form-row {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+        padding: 12px !important;
+    }
+
+    .custom-item-form-row .form-group {
+        width: 100% !important;
+        min-width: 100% !important;
+        flex: none !important;
+    }
+
+    #btn-add-custom-item-direct {
+        width: 100% !important;
+        height: 42px !important;
+    }
+
+    /* Section 4: Budget summary & totals */
+    .budget-summary-box {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        padding: 14px 12px !important;
+        gap: 16px !important;
+    }
+
+    .payment-terms-group {
+        width: 100% !important;
+        min-width: 100% !important;
+    }
+
+    .payment-method-selector-group {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+        width: 100% !important;
+    }
+
+    .pay-method-btn {
+        width: 100% !important;
+        justify-content: center !important;
+        padding: 8px 4px !important;
+        font-size: 0.78rem !important;
+        box-sizing: border-box !important;
+    }
+
+    .pay-method-btn[data-method="split"] {
+        grid-column: span 2 !important;
+    }
+
+    .total-display-container {
+        width: 100% !important;
+        min-width: 100% !important;
+        align-items: stretch !important;
+    }
+
+    .total-display-container > div {
+        width: 100% !important;
+        min-width: 100% !important;
+        box-sizing: border-box !important;
+        padding: 14px 12px !important;
+    }
+
+    /* Section 5: Observations & Signatures */
+    .consent-card .card-body {
+        padding: 14px 12px !important;
+        gap: 14px !important;
+    }
+
+    .signatures-grid {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+        width: 100% !important;
+    }
+
+    .sig-box {
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .sig-canvas-wrapper {
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    textarea#budget-notes,
+    textarea#consent-text {
+        width: 100% !important;
+        box-sizing: border-box !important;
+        font-size: 0.85rem !important;
+    }
 }
 

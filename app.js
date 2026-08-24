@@ -16,8 +16,9 @@ window.onerror = function (msg, url, lineNo, columnNo, error) {
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Initialize Persistent State & Live Exchange Rate API
+    // 1. Initialize Persistent State, Branding & Live Exchange Rate API
     initStorage();
+    await loadClinicBranding();
     fetchLiveExchangeRate();
 
     // 2. Initialize Theme (Light Mode Default)
@@ -68,6 +69,89 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 });
+
+// ==========================================
+// CLINIC BRANDING & DOCTOR SIGNATURE AUTOMATION
+// ==========================================
+async function loadClinicBranding() {
+    try {
+        const config = await SupabaseDataService.getStationeryConfig();
+        if (config) {
+            applyClinicBrandingUI(config);
+        }
+    } catch(e) {
+        console.warn("Could not load clinic branding from Supabase:", e);
+    }
+}
+
+function applyClinicBrandingUI(config) {
+    if (!config) return;
+    
+    // Parse business name if present in header_text or config
+    let busName = 'DentalCare Pro';
+    if (config.headerText || config.header_text) {
+        try {
+            const raw = config.headerText || config.header_text;
+            if (raw.startsWith('{')) {
+                const parsed = JSON.parse(raw);
+                if (parsed.name) busName = parsed.name;
+            }
+        } catch(e) {}
+    }
+
+    const logoUrl = config.logoUrl || config.logo_url || '';
+
+    // 1. Sidebar Brand Logo & Clinic Name
+    const sideLogoContainer = document.getElementById('sidebar-brand-logo-container');
+    const sideName = document.getElementById('sidebar-brand-name');
+    if (sideLogoContainer) {
+        if (logoUrl) {
+            sideLogoContainer.innerHTML = `<img src="${logoUrl}" alt="Logo" class="clinic-logo-sidebar" style="max-height: 38px; max-width: 38px; object-fit: contain; border-radius: 6px;">`;
+        } else {
+            sideLogoContainer.innerHTML = `<i class="fa-solid fa-tooth"></i>`;
+        }
+    }
+    if (sideName && busName) sideName.textContent = busName;
+
+    // 2. Mobile Top Header Brand Logo & Name
+    const mobBrandContainer = document.getElementById('mobile-header-brand-container');
+    const mobName = document.getElementById('mobile-header-brand-name');
+    if (mobBrandContainer) {
+        if (logoUrl) {
+            mobBrandContainer.innerHTML = `
+                <img src="${logoUrl}" alt="Logo" style="max-height: 26px; max-width: 26px; object-fit: contain; border-radius: 4px; margin-right: 6px;">
+                <span id="mobile-header-brand-name">${busName}</span>
+            `;
+        } else {
+            mobBrandContainer.innerHTML = `
+                <i class="fa-solid fa-tooth text-cyan"></i>
+                <span id="mobile-header-brand-name">${busName}</span>
+            `;
+        }
+    }
+    if (mobName && busName) mobName.textContent = busName;
+
+    // 3. Login Brand Logo
+    const loginLogoContainer = document.getElementById('login-brand-logo-container');
+    const loginName = document.getElementById('login-brand-name');
+    if (loginLogoContainer && logoUrl) {
+        loginLogoContainer.innerHTML = `<img src="${logoUrl}" alt="Logo" style="max-height: 55px; max-width: 55px; object-fit: contain; border-radius: 12px;">`;
+    }
+    if (loginName && busName) loginName.textContent = busName;
+}
+
+function autoLoadDoctorSignatureInBudget() {
+    if (!window.doctorSigPad) return;
+    
+    // Check if currently active user or logged-in doctor has signature
+    const user = getCurrentUser();
+    if (!user) return;
+    
+    const sig = (user.doctorProfile && user.doctorProfile.signature) || (user.doctor_profile && user.doctor_profile.signature);
+    if (sig) {
+        window.doctorSigPad.loadFromDataURL(sig);
+    }
+}
 
 // Storage Initializer
 function initStorage() {
@@ -1054,6 +1138,22 @@ window.loadBudgetIntoEditor = async function(budgetId) {
             btn.style.borderColor = 'var(--border-color)';
         }
     });
+
+    // Load Signatures if present or auto-load doctor profile signature
+    if (window.doctorSigPad) {
+        window.doctorSigPad.clear();
+        if (budget.doctorSignature) {
+            window.doctorSigPad.loadFromDataURL(budget.doctorSignature);
+        } else {
+            autoLoadDoctorSignatureInBudget();
+        }
+    }
+    if (window.patientSigPad) {
+        window.patientSigPad.clear();
+        if (budget.patientSignature) {
+            window.patientSigPad.loadFromDataURL(budget.patientSignature);
+        }
+    }
 
     renderBudgetTable();
 };
@@ -4705,7 +4805,10 @@ function initGlobalEvents() {
             document.getElementById('budget-notes').value = '';
             document.getElementById('budget-discount-input').value = '0';
             
-            if (window.doctorSigPad) window.doctorSigPad.clear();
+            if (window.doctorSigPad) {
+                window.doctorSigPad.clear();
+                autoLoadDoctorSignatureInBudget();
+            }
             if (window.patientSigPad) window.patientSigPad.clear();
             
             renderBudgetTable();
@@ -6302,7 +6405,15 @@ function initSettingsEvents() {
                     footer_text: footer,
                     logo_url: logoUrl
                 });
-                Swal.fire({ icon: 'success', title: 'Ajustes de Negocio Guardados', text: 'Se actualizaron los membretes clínicos y papelería en la nube de Supabase.', timer: 2500, showConfirmButton: false });
+
+                // Apply branding across whole UI immediately
+                applyClinicBrandingUI({
+                    headerText: JSON.stringify(busData),
+                    footerText: footer,
+                    logoUrl: logoUrl
+                });
+
+                Swal.fire({ icon: 'success', title: 'Ajustes de Negocio Guardados', text: 'Se actualizaron el logo, nombre clínico y membretes en todo el sistema.', timer: 2500, showConfirmButton: false });
             } catch(err) {
                 console.error("Error saving business configuration:", err);
                 Swal.fire({ icon: 'error', title: 'Error al Guardar', text: err.message || err });
@@ -6391,7 +6502,12 @@ function initSettingsEvents() {
                     previewContainer.classList.remove('hidden');
                 }
 
-                Swal.fire({ icon: 'success', title: 'Perfil Personal Actualizado', text: 'Sus datos de acceso y firma médica fueron sincronizados en Supabase.', timer: 2000, showConfirmButton: false });
+                // Update budget signature pad immediately if signature was saved
+                if (signatureData && window.doctorSigPad) {
+                    window.doctorSigPad.loadFromDataURL(signatureData);
+                }
+
+                Swal.fire({ icon: 'success', title: 'Perfil Personal Actualizado', text: 'Sus datos de acceso y firma médica oficial fueron sincronizados.', timer: 2000, showConfirmButton: false });
             } catch(err) {
                 console.error("Error updating user profile:", err);
                 Swal.fire({ icon: 'error', title: 'Error al Sincronizar', text: err.message || err });
@@ -7485,9 +7601,15 @@ async function renderStationeryView() {
             logoUrl
         });
 
+        applyClinicBrandingUI({
+            headerText,
+            footerText,
+            logoUrl
+        });
+
         renderBudgetTable();
 
-        Swal.fire({ icon: 'success', title: 'Configuración guardada', text: 'Se actualizaron la plantilla oficial y los ajustes del sistema.', timer: 2000, showConfirmButton: false });
+        Swal.fire({ icon: 'success', title: 'Configuración guardada', text: 'Se actualizaron el logo, nombre clínico y membretes en el sistema.', timer: 2000, showConfirmButton: false });
     };
 
     const templateBtns = document.querySelectorAll('#view-stationery .subtab-btn');
