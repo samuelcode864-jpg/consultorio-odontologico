@@ -103,15 +103,9 @@ function initStorage() {
 async function fetchLiveExchangeRate() {
     const currencyBtn = document.getElementById('currency-btn');
     const currencyType = localStorage.getItem('dental_exchange_currency') || 'USD';
-    
-    // Synchronize header dropdown selector state
-    const headerSelector = document.getElementById('header-currency-selector');
-    if (headerSelector) {
-        headerSelector.value = currencyType;
-    }
 
     if (currencyBtn) {
-        currencyBtn.innerHTML = `<i class="fa-solid fa-arrows-rotate fa-spin"></i> Obteniendo BCV...`;
+        currencyBtn.innerHTML = `<i class="fa-solid fa-arrows-rotate fa-spin text-cyan"></i> <span>Actualizando...</span>`;
     }
 
     try {
@@ -143,14 +137,13 @@ async function fetchLiveExchangeRate() {
 function updateCurrencyBadge(rate, isLive) {
     const currencyBtn = document.getElementById('currency-btn');
     const currencyType = localStorage.getItem('dental_exchange_currency') || 'USD';
+    const symbol = currencyType === 'EUR' ? '€' : '$';
+    const coinColor = currencyType === 'EUR' ? '#0284c7' : '#10b981';
+
     if (currencyBtn) {
         const formattedRate = rate.toFixed(2);
-        if (isLive) {
-            currencyBtn.innerHTML = `<i class="fa-solid fa-coins text-green"></i> BCV ${currencyType}: <strong>Bs. ${formattedRate}</strong> <small class="text-muted" style="font-size:0.68rem; margin-left:2px;">(En vivo)</small>`;
-            currencyBtn.style.border = '1px solid #10b981';
-        } else {
-            currencyBtn.innerHTML = `<i class="fa-solid fa-coins text-amber"></i> BCV ${currencyType}: <strong>Bs. ${formattedRate}</strong>`;
-        }
+        currencyBtn.innerHTML = `<i class="fa-solid fa-coins" style="color: ${coinColor}; font-size: 0.95rem;"></i> <span>${symbol} <strong>${formattedRate} Bs.</strong></span>`;
+        currencyBtn.title = `Tasa oficial BCV (${currencyType}): ${formattedRate} Bs.\nHaga clic para cambiar a ${currencyType === 'USD' ? 'EUR (€)' : 'USD ($)'}`;
     }
 
     const tasaBadge = document.getElementById('tasa-bcv-badge');
@@ -2937,15 +2930,6 @@ function initGlobalEvents() {
     initPatientStepperWizard();
     initSettingsEvents();
 
-    const headerSelector = document.getElementById('header-currency-selector');
-    if (headerSelector) {
-        headerSelector.onchange = async (e) => {
-            localStorage.setItem('dental_exchange_currency', e.target.value);
-            await fetchLiveExchangeRate();
-            await renderDashboard();
-        };
-    }
-
     // Conditional display for Doctor role in User Modal
     const uRoleSelect = document.getElementById('u-role');
     const docFieldsDiv = document.getElementById('doctor-profile-fields');
@@ -3371,8 +3355,25 @@ function initGlobalEvents() {
 
     const currencyBtn = document.getElementById('currency-btn');
     if (currencyBtn) {
-        currencyBtn.onclick = () => {
-            fetchLiveExchangeRate();
+        currencyBtn.onclick = async () => {
+            const current = localStorage.getItem('dental_exchange_currency') || 'USD';
+            const next = current === 'USD' ? 'EUR' : 'USD';
+            localStorage.setItem('dental_exchange_currency', next);
+            await fetchLiveExchangeRate();
+            await renderDashboard();
+            
+            const symbol = next === 'EUR' ? '€ (Euros)' : '$ (Dólares)';
+            const Toast = Swal.mixin({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 2000,
+                timerProgressBar: true
+            });
+            Toast.fire({
+                icon: 'info',
+                title: `Tasa cambiada a ${symbol}`
+            });
         };
     }
 

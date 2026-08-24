@@ -1591,6 +1591,35 @@ select, .form-select, select.form-control {
     gap: 6px;
 }
 
+.currency-unified-badge {
+    background: var(--bg-input) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-heading) !important;
+    padding: 6px 14px !important;
+    border-radius: 8px !important;
+    font-size: 0.84rem !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    height: 36px !important;
+    transition: all 0.2s ease !important;
+    box-sizing: border-box !important;
+    user-select: none !important;
+    white-space: nowrap !important;
+}
+
+.currency-unified-badge:hover {
+    border-color: var(--primary-cyan) !important;
+    background: var(--bg-card) !important;
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.15) !important;
+}
+
+.currency-unified-badge:active {
+    transform: scale(0.96) !important;
+}
+
 /* ==========================================
    SUPER MEGA RESPONSIVE DESIGN SYSTEM
    Full responsiveness for Mobile (320px - 480px), Tablet (768px - 1024px) & Desktop

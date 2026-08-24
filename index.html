@@ -18,7 +18,7 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=82">
+    <link rel="stylesheet" href="styles.css?v=83">
 </head>
 <body class="light-theme">
 
@@ -162,16 +162,11 @@
                 </div>
 
                 <div class="header-actions">
-                    <!-- Live DolarApi Exchange Rate Badge -->
-                    <div class="currency-toggle" style="display: flex; align-items: center; gap: 8px;">
-                        <select id="header-currency-selector" style="font-size: 0.8rem; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-weight: 600; cursor: pointer; outline: none; height: 32px;">
-                            <option value="USD">USD ($)</option>
-                            <option value="EUR">EUR (€)</option>
-                        </select>
-                        <button id="currency-btn" class="badge-btn" title="Haga clic para actualizar la tasa oficial desde ve.dolarapi.com" style="height: 32px; padding: 0 10px; display: flex; align-items: center; gap: 6px; border-radius: 6px;">
-                            <i class="fa-solid fa-arrows-rotate fa-spin"></i> Cargando...
-                        </button>
-                    </div>
+                    <!-- Unified Interactive BCV Exchange Rate Toggle Button -->
+                    <button id="currency-btn" class="currency-unified-badge" title="Haga clic para alternar entre USD ($) y EUR (€) o refrescar tasa oficial">
+                        <i class="fa-solid fa-coins text-cyan"></i>
+                        <span>$ <strong>0.00 Bs.</strong></span>
+                    </button>
 
                     <button class="btn btn-primary btn-quick-patient-main" id="btn-quick-patient">
                         <i class="fa-solid fa-user-plus"></i> <span>Nuevo Paciente</span>
@@ -2903,12 +2898,12 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=82"></script>
-    <script src="supabaseClient.js?v=82"></script>
-    <script src="odontogram.js?v=82"></script>
-    <script src="signature.js?v=82"></script>
-    <script src="whatsapp.js?v=82"></script>
-    <script src="kardex.js?v=82"></script>
-    <script src="app.js?v=82"></script>
+    <script src="seededData.js?v=83"></script>
+    <script src="supabaseClient.js?v=83"></script>
+    <script src="odontogram.js?v=83"></script>
+    <script src="signature.js?v=83"></script>
+    <script src="whatsapp.js?v=83"></script>
+    <script src="kardex.js?v=83"></script>
+    <script src="app.js?v=83"></script>
 </body>
 </html>
