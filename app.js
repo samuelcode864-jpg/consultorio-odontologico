@@ -106,36 +106,35 @@ function applyClinicBrandingUI(config) {
     const sideName = document.getElementById('sidebar-brand-name');
     if (sideLogoContainer) {
         if (logoUrl) {
-            sideLogoContainer.innerHTML = `<img src="${logoUrl}" alt="Logo" class="clinic-logo-sidebar" style="max-height: 38px; max-width: 38px; object-fit: contain; border-radius: 6px;">`;
+            sideLogoContainer.innerHTML = `<img src="${logoUrl}" alt="Logo" class="clinic-logo-sidebar">`;
         } else {
             sideLogoContainer.innerHTML = `<i class="fa-solid fa-tooth"></i>`;
         }
     }
     if (sideName && busName) sideName.textContent = busName;
 
-    // 2. Mobile Top Header Brand Logo & Name
+    // 2. Mobile Top Header Brand Logo (Prominent, High-Resolution, No Superfluous User Text)
     const mobBrandContainer = document.getElementById('mobile-header-brand-container');
-    const mobName = document.getElementById('mobile-header-brand-name');
     if (mobBrandContainer) {
         if (logoUrl) {
             mobBrandContainer.innerHTML = `
-                <img src="${logoUrl}" alt="Logo" style="max-height: 26px; max-width: 26px; object-fit: contain; border-radius: 4px; margin-right: 6px;">
-                <span id="mobile-header-brand-name">${busName}</span>
+                <img src="${logoUrl}" alt="Logo" class="clinic-logo-header">
             `;
         } else {
             mobBrandContainer.innerHTML = `
-                <i class="fa-solid fa-tooth text-cyan"></i>
-                <span id="mobile-header-brand-name">${busName}</span>
+                <div style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1.05rem; color: var(--text-main);">
+                    <i class="fa-solid fa-tooth text-cyan" style="font-size: 1.25rem;"></i>
+                    <span id="mobile-header-brand-name">${busName}</span>
+                </div>
             `;
         }
     }
-    if (mobName && busName) mobName.textContent = busName;
 
     // 3. Login Brand Logo
     const loginLogoContainer = document.getElementById('login-brand-logo-container');
     const loginName = document.getElementById('login-brand-name');
     if (loginLogoContainer && logoUrl) {
-        loginLogoContainer.innerHTML = `<img src="${logoUrl}" alt="Logo" style="max-height: 55px; max-width: 55px; object-fit: contain; border-radius: 12px;">`;
+        loginLogoContainer.innerHTML = `<img src="${logoUrl}" alt="Logo" style="max-height: 70px; max-width: 180px; object-fit: contain; border-radius: 8px;">`;
     }
     if (loginName && busName) loginName.textContent = busName;
 }
