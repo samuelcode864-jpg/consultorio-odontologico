@@ -6877,6 +6877,50 @@ function initPatientStepperWizard() {
         };
     });
 
+    // Toggle Switches and Conditional Fields Interaction
+    document.querySelectorAll('.toggle-switch-wrapper').forEach(wrapper => {
+        wrapper.onclick = (e) => {
+            const input = wrapper.querySelector('input[type="checkbox"]');
+            if (!input) return;
+
+            if (e.target !== input) {
+                input.checked = !input.checked;
+            }
+            
+            wrapper.classList.toggle('is-checked', input.checked);
+
+            // Handle conditional details animation
+            const parentDiv = wrapper.parentElement;
+            if (parentDiv) {
+                const details = parentDiv.querySelector('.conditional-details');
+                if (details) {
+                    if (input.checked) {
+                        details.classList.add('active');
+                        details.style.display = 'block';
+                        const field = details.querySelector('textarea, input');
+                        if (field) field.focus();
+                    } else {
+                        details.classList.remove('active');
+                        details.style.display = 'none';
+                    }
+                }
+            }
+        };
+    });
+
+    // Check-Chips Selection Interaction
+    document.querySelectorAll('.check-chip').forEach(chip => {
+        chip.onclick = (e) => {
+            const input = chip.querySelector('input[type="checkbox"]');
+            if (!input) return;
+
+            if (e.target !== input) {
+                input.checked = !input.checked;
+            }
+            chip.classList.toggle('active', input.checked);
+        };
+    });
+
     // Auto redraw sessions on sessions count change
     const sessionsCountInput = document.getElementById('p-init-treatment-sessions');
     if (sessionsCountInput) {
@@ -6894,6 +6938,17 @@ function initPatientStepperWizard() {
         document.getElementById('form-patient').reset();
         const repFieldsDiv = document.getElementById('representative-fields');
         if (repFieldsDiv) repFieldsDiv.classList.add('hidden');
+
+        document.querySelectorAll('.toggle-switch-wrapper').forEach(w => {
+            w.classList.remove('is-checked');
+        });
+        document.querySelectorAll('.conditional-details').forEach(d => {
+            d.classList.remove('active');
+            d.style.display = 'none';
+        });
+        document.querySelectorAll('.check-chip').forEach(c => {
+            c.classList.remove('active');
+        });
 
         document.querySelectorAll('.tissue-card').forEach(card => {
             card.className = 'tissue-card normal';
@@ -7172,9 +7227,21 @@ function loadPatientDataIntoForm(p) {
         const el = document.getElementById(id);
         if (el) {
             el.checked = !!isChecked;
+            const wrapper = el.closest('.toggle-switch-wrapper');
+            if (wrapper) {
+                wrapper.classList.toggle('is-checked', el.checked);
+            }
             if (detailsId) {
                 const det = document.getElementById(detailsId);
-                if (det) det.style.display = el.checked ? 'block' : 'none';
+                if (det) {
+                    if (el.checked) {
+                        det.classList.add('active');
+                        det.style.display = 'block';
+                    } else {
+                        det.classList.remove('active');
+                        det.style.display = 'none';
+                    }
+                }
             }
         }
     };
@@ -7215,9 +7282,13 @@ function loadPatientDataIntoForm(p) {
     // Step 2: Anamnesis
     document.querySelectorAll('input[name="p-allergies"]').forEach(cb => {
         cb.checked = (p.allergies || []).includes(cb.value);
+        const chip = cb.closest('.check-chip');
+        if (chip) chip.classList.toggle('active', cb.checked);
     });
     document.querySelectorAll('input[name="p-systemic"]').forEach(cb => {
         cb.checked = (p.systemic || []).includes(cb.value);
+        const chip = cb.closest('.check-chip');
+        if (chip) chip.classList.toggle('active', cb.checked);
     });
 
     const isMed = p.metadata?.medicalTreatment === 'Sí' || p.metadata?.medicalTreatment === true;

@@ -2742,11 +2742,28 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 12px;
+    padding: 10px 14px;
     background: #f8fafc;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
     margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    user-select: none;
+    position: relative;
+}
+
+.toggle-switch-wrapper:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+    transform: translateY(-1px);
+}
+
+.toggle-switch-wrapper.is-checked,
+.toggle-switch-wrapper:has(input:checked) {
+    background: #eff6ff !important;
+    border-color: #2563eb !important;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.12);
 }
 
 .toggle-switch-wrapper label {
@@ -2754,19 +2771,32 @@ html, body {
     font-weight: 600;
     color: var(--text-main);
     cursor: pointer;
+    margin: 0;
+    padding-right: 12px;
+    flex: 1;
+    pointer-events: none; /* Allows wrapper click to handle toggle cleanly */
+}
+
+.toggle-switch-wrapper.is-checked label,
+.toggle-switch-wrapper:has(input:checked) label {
+    color: #1d4ed8;
+    font-weight: 700;
 }
 
 .toggle-switch {
     position: relative;
     display: inline-block;
-    width: 44px;
+    width: 46px;
     height: 24px;
+    flex-shrink: 0;
+    pointer-events: auto;
 }
 
 .toggle-switch input {
     opacity: 0;
     width: 0;
     height: 0;
+    position: absolute;
 }
 
 .toggle-switch .slider {
@@ -2777,7 +2807,7 @@ html, body {
     right: 0;
     bottom: 0;
     background-color: #cbd5e1;
-    transition: .3s;
+    transition: .25s ease;
     border-radius: 24px;
 }
 
@@ -2789,9 +2819,9 @@ html, body {
     left: 3px;
     bottom: 3px;
     background-color: white;
-    transition: .3s;
+    transition: .25s ease;
     border-radius: 50%;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 
 .toggle-switch input:checked + .slider {
@@ -2799,7 +2829,7 @@ html, body {
 }
 
 .toggle-switch input:checked + .slider:before {
-    transform: translateX(20px);
+    transform: translateX(22px);
 }
 
 /* Conditional Textarea Animation */
@@ -2808,6 +2838,7 @@ html, body {
     overflow: hidden;
     transition: max-height 0.3s cubic-bezier(0, 1, 0, 1), opacity 0.3s ease;
     opacity: 0;
+    margin-bottom: 0;
 }
 
 .conditional-details.active {
@@ -2830,12 +2861,12 @@ html, body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 6px 12px;
-    border: 1px solid var(--border-color);
+    padding: 7px 14px;
+    border: 1.5px solid #e2e8f0;
     border-radius: 20px;
     background-color: #ffffff;
     color: #64748b;
-    font-size: 0.8rem;
+    font-size: 0.82rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -2852,15 +2883,16 @@ html, body {
 .check-chip:hover {
     background-color: #f1f5f9;
     color: #1e293b;
-    border-color: #cbd5e1;
+    border-color: #94a3b8;
+    transform: translateY(-1px);
 }
 
 .check-chip.active,
 .check-chip:has(input:checked) {
-    background-color: #2563eb;
-    color: #ffffff;
-    border-color: #2563eb;
-    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.15);
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+    border-color: #2563eb !important;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2) !important;
 }
 
 /* Interactive Tissue Cards */
