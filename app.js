@@ -7580,6 +7580,268 @@ document.addEventListener('DOMContentLoaded', () => {
 // 8. BILLING, FINANCE & STATIONERY MODULE CONTROLLERS
 // ==========================================================================
 
+function getClinicBusData(config) {
+    let busData = {
+        name: 'Consultorio Odontológico',
+        doctor: 'Dr. Rodrigo Navas',
+        phone: '+58 (412) 555-0192',
+        email: 'contacto@dentalcare.com',
+        rif: 'J-12345678-9',
+        address: 'Av. Principal de Las Mercedes, Torre Consultorios, Piso 4, Caracas',
+        logoUrl: '',
+        footer: 'Gracias por su confianza. Todo tratamiento dental requiere control periódico cada 6 meses.',
+        bankInfo: 'Banco Banesco - Cuenta Corriente | N°: 0134-0000-00-0000000000<br>A nombre de: Consultorio Odontológico<br>Pago Móvil: C.I. 12.345.678 / Tlf: 0412-5550192'
+    };
+
+    if (config) {
+        const raw = config.header_text || config.headerText;
+        if (raw) {
+            try {
+                if (typeof raw === 'object') {
+                    Object.assign(busData, raw);
+                } else if (raw.startsWith('{')) {
+                    Object.assign(busData, JSON.parse(raw));
+                } else {
+                    busData.name = raw;
+                }
+            } catch(e) {
+                busData.name = raw;
+            }
+        }
+        if (config.logo_url || config.logoUrl) busData.logoUrl = config.logo_url || config.logoUrl;
+        if (config.footer_text || config.footerText) busData.footer = config.footer_text || config.footerText;
+    }
+
+    const savedName = localStorage.getItem('dental_clinic_name');
+    if (savedName && savedName.trim()) busData.name = savedName.trim();
+    const savedAddr = localStorage.getItem('dental_clinic_address');
+    if (savedAddr && savedAddr.trim()) busData.address = savedAddr.trim();
+    const savedPhone = localStorage.getItem('dental_clinic_phone');
+    if (savedPhone && savedPhone.trim()) busData.phone = savedPhone.trim();
+
+    return busData;
+}
+
+function buildMedicalDocumentHTML(opts) {
+    const {
+        docType = 'factura',
+        docTitle = 'Factura Digital',
+        emissionDate = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }),
+        controlNumber = 'FC-2026-00892',
+        paymentMethod = 'Transferencia / PAGO MÓVIL',
+        
+        clinicName = 'Consultorio Odontológico',
+        clinicPhone = '+58 (412) 555-0192',
+        clinicAddress = 'Av. Principal, Torre Consultorios, Caracas',
+        logoUrl = '',
+        
+        doctorName = 'Dr. Rodrigo Navas',
+        doctorSpecialty = 'Odontología General / Rehabilitación Oral',
+        doctorPhone = '+58 (414) 123-4567',
+        doctorSig = '',
+        
+        patientName = 'Carlos Eduardo Mendoza',
+        patientId = 'V-18.452.910',
+        patientPhone = '+58 (416) 987-6543',
+        patientSig = '',
+        
+        items = [],
+        subtotalUSD = 0,
+        discountPct = 0,
+        discountUSD = 0,
+        taxUSD = 0,
+        totalUSD = 0,
+        totalVES = '',
+        approvedAmountUSD = 0,
+        
+        paymentTerms = 'Contado / Pago inmediato al momento de la consulta.',
+        bankingDetails = 'Banco Banesco - Cuenta Corriente | N°: 0134-0000-00-0000000000<br>A nombre de: Consultorio Odontológico<br>Pago Móvil: C.I. 12.345.678 / Tlf: 0412-5550192',
+        observations = 'El paciente presenta evolución favorable. Se recomienda mantener tratamiento y esquema preventivo indicado, evitar esfuerzos intensos durante las próximas 48 horas y acudir a control preventivo en 30 días.',
+        consentText = 'Por medio de la presente, el paciente declara haber recibido explicación clara y detallada acerca de los procedimientos diagnosticados y realizados en esta consulta, aceptando de manera voluntaria la atención prestada y expresando su conformidad con los cobros administrativos y honorarios detallados en este documento.',
+        footerNote = ''
+    } = opts;
+
+    let rowsHtml = '';
+    if (items && items.length > 0) {
+        items.forEach(it => {
+            const qty = it.qty || 1;
+            const price = it.price || 0;
+            const total = it.total || (price * qty);
+            rowsHtml += `
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 11px 14px; text-align: left; vertical-align: top;">
+                        <strong style="font-size: 0.9rem; color: #0f172a; display: block;">${it.name}</strong>
+                        ${it.description ? `<span style="font-size: 0.78rem; color: #64748b; display: block; margin-top: 3px;">${it.description}</span>` : ''}
+                    </td>
+                    <td style="padding: 11px 8px; text-align: center; font-size: 0.88rem; color: #334155; vertical-align: top;">${qty}</td>
+                    <td style="padding: 11px 14px; text-align: right; font-size: 0.88rem; color: #334155; vertical-align: top;">$ ${price.toFixed(2).replace('.', ',')}</td>
+                    <td style="padding: 11px 14px; text-align: right; font-size: 0.88rem; font-weight: 600; color: #0f172a; vertical-align: top;">$ ${total.toFixed(2).replace('.', ',')}</td>
+                </tr>
+            `;
+        });
+    } else {
+        rowsHtml = `
+            <tr>
+                <td colspan="4" style="padding: 18px; text-align: center; color: #94a3b8; font-style: italic;">Sin procedimientos listados</td>
+            </tr>
+        `;
+    }
+
+    const effectiveApproved = (approvedAmountUSD > 0) ? approvedAmountUSD : totalUSD;
+
+    return `
+        <div class="medical-doc-container" style="background: #ffffff; color: #1e293b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 0.88rem; line-height: 1.45; width: 100%; max-width: 820px; margin: 0 auto; padding: 25px 30px; box-sizing: border-box;">
+            
+            <!-- 1. Header (Logo left, Title & metadata right) -->
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; padding-bottom: 15px; border-bottom: 1px solid #f1f5f9;">
+                <div style="flex: 1; max-width: 240px;">
+                    ${logoUrl ? `
+                        <img src="${logoUrl}" style="max-height: 65px; max-width: 150px; object-fit: contain; display: block;" alt="Logo">
+                    ` : `
+                        <div style="border: 2px dashed #0284c7; border-radius: 6px; padding: 10px 18px; display: inline-block; color: #0284c7; font-weight: 800; font-size: 1rem; letter-spacing: 0.05em;">
+                            LOGO
+                        </div>
+                    `}
+                </div>
+                <div style="text-align: right;">
+                    <h1 style="margin: 0 0 6px 0; font-size: 1.6rem; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">${docTitle}</h1>
+                    <div style="font-size: 0.82rem; color: #475569; display: flex; flex-direction: column; gap: 3px;">
+                        <div><span style="color: #64748b;">Fecha de Emisión:</span> <strong style="color: #0f172a;">${emissionDate}</strong></div>
+                        <div><span style="color: #64748b;">N° de Control:</span> <strong style="color: #0f172a; letter-spacing: 0.03em;">${controlNumber}</strong></div>
+                        <div><span style="color: #64748b;">Método de Pago:</span> <strong style="color: #0f172a; text-transform: uppercase;">${paymentMethod}</strong></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. 3-Column Info Cards -->
+            <div style="display: grid; grid-template-columns: 1.15fr 1.15fr 1fr; gap: 18px; margin-bottom: 22px; font-size: 0.83rem;">
+                <!-- Col 1: Consultorio -->
+                <div>
+                    <div style="font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">CONSULTORIO ODONTOLÓGICO</div>
+                    <strong style="font-size: 0.95rem; color: #0f172a; display: block; margin-bottom: 2px;">${clinicName}</strong>
+                    <div style="color: #475569;">Tlf: ${clinicPhone}</div>
+                    <div style="color: #64748b; font-size: 0.78rem; margin-top: 2px;">${clinicAddress}</div>
+                </div>
+
+                <!-- Col 2: Odontólogo Tratante -->
+                <div>
+                    <div style="font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">MÉDICO / ODONTÓLOGO TRATANTE</div>
+                    <strong style="font-size: 0.95rem; color: #0f172a; display: block; margin-bottom: 2px;">${doctorName}</strong>
+                    <div style="color: #475569;">Especialidad: ${doctorSpecialty}</div>
+                    <div style="color: #475569;">Tlf: ${doctorPhone}</div>
+                </div>
+
+                <!-- Col 3: Datos del Paciente -->
+                <div>
+                    <div style="font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">DATOS DEL PACIENTE</div>
+                    <strong style="font-size: 0.95rem; color: #0f172a; display: block; margin-bottom: 2px;">${patientName}</strong>
+                    <div style="color: #475569;">C.I.: ${patientId}</div>
+                    <div style="color: #475569;">Tlf: ${patientPhone}</div>
+                </div>
+            </div>
+
+            <!-- 3. Procedures Table with Solid Electric Blue Header Bar -->
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 22px;">
+                <thead>
+                    <tr>
+                        <th style="background: #0066f5; color: #ffffff; padding: 10px 14px; font-size: 0.76rem; font-weight: 700; letter-spacing: 0.05em; text-align: left; text-transform: uppercase; border-top-left-radius: 4px; border-bottom-left-radius: 4px;">PROCEDIMIENTO / TRATAMIENTO</th>
+                        <th style="background: #0066f5; color: #ffffff; padding: 10px 8px; font-size: 0.76rem; font-weight: 700; letter-spacing: 0.05em; text-align: center; text-transform: uppercase; width: 80px;">CANTIDAD</th>
+                        <th style="background: #0066f5; color: #ffffff; padding: 10px 14px; font-size: 0.76rem; font-weight: 700; letter-spacing: 0.05em; text-align: right; text-transform: uppercase; width: 110px;">PRECIO UNIT.</th>
+                        <th style="background: #0066f5; color: #ffffff; padding: 10px 14px; font-size: 0.76rem; font-weight: 700; letter-spacing: 0.05em; text-align: right; text-transform: uppercase; width: 110px; border-top-right-radius: 4px; border-bottom-right-radius: 4px;">MONTO</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHtml}
+                </tbody>
+            </table>
+
+            <!-- 4. Terms and Totals Split Section -->
+            <div style="display: grid; grid-template-columns: 1.35fr 1fr; gap: 20px; margin-bottom: 22px; align-items: start;">
+                <!-- Left: Terms & Banking Box -->
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 16px; font-size: 0.81rem; line-height: 1.45;">
+                    <strong style="font-size: 0.88rem; color: #0f172a; display: block; margin-bottom: 6px;">Términos y Datos de Pago</strong>
+                    <div style="margin-bottom: 8px;">
+                        <strong>Términos de Pago:</strong> ${paymentTerms}
+                    </div>
+                    <div style="font-weight: 600; color: #334155; margin-bottom: 3px;">Datos Bancarios:</div>
+                    <div style="color: #475569; font-size: 0.78rem; line-height: 1.4;">
+                        ${bankingDetails}
+                    </div>
+                </div>
+
+                <!-- Right: Totals Breakdown Table -->
+                <div>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.86rem;">
+                        <tr>
+                            <td style="padding: 4px 0; color: #64748b; text-align: right;">Subtotal:</td>
+                            <td style="padding: 4px 0 4px 14px; text-align: right; font-weight: 600; color: #0f172a; width: 110px;">$ ${subtotalUSD.toFixed(2).replace('.', ',')}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 4px 0; color: #64748b; text-align: right;">Descuento (${discountPct}%):</td>
+                            <td style="padding: 4px 0 4px 14px; text-align: right; font-weight: 600; color: #0f172a;">$ ${discountUSD.toFixed(2).replace('.', ',')}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 4px 0; color: #64748b; text-align: right;">I.V.A. (0%):</td>
+                            <td style="padding: 4px 0 4px 14px; text-align: right; font-weight: 600; color: #0f172a;">$ 0,00</td>
+                        </tr>
+                        <tr style="border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;">
+                            <td style="padding: 8px 0; font-weight: 800; font-size: 0.95rem; color: #0f172a; text-align: right;">Total:</td>
+                            <td style="padding: 8px 0 8px 14px; text-align: right; font-weight: 800; font-size: 1.15rem; color: #0066f5;">$ ${totalUSD.toFixed(2).replace('.', ',')}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 0; font-weight: 700; color: #334155; text-align: right;">Monto Aprobado:</td>
+                            <td style="padding: 6px 0 6px 14px; text-align: right; font-weight: 700; color: #0066f5;">$ ${effectiveApproved.toFixed(2).replace('.', ',')}</td>
+                        </tr>
+                        ${totalVES ? `
+                        <tr>
+                            <td colspan="2" style="padding: 2px 0; text-align: right; font-size: 0.78rem; color: #64748b;">
+                                Equivalente Ref.: <strong style="color:#0f172a;">${totalVES}</strong>
+                            </td>
+                        </tr>` : ''}
+                    </table>
+                </div>
+            </div>
+
+            <!-- 5. Clinical Observations (Left Blue Border Card) -->
+            <div style="border-left: 4px solid #0066f5; background: #ffffff; border-top: 1px solid #f1f5f9; border-right: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9; border-radius: 0 4px 4px 0; padding: 10px 14px; margin-bottom: 14px; font-size: 0.81rem; line-height: 1.45;">
+                <strong style="text-transform: uppercase; color: #0f172a; font-size: 0.74rem; letter-spacing: 0.05em; display: block; margin-bottom: 4px;">OBSERVACIONES CLÍNICAS</strong>
+                <div style="color: #475569;">${observations}</div>
+            </div>
+
+            <!-- 6. Informed Consent (Left Blue Border Card) -->
+            <div style="border-left: 4px solid #0066f5; background: #ffffff; border-top: 1px solid #f1f5f9; border-right: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9; border-radius: 0 4px 4px 0; padding: 10px 14px; margin-bottom: 26px; font-size: 0.81rem; line-height: 1.45;">
+                <strong style="text-transform: uppercase; color: #0f172a; font-size: 0.74rem; letter-spacing: 0.05em; display: block; margin-bottom: 4px;">CONSENTIMIENTO INFORMADO</strong>
+                <div style="color: #475569;">${consentText}</div>
+            </div>
+
+            <!-- 7. Dual Signature Section -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 20px; padding-top: 10px; text-align: center;">
+                <div>
+                    ${doctorSig ? `
+                        <img src="${doctorSig}" style="max-height: 52px; max-width: 150px; object-fit: contain; margin: 0 auto 4px auto; display: block;" alt="Firma Médico">
+                    ` : `<div style="height: 52px;"></div>`}
+                    <div style="border-top: 1px solid #94a3b8; padding-top: 6px; font-size: 0.82rem; font-weight: 700; color: #0f172a;">Firma / Sello del Médico Tratante</div>
+                    <div style="font-size: 0.75rem; color: #64748b;">${doctorName} — M.P.P.S. / C.O.V.</div>
+                </div>
+
+                <div>
+                    ${patientSig ? `
+                        <img src="${patientSig}" style="max-height: 52px; max-width: 150px; object-fit: contain; margin: 0 auto 4px auto; display: block;" alt="Firma Paciente">
+                    ` : `<div style="height: 52px;"></div>`}
+                    <div style="border-top: 1px solid #94a3b8; padding-top: 6px; font-size: 0.82rem; font-weight: 700; color: #0f172a;">Firma del Paciente / Representante</div>
+                    <div style="font-size: 0.75rem; color: #64748b;">C.I.: ${patientId}</div>
+                </div>
+            </div>
+
+            ${footerNote ? `
+                <div style="text-align: center; margin-top: 25px; padding-top: 10px; border-top: 1px dashed #cbd5e1; font-size: 0.74rem; color: #94a3b8;">
+                    ${footerNote}
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
+
 async function generateBudgetHTMLContainer() {
     const activeId = getActivePatientId();
     if (!activeId) return null;
@@ -7599,30 +7861,24 @@ async function generateBudgetHTMLContainer() {
     const paymentModeSelect = document.getElementById('payment-mode-select');
     const paymentModeText = paymentModeSelect ? paymentModeSelect.options[paymentModeSelect.selectedIndex].text : 'Contado';
     const budgetPaymentMethod = document.getElementById('budget-payment-method');
-    const budgetPaymentMethodText = budgetPaymentMethod ? budgetPaymentMethod.options[budgetPaymentMethod.selectedIndex].text : 'Pago Móvil';
+    const budgetPaymentMethodText = budgetPaymentMethod ? budgetPaymentMethod.options[budgetPaymentMethod.selectedIndex].text : 'Transferencia / Pago Móvil';
     const notes = document.getElementById('budget-notes') ? document.getElementById('budget-notes').value : '';
     const consentText = document.getElementById('consent-text') ? document.getElementById('consent-text').value : '';
 
     const rate = getExchangeRate();
-    const subtotalVES = (subtotalUSD * rate).toFixed(2);
-    const discountVES = (discountAmountUSD * rate).toFixed(2);
-    const totalVES = (totalUSD * rate).toFixed(2);
+    const totalVES = `Bs. ${(totalUSD * rate).toFixed(2)}`;
 
-    let itemsHtml = '';
-    currentBudgetItems.forEach(item => {
-        itemsHtml += `
-            <tr style="border-bottom: 1px dashed #cbd5e1;">
-                <td style="padding: 8px 0;">Pieza ${item.tooth || 'Gnl'} (${item.face || 'Gnl'})</td>
-                <td style="padding: 8px 0;">${item.name}</td>
-                <td style="padding: 8px 0;">${item.specialist || '-'}</td>
-                <td style="padding: 8px 0;">$${item.price.toFixed(2)}</td>
-                <td style="padding: 8px 0; text-align: right;">Bs. ${(item.price * rate).toFixed(2)}</td>
-            </tr>
-        `;
-    });
+    const items = currentBudgetItems.map(item => ({
+        name: `${item.name} (${item.tooth !== 'General' ? 'Pieza ' + item.tooth : 'General'} - ${item.face || 'Gnl'})`,
+        description: item.specialist ? `Especialista: ${item.specialist}` : 'Tratamiento odontológico especializado',
+        qty: 1,
+        price: item.price || 0,
+        total: item.price || 0
+    }));
 
     const stationery = await SupabaseDataService.getStationeryConfig();
-    const logoBase64 = await toDataURL(stationery.logoUrl);
+    const busData = getClinicBusData(stationery);
+    const logoBase64 = await toDataURL(busData.logoUrl || stationery.logoUrl);
 
     let docSig = (window.doctorSigPad && !window.doctorSigPad.isEmpty()) ? window.doctorSigPad.toDataURL() : '';
     if (!docSig) {
@@ -7633,61 +7889,45 @@ async function generateBudgetHTMLContainer() {
     }
     const patSig = (window.patientSigPad && !window.patientSigPad.isEmpty()) ? window.patientSigPad.toDataURL() : '';
 
-    const container = document.createElement('div');
-    container.style.padding = '30px';
-    container.style.fontFamily = 'monospace';
-    container.style.color = '#000';
-    container.style.backgroundColor = '#fff';
+    const docHtml = buildMedicalDocumentHTML({
+        docType: 'presupuesto',
+        docTitle: 'Presupuesto Odontológico',
+        emissionDate: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }),
+        controlNumber: `PR-2026-${activeEditingBudgetId ? activeEditingBudgetId.replace(/[^0-9]/g,'') : '00101'}`,
+        paymentMethod: `${paymentModeText} / ${budgetPaymentMethodText}`,
+        
+        clinicName: busData.name,
+        clinicPhone: busData.phone,
+        clinicAddress: busData.address,
+        logoUrl: logoBase64,
+        
+        doctorName: (getCurrentUser() && getCurrentUser().fullname) || busData.doctor || 'Dr. Rodrigo Navas',
+        doctorSpecialty: 'Odontología General / Especializada',
+        doctorPhone: (getCurrentUser() && getCurrentUser().phone) || busData.phone,
+        doctorSig: docSig,
+        
+        patientName: patient.fullname,
+        patientId: patient.id,
+        patientPhone: patient.phone,
+        patientSig: patSig,
+        
+        items: items,
+        subtotalUSD: subtotalUSD,
+        discountPct: discountPct,
+        discountUSD: discountAmountUSD,
+        totalUSD: totalUSD,
+        totalVES: totalVES,
+        approvedAmountUSD: totalUSD,
+        
+        paymentTerms: `Validez de la cotización: 15 días continuos a partir de su emisión. Modalidad: ${paymentModeText}.`,
+        bankingDetails: busData.bankInfo,
+        observations: notes || 'El paciente presenta evolución favorable. Se recomienda iniciar el plan de tratamiento odontológico según el esquema pautado.',
+        consentText: consentText || 'Por medio de la presente, el paciente declara haber recibido explicación clara y detallada acerca de los procedimientos diagnosticados y propuestos en este presupuesto, aceptando voluntariamente el inicio del tratamiento.',
+        footerNote: busData.footer
+    });
 
-    container.innerHTML = `
-        <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px;">
-            ${logoBase64 ? `<img src="${logoBase64}" style="max-height: 60px; margin-bottom: 10px; display: block; margin-left: auto; margin-right: auto;">` : ''}
-            <pre style="margin: 0; font-family: inherit; font-size: 0.9rem; white-space: pre-wrap;">${stationery.headerText}</pre>
-        </div>
-        <div style="text-align: center; font-weight: bold; font-size: 1.2rem; margin-bottom: 20px;">PRESUPUESTO ODONTOLÓGICO</div>
-        <div style="margin-bottom: 20px; font-size: 0.9rem; line-height: 1.4;">
-            <strong>Paciente:</strong> ${patient.fullname}<br>
-            <strong>Cédula:</strong> ${patient.id}<br>
-            <strong>Fecha:</strong> ${new Date().toLocaleDateString('es-ES')}<br>
-            <strong>Forma de Pago:</strong> ${paymentModeText}<br>
-            <strong>Método de Pago Sugerido:</strong> ${budgetPaymentMethodText}<br>
-            <strong>Tasa de Cambio BCV:</strong> Bs. ${rate.toFixed(2)}
-        </div>
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.85rem;">
-            <thead>
-                <tr style="border-bottom: 2px solid #000; font-weight: bold;">
-                    <th style="padding: 8px 0; text-align: left;">Pieza/Cara</th>
-                    <th style="padding: 8px 0; text-align: left;">Tratamiento</th>
-                    <th style="padding: 8px 0; text-align: left;">Especialista</th>
-                    <th style="padding: 8px 0; text-align: left;">Precio (USD)</th>
-                    <th style="padding: 8px 0; text-align: right; width: 110px;">Precio (Bs.)</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${itemsHtml}
-            </tbody>
-        </table>
-        <div style="text-align: right; margin-bottom: 25px; font-size: 0.92rem; line-height: 1.5; border-bottom: 1px solid #cbd5e1; padding-bottom: 10px;">
-            Subtotal Bruto: $${subtotalUSD.toFixed(2)} (Bs. ${subtotalVES})<br>
-            Descuento Global (${discountPct}%): -$${discountAmountUSD.toFixed(2)} (Bs. -${discountVES})<br>
-            <strong style="font-size: 1.1rem; color: #000;">Total Final Ref.: $${totalUSD.toFixed(2)} (Bs. ${totalVES})</strong>
-        </div>
-        ${notes ? `<div style="margin-bottom: 15px; border: 1px solid #cbd5e1; padding: 10px; font-size: 0.82rem; border-radius: 4px; line-height: 1.4; background-color: #fafafa;"><strong>Observaciones Clínicas (Notas del Médico):</strong><br>${notes}</div>` : ''}
-        ${consentText ? `<div style="margin-bottom: 25px; border: 1px solid #cbd5e1; padding: 10px; font-size: 0.80rem; border-radius: 4px; line-height: 1.4; color: #444; background-color: #fafafa;"><strong>Consentimiento Informado:</strong><br>${consentText}</div>` : ''}
-        <div style="margin-top: 40px; display: flex; justify-content: space-between; font-size: 0.85rem; text-align: center;">
-            <div style="width: 230px;">
-                ${docSig ? `<img src="${docSig}" style="max-height: 50px; display: block; margin-left: auto; margin-right: auto; margin-bottom: 5px;">` : '<div style="height: 55px;"></div>'}
-                <div style="border-top: 1px solid #000; padding-top: 5px;">Firma del Odontólogo Tratante</div>
-            </div>
-            <div style="width: 230px;">
-                ${patSig ? `<img src="${patSig}" style="max-height: 50px; display: block; margin-left: auto; margin-right: auto; margin-bottom: 5px;">` : '<div style="height: 55px;"></div>'}
-                <div style="border-top: 1px solid #000; padding-top: 5px;">Firma del Paciente / Representante</div>
-            </div>
-        </div>
-        <div style="text-align: center; margin-top: 30px; font-size: 0.8rem; border-top: 1px solid #000; padding-top: 10px; color: #555;">
-            <pre style="margin: 0; font-family: inherit; white-space: pre-wrap;">${stationery.footerText}</pre>
-        </div>
-    `;
+    const container = document.createElement('div');
+    container.innerHTML = docHtml;
     return container;
 }
 
@@ -8059,73 +8299,66 @@ async function generateInvoicePreviewHTML(invoice, patient, assistant) {
     if (!container) return;
 
     const stationery = await SupabaseDataService.getStationeryConfig();
-    const logoBase64 = await toDataURL(stationery.logoUrl);
+    const busData = getClinicBusData(stationery);
+    const logoBase64 = await toDataURL(busData.logoUrl || stationery.logoUrl);
     const rate = getExchangeRate();
 
-    let itemsHtml = '';
-    invoice.items.forEach(item => {
-        const itemTotal = item.price * item.qty;
-        const priceFinal = invoice.currency === 'REF' ? `$${item.price.toFixed(2)}` : `Bs. ${(item.price * rate).toFixed(2)}`;
-        const totalFinal = invoice.currency === 'REF' ? `$${itemTotal.toFixed(2)}` : `Bs. ${(itemTotal * rate).toFixed(2)}`;
-        itemsHtml += `
-            <tr style="border-bottom: 1px dashed #ccc;">
-                <td style="padding: 6px 0;">${item.name} (${item.code})</td>
-                <td style="padding: 6px 0; text-align: center;">${item.qty}</td>
-                <td style="padding: 6px 0; text-align: right;">${priceFinal}</td>
-                <td style="padding: 6px 0; text-align: right;">${totalFinal}</td>
-            </tr>
-        `;
+    const items = (invoice.items || []).map(item => ({
+        name: `${item.name} (${item.code})`,
+        description: item.specialist ? `Especialista: ${item.specialist}` : 'Procedimiento odontológico facturado',
+        qty: item.qty || 1,
+        price: item.price || 0,
+        total: (item.price || 0) * (item.qty || 1)
+    }));
+
+    const totalUSD = invoice.totalRef || 0;
+    const totalVES = `Bs. ${(totalUSD * rate).toFixed(2)}`;
+
+    let docSig = '';
+    const u = getCurrentUser();
+    if (u) {
+        docSig = (u.doctorProfile && u.doctorProfile.signature) || (u.doctor_profile && u.doctor_profile.signature) || '';
+    }
+
+    const docHtml = buildMedicalDocumentHTML({
+        docType: 'factura',
+        docTitle: 'Factura Digital',
+        emissionDate: invoice.invoiceDate || new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }),
+        controlNumber: invoice.id || `FC-2026-${Date.now().toString().slice(-6)}`,
+        paymentMethod: `${invoice.paymentTerms || 'Contado'} / ${getPaymentMethodLabel(invoice.paymentMethod)}`,
+        
+        clinicName: busData.name,
+        clinicPhone: busData.phone,
+        clinicAddress: busData.address,
+        logoUrl: logoBase64,
+        
+        doctorName: (getCurrentUser() && getCurrentUser().fullname) || busData.doctor || 'Dr. Rodrigo Navas',
+        doctorSpecialty: 'Odontología General / Facturación Clínica',
+        doctorPhone: (getCurrentUser() && getCurrentUser().phone) || busData.phone,
+        doctorSig: docSig,
+        
+        patientName: patient.fullname,
+        patientId: patient.id,
+        patientPhone: patient.phone,
+        patientSig: '',
+        
+        items: items,
+        subtotalUSD: totalUSD,
+        discountPct: 0,
+        discountUSD: 0,
+        taxUSD: 0,
+        totalUSD: totalUSD,
+        totalVES: totalVES,
+        approvedAmountUSD: totalUSD,
+        
+        paymentTerms: `Términos: ${invoice.paymentTerms || 'Contado'}. Moneda de emisión: ${invoice.currency || 'REF'}.`,
+        bankingDetails: busData.bankInfo,
+        observations: invoice.footerText || 'El paciente presenta evolución favorable. Se recomienda mantener tratamiento y esquema preventivo indicado.',
+        consentText: 'Por medio de la presente, el paciente declara haber recibido explicación clara y detallada acerca de los procedimientos facturados, expresando su conformidad con los cobros correspondientes.',
+        footerNote: invoice.footerText || busData.footer
     });
 
-    const displayTotal = invoice.currency === 'REF' 
-        ? `$${invoice.totalRef.toFixed(2)} REF` 
-        : `Bs. ${invoice.totalBcv.toFixed(2)} BS`;
-
-    container.innerHTML = `
-        <div style="font-family: monospace; line-height: 1.4; color: #000; background: #fff; padding: 10px;">
-            <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
-                ${logoBase64 ? `<img src="${logoBase64}" style="max-height: 50px; margin-bottom: 8px; display: block; margin-left: auto; margin-right: auto;">` : ''}
-                <pre style="margin: 0; font-family: inherit; font-size: 0.8rem; white-space: pre-wrap;">${stationery.headerText}</pre>
-            </div>
-            
-            <div style="text-align: center; font-weight: bold; font-size: 1.1rem; margin-bottom: 15px;">FACTURA CLÍNICA: ${invoice.id}</div>
-            
-            <div style="margin-bottom: 15px; font-size: 0.8rem; border-bottom: 1px solid #000; padding-bottom: 10px;">
-                <strong>Fecha:</strong> ${invoice.invoiceDate}<br>
-                <strong>Paciente:</strong> ${patient.fullname}<br>
-                <strong>Cédula:</strong> ${patient.id}<br>
-                <strong>WhatsApp:</strong> ${patient.phone}<br>
-                <strong>Términos:</strong> ${invoice.paymentTerms} | <strong>Método:</strong> ${getPaymentMethodLabel(invoice.paymentMethod)}<br>
-                <strong>Asistente:</strong> ${assistant ? assistant.fullname : 'N/A'}
-            </div>
-
-            <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-bottom: 15px;">
-                <thead>
-                    <tr style="border-bottom: 1px solid #000; font-weight: bold;">
-                        <th style="padding: 4px 0; text-align: left;">Descripción</th>
-                        <th style="padding: 4px 0; text-align: center; width: 40px;">Cant</th>
-                        <th style="padding: 4px 0; text-align: right; width: 80px;">P. Unit</th>
-                        <th style="padding: 4px 0; text-align: right; width: 90px;">Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${itemsHtml}
-                </tbody>
-            </table>
-
-            <div style="text-align: right; font-size: 0.9rem; font-weight: bold; border-top: 1px solid #000; padding-top: 8px; margin-bottom: 15px;">
-                Total REF: $${invoice.totalRef.toFixed(2)} USD<br>
-                Tasa BCV: Bs. ${rate.toFixed(2)}<br>
-                <span style="font-size: 1rem; color: #0284c7;">TOTAL A PAGAR: ${displayTotal}</span>
-            </div>
-
-            ${invoice.footerText || stationery.footerText ? `
-                <div style="font-size: 0.75rem; text-align: center; border-top: 1px dashed #ccc; padding-top: 10px; color: #555;">
-                    <pre style="margin: 0; font-family: inherit; white-space: pre-wrap;">${invoice.footerText || stationery.footerText}</pre>
-                </div>
-            ` : ''}
-        </div>
-    `;
+    container.innerHTML = docHtml;
 }
 
 // --- FINANZAS ---
@@ -8650,141 +8883,135 @@ async function refreshStationeryLivePreview() {
     const headerText = document.getElementById('stat-header-text').value;
     const footerText = document.getElementById('stat-footer-text').value;
 
-    let contentHtml = '';
+    const busData = getClinicBusData({ header_text: headerText, logo_url: logoSrc, footer_text: footerText });
+    const logoBase64 = await toDataURL(busData.logoUrl || logoSrc);
+
+    let docHtml = '';
 
     if (currentPreviewTemplate === 'factura') {
-        contentHtml = `
-            <div style="font-family: monospace; font-size: 0.8rem; color: #000; line-height: 1.4;">
-                <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
-                    ${logoSrc ? `<img src="${logoSrc}" style="max-height: 50px; margin-bottom: 8px; display: block; margin-left: auto; margin-right: auto;">` : ''}
-                    <pre style="margin: 0; font-family: inherit; font-size: 0.8rem; white-space: pre-wrap;">${headerText}</pre>
-                </div>
-                <div style="text-align: center; font-weight: bold; font-size: 1.1rem; margin-bottom: 15px;">FACTURA CLÍNICA MOCK: FAC-001</div>
-                
-                <div style="margin-bottom: 15px; font-size: 0.8rem; border-bottom: 1px solid #000; padding-bottom: 8px;">
-                    <strong>Fecha:</strong> ${new Date().toISOString().split('T')[0]}<br>
-                    <strong>Paciente:</strong> María Elena Rodríguez<br>
-                    <strong>Cédula:</strong> V-18492102<br>
-                    <strong>Términos:</strong> Contado | <strong>Método:</strong> Dólares
-                </div>
-
-                <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-bottom: 15px;">
-                    <thead>
-                        <tr style="border-bottom: 1px solid #000; font-weight: bold;">
-                            <th style="padding: 4px 0; text-align: left;">Descripción</th>
-                            <th style="padding: 4px 0; text-align: center; width: 40px;">Cant</th>
-                            <th style="padding: 4px 0; text-align: right; width: 80px;">P. Unit</th>
-                            <th style="padding: 4px 0; text-align: right; width: 90px;">Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr style="border-bottom: 1px dashed #ccc;">
-                            <td style="padding: 6px 0;">Limpieza Ultrasonica + Profilaxis</td>
-                            <td style="padding: 6px 0; text-align: center;">1</td>
-                            <td style="padding: 6px 0; text-align: right;">$40.00</td>
-                            <td style="padding: 6px 0; text-align: right;">$40.00</td>
-                        </tr>
-                        <tr style="border-bottom: 1px dashed #ccc;">
-                            <td style="padding: 6px 0;">Restauración Resina Clase I</td>
-                            <td style="padding: 6px 0; text-align: center;">2</td>
-                            <td style="padding: 6px 0; text-align: right;">$45.00</td>
-                            <td style="padding: 6px 0; text-align: right;">$90.00</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div style="text-align: right; font-size: 0.9rem; font-weight: bold; border-top: 1px solid #000; padding-top: 8px; margin-bottom: 15px;">
-                    Total REF: $130.00 USD<br>
-                    Tasa BCV: Bs. 36.50<br>
-                    <span style="font-size: 1rem; color: #0284c7;">TOTAL A PAGAR: $130.00 REF</span>
-                </div>
-
-                <div style="font-size: 0.75rem; text-align: center; border-top: 1px dashed #ccc; padding-top: 10px; color: #555;">
-                    <pre style="margin: 0; font-family: inherit; white-space: pre-wrap;">${footerText}</pre>
-                </div>
-            </div>
-        `;
+        docHtml = buildMedicalDocumentHTML({
+            docType: 'factura',
+            docTitle: 'Factura Digital',
+            emissionDate: '20 de Octubre de 2026',
+            controlNumber: 'FC-2026-00892',
+            paymentMethod: 'Transferencia / PAGO MÓVIL',
+            
+            clinicName: busData.name || 'Consultorio Médico',
+            clinicPhone: busData.phone || '+58 (412) 555-0192',
+            clinicAddress: busData.address || 'Av. Principal de Las Mercedes, Torre Consultorios, Piso 4, Off. 4B, Caracas',
+            logoUrl: logoBase64,
+            
+            doctorName: busData.doctor || 'Dr. Rodrigo Navas',
+            doctorSpecialty: 'Medicina General / Cardiología',
+            doctorPhone: '+58 (414) 123-4567',
+            
+            patientName: 'Carlos Eduardo Mendoza',
+            patientId: 'V-18.452.910',
+            patientPhone: '+58 (416) 987-6543',
+            
+            items: [
+                { name: 'Consulta Médica Especializada', description: 'Evaluación clínica integral y revisión de antecedentes', qty: 1, price: 60.00, total: 60.00 },
+                { name: 'Electrocardiograma de Reposo', description: 'Trazo e informe médico detallado', qty: 1, price: 35.00, total: 35.00 },
+                { name: 'Control y Monitoreo de Presión Arterial', description: 'Toma de tensión y esquema preventivo', qty: 1, price: 15.00, total: 15.00 }
+            ],
+            
+            subtotalUSD: 110.00,
+            discountPct: 0,
+            discountUSD: 0.00,
+            taxUSD: 0.00,
+            totalUSD: 110.00,
+            totalVES: 'Bs. 4.015,00',
+            approvedAmountUSD: 110.00,
+            
+            paymentTerms: 'Contado / Pago inmediato al momento de la consulta.',
+            bankingDetails: busData.bankInfo || 'Banco Banesco - Cuenta Corriente | N°: 0134-0000-00-0000000000<br>A nombre de: Rodrigo Navas<br>Pago Móvil: C.I. 12.345.678 / Tlf: 0412-5550192',
+            observations: 'El paciente presenta evolución favorable. Se recomienda mantener tratamiento farmacológico indicado según informe médico, evitar esfuerzos físicos intensos durante las próximas 48 horas y acudir a control preventivo en 30 días o antes en caso de manifestar cualquier síntoma atípico.',
+            consentText: 'Por medio de la presente, el paciente declara haber recibido explicación clara y detallada acerca de los procedimientos diagnosticados y realizados en esta consulta, aceptando de manera voluntaria la atención prestada y expresando su conformidad con los cobros administrativos y honorarios detallados en este documento.',
+            footerNote: footerText || busData.footer
+        });
     } else if (currentPreviewTemplate === 'cotizacion') {
-        contentHtml = `
-            <div style="font-family: monospace; font-size: 0.8rem; color: #000; line-height: 1.4;">
-                <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
-                    ${logoSrc ? `<img src="${logoSrc}" style="max-height: 50px; margin-bottom: 8px; display: block; margin-left: auto; margin-right: auto;">` : ''}
-                    <pre style="margin: 0; font-family: inherit; font-size: 0.8rem; white-space: pre-wrap;">${headerText}</pre>
-                </div>
-                <div style="text-align: center; font-weight: bold; font-size: 1.1rem; margin-bottom: 15px;">PRESUPUESTO / COTIZACIÓN: COT-001</div>
-                
-                <div style="margin-bottom: 15px; font-size: 0.8rem; border-bottom: 1px solid #000; padding-bottom: 8px;">
-                    <strong>Fecha:</strong> ${new Date().toISOString().split('T')[0]}<br>
-                    <strong>Paciente:</strong> María Elena Rodríguez<br>
-                    <strong>Cédula:</strong> V-18492102<br>
-                    <strong>Validez:</strong> 15 días a partir de la emisión
-                </div>
-
-                <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-bottom: 15px;">
-                    <thead>
-                        <tr style="border-bottom: 1px solid #000; font-weight: bold;">
-                            <th style="padding: 4px 0; text-align: left;">Tratamiento</th>
-                            <th style="padding: 4px 0; text-align: center; width: 40px;">Cant</th>
-                            <th style="padding: 4px 0; text-align: right; width: 80px;">Precio</th>
-                            <th style="padding: 4px 0; text-align: right; width: 90px;">Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr style="border-bottom: 1px dashed #ccc;">
-                            <td style="padding: 6px 0;">Tratamiento Conducto Multirradicular (Pieza 36)</td>
-                            <td style="padding: 6px 0; text-align: center;">1</td>
-                            <td style="padding: 6px 0; text-align: right;">$180.00</td>
-                            <td style="padding: 6px 0; text-align: right;">$180.00</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div style="text-align: right; font-size: 0.9rem; font-weight: bold; border-top: 1px solid #000; padding-top: 8px; margin-bottom: 15px;">
-                    Subtotal: $180.00 USD<br>
-                    <span style="font-size: 1rem; color: #10b981;">TOTAL PRESUPUESTADO: $180.00 USD</span>
-                </div>
-
-                <div style="font-size: 0.75rem; text-align: center; border-top: 1px dashed #ccc; padding-top: 10px; color: #555;">
-                    <pre style="margin: 0; font-family: inherit; white-space: pre-wrap;">${footerText}</pre>
-                </div>
-            </div>
-        `;
+        docHtml = buildMedicalDocumentHTML({
+            docType: 'presupuesto',
+            docTitle: 'Presupuesto Odontológico',
+            emissionDate: '20 de Octubre de 2026',
+            controlNumber: 'PR-2026-00341',
+            paymentMethod: 'Por Sesiones / Efectivo USD',
+            
+            clinicName: busData.name || 'Consultorio Odontológico Especializado',
+            clinicPhone: busData.phone || '+58 (412) 555-0192',
+            clinicAddress: busData.address || 'Av. Principal de Las Mercedes, Torre Consultorios, Piso 4, Caracas',
+            logoUrl: logoBase64,
+            
+            doctorName: busData.doctor || 'Dr. Rodrigo Navas',
+            doctorSpecialty: 'Odontología Estética y Rehabilitación Oral',
+            doctorPhone: '+58 (414) 123-4567',
+            
+            patientName: 'Carlos Eduardo Mendoza',
+            patientId: 'V-18.452.910',
+            patientPhone: '+58 (416) 987-6543',
+            
+            items: [
+                { name: 'Limpieza Ultrasonica + Profilaxis (General)', description: 'Eliminación de cálculo dental y pulido coronario', qty: 1, price: 40.00, total: 40.00 },
+                { name: 'Restauración Resina Estética (Pieza 16 - Oclusal)', description: 'Obturación fotocurada con estratificación anatómica', qty: 1, price: 45.00, total: 45.00 },
+                { name: 'Corona de Zirconio Monolítico (Pieza 24)', description: 'Diseño CAD/CAM de alta resistencia y estética', qty: 1, price: 180.00, total: 180.00 }
+            ],
+            
+            subtotalUSD: 265.00,
+            discountPct: 5,
+            discountUSD: 13.25,
+            taxUSD: 0.00,
+            totalUSD: 251.75,
+            totalVES: 'Bs. 9.188,88',
+            approvedAmountUSD: 251.75,
+            
+            paymentTerms: 'Validez del presupuesto: 15 días continuos. Financiable en 3 cuotas durante el tratamiento.',
+            bankingDetails: busData.bankInfo,
+            observations: 'Plan integral de rehabilitación oral. Se sugiere comenzar con la fase higiénica antes de la cementación de la prótesis definitiva.',
+            consentText: 'Por medio de la presente, el paciente autoriza el plan de tratamiento propuesto y acepta las condiciones económicas y clínicas estipuladas.',
+            footerNote: footerText || busData.footer
+        });
     } else if (currentPreviewTemplate === 'recibo') {
-        contentHtml = `
-            <div style="font-family: monospace; font-size: 0.8rem; color: #000; line-height: 1.4;">
-                <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
-                    ${logoSrc ? `<img src="${logoSrc}" style="max-height: 50px; margin-bottom: 8px; display: block; margin-left: auto; margin-right: auto;">` : ''}
-                    <pre style="margin: 0; font-family: inherit; font-size: 0.8rem; white-space: pre-wrap;">${headerText}</pre>
-                </div>
-                <div style="text-align: center; font-weight: bold; font-size: 1.1rem; margin-bottom: 15px;">RECIBO DE ABONO / PAGO: REC-001</div>
-                
-                <div style="margin-bottom: 15px; font-size: 0.82rem; border-bottom: 1px solid #000; padding-bottom: 8px; line-height: 1.6;">
-                    <strong>Fecha:</strong> ${new Date().toISOString().split('T')[0]}<br>
-                    <strong>Paciente:</strong> María Elena Rodríguez (C.I: V-18492102)<br>
-                    <strong>Abono Recibido:</strong> $50.00 USD<br>
-                    <strong>Concepto:</strong> Abono Inicial Corona Zirconio<br>
-                    <strong>Saldo Restante:</strong> $200.00 USD
-                </div>
-
-                <div style="margin-top: 30px; display: flex; justify-content: space-between; font-size: 0.8rem; text-align: center;">
-                    <div style="width: 180px;">
-                        <div style="border-bottom: 1px solid #000; height: 35px; margin-bottom: 5px;"></div>
-                        Recibido por (Firma)
-                    </div>
-                    <div style="width: 180px;">
-                        <div style="border-bottom: 1px solid #000; height: 35px; margin-bottom: 5px;"></div>
-                        Paciente (Firma)
-                    </div>
-                </div>
-
-                <div style="font-size: 0.75rem; text-align: center; border-top: 1px dashed #ccc; padding-top: 10px; color: #555; margin-top: 25px;">
-                    <pre style="margin: 0; font-family: inherit; white-space: pre-wrap;">${footerText}</pre>
-                </div>
-            </div>
-        `;
+        docHtml = buildMedicalDocumentHTML({
+            docType: 'recibo',
+            docTitle: 'Recibo de Atención Clínica',
+            emissionDate: '20 de Octubre de 2026',
+            controlNumber: 'REC-2026-00215',
+            paymentMethod: 'Transferencia / PAGO MÓVIL',
+            
+            clinicName: busData.name || 'Consultorio Odontológico',
+            clinicPhone: busData.phone || '+58 (412) 555-0192',
+            clinicAddress: busData.address || 'Av. Principal de Las Mercedes, Torre Consultorios, Piso 4, Caracas',
+            logoUrl: logoBase64,
+            
+            doctorName: busData.doctor || 'Dr. Rodrigo Navas',
+            doctorSpecialty: 'Odontología General / Periodoncia',
+            doctorPhone: '+58 (414) 123-4567',
+            
+            patientName: 'Carlos Eduardo Mendoza',
+            patientId: 'V-18.452.910',
+            patientPhone: '+58 (416) 987-6543',
+            
+            items: [
+                { name: 'Sesión Clínica #1: Limpieza Ultrasonica + Profilaxis', description: 'Tratamiento completado y conforme en la consulta', qty: 1, price: 40.00, total: 40.00 }
+            ],
+            
+            subtotalUSD: 40.00,
+            discountPct: 0,
+            discountUSD: 0.00,
+            taxUSD: 0.00,
+            totalUSD: 40.00,
+            totalVES: 'Bs. 1.460,00',
+            approvedAmountUSD: 40.00,
+            
+            paymentTerms: 'Abono / Pago acreditado en sesión clínica. Comprobante legal de cancelación.',
+            bankingDetails: busData.bankInfo,
+            observations: 'Paciente atendido satisfactoriamente. Se indican enjuagues con clorhexidina 0.12% por 7 días.',
+            consentText: 'Por medio de la presente, el paciente declara conformidad total con la sesión atendida y el monto cancelado en la fecha.',
+            footerNote: footerText || busData.footer
+        });
     }
 
-    container.innerHTML = contentHtml;
+    container.innerHTML = docHtml;
 }
 
 function toDataURL(url) {
@@ -8833,13 +9060,13 @@ function getPaymentMethodLabel(method) {
 async function generatePDFFromElement(element, filename) {
     // Style the element so it has a normal relative layout at the bottom of the body
     element.style.position = 'relative';
-    element.style.width = '750px';
+    element.style.width = '780px';
     element.style.margin = '40px auto';
     element.style.backgroundColor = '#ffffff';
-    element.style.color = '#000000';
+    element.style.color = '#1e293b';
     element.style.display = 'block';
     element.style.visibility = 'visible';
-    element.style.padding = '30px';
+    element.style.padding = '0';
 
     document.body.appendChild(element);
 
@@ -8961,88 +9188,74 @@ async function generatePDFFromElement(element, filename) {
 }
 
 window.generateSessionReceiptHTML = (patient, sessionObj, busData) => {
-    const materialsList = sessionObj.materials && sessionObj.materials.length > 0
-        ? sessionObj.materials.map(m => `<li>${m.name} x${m.qty}</li>`).join('')
-        : '<li>Ninguno</li>';
+    const rate = parseFloat(localStorage.getItem('dental_exchange_rate')) || 36.5;
+    const totalUSD = sessionObj.paymentUSD || 0;
+    const totalVES = totalUSD > 0 ? `Bs. ${(totalUSD * rate).toFixed(2)}` : '';
 
-    return `
-        <div style="font-family: Arial, sans-serif; padding: 30px; max-width: 800px; margin: 0 auto; color: #333; background: #fff; border: 1px solid #ddd; border-radius: 8px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0d9488; padding-bottom: 15px; margin-bottom: 20px;">
-                <div>
-                    ${busData.logoUrl ? `<img src="${busData.logoUrl}" style="max-height: 70px; margin-bottom: 10px; display: block;">` : ''}
-                    <h2 style="margin: 0; color: #0d9488;">${busData.name || 'Consultorio Odontológico'}</h2>
-                    <p style="margin: 3px 0; font-size: 0.85rem; color: #666;">RIF: ${busData.rif || 'N/A'} | Tel: ${busData.phone || 'N/A'}</p>
-                    <p style="margin: 3px 0; font-size: 0.85rem; color: #666;">Dirección: ${busData.address || 'N/A'}</p>
-                </div>
-                <div style="text-align: right;">
-                    <span style="background: rgba(13, 148, 136, 0.1); color: #0d9488; font-weight: bold; padding: 6px 12px; border-radius: 20px; font-size: 0.9rem; text-transform: uppercase;">Comprobante de Sesión</span>
-                    <p style="margin: 10px 0 0 0; font-size: 0.85rem; color: #666;">Fecha: <strong>${sessionObj.datetime}</strong></p>
-                    <p style="margin: 3px 0; font-size: 0.85rem; color: #666;">Número de Control: <strong>SESS-${sessionObj.sessionNum}-${Date.now().toString().slice(-6)}</strong></p>
-                </div>
-            </div>
-            
-            <div style="margin-bottom: 20px; background: #f8fafc; border-radius: 6px; padding: 15px; border: 1px solid #e2e8f0;">
-                <h4 style="margin: 0 0 10px 0; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">Datos del Paciente</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.88rem;">
-                    <div>Paciente: <strong>${patient.fullname}</strong></div>
-                    <div>Cédula / ID: <strong>${patient.id}</strong></div>
-                    <div>Teléfono: <strong>${patient.phone || 'N/A'}</strong></div>
-                    <div>Correo: <strong>${patient.email || 'N/A'}</strong></div>
-                </div>
-            </div>
+    let paymentDetail = sessionObj.paymentMethodLabel || 'Efectivo';
+    if (sessionObj.paymentMethod === 'split' && sessionObj.splitPayments) {
+        const parts = [];
+        if (sessionObj.splitPayments.cash > 0) parts.push(`Efectivo: $${sessionObj.splitPayments.cash.toFixed(2)}`);
+        if (sessionObj.splitPayments.pagomovil > 0) parts.push(`Pago Móvil: $${sessionObj.splitPayments.pagomovil.toFixed(2)}`);
+        if (sessionObj.splitPayments.zelle > 0) parts.push(`Zelle: $${sessionObj.splitPayments.zelle.toFixed(2)}`);
+        if (sessionObj.splitPayments.binance > 0) parts.push(`Binance: $${sessionObj.splitPayments.binance.toFixed(2)}`);
+        if (sessionObj.splitPayments.punto > 0) parts.push(`Punto: $${sessionObj.splitPayments.punto.toFixed(2)}`);
+        if (parts.length > 0) paymentDetail = `Pago Mixto (${parts.join(', ')})`;
+    }
 
-            <div style="margin-bottom: 20px;">
-                <h4 style="margin: 0 0 10px 0; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">Detalles de la Sesión Clínica</h4>
-                <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 10px;">
-                    <thead>
-                        <tr style="background: #f1f5f9; text-align: left;">
-                            <th style="padding: 10px; border: 1px solid #cbd5e1;">Concepto / Avance</th>
-                            <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; width: 120px;">N° Sesión</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td style="padding: 10px; border: 1px solid #cbd5e1; vertical-align: top; line-height: 1.4;">
-                                <strong>Procedimientos Realizados / Nota Operatoria:</strong><br>
-                                ${sessionObj.procedure}
-                                ${sessionObj.indications ? `<br><br><strong>Indicaciones / Receta / Próximos pasos:</strong><br>${sessionObj.indications}` : ''}
-                            </td>
-                            <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; font-size: 1.1rem; color: #0d9488; vertical-align: middle;">
-                                Sesión ${sessionObj.sessionNum}
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+    const items = [
+        {
+            name: `Sesión Clínica #${sessionObj.sessionNum}: ${sessionObj.procedure}`,
+            description: sessionObj.indications ? `Indicaciones: ${sessionObj.indications}` : 'Atención y evolución odontológica efectuada',
+            qty: 1,
+            price: totalUSD,
+            total: totalUSD
+        }
+    ];
 
-            <div style="margin-bottom: 20px; background: #fafafa; border-radius: 6px; padding: 12px; border: 1px solid #eee;">
-                <h5 style="margin: 0 0 6px 0; color: #555; font-size: 0.85rem;">Materiales / Insumos Utilizados en la Sesión:</h5>
-                <ul style="margin: 0; padding-left: 20px; font-size: 0.82rem; color: #666; line-height: 1.4;">
-                    ${materialsList}
-                </ul>
-            </div>
+    let docSig = '';
+    const u = getCurrentUser();
+    if (u) {
+        docSig = (u.doctorProfile && u.doctorProfile.signature) || (u.doctor_profile && u.doctor_profile.signature) || '';
+    }
 
-            <div style="margin-top: 40px; display: flex; justify-content: space-between; align-items: flex-end; gap: 30px;">
-                <div style="flex: 1; text-align: center; max-width: 250px;">
-                    <div style="border-bottom: 1px solid #94a3b8; height: 80px; display: flex; align-items: center; justify-content: center;">
-                        <span style="font-size: 0.8rem; color: #94a3b8;">Firma Digital del Odontólogo</span>
-                    </div>
-                    <p style="margin: 5px 0 0 0; font-size: 0.85rem; font-weight: bold; color: #334155;">Firma del Especialista</p>
-                </div>
-                
-                <div style="flex: 1; text-align: center; max-width: 250px;">
-                    <div style="border-bottom: 1px solid #94a3b8; height: 80px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
-                        ${sessionObj.signatureData ? `<img src="${sessionObj.signatureData}" style="max-height: 75px; max-width: 100%; display: block; object-fit: contain;">` : '<span style="font-size: 0.8rem; color: #94a3b8;">Firma no registrada</span>'}
-                    </div>
-                    <p style="margin: 5px 0 0 0; font-size: 0.85rem; font-weight: bold; color: #334155;">Firma de Conformidad del Paciente</p>
-                </div>
-            </div>
-
-            <div style="margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 10px; text-align: center; font-size: 0.75rem; color: #94a3b8;">
-                Este documento certifica legalmente la realización y conformidad de los tratamientos listados en la fecha indicada.
-            </div>
-        </div>
-    `;
+    return buildMedicalDocumentHTML({
+        docType: 'recibo',
+        docTitle: 'Recibo de Atención Clínica',
+        emissionDate: sessionObj.datetime ? sessionObj.datetime.split('T')[0] : new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }),
+        controlNumber: `SESS-${sessionObj.sessionNum}-${Date.now().toString().slice(-6)}`,
+        paymentMethod: paymentDetail,
+        
+        clinicName: busData.name || 'Consultorio Odontológico',
+        clinicPhone: busData.phone || '+58 (412) 555-0192',
+        clinicAddress: busData.address || 'Av. Principal, Torre Consultorios, Caracas',
+        logoUrl: busData.logoUrl || '',
+        
+        doctorName: (getCurrentUser() && getCurrentUser().fullname) || busData.doctor || 'Dr. Rodrigo Navas',
+        doctorSpecialty: 'Odontología General / Rehabilitación Oral',
+        doctorPhone: (getCurrentUser() && getCurrentUser().phone) || busData.phone,
+        doctorSig: docSig,
+        
+        patientName: patient.fullname,
+        patientId: patient.id,
+        patientPhone: patient.phone,
+        patientSig: sessionObj.signatureData || '',
+        
+        items: items,
+        subtotalUSD: totalUSD,
+        discountPct: 0,
+        discountUSD: 0,
+        taxUSD: 0,
+        totalUSD: totalUSD,
+        totalVES: totalVES,
+        approvedAmountUSD: totalUSD,
+        
+        paymentTerms: `Abono registrado en Sesión #${sessionObj.sessionNum}. Comprobante de atención y constancia de pago.`,
+        bankingDetails: busData.bankInfo,
+        observations: sessionObj.indications ? `Indicaciones del Especialista:\n${sessionObj.indications}` : 'El paciente fue atendido conforme al protocolo clínico correspondiente.',
+        consentText: 'Por medio de la presente, el paciente declara haber recibido a entera conformidad la atención odontológica y autoriza el registro de la sesión.',
+        footerNote: busData.footer
+    });
 };
 
 window.printSessionReceipt = async (patient, sessionObj) => {
