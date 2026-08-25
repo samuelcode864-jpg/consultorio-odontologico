@@ -2333,6 +2333,9 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                 allPaymentsList.push({
                     date: b.invoiceDate || '2026-01-01',
                     concept: `Presupuesto ${b.id} (${b.paymentTerms || 'Contado'})`,
+                    method: b.paymentMethod || 'transferencia',
+                    bank: b.bank || 'Caja Principal',
+                    reference: b.reference || b.id,
                     totalUSD: parseFloat(b.totalRef || 0),
                     paidUSD: b.status === 'Aprobado' ? parseFloat(b.totalRef || 0) : 0,
                     balanceUSD: b.status === 'Aprobado' ? 0 : parseFloat(b.totalRef || 0),
@@ -2346,6 +2349,9 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                     allPaymentsList.push({
                         date: p.date || new Date().toISOString().split('T')[0],
                         concept: p.concept || 'Abono Registrado',
+                        method: p.method || 'cash',
+                        bank: p.bank || (p.method === 'cash' ? 'Efectivo en Mano' : 'No especificado'),
+                        reference: p.reference || 'N/A',
                         totalUSD: parseFloat(p.totalUSD || 0),
                         paidUSD: parseFloat(p.paidUSD || 0),
                         balanceUSD: parseFloat(p.balanceUSD || 0),
@@ -2367,7 +2373,9 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td>${pay.date}</td>
-                        <td>${pay.concept}</td>
+                        <td><strong>${pay.concept}</strong></td>
+                        <td><span style="font-size: 0.82rem; color: #1e40af; font-weight: 600;"><i class="fa-solid fa-building-columns"></i> ${pay.bank}</span> <small style="display:block; color:#64748b;">${getPaymentMethodLabel(pay.method)}</small></td>
+                        <td><span class="badge-tag" style="background:#e0f2fe; color:#0369a1; font-family: monospace; font-size:0.75rem; padding: 2px 6px;">${pay.reference}</span></td>
                         <td>$${pay.totalUSD.toFixed(2)}</td>
                         <td class="text-green" style="font-weight:600;">$${pay.paidUSD.toFixed(2)}</td>
                         <td class="${pay.balanceUSD > 0 ? 'text-red' : 'text-muted'}" style="font-weight:600;">$${pay.balanceUSD.toFixed(2)}</td>
@@ -2376,7 +2384,7 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                     payTbody.appendChild(tr);
                 });
             } else {
-                payTbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">Sin registro de pagos o saldos pendientes. Haga clic en "+ Registrar Pago / Abono" arriba.</td></tr>`;
+                payTbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted" style="padding:20px;">Sin registro de pagos o saldos pendientes. Haga clic en "+ Registrar Pago / Abono" arriba.</td></tr>`;
             }
 
             // 6. Galería de Fotos Clínicas & Rayos X
@@ -2749,20 +2757,60 @@ async function exportEHRToPDF() {
     }
 
     let paymentsHtml = '';
+    const allPayments = [];
+    
+    // Budgets / Invoices
+    try {
+        const allInvoices = await SupabaseDataService.getInvoices();
+        const patientBudgets = allInvoices.filter(i => String(i.patientId) === String(patient.id));
+        patientBudgets.forEach(b => {
+            allPayments.push({
+                date: b.invoiceDate || '2026-01-01',
+                concept: `Presupuesto ${b.id} (${b.paymentTerms || 'Contado'})`,
+                method: b.paymentMethod || 'transferencia',
+                bank: b.bank || 'Caja Principal',
+                reference: b.reference || b.id,
+                totalUSD: parseFloat(b.totalRef || 0),
+                paidUSD: b.status === 'Aprobado' ? parseFloat(b.totalRef || 0) : 0,
+                balanceUSD: b.status === 'Aprobado' ? 0 : parseFloat(b.totalRef || 0),
+                status: b.status === 'Aprobado' ? 'Pagado' : 'Pendiente'
+            });
+        });
+    } catch(e) {}
+
+    // Direct and Session Payments
     if (patient.payments && patient.payments.length > 0) {
         patient.payments.forEach(pay => {
+            allPayments.push({
+                date: pay.date || new Date().toISOString().split('T')[0],
+                concept: pay.concept || 'Abono Registrado',
+                method: pay.method || 'cash',
+                bank: pay.bank || (pay.method === 'cash' ? 'Efectivo en Mano' : 'No especificado'),
+                reference: pay.reference || 'N/A',
+                totalUSD: parseFloat(pay.totalUSD || 0),
+                paidUSD: parseFloat(pay.paidUSD || 0),
+                balanceUSD: parseFloat(pay.balanceUSD || 0),
+                status: pay.status || 'Pagado'
+            });
+        });
+    }
+
+    if (allPayments.length > 0) {
+        allPayments.forEach(pay => {
             paymentsHtml += `
                 <tr>
-                    <td style="padding:6px; border-bottom:1px solid #e2e8f0; font-size:0.8rem;">${pay.date}</td>
-                    <td style="padding:6px; border-bottom:1px solid #e2e8f0; font-size:0.8rem;">${pay.concept}</td>
-                    <td style="padding:6px; border-bottom:1px solid #e2e8f0; font-size:0.8rem;">$${pay.totalUSD.toFixed(2)}</td>
-                    <td style="padding:6px; border-bottom:1px solid #e2e8f0; font-size:0.8rem; color:#059669; font-weight:600;">$${pay.paidUSD.toFixed(2)}</td>
-                    <td style="padding:6px; border-bottom:1px solid #e2e8f0; font-size:0.8rem; color:#dc2626; font-weight:600;">$${pay.balanceUSD.toFixed(2)}</td>
+                    <td style="padding:6px 8px; border-bottom:1px solid #e2e8f0; font-size:0.78rem;">${pay.date}</td>
+                    <td style="padding:6px 8px; border-bottom:1px solid #e2e8f0; font-size:0.78rem;"><strong>${pay.concept}</strong></td>
+                    <td style="padding:6px 8px; border-bottom:1px solid #e2e8f0; font-size:0.78rem; color:#1e40af;">${pay.bank} <small style="color:#64748b; display:block;">(${getPaymentMethodLabel(pay.method)})</small></td>
+                    <td style="padding:6px 8px; border-bottom:1px solid #e2e8f0; font-size:0.78rem; font-family:monospace;">${pay.reference}</td>
+                    <td style="padding:6px 8px; border-bottom:1px solid #e2e8f0; font-size:0.78rem;">$${pay.totalUSD.toFixed(2)}</td>
+                    <td style="padding:6px 8px; border-bottom:1px solid #e2e8f0; font-size:0.78rem; color:#059669; font-weight:600;">$${pay.paidUSD.toFixed(2)}</td>
+                    <td style="padding:6px 8px; border-bottom:1px solid #e2e8f0; font-size:0.78rem; color:${pay.balanceUSD > 0 ? '#dc2626' : '#64748b'}; font-weight:600;">$${pay.balanceUSD.toFixed(2)}</td>
                 </tr>
             `;
         });
     } else {
-        paymentsHtml = `<tr><td colspan="5" style="text-align:center; padding:10px; color:#64748b; font-size:0.8rem;">Sin pagos registrados</td></tr>`;
+        paymentsHtml = `<tr><td colspan="7" style="text-align:center; padding:12px; color:#64748b; font-size:0.8rem;">Sin pagos o presupuestos registrados</td></tr>`;
     }
 
     // Dynamic Header / Footer configuration
@@ -2835,6 +2883,12 @@ async function exportEHRToPDF() {
         }
     }
 
+    const repInfo = (patient.metadata && patient.metadata.repName) ? `
+        <div style="grid-column: span 2; background: #eff6ff; padding: 8px 12px; border-radius: 6px; border: 1px solid #bfdbfe; margin-top: 5px;">
+            <strong>Representante Legal:</strong> ${patient.metadata.repName} (C.I: ${patient.metadata.repId || 'N/A'} | Tel: ${patient.metadata.repPhone || 'N/A'} | Relación: ${patient.metadata.repRelation || 'Representante'})
+        </div>
+    ` : '';
+
     const container = document.createElement('div');
     container.style.padding = '30px';
     container.style.fontFamily = "'Inter', Arial, sans-serif";
@@ -2848,15 +2902,17 @@ async function exportEHRToPDF() {
         <!-- PATIENT DATA CARD -->
         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
             <h3 style="font-size: 1.05rem; color: #0f172a; margin: 0 0 10px 0; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">
-                👤 Datos del Paciente
+                👤 Datos de Filiación del Paciente
             </h3>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.85rem;">
-                <div><strong>Nombre:</strong> ${patient.fullname}</div>
+                <div><strong>Nombre y Apellido:</strong> ${patient.fullname}</div>
                 <div><strong>Cédula / ID:</strong> ${patient.id}</div>
                 <div><strong>Fecha Nacimiento:</strong> ${patient.birthdate} (${calculateAge(patient.birthdate)} años)</div>
                 <div><strong>Teléfono:</strong> ${patient.phone}</div>
-                <div><strong>Ocupación:</strong> ${patient.occupation || 'N/A'}</div>
-                <div><strong>Correo:</strong> ${patient.email || 'N/A'}</div>
+                <div><strong>Ocupación / Profesión:</strong> ${patient.occupation || (patient.metadata && patient.metadata.profession) || 'N/A'}</div>
+                <div><strong>Correo Electrónico:</strong> ${patient.email || 'N/A'}</div>
+                <div style="grid-column: span 2;"><strong>Dirección de Habitación:</strong> ${(patient.metadata && patient.metadata.address) || patient.address || 'N/A'}</div>
+                ${repInfo}
             </div>
         </div>
 
@@ -2876,7 +2932,7 @@ async function exportEHRToPDF() {
         <!-- CLINICAL EVOLUTIONS -->
         <div style="margin-bottom: 20px;">
             <h3 style="font-size: 1.05rem; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 12px;">
-                📝 Registro de Evoluciones Clínicas
+                📝 Registro de Evoluciones Clínicas y Sesiones
             </h3>
             ${evolutionsHtml}
         </div>
@@ -2884,16 +2940,18 @@ async function exportEHRToPDF() {
         <!-- PAYMENTS & ACCOUNT BALANCE -->
         <div style="margin-bottom: 30px;">
             <h3 style="font-size: 1.05rem; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 12px;">
-                💳 Resumen de Tratamientos y Pagos ($ USD)
+                💳 Estado de Cuenta, Presupuestos y Pagos / Abonos
             </h3>
             <table style="width: 100%; border-collapse: collapse; text-align: left;">
                 <thead>
-                    <tr style="background: #f1f5f9; font-size: 0.76rem; color: #475569;">
-                        <th style="padding: 6px;">Fecha</th>
-                        <th style="padding: 6px;">Tratamiento / Concepto</th>
-                        <th style="padding: 6px;">Total</th>
-                        <th style="padding: 6px;">Abonado</th>
-                        <th style="padding: 6px;">Saldo Pendiente</th>
+                    <tr style="background: #f1f5f9; font-size: 0.75rem; color: #475569;">
+                        <th style="padding: 6px 8px;">Fecha</th>
+                        <th style="padding: 6px 8px;">Tratamiento / Concepto</th>
+                        <th style="padding: 6px 8px;">Banco / Método</th>
+                        <th style="padding: 6px 8px;">Nº Ref</th>
+                        <th style="padding: 6px 8px;">Total</th>
+                        <th style="padding: 6px 8px;">Abonado</th>
+                        <th style="padding: 6px 8px;">Saldo Pendiente</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -2918,8 +2976,10 @@ async function exportEHRToPDF() {
     `;
 
     const filename = `Historia_Clinica_${patient.id}_${patient.fullname.replace(/\s+/g, '_')}.pdf`;
-    generatePDFFromElement(container, filename);
+    await generatePDFFromElement(container, filename);
 }
+
+window.exportEHRToPDF = exportEHRToPDF;
 
 window.deleteClinicalNote = async function(noteId) {
     const user = getCurrentUser();
@@ -4075,6 +4135,8 @@ function initGlobalEvents() {
         // Extract payment info
         const paymentUSD = parseFloat(document.getElementById('s-payment-amount').value) || 0;
         const paymentMethod = document.getElementById('s-payment-method').value || 'cash';
+        const paymentBank = document.getElementById('s-payment-bank') ? document.getElementById('s-payment-bank').value.trim() : '';
+        const paymentReference = document.getElementById('s-payment-reference') ? document.getElementById('s-payment-reference').value.trim() : '';
         let splitPayments = null;
         let paymentMethodLabel = getPaymentMethodLabel(paymentMethod);
 
@@ -4117,6 +4179,8 @@ function initGlobalEvents() {
                 paymentUSD,
                 paymentMethod,
                 paymentMethodLabel,
+                paymentBank: paymentBank || (paymentMethod === 'cash' ? 'Efectivo en Mano' : 'No especificado'),
+                paymentReference: paymentReference || 'N/A',
                 splitPayments
             };
 
@@ -4174,6 +4238,7 @@ function initGlobalEvents() {
             if (paymentUSD > 0) {
                 if (!patient.payments) patient.payments = [];
                 patient.payments.unshift({
+                    id: 'pay-' + Date.now(),
                     date: datetime.split(' ')[0] || new Date().toISOString().split('T')[0],
                     concept: `Abono en Sesión #${sessionNum} (${procedure.substring(0, 35)}...)`,
                     totalUSD: paymentUSD,
@@ -4181,6 +4246,8 @@ function initGlobalEvents() {
                     balanceUSD: 0.00,
                     status: 'Pagado',
                     method: paymentMethod,
+                    bank: paymentBank || (paymentMethod === 'cash' ? 'Efectivo en Mano' : 'No especificado'),
+                    reference: paymentReference || 'N/A',
                     splitPayments
                 });
             }
@@ -4382,6 +4449,9 @@ function initGlobalEvents() {
             const totalUSD = parseFloat(document.getElementById('pay-total-usd').value) || 0;
             const paidUSD = parseFloat(document.getElementById('pay-paid-usd').value) || 0;
             const date = document.getElementById('pay-date').value;
+            const method = document.getElementById('pay-method') ? document.getElementById('pay-method').value : 'pagomovil';
+            const bank = document.getElementById('pay-bank') ? document.getElementById('pay-bank').value.trim() : '';
+            const reference = document.getElementById('pay-reference') ? document.getElementById('pay-reference').value.trim() : '';
 
             if (!concept || totalUSD <= 0 || paidUSD <= 0) {
                 Swal.fire({ icon: 'warning', title: 'Campos requeridos', text: 'Por favor complete todos los datos del pago.' });
@@ -4396,12 +4466,16 @@ function initGlobalEvents() {
             if (p) {
                 if (!p.payments) p.payments = [];
                 p.payments.unshift({
+                    id: 'pay-' + Date.now(),
                     date,
                     concept,
                     totalUSD,
                     paidUSD,
                     balanceUSD,
-                    status
+                    status,
+                    method,
+                    bank: bank || (method === 'cash' ? 'Efectivo en Mano' : 'No especificado'),
+                    reference: reference || 'N/A'
                 });
 
                 await SupabaseDataService.savePatient(p);
@@ -4410,7 +4484,13 @@ function initGlobalEvents() {
                 await renderDashboard();
                 await renderCashFlow();
                 await renderAgendaView();
-                Swal.fire({ icon: 'success', title: '¡Abono Registrado!', text: `Abono de $${paidUSD.toFixed(2)} registrado exitosamente a ${p.fullname}.`, timer: 2200, showConfirmButton: false });
+                Swal.fire({ 
+                    icon: 'success', 
+                    title: '¡Abono Registrado!', 
+                    html: `Abono de <strong>$${paidUSD.toFixed(2)}</strong> registrado exitosamente a <strong>${p.fullname}</strong>.<br><small style="color:#64748b;">Banco: ${bank || 'Efectivo'} | Ref: ${reference || 'N/A'}</small>`, 
+                    timer: 2500, 
+                    showConfirmButton: false 
+                });
             }
         };
     }
@@ -6322,6 +6402,9 @@ function initGlobalEvents() {
             const datetime = document.getElementById('note-datetime').value;
             const paymentMethod = document.getElementById('note-payment-method') ? document.getElementById('note-payment-method').value : 'cash';
 
+            const paymentBank = document.getElementById('note-payment-bank') ? document.getElementById('note-payment-bank').value.trim() : '';
+            const paymentReference = document.getElementById('note-payment-reference') ? document.getElementById('note-payment-reference').value.trim() : '';
+
             if (!content) {
                 Swal.fire({ icon: 'warning', title: 'Campos requeridos', text: 'Debe ingresar la nota de la evolución.' });
                 return;
@@ -6335,19 +6418,25 @@ function initGlobalEvents() {
                     id: 'note-' + Date.now(),
                     datetime,
                     content,
-                    paymentUSD
+                    paymentUSD,
+                    paymentMethod,
+                    paymentBank: paymentBank || (paymentMethod === 'cash' ? 'Efectivo en Mano' : 'No especificado'),
+                    paymentReference: paymentReference || 'N/A'
                 });
 
                 if (paymentUSD > 0) {
                     if (!p.payments) p.payments = [];
                     p.payments.unshift({
+                        id: 'pay-' + Date.now(),
                         date: datetime.split('T')[0],
                         concept: 'Abono en Cita Clínica',
                         totalUSD: paymentUSD,
                         paidUSD: paymentUSD,
                         balanceUSD: 0.00,
                         status: 'Pagado',
-                        method: paymentMethod
+                        method: paymentMethod,
+                        bank: paymentBank || (paymentMethod === 'cash' ? 'Efectivo en Mano' : 'No especificado'),
+                        reference: paymentReference || 'N/A'
                     });
                 }
 
@@ -9840,15 +9929,15 @@ function getPaymentMethodLabel(method) {
 }
 
 async function generatePDFFromElement(element, filename) {
-    // Style the element so it has a normal relative layout at the bottom of the body
     element.style.position = 'relative';
     element.style.width = '780px';
-    element.style.margin = '40px auto';
+    element.style.margin = '20px auto';
     element.style.backgroundColor = '#ffffff';
     element.style.color = '#1e293b';
     element.style.display = 'block';
     element.style.visibility = 'visible';
-    element.style.padding = '0';
+    element.style.padding = '20px';
+    element.style.boxSizing = 'border-box';
 
     document.body.appendChild(element);
 
@@ -9856,10 +9945,10 @@ async function generatePDFFromElement(element, filename) {
         title: 'Generando Documento PDF...',
         html: `
             <div style="margin-bottom: 10px; font-weight: bold; color: #0284c7;">
-                <i class="fa-solid fa-circle-notch fa-spin"></i> Compilando firmas, logos y tratamientos...
+                <i class="fa-solid fa-circle-notch fa-spin"></i> Compilando firmas, historial clínico y abonos...
             </div>
             <div style="font-size: 0.8rem; color: #64748b;">
-                Generando lienzo de alta resolución. Por favor espere.
+                Generando documento en alta resolución. Por favor espere.
             </div>
         `,
         showConfirmButton: false,
@@ -9869,50 +9958,32 @@ async function generatePDFFromElement(element, filename) {
 
             setTimeout(async () => {
                 try {
-                    const jsPDFClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
-                    if (!jsPDFClass) {
-                        throw new Error("Librería jsPDF no encontrada.");
-                    }
-                    if (!window.html2canvas) {
-                        throw new Error("Librería html2canvas no encontrada.");
-                    }
-
-                    // Render using html2canvas directly to inspect the output canvas
-                    const canvas = await window.html2canvas(element, {
-                        scale: 2,
-                        useCORS: false,
-                        backgroundColor: '#ffffff',
-                        logging: true
-                    });
-
-                    // Verify if canvas has any non-white/non-transparent pixels
-                    const ctx = canvas.getContext('2d');
-                    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-                    let hasColor = false;
-                    for (let i = 0; i < imgData.length; i += 4) {
-                        if (imgData[i+3] !== 0 && (imgData[i] !== 255 || imgData[i+1] !== 255 || imgData[i+2] !== 255)) {
-                            hasColor = true;
-                            break;
+                    if (typeof window.html2pdf === 'function') {
+                        const opt = {
+                            margin: [10, 10, 10, 10],
+                            filename: filename,
+                            image: { type: 'jpeg', quality: 0.98 },
+                            html2canvas: { scale: 2, useCORS: true, letterRendering: true, backgroundColor: '#ffffff', logging: false },
+                            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                        };
+                        await window.html2pdf().set(opt).from(element).save();
+                    } else {
+                        const jsPDFClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+                        if (!jsPDFClass || !window.html2canvas) {
+                            throw new Error("Librerías de PDF no disponibles en el navegador");
                         }
+                        const canvas = await window.html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+                        const imgString = canvas.toDataURL('image/jpeg', 0.95);
+                        const pdf = new jsPDFClass('p', 'mm', 'a4');
+                        const imgWidth = 210;
+                        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                        pdf.addImage(imgString, 'JPEG', 0, 0, imgWidth, imgHeight);
+                        pdf.save(filename);
                     }
 
-                    if (!hasColor) {
-                        throw new Error("El motor de dibujo devolvió un lienzo vacío (blanco).");
-                    }
-
-                    // Convert canvas to image and add to PDF
-                    const imgString = canvas.toDataURL('image/jpeg', 0.95);
-                    const pdf = new jsPDFClass('p', 'mm', 'a4');
-                    const imgWidth = 210; // A4 width
-                    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-                    
-                    pdf.addImage(imgString, 'JPEG', 0, 0, imgWidth, imgHeight);
-                    pdf.save(filename);
-
-                    // Clean up and close modal
-                    document.body.removeChild(element);
+                    try { document.body.removeChild(element); } catch (e) {}
                     Swal.close();
-                    Swal.fire({ icon: 'success', title: '¡PDF Descargado!', text: 'El archivo se ha guardado en tu dispositivo.', timer: 2000, showConfirmButton: false });
+                    Swal.fire({ icon: 'success', title: '¡PDF Descargado!', text: 'El expediente se ha guardado exitosamente en su dispositivo.', timer: 2200, showConfirmButton: false });
 
                 } catch (err) {
                     console.error("PDF generation failure:", err);
@@ -9923,10 +9994,10 @@ async function generatePDFFromElement(element, filename) {
 
                     // Fallback to Native Print/Save Window
                     Swal.fire({
-                        icon: 'warning',
-                        title: 'Fallo en Generador local',
-                        text: `${err.message || err}. Abriendo ventana de impresión alternativa para que puedas guardarlo como PDF de forma nativa...`,
-                        confirmButtonText: 'Abrir Ventana'
+                        icon: 'info',
+                        title: 'Ventana de Impresión / Guardar PDF',
+                        text: `Abriendo vista de impresión para guardar como PDF...`,
+                        confirmButtonText: 'Abrir'
                     }).then(() => {
                         const printWindow = window.open('', '_blank');
                         if (printWindow) {
@@ -9935,7 +10006,7 @@ async function generatePDFFromElement(element, filename) {
                                     <head>
                                         <title>${filename}</title>
                                         <style>
-                                            body { margin: 30px; font-family: monospace; background: #fff; color: #000; }
+                                            body { margin: 30px; font-family: 'Inter', Arial, sans-serif; background: #fff; color: #000; }
                                             table { width: 100%; border-collapse: collapse; }
                                             th, td { padding: 8px; text-align: left; border-bottom: 1px dashed #ccc; }
                                             @media print {
@@ -9950,7 +10021,7 @@ async function generatePDFFromElement(element, filename) {
                                                 window.print();
                                                 window.close();
                                             };
-                                        </script>
+                                        <\/script>
                                     </body>
                                 </html>
                             `);
@@ -9959,7 +10030,7 @@ async function generatePDFFromElement(element, filename) {
                             Swal.fire({
                                 icon: 'error',
                                 title: 'Bloqueador de Ventanas Activo',
-                                text: 'Por favor permite las ventanas emergentes en este sitio para imprimir.'
+                                text: 'Por favor permita las ventanas emergentes en este sitio.'
                             });
                         }
                     });

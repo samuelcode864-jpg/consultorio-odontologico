@@ -18,7 +18,7 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=106">
+    <link rel="stylesheet" href="styles.css?v=107">
 </head>
 <body class="light-theme">
 
@@ -946,6 +946,8 @@
                                                         <tr>
                                                             <th>Fecha</th>
                                                             <th>Concepto / Tratamiento</th>
+                                                            <th>Método / Banco</th>
+                                                            <th>Nº Referencia</th>
                                                             <th>Monto Total</th>
                                                             <th>Abonado</th>
                                                             <th>Saldo Pendiente</th>
@@ -1915,6 +1917,42 @@
                         <label>Fecha de Pago *</label>
                         <input type="date" id="pay-date" required>
                     </div>
+                    <div class="form-group">
+                        <label>Método de Pago *</label>
+                        <select id="pay-method" class="form-control">
+                            <option value="pagomovil">Pago Móvil</option>
+                            <option value="transferencia">Transferencia Bancaria</option>
+                            <option value="zelle">Zelle</option>
+                            <option value="cash">Efectivo ($ USD / Bs.)</option>
+                            <option value="punto">Punto de Venta / Débito</option>
+                            <option value="binance">Binance (USDT)</option>
+                            <option value="otro">Otro Método</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Banco / Entidad Destino</label>
+                        <input type="text" id="pay-bank" list="bank-datalist" placeholder="ej: Banesco, Banco de Venezuela...">
+                    </div>
+                    <div class="form-group span-2">
+                        <label>Nº de Referencia / Comprobante de Pago</label>
+                        <input type="text" id="pay-reference" placeholder="ej: REF-9834120 o últimos dígitos">
+                    </div>
+                    <!-- Datalist de Bancos frecuentes -->
+                    <datalist id="bank-datalist">
+                        <option value="Banco de Venezuela">
+                        <option value="Banesco">
+                        <option value="Banco Mercantil">
+                        <option value="BBVA Provincial">
+                        <option value="Bancamiga">
+                        <option value="Banco Nacional de Crédito (BNC)">
+                        <option value="Bancaribe">
+                        <option value="Banco Exterior">
+                        <option value="Zelle (Chase)">
+                        <option value="Zelle (Bank of America)">
+                        <option value="Zelle (Wells Fargo)">
+                        <option value="Binance Pay (USDT)">
+                        <option value="Caja Chica (Efectivo)">
+                    </datalist>
                 </form>
             </div>
             <div class="modal-footer">
@@ -2634,9 +2672,19 @@
                         <select id="note-payment-method" class="form-control">
                             <option value="cash">Cash (Efectivo)</option>
                             <option value="pagomovil">Pago Móvil</option>
+                            <option value="transferencia">Transferencia</option>
                             <option value="zelle">Zelle</option>
                             <option value="binance">Binance</option>
+                            <option value="punto">Punto de Venta</option>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Banco Destino</label>
+                        <input type="text" id="note-payment-bank" list="bank-datalist" placeholder="ej: Banesco, Venezuela...">
+                    </div>
+                    <div class="form-group">
+                        <label>Nº de Referencia</label>
+                        <input type="text" id="note-payment-reference" placeholder="ej: REF-123456">
                     </div>
                 </form>
             </div>
@@ -2697,7 +2745,7 @@
                         <label style="font-weight: 700; color: #1e40af; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
                             <i class="fa-solid fa-money-bill-wave text-green"></i> Cobro / Abono de la Sesión (Opcional)
                         </label>
-                        <div class="grid-form" style="grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="grid-form" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
                             <div>
                                 <label style="font-size: 0.8rem; font-weight: 600;">Monto Cobrado ($ USD)</label>
                                 <input type="number" id="s-payment-amount" class="form-input" min="0" step="0.01" value="0.00" placeholder="0.00" style="font-weight: 700; color: #15803d;">
@@ -2712,6 +2760,16 @@
                                     <option value="punto">Punto de Venta / Tarjeta</option>
                                     <option value="split">⚡ Pago Mixto (Varios Métodos)</option>
                                 </select>
+                            </div>
+                        </div>
+                        <div class="grid-form" style="grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div>
+                                <label style="font-size: 0.8rem; font-weight: 600;">Banco / Entidad Destino</label>
+                                <input type="text" id="s-payment-bank" class="form-input" list="bank-datalist" placeholder="ej: Banesco, Venezuela, Zelle...">
+                            </div>
+                            <div>
+                                <label style="font-size: 0.8rem; font-weight: 600;">Nº Referencia del Pago</label>
+                                <input type="text" id="s-payment-reference" class="form-input" placeholder="ej: REF-123456">
                             </div>
                         </div>
 
@@ -3048,12 +3106,12 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=106"></script>
-    <script src="supabaseClient.js?v=106"></script>
-    <script src="odontogram.js?v=106"></script>
-    <script src="signature.js?v=106"></script>
-    <script src="whatsapp.js?v=106"></script>
-    <script src="kardex.js?v=106"></script>
-    <script src="app.js?v=106"></script>
+    <script src="seededData.js?v=107"></script>
+    <script src="supabaseClient.js?v=107"></script>
+    <script src="odontogram.js?v=107"></script>
+    <script src="signature.js?v=107"></script>
+    <script src="whatsapp.js?v=107"></script>
+    <script src="kardex.js?v=107"></script>
+    <script src="app.js?v=107"></script>
 </body>
 </html>
