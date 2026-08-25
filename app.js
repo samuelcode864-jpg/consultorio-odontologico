@@ -2458,17 +2458,19 @@ async function renderDashboard() {
             const isAttended = (app.status === 'Completada' || app.status === 'Atendida');
 
             let whatsappBtnHtml = '';
-            if (isAttended) {
-                whatsappBtnHtml = '';
-            } else if (isTomorrowAppt) {
+            if (!isAttended) {
                 whatsappBtnHtml = `
-                    <button class="btn btn-xs btn-success btn-appt-reminder" onclick="sendWhatsAppReminderForAppt('${app.id}')" title="Enviar recordatorio de cita para mañana">
-                        <i class="fa-brands fa-whatsapp"></i> <span class="btn-text-full">Recordar (Mañana)</span><span class="btn-text-short">Recordar</span>
+                    <button class="btn btn-xs btn-success btn-appt-reminder" style="background-color: #22c55e !important; color: white !important; border: none !important; padding: 4px 8px; border-radius: 6px;" onclick="sendWhatsAppReminderForAppt('${app.id}')" title="Notificar por WhatsApp">
+                        <i class="fa-brands fa-whatsapp" style="font-size: 0.95rem;"></i>
                     </button>
                 `;
-            } else {
-                whatsappBtnHtml = `<span class="badge-tag green" style="font-size:0.75rem;">Cita de Hoy</span>`;
             }
+
+            const abonoBtn = isAttended ? '' : `
+                <button class="btn btn-xs btn-outline" style="border-color: #10b981; color: #059669; font-weight: 600;" onclick="window.openPaymentModalForAppointment('${app.patientId}', '${app.patientName}', '${app.treatment}')" title="Registrar Abono Anticipado">
+                    <i class="fa-solid fa-hand-holding-dollar"></i> <span class="btn-text-full">Abonar</span>
+                </button>
+            `;
 
             const editApptBtn = `<button class="btn btn-xs btn-outline btn-appt-edit" style="border-color: #0891b2; color: #0891b2;" onclick="window.editAppointment('${app.id}')" title="Editar Cita"><i class="fa-solid fa-pen-to-square"></i> <span class="btn-text-full">Editar</span></button>`;
 
@@ -2497,6 +2499,7 @@ async function renderDashboard() {
                     </div>
                     <div class="timeline-actions">
                         ${whatsappBtnHtml}
+                        ${abonoBtn}
                         ${editApptBtn}
                         ${actionAttendOrViewHtml}
                         ${deleteApptBtn}
@@ -2699,17 +2702,19 @@ async function renderAgendaView(filter = 'pending', searchQuery = '') {
         const isTomorrowAppt = app.isTomorrow === true || app.date === 'tomorrow';
         
         let whatsappBtnHtml = '';
-        if (isAttended) {
-            whatsappBtnHtml = '';
-        } else if (isTomorrowAppt) {
+        if (!isAttended) {
             whatsappBtnHtml = `
-                <button class="btn btn-xs btn-success btn-appt-reminder" onclick="sendWhatsAppReminderForAppt('${app.id}')" title="Enviar recordatorio de cita para mañana">
-                    <i class="fa-brands fa-whatsapp"></i> <span class="btn-text-full">Recordar (Mañana)</span><span class="btn-text-short">Recordar</span>
+                <button class="btn btn-xs btn-success btn-appt-reminder" style="background-color: #22c55e !important; color: white !important; border: none !important; padding: 4px 8px; border-radius: 6px;" onclick="sendWhatsAppReminderForAppt('${app.id}')" title="Notificar por WhatsApp">
+                    <i class="fa-brands fa-whatsapp" style="font-size: 0.95rem;"></i>
                 </button>
             `;
-        } else {
-            whatsappBtnHtml = `<span class="badge-tag green" style="font-size:0.75rem;">Cita de Hoy</span>`;
         }
+
+        const abonoBtn = isAttended ? '' : `
+            <button class="btn btn-xs btn-outline" style="border-color: #10b981; color: #059669; font-weight: 600;" onclick="window.openPaymentModalForAppointment('${app.patientId}', '${app.patientName}', '${app.treatment}')" title="Registrar Abono Anticipado">
+                <i class="fa-solid fa-hand-holding-dollar"></i> <span class="btn-text-full">Abonar</span>
+            </button>
+        `;
 
         const deleteApptBtn = isAssistant ? '' : `<button class="btn btn-xs btn-outline text-red" onclick="deleteAppointment('${app.id}')" title="Eliminar Cita"><i class="fa-solid fa-trash"></i></button>`;
 
@@ -2744,6 +2749,7 @@ async function renderAgendaView(filter = 'pending', searchQuery = '') {
                 </div>
                 <div class="timeline-actions">
                     ${whatsappBtnHtml}
+                    ${abonoBtn}
                     ${gCalBtn}
                     ${editApptBtn}
                     ${actionAttendOrViewHtml}
@@ -2829,6 +2835,29 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
         openModal('modal-session');
     } catch(e) {
         console.error("Error opening session modal for patient:", e);
+    }
+};
+
+window.openPaymentModalForAppointment = async function(patientId, patientName, treatment) {
+    try {
+        setActivePatientId(patientId);
+        const modal = document.getElementById('modal-payment');
+        if (modal) {
+            const conceptInput = document.getElementById('pay-concept');
+            if (conceptInput) {
+                conceptInput.value = `Abono cita: ${treatment || 'Tratamiento Odontológico'}`;
+            }
+            const totalUsdInput = document.getElementById('pay-total-usd');
+            if (totalUsdInput) totalUsdInput.value = '50.00';
+            const paidUsdInput = document.getElementById('pay-paid-usd');
+            if (paidUsdInput) paidUsdInput.value = '50.00';
+            const dateInput = document.getElementById('pay-date');
+            if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+
+            openModal('modal-payment');
+        }
+    } catch(e) {
+        console.error("Error opening payment modal for appointment:", e);
     }
 };
 
@@ -3744,7 +3773,10 @@ function initGlobalEvents() {
                 await SupabaseDataService.savePatient(p);
                 closeModal('modal-payment');
                 await renderEHRView();
-                Swal.fire({ icon: 'success', title: '¡Pago Registrado!', text: `Abono de $${paidUSD.toFixed(2)} cargado a ${p.fullname}.`, timer: 2000, showConfirmButton: false });
+                await renderDashboard();
+                await renderCashFlow();
+                await renderAgendaView();
+                Swal.fire({ icon: 'success', title: '¡Abono Registrado!', text: `Abono de $${paidUSD.toFixed(2)} registrado exitosamente a ${p.fullname}.`, timer: 2200, showConfirmButton: false });
             }
         };
     }
