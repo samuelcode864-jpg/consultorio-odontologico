@@ -8436,9 +8436,26 @@ async function renderBillingView() {
     };
 
     // Listeners for selectors to update live preview
+    patientSelect.onchange = () => refreshBillingLivePreview();
+    assistantSelect.onchange = () => refreshBillingLivePreview();
     document.getElementById('bill-currency').onchange = () => updateBillingTotals();
     document.getElementById('bill-terms').onchange = () => updateBillingTotals();
     document.getElementById('bill-method').onchange = () => updateBillingTotals();
+    const footerInput = document.getElementById('bill-footer-note');
+    if (footerInput) footerInput.oninput = () => refreshBillingLivePreview();
+
+    // Auto-load current budget items if available on entry
+    if (billingItems.length === 0 && currentBudgetItems.length > 0) {
+        billingItems = currentBudgetItems.map(item => ({
+            code: item.serviceCode || 'CUSTOM',
+            name: item.name,
+            price: item.price * (1 - (item.discount || 0) / 100),
+            hygienistBonus: 0,
+            qty: 1
+        }));
+    }
+    renderBillingItemsTable();
+    await refreshBillingLivePreview();
 
     // Process Invoice
     document.getElementById('btn-process-invoice').onclick = async () => {
@@ -8572,16 +8589,16 @@ async function renderBillingView() {
 
     document.getElementById('btn-pdf-invoice-final').onclick = () => {
         const previewEl = document.getElementById('invoice-paper-preview');
-        if (!previewEl || !activeBillingInvoice) return;
+        if (!previewEl) return;
 
         const printClone = previewEl.cloneNode(true);
         const wrapper = document.createElement('div');
         wrapper.style.padding = '25px';
-        wrapper.style.fontFamily = "'Courier New', Courier, monospace";
+        wrapper.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
         wrapper.style.lineHeight = '1.4';
         wrapper.appendChild(printClone);
 
-        const filename = `Factura_${activeBillingInvoice.id}.pdf`;
+        const filename = `Factura_${(activeBillingInvoice && activeBillingInvoice.id) || 'Digital'}.pdf`;
         generatePDFFromElement(wrapper, filename);
     };
 }
@@ -8598,15 +8615,14 @@ function renderBillingItemsTable() {
     }
 
     billingItems.forEach((item, index) => {
-        const total = item.price * item.qty;
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td><strong>${item.code}</strong></td>
             <td>${item.name}</td>
             <td>$${item.price.toFixed(2)}</td>
             <td>$${(item.hygienistBonus || 0).toFixed(2)}</td>
-            <td><input type="number" class="form-control btn-xs" style="width: 50px;" value="${item.qty}" min="1" data-idx="${index}"></td>
-            <td><strong>$${total.toFixed(2)}</strong></td>
+            <td><input type="number" min="1" value="${item.qty}" class="form-control" style="width:60px; padding:2px 6px;"></td>
+            <td><strong>$${(item.price * item.qty).toFixed(2)}</strong></td>
             <td><button class="btn btn-xs btn-outline text-red" onclick="removeBillingItem(${index})"><i class="fa-solid fa-trash"></i></button></td>
         `;
         const input = tr.querySelector('input');
@@ -8637,16 +8653,71 @@ function updateBillingTotals() {
 
     const currency = document.getElementById('bill-currency') ? document.getElementById('bill-currency').value : 'REF';
 
-    document.getElementById('bill-total-ref').innerText = `$${totalRef.toFixed(2)}`;
-    if (currency === 'REF') {
-        document.getElementById('bill-total-final').innerText = `$${totalRef.toFixed(2)} REF`;
-    } else {
-        document.getElementById('bill-total-final').innerText = `Bs. ${totalBcv.toFixed(2)} BS`;
+    const elRef = document.getElementById('bill-total-ref');
+    const elFinal = document.getElementById('bill-total-final');
+    if (elRef) elRef.innerText = `$${totalRef.toFixed(2)}`;
+    if (elFinal) {
+        if (currency === 'REF') {
+            elFinal.innerText = `$${totalRef.toFixed(2)} REF`;
+        } else {
+            elFinal.innerText = `Bs. ${totalBcv.toFixed(2)} BS`;
+        }
     }
 
     if (window.updateBillingSplitStatusExternal) {
         window.updateBillingSplitStatusExternal();
     }
+
+    refreshBillingLivePreview();
+}
+
+async function refreshBillingLivePreview() {
+    const container = document.getElementById('invoice-paper-preview');
+    if (!container) return;
+
+    const patientSelect = document.getElementById('bill-patient-select');
+    const assistantSelect = document.getElementById('bill-assistant');
+    const currency = document.getElementById('bill-currency') ? document.getElementById('bill-currency').value : 'REF';
+    const terms = document.getElementById('bill-terms') ? document.getElementById('bill-terms').value : 'Contado';
+    const method = document.getElementById('bill-method') ? document.getElementById('bill-method').value : 'cash';
+    const footerNote = document.getElementById('bill-footer-note') ? document.getElementById('bill-footer-note').value : '';
+
+    const pId = patientSelect ? patientSelect.value : '';
+    const patients = await SupabaseDataService.getPatients();
+    let activePatient = patients.find(p => p.id === pId);
+    if (!activePatient) {
+        activePatient = patients.length > 0 ? patients[0] : { fullname: 'Nombre del Paciente', id: 'V-00000000', phone: '+58 414-0000000' };
+    }
+
+    const assistantId = assistantSelect ? assistantSelect.value : '';
+    const users = await SupabaseDataService.getUsers();
+    const selectedAssistant = users.find(u => u.id === assistantId);
+
+    let totalRef = 0;
+    billingItems.forEach(item => {
+        totalRef += item.price * item.qty;
+    });
+
+    const rate = getExchangeRate();
+    const totalBcv = totalRef * rate;
+
+    const draftInvoice = {
+        id: (activeBillingInvoice && activeBillingInvoice.id) || `FAC-2026-${Date.now().toString().slice(-4)}`,
+        patientId: activePatient.id,
+        invoiceDate: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }),
+        paymentMethod: method,
+        paymentTerms: terms,
+        currency: currency,
+        items: billingItems.length > 0 ? billingItems : [
+            { code: 'CONS-01', name: 'Consulta Diagnóstica / Evaluación Clínica Especializada', price: 30.00, qty: 1 }
+        ],
+        totalRef: billingItems.length > 0 ? totalRef : 30.00,
+        totalBcv: (billingItems.length > 0 ? totalRef : 30.00) * rate,
+        status: (activeBillingInvoice && activeBillingInvoice.id) ? 'Emitida' : 'Borrador / Previsualización',
+        footerText: footerNote
+    };
+
+    await generateInvoicePreviewHTML(draftInvoice, activePatient, selectedAssistant);
 }
 
 async function generateInvoicePreviewHTML(invoice, patient, assistant) {
@@ -8658,13 +8729,23 @@ async function generateInvoicePreviewHTML(invoice, patient, assistant) {
     const logoBase64 = await toDataURL(busData.logoUrl || stationery.logoUrl);
     const rate = getExchangeRate();
 
-    const items = (invoice.items || []).map(item => ({
-        name: `${item.name} (${item.code})`,
-        description: item.specialist ? `Especialista: ${item.specialist}` : 'Procedimiento odontológico facturado',
-        qty: item.qty || 1,
-        price: item.price || 0,
-        total: (item.price || 0) * (item.qty || 1)
-    }));
+    const isBs = invoice.currency === 'BS';
+
+    const items = (invoice.items && invoice.items.length > 0)
+        ? invoice.items.map(item => ({
+            name: `${item.name} (${item.code})`,
+            description: item.specialist ? `Especialista: ${item.specialist}` : 'Procedimiento odontológico facturado',
+            qty: item.qty || 1,
+            price: isBs ? (item.price || 0) * rate : (item.price || 0),
+            total: isBs ? (item.price || 0) * (item.qty || 1) * rate : (item.price || 0) * (item.qty || 1)
+        }))
+        : [{
+            name: 'Consulta Diagnóstica / Evaluación Clínica Especializada (CONS-01)',
+            description: 'Procedimiento odontológico facturado',
+            qty: 1,
+            price: isBs ? 30.00 * rate : 30.00,
+            total: isBs ? 30.00 * rate : 30.00
+        }];
 
     const totalUSD = invoice.totalRef || 0;
     const totalVES = `Bs. ${(totalUSD * rate).toFixed(2)}`;
@@ -8692,21 +8773,21 @@ async function generateInvoicePreviewHTML(invoice, patient, assistant) {
         doctorPhone: (getCurrentUser() && getCurrentUser().phone) || busData.phone,
         doctorSig: docSig,
         
-        patientName: patient.fullname,
-        patientId: patient.id,
-        patientPhone: patient.phone,
+        patientName: (patient && patient.fullname) || 'Paciente',
+        patientId: (patient && patient.id) || 'V-00000000',
+        patientPhone: (patient && patient.phone) || '+58 414-0000000',
         patientSig: '',
         
         items: items,
-        subtotalUSD: totalUSD,
+        subtotalUSD: isBs ? totalUSD * rate : totalUSD,
         discountPct: 0,
         discountUSD: 0,
         taxUSD: 0,
-        totalUSD: totalUSD,
+        totalUSD: isBs ? totalUSD * rate : totalUSD,
         totalVES: totalVES,
         approvedAmountUSD: totalUSD,
         
-        paymentTerms: `Términos: ${invoice.paymentTerms || 'Contado'}. Moneda de emisión: ${invoice.currency || 'REF'}.`,
+        paymentTerms: `Términos: ${invoice.paymentTerms || 'Contado'}. Moneda de emisión: ${invoice.currency || 'REF'}. ${isBs ? `Tasa BCV aplicada: Bs. ${rate.toFixed(2)} / USD.` : ''}`,
         bankingDetails: busData.bankInfo,
         observations: invoice.footerText || 'El paciente presenta evolución favorable. Se recomienda mantener tratamiento y esquema preventivo indicado.',
         consentText: 'Por medio de la presente, el paciente declara haber recibido explicación clara y detallada acerca de los procedimientos facturados, expresando su conformidad con los cobros correspondientes.',

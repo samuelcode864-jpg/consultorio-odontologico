@@ -18,7 +18,7 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=103">
+    <link rel="stylesheet" href="styles.css?v=104">
 </head>
 <body class="light-theme">
 
@@ -1269,8 +1269,7 @@
                             <div class="card-header">
                                 <h3><i class="fa-solid fa-eye text-green"></i> Previsualización & Acciones</h3>
                             </div>
-                            <div class="card-body flex-column gap-15">
-                                <div id="invoice-processed-actions" class="hidden flex-row gap-10 mb-15">
+                                <div id="invoice-processed-actions" class="flex-row gap-10 mb-15">
                                     <button class="btn btn-success flex-1" id="btn-print-invoice-final">
                                         <i class="fa-solid fa-print"></i> Imprimir Factura
                                     </button>
@@ -1280,11 +1279,8 @@
                                 </div>
 
                                 <!-- Actual invoice paper preview container -->
-                                <div id="invoice-paper-preview" class="invoice-paper-container" style="background: white; color: black; border: 1px solid #cbd5e1; border-radius: 4px; padding: 20px; font-family: monospace; font-size: 0.8rem; box-shadow: var(--shadow-soft); overflow-y: auto; max-height: 500px;">
-                                    <div style="text-align: center; color: #64748b; padding: 40px 0;">
-                                        <i class="fa-solid fa-receipt" style="font-size: 3rem; margin-bottom: 10px; display: block;"></i>
-                                        Elabore y procese la factura para ver la previsualización clínica oficial.
-                                    </div>
+                                <div id="invoice-paper-preview" class="invoice-paper-container" style="background: white; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 8px; padding: 15px; box-shadow: var(--shadow-soft); overflow-y: auto; max-height: 650px;">
+                                    <!-- Rendered in real-time with executive stationery design -->
                                 </div>
                             </div>
                         </div>
@@ -3032,12 +3028,12 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=103"></script>
-    <script src="supabaseClient.js?v=103"></script>
-    <script src="odontogram.js?v=103"></script>
-    <script src="signature.js?v=103"></script>
-    <script src="whatsapp.js?v=103"></script>
-    <script src="kardex.js?v=103"></script>
-    <script src="app.js?v=103"></script>
+    <script src="seededData.js?v=104"></script>
+    <script src="supabaseClient.js?v=104"></script>
+    <script src="odontogram.js?v=104"></script>
+    <script src="signature.js?v=104"></script>
+    <script src="whatsapp.js?v=104"></script>
+    <script src="kardex.js?v=104"></script>
+    <script src="app.js?v=104"></script>
 </body>
 </html>
