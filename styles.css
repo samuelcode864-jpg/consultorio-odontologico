@@ -1210,6 +1210,16 @@ h4 { font-size: 1rem; }
     padding: 14px 18px;
 }
 
+.timeline-item.timeline-item-attended {
+    border-left: 4px solid #10b981 !important;
+    background: rgba(16, 185, 129, 0.04) !important;
+}
+
+body.dark-theme .timeline-item.timeline-item-attended {
+    border-left: 4px solid #10b981 !important;
+    background: rgba(16, 185, 129, 0.08) !important;
+}
+
 .timeline-meta {
     display: flex;
     justify-content: space-between;

@@ -2273,8 +2273,12 @@ async function renderDashboard() {
         appointments.forEach(app => {
             const isTomorrowAppt = app.isTomorrow === true || app.date === 'tomorrow';
             
+            const isAttended = (app.status === 'Completada' || app.status === 'Atendida');
+
             let whatsappBtnHtml = '';
-            if (isTomorrowAppt) {
+            if (isAttended) {
+                whatsappBtnHtml = '';
+            } else if (isTomorrowAppt) {
                 whatsappBtnHtml = `
                     <button class="btn btn-xs btn-success btn-appt-reminder" onclick="sendWhatsAppReminderForAppt('${app.id}')" title="Enviar recordatorio de cita para mañana">
                         <i class="fa-brands fa-whatsapp"></i> <span class="btn-text-full">Recordar (Mañana)</span><span class="btn-text-short">Recordar</span>
@@ -2288,23 +2292,31 @@ async function renderDashboard() {
 
             const deleteApptBtn = isAssistant ? '' : `<button class="btn btn-xs btn-outline text-red" onclick="deleteAppointment('${app.id}')" title="Eliminar Cita"><i class="fa-solid fa-trash"></i></button>`;
 
-            const atenderBtn = (!isAssistant && app.status === 'Programada') 
-                ? `<button class="btn btn-xs btn-primary btn-appt-attend" style="background-color: var(--primary-cyan) !important; color: white !important; border: none !important;" onclick="window.atenderAppointmentFromAgenda('${app.id}')" title="Atender esta cita ahora"><i class="fa-solid fa-user-doctor"></i> Atender</button>`
-                : '';
+            let actionAttendOrViewHtml = '';
+            let statusBadgeHtml = `<span class="badge-tag blue">${app.status || 'Programada'}</span>`;
+            let itemClass = 'timeline-item';
+
+            if (isAttended) {
+                itemClass = 'timeline-item timeline-item-attended';
+                statusBadgeHtml = `<span class="badge-tag green" style="background: rgba(16, 185, 129, 0.15); color: #059669; font-weight: 700;"><i class="fa-solid fa-circle-check"></i> Atendida</span>`;
+                actionAttendOrViewHtml = `<button class="btn btn-xs btn-outline" style="border-color: #10b981; color: #059669; font-weight: 600;" onclick="window.viewAttendedSessionForPatient('${app.patientId}')" title="Ver Evolución Clínica"><i class="fa-solid fa-file-medical"></i> <span class="btn-text-full">Ver Evolución</span></button>`;
+            } else if (!isAssistant && (app.status === 'Programada' || app.status === 'En Espera' || !app.status)) {
+                actionAttendOrViewHtml = `<button class="btn btn-xs btn-primary btn-appt-attend" style="background-color: var(--primary-cyan) !important; color: white !important; border: none !important;" onclick="window.atenderAppointmentFromAgenda('${app.id}')" title="Atender esta cita ahora"><i class="fa-solid fa-user-doctor"></i> Atender</button>`;
+            }
 
             const div = document.createElement('div');
-            div.className = 'timeline-item';
+            div.className = itemClass;
             div.style.marginBottom = '12px';
             div.innerHTML = `
                 <div class="timeline-meta">
                     <div class="timeline-time-status">
                         <span class="timeline-time"><i class="fa-solid fa-clock text-cyan"></i> ${app.time}</span>
-                        <span class="badge-tag blue">${app.status}</span>
+                        ${statusBadgeHtml}
                     </div>
                     <div class="timeline-actions">
                         ${whatsappBtnHtml}
                         ${editApptBtn}
-                        ${atenderBtn}
+                        ${actionAttendOrViewHtml}
                         ${deleteApptBtn}
                     </div>
                 </div>
@@ -2436,33 +2448,49 @@ window.deleteAppointment = async function(apptId) {
     });
 };
 
-async function renderAgendaView(filter = 'all', searchQuery = '') {
+async function renderAgendaView(filter = 'pending', searchQuery = '') {
     const agendaListMain = document.getElementById('agenda-list-main');
     if (!agendaListMain) return;
 
     agendaListMain.innerHTML = '';
-    let appointments = await SupabaseDataService.getAppointments();
+    const allAppointments = await SupabaseDataService.getAppointments();
     const currentUser = getCurrentUser();
     const isAssistant = currentUser && currentUser.role.toLowerCase().includes('asistente');
 
+    // Update Counts for Filter Badges
+    const countPending = allAppointments.filter(a => a.status !== 'Completada' && a.status !== 'Atendida' && a.status !== 'Cancelada').length;
+    const countAttended = allAppointments.filter(a => a.status === 'Completada' || a.status === 'Atendida').length;
+    const countAll = allAppointments.length;
+
+    const elPending = document.getElementById('count-agenda-pending');
+    const elAttended = document.getElementById('count-agenda-attended');
+    const elAll = document.getElementById('count-agenda-all');
+    if (elPending) elPending.textContent = countPending;
+    if (elAttended) elAttended.textContent = countAttended;
+    if (elAll) elAll.textContent = countAll;
+
     // Apply Filter
-    if (filter !== 'all') {
-        const todayStr = new Date().toISOString().split('T')[0];
-        if (filter === 'today') {
-            appointments = appointments.filter(app => app.date === todayStr || app.date === 'today' || app.date === 'today-appt');
-        } else if (filter === 'week') {
-            const today = new Date();
-            const nextWeek = new Date();
-            nextWeek.setDate(today.getDate() + 7);
-            const todayTime = today.getTime();
-            const nextWeekTime = nextWeek.getTime();
-            appointments = appointments.filter(app => {
-                const appDate = new Date(app.date);
-                return appDate.getTime() >= todayTime && appDate.getTime() <= nextWeekTime;
-            });
-        } else {
-            appointments = appointments.filter(app => app.status === filter);
-        }
+    let appointments = [...allAppointments];
+    const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
+
+    if (filter === 'pending') {
+        appointments = appointments.filter(app => app.status !== 'Completada' && app.status !== 'Atendida' && app.status !== 'Cancelada');
+    } else if (filter === 'attended' || filter === 'Completada') {
+        appointments = appointments.filter(app => app.status === 'Completada' || app.status === 'Atendida');
+    } else if (filter === 'today') {
+        appointments = appointments.filter(app => app.date === todayStr || app.date === 'today' || app.date === 'today-appt' || app.isTomorrow === false);
+    } else if (filter === 'week') {
+        const today = new Date();
+        const nextWeek = new Date();
+        nextWeek.setDate(today.getDate() + 7);
+        const todayTime = today.getTime();
+        const nextWeekTime = nextWeek.getTime();
+        appointments = appointments.filter(app => {
+            const appDate = new Date(app.date);
+            return appDate.getTime() >= todayTime && appDate.getTime() <= nextWeekTime;
+        });
+    } else if (filter !== 'all') {
+        appointments = appointments.filter(app => app.status === filter);
     }
 
     // Apply Search
@@ -2476,15 +2504,22 @@ async function renderAgendaView(filter = 'all', searchQuery = '') {
     }
 
     if (appointments.length === 0) {
-        agendaListMain.innerHTML = `<div style="text-align:center; padding:30px; color:var(--text-muted);"><i class="fa-solid fa-calendar-xmark" style="font-size:2rem; margin-bottom:10px; display:block;"></i>No se encontraron citas con los filtros activos.</div>`;
+        const emptyMsg = filter === 'pending' 
+            ? '¡Excelente! No hay citas pendientes por atender en este momento.'
+            : (filter === 'attended' ? 'Aún no se han registrado citas atendidas hoy.' : 'No se encontraron citas con los filtros activos.');
+        const emptyIcon = filter === 'pending' ? 'fa-clipboard-check' : 'fa-calendar-xmark';
+        agendaListMain.innerHTML = `<div style="text-align:center; padding:35px 20px; color:var(--text-muted);"><i class="fa-solid ${emptyIcon}" style="font-size:2.2rem; color: #10b981; margin-bottom:12px; display:block;"></i><div style="font-size:0.95rem; font-weight:600;">${emptyMsg}</div></div>`;
         return;
     }
 
     appointments.forEach(app => {
+        const isAttended = (app.status === 'Completada' || app.status === 'Atendida');
         const isTomorrowAppt = app.isTomorrow === true || app.date === 'tomorrow';
         
         let whatsappBtnHtml = '';
-        if (isTomorrowAppt) {
+        if (isAttended) {
+            whatsappBtnHtml = '';
+        } else if (isTomorrowAppt) {
             whatsappBtnHtml = `
                 <button class="btn btn-xs btn-success btn-appt-reminder" onclick="sendWhatsAppReminderForAppt('${app.id}')" title="Enviar recordatorio de cita para mañana">
                     <i class="fa-brands fa-whatsapp"></i> <span class="btn-text-full">Recordar (Mañana)</span><span class="btn-text-short">Recordar</span>
@@ -2496,7 +2531,7 @@ async function renderAgendaView(filter = 'all', searchQuery = '') {
 
         const deleteApptBtn = isAssistant ? '' : `<button class="btn btn-xs btn-outline text-red" onclick="deleteAppointment('${app.id}')" title="Eliminar Cita"><i class="fa-solid fa-trash"></i></button>`;
 
-        const gCalBtn = `
+        const gCalBtn = isAttended ? '' : `
             <button class="btn btn-xs btn-outline btn-appt-gcal" style="border-color: #2563eb; color: #2563eb;" onclick="addApptToGoogleCalendarDirect('${app.id}')" title="Añadir a Google Calendar">
                 <i class="fa-solid fa-calendar-plus"></i> <span class="btn-text-full">Calendar</span>
             </button>
@@ -2504,24 +2539,32 @@ async function renderAgendaView(filter = 'all', searchQuery = '') {
 
         const editApptBtn = `<button class="btn btn-xs btn-outline btn-appt-edit" style="border-color: #0891b2; color: #0891b2;" onclick="window.editAppointment('${app.id}')" title="Editar Cita"><i class="fa-solid fa-pen-to-square"></i> <span class="btn-text-full">Editar</span></button>`;
 
-        const atenderBtn = (!isAssistant && app.status === 'Programada') 
-            ? `<button class="btn btn-xs btn-primary btn-appt-attend" style="background-color: var(--primary-cyan) !important; color: white !important; border: none !important;" onclick="window.atenderAppointmentFromAgenda('${app.id}')" title="Atender esta cita ahora"><i class="fa-solid fa-user-doctor"></i> Atender</button>`
-            : '';
+        let actionAttendOrViewHtml = '';
+        let statusBadgeHtml = `<span class="badge-tag blue">${app.status || 'Programada'}</span>`;
+        let itemClass = 'timeline-item';
+
+        if (isAttended) {
+            itemClass = 'timeline-item timeline-item-attended';
+            statusBadgeHtml = `<span class="badge-tag green" style="background: rgba(16, 185, 129, 0.15); color: #059669; font-weight: 700;"><i class="fa-solid fa-circle-check"></i> Atendida</span>`;
+            actionAttendOrViewHtml = `<button class="btn btn-xs btn-outline" style="border-color: #10b981; color: #059669; font-weight: 600;" onclick="window.viewAttendedSessionForPatient('${app.patientId}')" title="Ver Evolución Clínica"><i class="fa-solid fa-file-medical"></i> <span class="btn-text-full">Ver Evolución</span></button>`;
+        } else if (!isAssistant && (app.status === 'Programada' || app.status === 'En Espera' || !app.status)) {
+            actionAttendOrViewHtml = `<button class="btn btn-xs btn-primary btn-appt-attend" style="background-color: var(--primary-cyan) !important; color: white !important; border: none !important;" onclick="window.atenderAppointmentFromAgenda('${app.id}')" title="Atender esta cita ahora"><i class="fa-solid fa-user-doctor"></i> Atender</button>`;
+        }
 
         const div = document.createElement('div');
-        div.className = 'timeline-item';
+        div.className = itemClass;
         div.style.marginBottom = '12px';
         div.innerHTML = `
             <div class="timeline-meta">
                 <div class="timeline-time-status">
                     <span class="timeline-time"><i class="fa-solid fa-clock text-cyan"></i> ${app.time}</span>
-                    <span class="badge-tag blue">${app.status}</span>
+                    ${statusBadgeHtml}
                 </div>
                 <div class="timeline-actions">
                     ${whatsappBtnHtml}
                     ${gCalBtn}
                     ${editApptBtn}
-                    ${atenderBtn}
+                    ${actionAttendOrViewHtml}
                     ${deleteApptBtn}
                 </div>
             </div>
@@ -2548,6 +2591,21 @@ async function renderAgendaView(filter = 'all', searchQuery = '') {
     }
 }
 window.renderAgendaView = renderAgendaView;
+
+window.viewAttendedSessionForPatient = async function(patientId) {
+    try {
+        const patients = await SupabaseDataService.getPatients();
+        const patient = patients.find(p => p.id === patientId);
+        if (!patient) {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'No se encontró la ficha del paciente.' });
+            return;
+        }
+        setActivePatientId(patient.id);
+        await window.navigateToTab('ehr');
+    } catch(e) {
+        console.error("Error viewing attended patient:", e);
+    }
+};
 
 window.atenderAppointmentFromAgenda = async (apptId) => {
     try {

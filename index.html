@@ -18,7 +18,7 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=88">
+    <link rel="stylesheet" href="styles.css?v=89">
 </head>
 <body class="light-theme">
 
@@ -353,11 +353,11 @@
                     <!-- Filters bar -->
                     <div class="card filter-card">
                         <div class="filter-group">
-                            <button class="filter-btn active" data-filter="all">Todas</button>
-                            <button class="filter-btn" data-filter="today">Hoy</button>
-                            <button class="filter-btn" data-filter="week">Semana</button>
-                            <button class="filter-btn" data-filter="Programada">Programadas</button>
-                            <button class="filter-btn" data-filter="Completada">Completadas</button>
+                            <button class="filter-btn active" data-filter="pending"><i class="fa-solid fa-clock"></i> Por Atender (<span id="count-agenda-pending">0</span>)</button>
+                            <button class="filter-btn" data-filter="attended"><i class="fa-solid fa-circle-check text-green"></i> Atendidos Hoy (<span id="count-agenda-attended">0</span>)</button>
+                            <button class="filter-btn" data-filter="all"><i class="fa-solid fa-calendar-days"></i> Todas (<span id="count-agenda-all">0</span>)</button>
+                            <button class="filter-btn" data-filter="today">Citas de Hoy</button>
+                            <button class="filter-btn" data-filter="week">Esta Semana</button>
                         </div>
                         <div class="search-box">
                             <input type="text" id="agenda-table-search" placeholder="Buscar cita o paciente...">
@@ -2913,12 +2913,12 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=88"></script>
-    <script src="supabaseClient.js?v=88"></script>
-    <script src="odontogram.js?v=88"></script>
-    <script src="signature.js?v=88"></script>
-    <script src="whatsapp.js?v=88"></script>
-    <script src="kardex.js?v=88"></script>
-    <script src="app.js?v=88"></script>
+    <script src="seededData.js?v=89"></script>
+    <script src="supabaseClient.js?v=89"></script>
+    <script src="odontogram.js?v=89"></script>
+    <script src="signature.js?v=89"></script>
+    <script src="whatsapp.js?v=89"></script>
+    <script src="kardex.js?v=89"></script>
+    <script src="app.js?v=89"></script>
 </body>
 </html>
