@@ -9,16 +9,21 @@ class KardexInventory {
     }
 
     loadInventory() {
-        const stored = localStorage.getItem('dental_inventory');
+        const stored = localStorage.getItem('dental_kardex') || localStorage.getItem('dental_inventory');
         if (stored) {
-            this.items = JSON.parse(stored);
+            try {
+                this.items = JSON.parse(stored);
+            } catch(e) {
+                this.items = [];
+            }
         } else {
-            this.items = INITIAL_INVENTORY;
+            this.items = (typeof INITIAL_INVENTORY !== 'undefined') ? INITIAL_INVENTORY : [];
             this.save();
         }
     }
 
     save() {
+        localStorage.setItem('dental_kardex', JSON.stringify(this.items));
         localStorage.setItem('dental_inventory', JSON.stringify(this.items));
     }
 

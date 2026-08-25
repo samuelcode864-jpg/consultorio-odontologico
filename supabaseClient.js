@@ -408,12 +408,12 @@ class SupabaseDataService {
     // ==========================================
     static async getInventory() {
         if (!this.isCloudConnected()) {
-            return JSON.parse(localStorage.getItem('dental_kardex')) || (typeof INITIAL_INVENTORY !== 'undefined' ? INITIAL_INVENTORY : []);
+            return JSON.parse(localStorage.getItem('dental_kardex')) || JSON.parse(localStorage.getItem('dental_inventory')) || (typeof INITIAL_INVENTORY !== 'undefined' ? INITIAL_INVENTORY : []);
         }
         try {
             const { data, error } = await supabaseClient.from('kardex_inventory').select('*');
             if (error) throw error;
-            if (data && data.length > 0) {
+            if (data) {
                 const mapped = data.map(i => ({
                     code: i.code,
                     name: i.name,
@@ -424,12 +424,14 @@ class SupabaseDataService {
                     expiryDate: i.expiry_date
                 }));
                 localStorage.setItem('dental_kardex', JSON.stringify(mapped));
+                localStorage.setItem('dental_inventory', JSON.stringify(mapped));
+                if (window.kardex) window.kardex.items = mapped;
                 return mapped;
             }
-            return JSON.parse(localStorage.getItem('dental_kardex')) || (typeof INITIAL_INVENTORY !== 'undefined' ? INITIAL_INVENTORY : []);
+            return [];
         } catch (err) {
             console.error('Supabase getInventory Error:', err);
-            return JSON.parse(localStorage.getItem('dental_kardex')) || (typeof INITIAL_INVENTORY !== 'undefined' ? INITIAL_INVENTORY : []);
+            return JSON.parse(localStorage.getItem('dental_kardex')) || JSON.parse(localStorage.getItem('dental_inventory')) || (typeof INITIAL_INVENTORY !== 'undefined' ? INITIAL_INVENTORY : []);
         }
     }
 
@@ -439,6 +441,8 @@ class SupabaseDataService {
         if (idx >= 0) localInv[idx] = itemObj;
         else localInv.push(itemObj);
         localStorage.setItem('dental_kardex', JSON.stringify(localInv));
+        localStorage.setItem('dental_inventory', JSON.stringify(localInv));
+        if (window.kardex) window.kardex.items = localInv;
 
         if (this.isCloudConnected()) {
             try {
@@ -449,7 +453,7 @@ class SupabaseDataService {
                     current_stock: itemObj.currentStock,
                     min_stock: itemObj.minStock,
                     unit: itemObj.unit,
-                    expiry_date: itemObj.expiryDate || null
+                    expiry_date: itemObj.expiryDate
                 });
                 if (error) console.error('Supabase saveInventoryItem Cloud Error:', error);
             } catch (err) {
@@ -462,6 +466,8 @@ class SupabaseDataService {
         let localInv = JSON.parse(localStorage.getItem('dental_kardex')) || [];
         localInv = localInv.filter(i => i.code !== code);
         localStorage.setItem('dental_kardex', JSON.stringify(localInv));
+        localStorage.setItem('dental_inventory', JSON.stringify(localInv));
+        if (window.kardex) window.kardex.items = localInv;
 
         if (this.isCloudConnected()) {
             try {

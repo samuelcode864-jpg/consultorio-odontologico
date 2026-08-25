@@ -3858,9 +3858,13 @@ window.deleteInventoryItem = async function(code) {
     });
 };
 
-window.checkGlobalStockAlerts = function() {
-    if (!window.kardex) return;
-    const items = window.kardex.getAllItems();
+window.checkGlobalStockAlerts = async function() {
+    let items = [];
+    if (window.kardex && window.kardex.getAllItems().length > 0) {
+        items = window.kardex.getAllItems();
+    } else {
+        items = await SupabaseDataService.getInventory();
+    }
     const criticalItems = items.filter(i => (i.currentStock !== undefined && i.currentStock < 5) || i.currentStock <= (i.minStock || 5));
     
     const badge = document.getElementById('nav-stock-alert-badge');

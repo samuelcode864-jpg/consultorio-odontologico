@@ -50,15 +50,7 @@ const INITIAL_BAREMO = [
     { code: "ES-01", category: "Estética", name: "Blanqueamiento Dental LED en Consultorio", priceUSD: 160.00, chairTimeMin: 60, materials: [] }
 ];
 
-const INITIAL_INVENTORY = [
-    { code: "INS-01", name: "Resina Nanohíbrida A2 (Jeringa 4g)", category: "Material de Restauración", currentStock: 8, minStock: 3, expiryDate: "2027-05-15", unit: "Jeringa" },
-    { code: "INS-02", name: "Cartuchos Anestesia Lidocaína 2% c/Epinefrina", category: "Anestésicos", currentStock: 45, minStock: 20, expiryDate: "2026-11-30", unit: "Cartuchos" },
-    { code: "INS-03", name: "Películas Radiográficas Periapicales Carestream", category: "Diagnóstico", currentStock: 12, minStock: 15, expiryDate: "2026-09-10", unit: "Unidades" },
-    { code: "INS-04", name: "Pasta Profiláctica Mentolada (100g)", category: "Desechables", currentStock: 4, minStock: 2, expiryDate: "2027-01-20", unit: "Tubo" },
-    { code: "INS-05", name: "Copa de Goma para Profilaxis", category: "Desechables", currentStock: 60, minStock: 30, expiryDate: "2028-06-01", unit: "Piezas" },
-    { code: "INS-06", name: "Ácido Grabador Ortofosfórico 37%", category: "Material de Restauración", currentStock: 2, minStock: 4, expiryDate: "2026-08-25", unit: "Jeringa" },
-    { code: "INS-07", name: "Limas Endodónticas K-File #15-40 25mm", category: "Instrumental", currentStock: 15, minStock: 5, expiryDate: "2029-10-10", unit: "Cajas" }
-];
+const INITIAL_INVENTORY = [];
 
 const INITIAL_PATIENTS = [];
 
