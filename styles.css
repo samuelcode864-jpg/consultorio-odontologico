@@ -2620,8 +2620,13 @@ html, body {
     align-items: center;
     position: relative;
     z-index: 10;
-    cursor: default;
+    cursor: pointer;
     user-select: none;
+    transition: transform 0.2s ease;
+}
+
+.step-indicator:hover {
+    transform: translateY(-2px);
 }
 
 .step-num {
@@ -2637,6 +2642,13 @@ html, body {
     font-size: 0.9rem;
     transition: all 0.3s ease;
     border: 2px solid transparent;
+}
+
+.step-indicator:hover .step-num {
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2);
+    border-color: #3b82f6;
+    color: #2563eb;
+    background-color: #ffffff;
 }
 
 .step-label {

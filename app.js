@@ -6018,9 +6018,11 @@ function initPatientStepperWizard() {
     const btnSave = document.getElementById('btn-save-patient');
 
     function showStep(step) {
+        currentStep = step;
         for (let i = 1; i <= totalSteps; i++) {
             const pane = document.getElementById(`step-content-${i}`);
             const indicator = document.getElementById(`step-ind-${i}`);
+            const line = document.getElementById(`step-line-${i}`);
             if (pane) {
                 if (i === step) {
                     pane.classList.remove('hidden');
@@ -6037,6 +6039,13 @@ function initPatientStepperWizard() {
                     indicator.classList.add('completed');
                 } else {
                     indicator.classList.remove('active', 'completed');
+                }
+            }
+            if (line) {
+                if (i < step) {
+                    line.classList.add('completed');
+                } else {
+                    line.classList.remove('completed');
                 }
             }
         }
@@ -6067,12 +6076,52 @@ function initPatientStepperWizard() {
         }
     }
 
+    window.setPatientStepperStep = showStep;
+
+    // Direct Click navigation on Step Numbers / Indicators
+    document.querySelectorAll('.step-indicator').forEach(ind => {
+        ind.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetStep = parseInt(ind.dataset.step);
+            if (!targetStep || isNaN(targetStep) || targetStep === currentStep) return;
+
+            // If navigating forward from Step 1, validate required patient fields
+            if (currentStep === 1 && targetStep > 1) {
+                const firstname = document.getElementById('p-firstname') ? document.getElementById('p-firstname').value.trim() : '';
+                const lastname = document.getElementById('p-lastname') ? document.getElementById('p-lastname').value.trim() : '';
+                const id = document.getElementById('p-id') ? document.getElementById('p-id').value.trim() : '';
+                const birthdate = document.getElementById('p-birthdate') ? document.getElementById('p-birthdate').value : '';
+                const phone = document.getElementById('p-mobile-phone') ? document.getElementById('p-mobile-phone').value.trim() : '';
+
+                if (!firstname || !lastname || !id || !birthdate || !phone) {
+                    Swal.fire({ icon: 'warning', title: 'Campos Incompletos', text: 'Por favor complete los campos obligatorios del Paso 1 (Filiación) antes de avanzar.' });
+                    return;
+                }
+
+                // Check for representative fields if child
+                const age = calculateAge(birthdate);
+                if (age < 18) {
+                    const repName = document.getElementById('p-rep-name') ? document.getElementById('p-rep-name').value.trim() : '';
+                    const repId = document.getElementById('p-rep-id') ? document.getElementById('p-rep-id').value.trim() : '';
+                    const repPhone = document.getElementById('p-rep-phone') ? document.getElementById('p-rep-phone').value.trim() : '';
+                    const repRelation = document.getElementById('p-rep-relation') ? document.getElementById('p-rep-relation').value.trim() : '';
+
+                    if (!repName || !repId || !repPhone || !repRelation) {
+                        Swal.fire({ icon: 'warning', title: 'Representante Obligatorio', text: 'El paciente es menor de edad. Por favor complete los datos del representante legal.' });
+                        return;
+                    }
+                }
+            }
+
+            showStep(targetStep);
+        });
+    });
+
     if (btnPrev) {
         btnPrev.onclick = (e) => {
             e.preventDefault();
             if (currentStep > 1) {
-                currentStep--;
-                showStep(currentStep);
+                showStep(currentStep - 1);
             }
         };
     }
@@ -6110,8 +6159,7 @@ function initPatientStepperWizard() {
             }
 
             if (currentStep < totalSteps) {
-                currentStep++;
-                showStep(currentStep);
+                showStep(currentStep + 1);
             }
         };
     }
