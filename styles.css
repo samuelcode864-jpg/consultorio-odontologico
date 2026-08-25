@@ -2355,6 +2355,20 @@ html, body {
     margin-bottom: 12px !important;
 }
 
+.timeline-item.timeline-item-pending {
+    border-left: 4px solid #f59e0b !important;
+    background: rgba(245, 158, 11, 0.05) !important;
+    border-style: dashed !important;
+}
+
+.timeline-item.timeline-item-completed {
+    border-left: 4px solid #10b981 !important;
+}
+
+.dark-theme .timeline-item.timeline-item-pending {
+    background: rgba(245, 158, 11, 0.1) !important;
+}
+
 .timeline-meta {
     display: flex !important;
     justify-content: space-between !important;
