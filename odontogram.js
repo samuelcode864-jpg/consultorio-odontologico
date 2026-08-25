@@ -4,11 +4,15 @@
 
 class OdontogramEngine {
     constructor(containerId, options = {}) {
-        this.container = document.getElementById(containerId);
+        this.container = typeof containerId === 'string' ? document.getElementById(containerId) : containerId;
         this.currentMode = 'patology'; // 'patology', 'treated', 'proposed', 'endo', 'clear'
-        this.isPediatric = false;
+        this.isPediatric = options.isPediatric || false;
         this.toothData = options.initialData || {}; // e.g. { "18-top": "patology" }
         this.onFaceClickCallback = options.onFaceClick || null;
+        this.readOnly = options.readOnly || false;
+        if (this.container) {
+            this.render();
+        }
     }
 
     setMode(mode) {
@@ -219,6 +223,7 @@ class OdontogramEngine {
     }
 
     handleFaceClick(toothNumber, faceId, key, el) {
+        if (this.readOnly) return;
         if (this.currentMode === 'clear') {
             delete this.toothData[key];
             el.setAttribute('class', 'tooth-face');
@@ -233,6 +238,7 @@ class OdontogramEngine {
     }
 
     handleFaceRightClick(toothNumber, faceId, key, el) {
+        if (this.readOnly) return;
         delete this.toothData[key];
         el.setAttribute('class', 'tooth-face');
 

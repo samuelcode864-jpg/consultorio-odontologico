@@ -1798,22 +1798,7 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                 `;
             }
 
-            // 3. Odontograma Tab (Comparación Diagnóstico Inicial vs Evolución Actual)
-            const initialWrapper = document.getElementById('ehr-od-initial-view');
-            const currentWrapper = document.getElementById('ehr-od-current-view');
-            if (initialWrapper && currentWrapper) {
-                initialWrapper.innerHTML = `<div id="od-snap-initial"></div>`;
-                currentWrapper.innerHTML = `<div id="od-snap-current"></div>`;
-                
-                // Odontograma inicial: datos diagnósticos iniciales
-                const initOdData = (activePatient.metadata && activePatient.metadata.initialOdontogramData) || activePatient.odontogramData || {};
-                new OdontogramEngine('od-snap-initial', { initialData: initOdData });
-                
-                // Odontograma actual: datos actualizados con tratamientos realizados
-                new OdontogramEngine('od-snap-current', { initialData: activePatient.odontogramData || {} });
-            }
-
-            // 4. Tratamientos & Sesiones Tab (Sincronización Total con Presupuestos y Evolución)
+            // 3. Obtener Presupuestos y Tratamientos para Sincronización Total
             const allInvoices = await SupabaseDataService.getInvoices();
             const patientBudgets = allInvoices.filter(i => String(i.patientId) === String(activePatient.id));
             const activeApprovedBudget = patientBudgets.find(b => b.status === 'Aprobado') || patientBudgets[0];
@@ -1832,6 +1817,39 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                     status: (activePatient.sessions && activePatient.sessions.length > idx) ? 'Completado' : 'Planificado',
                     sessionNum: idx + 1
                 }));
+            }
+
+            // 4. Odontodiagrama Tab (Comparación Diagnóstico Inicial vs Evolución Actual)
+            const initialWrapper = document.getElementById('ehr-od-initial-view');
+            const currentWrapper = document.getElementById('ehr-od-current-view');
+            if (initialWrapper && currentWrapper) {
+                initialWrapper.innerHTML = `<div id="od-snap-initial"></div>`;
+                currentWrapper.innerHTML = `<div id="od-snap-current"></div>`;
+                
+                // Odontodiagrama inicial: datos diagnósticos iniciales
+                let initOdData = { ...((activePatient.metadata && activePatient.metadata.initialOdontogramData) || activePatient.odontogramData || {}) };
+                let currentOdData = { ...(activePatient.odontogramData || {}) };
+
+                // Map any treatments with tooth numbers to ensure visual feedback in Odontodiagrama
+                treatmentsList.forEach(t => {
+                    if (t.tooth && t.tooth !== 'Gnl' && !isNaN(parseInt(t.tooth))) {
+                        const toothNum = parseInt(t.tooth);
+                        const faceKey = t.face ? `${toothNum}-${t.face}` : `${toothNum}-center`;
+                        if (!initOdData[faceKey]) {
+                            initOdData[faceKey] = 'patology'; // Caries / Tratamiento propuesto inicial
+                        }
+                        if (t.status === 'Completado') {
+                            currentOdData[faceKey] = 'treated'; // Verde - Restaurado/Tratado
+                        } else {
+                            if (!currentOdData[faceKey]) currentOdData[faceKey] = 'proposed'; // Azul - Planificado
+                        }
+                    }
+                });
+
+                const isPedi = (meta.type === 'Infantil') || (activePatient.birthdate && calculateAge(activePatient.birthdate) < 18);
+
+                window.ehrInitialOdontogram = new OdontogramEngine('od-snap-initial', { initialData: initOdData, isPediatric: isPedi, readOnly: true });
+                window.ehrCurrentOdontogram = new OdontogramEngine('od-snap-current', { initialData: currentOdData, isPediatric: isPedi, readOnly: true });
             }
 
             // Cálculo dinámico del total de sesiones requeridas
@@ -2102,6 +2120,11 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
             this.classList.add('active');
             const target = document.getElementById(`subtab-${this.dataset.subtab}`);
             if (target) target.classList.add('active');
+
+            if (this.dataset.subtab === 'odontogram-comp') {
+                if (window.ehrInitialOdontogram) window.ehrInitialOdontogram.render();
+                if (window.ehrCurrentOdontogram) window.ehrCurrentOdontogram.render();
+            }
         };
     });
 }
@@ -5012,9 +5035,11 @@ function initGlobalEvents() {
                     }
                 }
 
-                closeModal('modal-patient');
                 setActivePatientId(id);
                 await renderPatientsTable();
+                await renderEHRView();
+                await renderDashboard();
+                await renderAgendaView();
                 Swal.fire({ icon: 'success', title: '¡Paciente Guardado!', text: `${fullname} ha sido guardado exitosamente en la nube de Supabase.`, timer: 2000, showConfirmButton: false });
             } catch (err) {
                 console.error("Error al guardar paciente:", err);
