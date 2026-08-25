@@ -4,11 +4,40 @@
    ========================================================================== */
 
 class WhatsAppService {
+    static getClinicName() {
+        const saved = localStorage.getItem('dental_clinic_name');
+        if (saved && saved.trim()) return saved.trim();
+
+        const sideEl = document.getElementById('sidebar-brand-name');
+        if (sideEl && sideEl.textContent && sideEl.textContent.trim() && sideEl.textContent.trim() !== 'DentalCare Pro') {
+            return sideEl.textContent.trim();
+        }
+
+        const setBusInput = document.getElementById('set-bus-name');
+        if (setBusInput && setBusInput.value && setBusInput.value.trim()) {
+            return setBusInput.value.trim();
+        }
+
+        return "Consultorio Odontológico";
+    }
+
+    static getClinicAddress() {
+        const saved = localStorage.getItem('dental_clinic_address');
+        if (saved && saved.trim()) return saved.trim();
+
+        const setAddrInput = document.getElementById('set-bus-address');
+        if (setAddrInput && setAddrInput.value && setAddrInput.value.trim()) {
+            return setAddrInput.value.trim();
+        }
+
+        return "";
+    }
+
     static getTemplate() {
         const defaultTemplate = `🦷 *{CLINICA} - PRESUPUESTO ODONTOLÓGICO*\n\n` +
                                `Estimado(a) *{PACIENTE}*,\n` +
                                `A continuación detallamos la cotización de su plan de tratamiento:\n\n` +
-                               `💵 *Subtotal Bruto:* {SUBTOTAL_USD} USD\n` +
+                               `💵 *Subtotal Bruto:* {SUBTOTAL_USD}\n` +
                                `📉 *Descuento Aplicado:* {DESCUENTO_PCT}%\n` +
                                `💰 *Total Final Ref.:* *{TOTAL_USD}* / *( {TOTAL_BS} )*\n` +
                                `💳 *Método de Pago Sugerido:* {METODO_PAGO}\n\n` +
@@ -27,25 +56,38 @@ class WhatsAppService {
         const totalVES = (totalUSD * exchangeRate).toFixed(2);
         
         let template = this.getTemplate();
-        const clinica = "DentalCare Pro";
+        const clinica = this.getClinicName();
         const link = `${window.location.origin}/?patientId=${patient.id}&view=budget&budgetId=${budgetId}`;
+
+        // Build list of procedures
+        let itemsListText = "";
+        if (items && items.length > 0) {
+            itemsListText = "\n📋 *Procedimientos Presupuestados:*\n" + items.map((it, idx) => `• Pza ${it.tooth || 'Gnl'}: ${it.name || 'Tratamiento'} ($${(it.price || it.priceUSD || 0).toFixed(2)})`).join('\n') + "\n\n";
+        }
 
         let msg = template
             .replace(/{PACIENTE}/g, patient.fullname)
             .replace(/{CLINICA}/g, clinica)
-            .replace(/{SUBTOTAL_USD}/g, `$${subtotalUSD.toFixed(2)}`)
-            .replace(/{DESCUENTO_PCT}/g, discountPct)
+            .replace(/{SUBTOTAL_USD}/g, `$${(subtotalUSD || totalUSD).toFixed(2)} USD`)
+            .replace(/{DESCUENTO_PCT}/g, discountPct || 0)
             .replace(/{TOTAL_USD}/g, `$${totalUSD.toFixed(2)} USD`)
             .replace(/{TOTAL_BS}/g, `Bs. ${totalVES}`)
-            .replace(/{METODO_PAGO}/g, paymentMethodLabel)
+            .replace(/{METODO_PAGO}/g, paymentMethodLabel || 'Contado')
             .replace(/{LINK_PRESUPUESTO}/g, link);
+
+        if (itemsListText && !msg.includes('• Pza')) {
+            msg = msg.replace(`Estimado(a) *${patient.fullname}*,\n`, `Estimado(a) *${patient.fullname}*,\n${itemsListText}`);
+        }
 
         return msg;
     }
 
     static generateAppointmentReminderMessage(patientName, apptDate, apptTime, treatment, calendarLink = '') {
+        const clinica = this.getClinicName();
+        const direccion = this.getClinicAddress();
+
         let msg = `🦷 *RECORDATORIO DE CITA ODONTOLÓGICA*\n`;
-        msg += `*Consultorio DentalCare Pro*\n`;
+        msg += `*${clinica}*\n`;
         msg += `----------------------------------------\n\n`;
         msg += `Hola *${patientName}*, le recordamos que tiene una cita médica programada en nuestro consultorio:\n\n`;
         msg += `📅 *Fecha:* ${apptDate}\n`;
@@ -54,7 +96,9 @@ class WhatsAppService {
         if (calendarLink) {
             msg += `📅 *Añadir a mi calendario:* ${calendarLink}\n\n`;
         }
-        msg += `📍 *Ubicación:* Consultorio DentalCare Pro\n`;
+        if (direccion) {
+            msg += `📍 *Ubicación:* ${direccion}\n\n`;
+        }
         msg += `Por favor responda a este mensaje con un *CONFIRMO* o infórmenos si requiere reprogramar.\n\n`;
         msg += `¡Le esperamos! 😊`;
         return msg;
@@ -64,7 +108,7 @@ class WhatsAppService {
         const exchangeRate = parseFloat(localStorage.getItem('dental_exchange_rate')) || 36.5;
         const totalUSD = session.paymentUSD || 0;
         const totalVES = (totalUSD * exchangeRate).toFixed(2);
-        const clinica = "DentalCare Pro";
+        const clinica = this.getClinicName();
 
         let paymentDetail = session.paymentMethodLabel || 'Efectivo';
         if (session.paymentMethod === 'split' && session.splitPayments) {

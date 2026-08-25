@@ -89,15 +89,23 @@ function applyClinicBrandingUI(config) {
     
     // Parse business name if present in header_text or config
     let busName = 'DentalCare Pro';
+    let busAddress = '';
+    let busPhone = '';
     if (config.headerText || config.header_text) {
         try {
             const raw = config.headerText || config.header_text;
             if (raw.startsWith('{')) {
                 const parsed = JSON.parse(raw);
                 if (parsed.name) busName = parsed.name;
+                if (parsed.address) busAddress = parsed.address;
+                if (parsed.phone) busPhone = parsed.phone;
             }
         } catch(e) {}
     }
+
+    localStorage.setItem('dental_clinic_name', busName);
+    if (busAddress) localStorage.setItem('dental_clinic_address', busAddress);
+    if (busPhone) localStorage.setItem('dental_clinic_phone', busPhone);
 
     const logoUrl = config.logoUrl || config.logo_url || '';
 
@@ -1067,8 +1075,9 @@ async function renderBudgetListView() {
                 <td>${spec}</td>
                 <td><span class="${badgeClass}" style="font-size:0.75rem; text-transform:none; padding: 2px 6px;">${statusLabel}</span></td>
                 <td style="text-align: center;">
-                    <div style="display: flex; gap: 4px; justify-content: center;">
+                    <div style="display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;">
                         <button class="btn btn-xs btn-outline" onclick="loadBudgetIntoEditor('${b.id}')" style="padding: 4px 8px; font-weight:600; border-radius:4px; cursor: pointer;"><i class="fa-solid fa-folder-open"></i> Abrir</button>
+                        <button class="btn btn-xs btn-success" onclick="window.sendBudgetWhatsApp('${b.id}')" style="padding: 4px 8px; font-weight:600; border-radius:4px; cursor: pointer; background:#25D366; border:none; color:#fff;" title="Enviar Presupuesto por WhatsApp"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
                         ${isApproved ? `<button class="btn btn-xs btn-success" onclick="window.finalizeBudgetDirect('${b.id}')" style="padding: 4px 8px; font-weight:600; border-radius:4px; cursor: pointer; background:#10b981; border:none; color:#fff;" title="Finalizar Tratamiento / Presupuesto"><i class="fa-solid fa-circle-check"></i> Finalizar</button>` : ''}
                     </div>
                 </td>
@@ -1077,6 +1086,36 @@ async function renderBudgetListView() {
         });
     }
 }
+
+window.sendBudgetWhatsApp = async function(budgetId) {
+    try {
+        const invoices = await SupabaseDataService.getInvoices();
+        const budget = invoices.find(inv => inv.id === budgetId);
+        if (!budget) {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'No se encontró el presupuesto.' });
+            return;
+        }
+
+        const patients = await SupabaseDataService.getPatients();
+        const patient = patients.find(p => String(p.id) === String(budget.patientId));
+        if (!patient || !patient.phone) {
+            Swal.fire({ icon: 'warning', title: 'Sin Teléfono', text: 'El paciente asociado a este presupuesto no tiene un número de teléfono / WhatsApp registrado.' });
+            return;
+        }
+
+        const items = budget.items || [];
+        const totalUSD = budget.totalRef || budget.totalUSD || 0;
+        const subtotalUSD = budget.subtotal || totalUSD;
+        const discountPct = budget.discountPct || 0;
+        const paymentMode = budget.paymentTerms || 'Contado';
+
+        const msg = WhatsAppService.generateBudgetMessage(patient, items, totalUSD, paymentMode, '', subtotalUSD, discountPct, paymentMode, budget.id);
+        WhatsAppService.sendToPatient(patient.phone, msg);
+    } catch(err) {
+        console.error("Error sending budget via WhatsApp:", err);
+        Swal.fire({ icon: 'error', title: 'Error', text: err.message || err });
+    }
+};
 
 window.finalizeBudgetDirect = async function(budgetId) {
     try {
