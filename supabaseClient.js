@@ -219,7 +219,7 @@ class SupabaseDataService {
         try {
             const { data, error } = await supabaseClient.from('patients').select('*');
             if (error) throw error;
-            if (data && data.length > 0) {
+            if (data) {
                 // Filter out system configuration or invoice/budget records stored in patients table
                 const realPatients = data.filter(p => {
                     if (!p.id) return false;
@@ -263,7 +263,7 @@ class SupabaseDataService {
                 localStorage.setItem('dental_patients', JSON.stringify(mapped));
                 return mapped;
             }
-            return JSON.parse(localStorage.getItem('dental_patients')) || (typeof INITIAL_PATIENTS !== 'undefined' ? INITIAL_PATIENTS : []);
+            return [];
         } catch (err) {
             console.error('Supabase getPatients Error:', err);
             return JSON.parse(localStorage.getItem('dental_patients')) || (typeof INITIAL_PATIENTS !== 'undefined' ? INITIAL_PATIENTS : []);
@@ -343,7 +343,7 @@ class SupabaseDataService {
         try {
             const { data, error } = await supabaseClient.from('appointments').select('*');
             if (error) throw error;
-            if (data && data.length > 0) {
+            if (data) {
                 const mapped = data.map(a => ({
                     id: a.id,
                     patientId: a.patient_id,
@@ -357,7 +357,7 @@ class SupabaseDataService {
                 localStorage.setItem('dental_appointments', JSON.stringify(mapped));
                 return mapped;
             }
-            return JSON.parse(localStorage.getItem('dental_appointments')) || (typeof INITIAL_APPOINTMENTS !== 'undefined' ? INITIAL_APPOINTMENTS : []);
+            return [];
         } catch (err) {
             console.error('Supabase getAppointments Error:', err);
             return JSON.parse(localStorage.getItem('dental_appointments')) || (typeof INITIAL_APPOINTMENTS !== 'undefined' ? INITIAL_APPOINTMENTS : []);
