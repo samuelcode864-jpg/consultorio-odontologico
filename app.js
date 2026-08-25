@@ -1258,9 +1258,14 @@ async function renderOdontogramView() {
 
 async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
     if (mode === 'clear') {
-        currentBudgetItems = currentBudgetItems.filter(item => item.key !== key);
+        currentBudgetItems = currentBudgetItems.filter(item => item.key !== key && item.key !== `${toothNumber}-absence`);
         await autoSaveActivePatientOdontogram();
         renderBudgetTable();
+        return;
+    }
+
+    if (mode === 'absence') {
+        await autoSaveActivePatientOdontogram();
         return;
     }
 

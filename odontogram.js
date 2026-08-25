@@ -213,6 +213,34 @@ class OdontogramEngine {
             svg.appendChild(el);
         });
 
+        // Check for tooth absence marking (X completa sobre el diente)
+        const isAbsent = !!this.toothData[`${toothNumber}-absence`] || this.toothData[`${toothNumber}-all`] === 'absence' || this.toothData[`${toothNumber}`] === 'absence';
+        if (isAbsent) {
+            const line1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line1.setAttribute('x1', '2');
+            line1.setAttribute('y1', '2');
+            line1.setAttribute('x2', '38');
+            line1.setAttribute('y2', '38');
+            line1.setAttribute('stroke', '#dc2626');
+            line1.setAttribute('stroke-width', '3.5');
+            line1.setAttribute('stroke-linecap', 'round');
+            line1.setAttribute('class', 'tooth-absence-x');
+            svg.appendChild(line1);
+
+            const line2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line2.setAttribute('x1', '38');
+            line2.setAttribute('y1', '2');
+            line2.setAttribute('x2', '2');
+            line2.setAttribute('y2', '38');
+            line2.setAttribute('stroke', '#dc2626');
+            line2.setAttribute('stroke-width', '3.5');
+            line2.setAttribute('stroke-linecap', 'round');
+            line2.setAttribute('class', 'tooth-absence-x');
+            svg.appendChild(line2);
+            
+            box.classList.add('is-absent');
+        }
+
         box.appendChild(svg);
         
         if (!isUpper) {
@@ -224,9 +252,25 @@ class OdontogramEngine {
 
     handleFaceClick(toothNumber, faceId, key, el) {
         if (this.readOnly) return;
+        
+        if (this.currentMode === 'absence') {
+            const absenceKey = `${toothNumber}-absence`;
+            if (this.toothData[absenceKey]) {
+                delete this.toothData[absenceKey];
+            } else {
+                this.toothData[absenceKey] = 'absence';
+            }
+            this.render();
+            if (this.onFaceClickCallback) {
+                this.onFaceClickCallback(toothNumber, 'all', 'absence', absenceKey);
+            }
+            return;
+        }
+
         if (this.currentMode === 'clear') {
+            delete this.toothData[`${toothNumber}-absence`];
             delete this.toothData[key];
-            el.setAttribute('class', 'tooth-face');
+            this.render();
         } else {
             this.toothData[key] = this.currentMode;
             el.setAttribute('class', `tooth-face ${this.currentMode}`);
@@ -239,8 +283,9 @@ class OdontogramEngine {
 
     handleFaceRightClick(toothNumber, faceId, key, el) {
         if (this.readOnly) return;
+        delete this.toothData[`${toothNumber}-absence`];
         delete this.toothData[key];
-        el.setAttribute('class', 'tooth-face');
+        this.render();
 
         if (this.onFaceClickCallback) {
             this.onFaceClickCallback(toothNumber, faceId, 'clear', key);
