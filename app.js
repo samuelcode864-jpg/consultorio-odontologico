@@ -1855,6 +1855,25 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
 
                 window.ehrInitialOdontogram = new OdontogramEngine('od-snap-initial', { initialData: initOdData, isPediatric: isPedi, readOnly: true });
                 window.ehrCurrentOdontogram = new OdontogramEngine('od-snap-current', { initialData: currentOdData, isPediatric: isPedi, readOnly: true });
+
+                // Mostrar fechas de diagnóstico inicial y de última actualización
+                const initDateStr = (activePatient.metadata && activePatient.metadata.initialDiagnosisDate) || (activeApprovedBudget && activeApprovedBudget.date) || activePatient.createdAt || 'Inicial';
+                const initDateEl = document.getElementById('ehr-od-initial-date');
+                if (initDateEl) initDateEl.innerHTML = `<i class="fa-regular fa-calendar"></i> Registro Inicial: ${initDateStr}`;
+
+                let lastUpdateStr = '';
+                if (activePatient.sessions && activePatient.sessions.length > 0) {
+                    const latestSession = activePatient.sessions[activePatient.sessions.length - 1];
+                    lastUpdateStr = latestSession.datetime ? latestSession.datetime.replace('T', ' ') : latestSession.date;
+                }
+                if (!lastUpdateStr && activePatient.metadata && activePatient.metadata.odontogramLastUpdated) {
+                    lastUpdateStr = activePatient.metadata.odontogramLastUpdated;
+                }
+                if (!lastUpdateStr) {
+                    lastUpdateStr = (activeApprovedBudget && activeApprovedBudget.date) || activePatient.createdAt || new Date().toISOString().split('T')[0];
+                }
+                const currDateEl = document.getElementById('ehr-od-current-date');
+                if (currDateEl) currDateEl.innerHTML = `<i class="fa-solid fa-clock-rotate-left"></i> Actualizado: ${lastUpdateStr}`;
             }
 
             // Cálculo dinámico del total de sesiones requeridas
@@ -3617,6 +3636,10 @@ function initGlobalEvents() {
                     }
                 }
             }
+
+            // Registrar fecha de actualización del odontodiagrama
+            if (!patient.metadata) patient.metadata = {};
+            patient.metadata.odontogramLastUpdated = datetime || new Date().toISOString().replace('T', ' ').substring(0, 16);
 
             // Record payment in patient payments history if any
             if (paymentUSD > 0) {

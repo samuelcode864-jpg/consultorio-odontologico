@@ -18,7 +18,7 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=97">
+    <link rel="stylesheet" href="styles.css?v=98">
 </head>
 <body class="light-theme">
 
@@ -860,15 +860,21 @@
                                         </div>
                                     </div>
 
-                                    <!-- SUBTAB 3: Odontograma (Comparación Inicial vs Actual) -->
+                                    <!-- SUBTAB 3: Odontodiagrama (Comparación Inicial vs Actual con Fechas) -->
                                     <div id="subtab-odontogram-comp" class="subtab-content">
                                         <div class="odontogram-comparison-grid">
                                             <div class="comparison-box">
-                                                <h4>Odontodiagrama Inicial (Diagnóstico)</h4>
+                                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                                                    <h4 style="margin: 0; font-weight: 700; color: var(--text-main);"><i class="fa-solid fa-tooth text-cyan"></i> Odontodiagrama Inicial (Diagnóstico)</h4>
+                                                    <span class="badge-tag" id="ehr-od-initial-date" style="background: #e0f2fe; color: #0369a1; font-weight: 600; font-size: 0.8rem; padding: 4px 10px; border-radius: 12px;"><i class="fa-regular fa-calendar"></i> Fecha: -</span>
+                                                </div>
                                                 <div id="ehr-od-initial-view" class="comparison-od-wrapper"></div>
                                             </div>
                                             <div class="comparison-box">
-                                                <h4>Odontodiagrama Actualizado (Evolución)</h4>
+                                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                                                    <h4 style="margin: 0; font-weight: 700; color: var(--text-main);"><i class="fa-solid fa-tooth text-green"></i> Odontodiagrama Actualizado (Evolución)</h4>
+                                                    <span class="badge-tag green" id="ehr-od-current-date" style="font-weight: 600; font-size: 0.8rem; padding: 4px 10px; border-radius: 12px; background: rgba(5, 150, 105, 0.12); color: #059669;"><i class="fa-solid fa-clock-rotate-left"></i> Actualizado: -</span>
+                                                </div>
                                                 <div id="ehr-od-current-view" class="comparison-od-wrapper"></div>
                                             </div>
                                         </div>
@@ -2921,12 +2927,12 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=97"></script>
-    <script src="supabaseClient.js?v=97"></script>
-    <script src="odontogram.js?v=97"></script>
-    <script src="signature.js?v=97"></script>
-    <script src="whatsapp.js?v=97"></script>
-    <script src="kardex.js?v=97"></script>
-    <script src="app.js?v=97"></script>
+    <script src="seededData.js?v=98"></script>
+    <script src="supabaseClient.js?v=98"></script>
+    <script src="odontogram.js?v=98"></script>
+    <script src="signature.js?v=98"></script>
+    <script src="whatsapp.js?v=98"></script>
+    <script src="kardex.js?v=98"></script>
+    <script src="app.js?v=98"></script>
 </body>
 </html>
