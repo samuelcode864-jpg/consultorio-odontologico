@@ -1069,7 +1069,7 @@ async function renderBudgetListView() {
                 <td style="text-align: center;">
                     <div style="display: flex; gap: 4px; justify-content: center;">
                         <button class="btn btn-xs btn-outline" onclick="loadBudgetIntoEditor('${b.id}')" style="padding: 4px 8px; font-weight:600; border-radius:4px; cursor: pointer;"><i class="fa-solid fa-folder-open"></i> Abrir</button>
-                        ${isApproved ? `<button class="btn btn-xs btn-success" onclick="closeBudgetFinanciallyDirect('${b.id}')" style="padding: 4px 8px; font-weight:600; border-radius:4px; cursor: pointer; background:#10b981; border:none; color:#fff;" title="Cerrar Financieramente con Factura Física"><i class="fa-solid fa-check-double"></i> Cerrar Físico</button>` : ''}
+                        ${isApproved ? `<button class="btn btn-xs btn-success" onclick="window.finalizeBudgetDirect('${b.id}')" style="padding: 4px 8px; font-weight:600; border-radius:4px; cursor: pointer; background:#10b981; border:none; color:#fff;" title="Finalizar Tratamiento / Presupuesto"><i class="fa-solid fa-circle-check"></i> Finalizar</button>` : ''}
                     </div>
                 </td>
             `;
@@ -1077,6 +1077,181 @@ async function renderBudgetListView() {
         });
     }
 }
+
+window.finalizeBudgetDirect = async function(budgetId) {
+    try {
+        const invoices = await SupabaseDataService.getInvoices();
+        const budget = invoices.find(inv => inv.id === budgetId);
+        if (!budget) {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'No se encontró el presupuesto especificado.' });
+            return;
+        }
+
+        const patients = await SupabaseDataService.getPatients();
+        const patient = patients.find(p => String(p.id) === String(budget.patientId)) || { fullname: 'Paciente', id: budget.patientId };
+
+        const totalUSD = budget.totalRef || budget.totalUSD || 0;
+
+        const { value: formValues } = await Swal.fire({
+            title: `<i class="fa-solid fa-circle-check text-green"></i> Finalizar Tratamiento / Presupuesto`,
+            html: `
+                <div style="text-align: left; font-size: 0.92rem; display: flex; flex-direction: column; gap: 12px;">
+                    <div style="background: rgba(5,150,105,0.08); padding: 12px; border-radius: 8px; border: 1px solid rgba(5,150,105,0.2);">
+                        <div><strong>Paciente:</strong> ${patient.fullname} (${patient.id})</div>
+                        <div><strong>Presupuesto N°:</strong> ${budget.id}</div>
+                        <div><strong>Monto Total:</strong> <span style="color:#059669; font-weight:bold; font-size:1.1rem;">$${totalUSD.toFixed(2)}</span></div>
+                    </div>
+                    
+                    <div>
+                        <label style="font-weight: 600; display: block; margin-bottom: 4px;">N° de Control / Factura o Recibo Físico (Opcional):</label>
+                        <input id="swal-finalize-num" class="swal2-input" style="margin: 0; width: 100%;" placeholder="Ej: REC-00${budget.id.replace(/[^0-9]/g,'') || '101'}" value="REC-${budget.id}">
+                    </div>
+
+                    <div>
+                        <label style="font-weight: 600; display: block; margin-bottom: 4px;">Método de Liquidación / Cierre:</label>
+                        <select id="swal-finalize-method" class="swal2-select" style="margin: 0; width: 100%; display: block;">
+                            <option value="cash">Dólares Efectivo ($ USD)</option>
+                            <option value="zelle">Zelle ($ USD)</option>
+                            <option value="transfer_bs">Transferencia / Pago Móvil (Bs.)</option>
+                            <option value="pos">Punto de Venta (Bs.)</option>
+                            <option value="mixed">Pago Mixto / Múltiples Métodos</option>
+                            <option value="already_settled">Ya Liquidado / Pagado Previamente</option>
+                        </select>
+                    </div>
+
+                    <div style="margin-top: 5px;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 4px;">Notas o Observaciones Finales:</label>
+                        <textarea id="swal-finalize-notes" class="swal2-textarea" style="margin: 0; width: 100%; height: 60px;" placeholder="Tratamiento completado satisfactoriamente."></textarea>
+                    </div>
+                </div>
+            `,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: '<i class="fa-solid fa-check-circle"></i> Confirmar y Finalizar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#10b981',
+            cancelButtonColor: '#64748b',
+            preConfirm: () => {
+                return {
+                    receiptNum: document.getElementById('swal-finalize-num').value.trim(),
+                    method: document.getElementById('swal-finalize-method').value,
+                    notes: document.getElementById('swal-finalize-notes').value.trim()
+                };
+            }
+        });
+
+        if (!formValues) return;
+
+        // 1. Update invoice in Supabase
+        budget.status = 'Facturado';
+        budget.paymentTerms = 'Contado';
+        budget.finalizedDate = new Date().toISOString().split('T')[0];
+        budget.receiptNumber = formValues.receiptNum;
+        budget.closureMethod = formValues.method;
+        budget.closureNotes = formValues.notes;
+        await SupabaseDataService.saveInvoice(budget);
+
+        // 2. Update patient treatment status & payments
+        const pat = patients.find(p => String(p.id) === String(budget.patientId));
+        if (pat) {
+            if (!pat.metadata) pat.metadata = {};
+            pat.metadata.treatmentStatus = 'Finalizado';
+            pat.metadata.lastFinalizedBudget = budget.id;
+            
+            // Complete all treatments in metadata
+            if (pat.metadata.treatments && pat.metadata.treatments.length > 0) {
+                pat.metadata.treatments.forEach(t => {
+                    t.status = 'Completado';
+                });
+            }
+
+            // Register final payment entry if not already registered
+            if (!pat.payments) pat.payments = [];
+            const alreadyPaid = pat.payments.some(p => p.concept && p.concept.includes(budget.id));
+            if (!alreadyPaid && formValues.method !== 'already_settled') {
+                pat.payments.unshift({
+                    date: new Date().toISOString().split('T')[0],
+                    concept: `Liquidación Final Presupuesto #${budget.id} (${formValues.receiptNum || 'Recibo'})`,
+                    totalUSD: totalUSD,
+                    paidUSD: totalUSD,
+                    balanceUSD: 0.00,
+                    status: 'Pagado',
+                    method: formValues.method
+                });
+            }
+
+            await SupabaseDataService.savePatient(pat);
+        }
+
+        // 3. Refresh views
+        await renderOdontogramHistoryTable();
+        await renderPatientsTable();
+        await renderEHRView();
+        await renderDashboard();
+        if (typeof renderFinanceView === 'function') await renderFinanceView();
+
+        Swal.fire({
+            icon: 'success',
+            title: '¡Tratamiento / Presupuesto Finalizado!',
+            text: `El presupuesto ${budget.id} ha sido finalizado con éxito.`,
+            timer: 2200,
+            showConfirmButton: false
+        });
+    } catch(err) {
+        console.error("Error finalizing budget:", err);
+        Swal.fire({ icon: 'error', title: 'Error al Finalizar', text: err.message || err });
+    }
+};
+
+window.closeBudgetFinanciallyDirect = window.finalizeBudgetDirect;
+
+window.finalizePatientTreatment = async function(patientId) {
+    try {
+        const invoices = await SupabaseDataService.getInvoices();
+        const patientBudgets = invoices.filter(inv => String(inv.patientId) === String(patientId));
+        const activeBudget = patientBudgets.find(b => b.status === 'Aprobado') || patientBudgets[0];
+
+        if (activeBudget) {
+            await window.finalizeBudgetDirect(activeBudget.id);
+        } else {
+            // Patient has no formal invoice, finalize directly
+            const patients = await SupabaseDataService.getPatients();
+            const pat = patients.find(p => String(p.id) === String(patientId));
+            if (!pat) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'No se encontró el paciente.' });
+                return;
+            }
+
+            const { isConfirmed } = await Swal.fire({
+                title: `<i class="fa-solid fa-circle-check text-green"></i> Finalizar Tratamiento`,
+                text: `¿Desea marcar como "Finalizado" el ciclo de tratamiento de ${pat.fullname}?`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, Finalizar Tratamiento',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#64748b'
+            });
+
+            if (isConfirmed) {
+                if (!pat.metadata) pat.metadata = {};
+                pat.metadata.treatmentStatus = 'Finalizado';
+                pat.status = 'Activo';
+                if (pat.metadata.treatments) {
+                    pat.metadata.treatments.forEach(t => t.status = 'Completado');
+                }
+                await SupabaseDataService.savePatient(pat);
+                await renderPatientsTable();
+                await renderEHRView();
+                await renderDashboard();
+                Swal.fire({ icon: 'success', title: 'Tratamiento Finalizado', text: `El tratamiento de ${pat.fullname} ha sido finalizado exitosamente.`, timer: 2000, showConfirmButton: false });
+            }
+        }
+    } catch(err) {
+        console.error("Error finalizing patient treatment:", err);
+        Swal.fire({ icon: 'error', title: 'Error', text: err.message || err });
+    }
+};
 
 window.loadBudgetIntoEditor = async function(budgetId) {
     const listContainer = document.getElementById('odontogram-list-container');
@@ -1569,6 +1744,7 @@ async function renderPatientsTable(filter = 'all', searchQuery = '') {
             <td>
                 <div class="actions-cell-group">
                     <button class="btn btn-xs btn-outline" style="border-color:#0891b2; color:#0891b2;" onclick="window.editPatient('${p.id}')" title="Editar Ficha / Historia"><i class="fa-solid fa-pen-to-square"></i> <span class="btn-text-full">Editar</span></button>
+                    <button class="btn btn-xs btn-success" style="background:#10b981; border:none; color:#fff;" onclick="window.finalizePatientTreatment('${p.id}')" title="Finalizar Tratamiento / Presupuesto"><i class="fa-solid fa-circle-check"></i> <span class="btn-text-full">Finalizar</span></button>
                     <button class="btn btn-xs btn-primary" onclick="selectPatientForOdontogram('${p.id}')" title="Emitir Presupuesto"><i class="fa-solid fa-tooth"></i> Presupuesto</button>
                     <button class="btn btn-xs btn-outline" onclick="openEHRForPatient('${p.id}')" title="Ver Historia"><i class="fa-solid fa-folder-open"></i> EHR</button>
                     ${deleteBtnHtml}
