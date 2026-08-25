@@ -3085,43 +3085,9 @@ async function renderDashboard() {
         });
     }
 
-    const popularList = document.getElementById('popular-treatments-list');
-    if (popularList) {
-        popularList.innerHTML = `
-            <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border-color);">
-                <span>Restauración Resina Fotocurada</span>
-                <span class="badge-tag cyan">24 asistencias</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border-color);">
-                <span>Limpieza Ultrasónica + Profilaxis</span>
-                <span class="badge-tag cyan">18 asistencias</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border-color);">
-                <span>Tratamiento de Conducto (Endodoncia)</span>
-                <span class="badge-tag cyan">9 asistencias</span>
-            </div>
-        `;
-    }
-
-    window.checkGlobalStockAlerts();
-
     // Dynamic currency symbols for dashboard metrics
     const activeCurrency = localStorage.getItem('dental_exchange_currency') || 'USD';
     const curSymbol = activeCurrency === 'EUR' ? '€' : '$';
-    
-    const metricToday = document.getElementById('metric-today-income');
-    if (metricToday) metricToday.innerText = `${curSymbol}420.00`;
-    
-    const metricMonth = document.getElementById('metric-month-income');
-    if (metricMonth) metricMonth.innerText = `${curSymbol}4,850.00`;
-    
-    const metricReceivables = document.getElementById('metric-receivables');
-    if (metricReceivables) metricReceivables.innerText = `${curSymbol}640.00`;
-
-    const targetLabel = document.querySelector('#metric-month-income + .text-muted');
-    if (targetLabel) {
-        targetLabel.innerText = `Meta mensual: ${curSymbol}6,000`;
-    }
 
     const dayIcon = document.querySelector('.stat-card.border-cyan .stat-icon i');
     if (dayIcon) {
@@ -3132,12 +3098,49 @@ async function renderDashboard() {
         }
     }
 
-    // Calculate attended patients count for today
     try {
         const allPatients = await SupabaseDataService.getPatients();
+        const allInvoices = await SupabaseDataService.getInvoices();
         const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local format
+        const monthStr = todayStr.substring(0, 7); // YYYY-MM
+
+        let todayIncome = 0;
+        let monthIncome = 0;
+        let totalReceivables = 0;
+        const debtorPatientsSet = new Set();
         let attendedCount = 0;
+        const procedureCounts = {};
+
         allPatients.forEach(p => {
+            // 1. Pagos y abonos del paciente
+            (p.payments || []).forEach(pay => {
+                const payDate = pay.date ? pay.date.split('T')[0] : '';
+                const paid = parseFloat(pay.paidUSD || 0);
+                const debt = parseFloat(pay.balanceUSD || 0);
+
+                if (payDate === todayStr) {
+                    todayIncome += paid;
+                }
+                if (payDate.startsWith(monthStr)) {
+                    monthIncome += paid;
+                }
+                if (debt > 0) {
+                    totalReceivables += debt;
+                    debtorPatientsSet.add(p.id);
+                }
+            });
+
+            // 2. Sesiones clínicas
+            (p.sessions || []).forEach(s => {
+                if (s.procedure) {
+                    const procName = s.procedure.split('(')[0].trim();
+                    if (procName) {
+                        procedureCounts[procName] = (procedureCounts[procName] || 0) + 1;
+                    }
+                }
+            });
+
+            // 3. Pacientes atendidos hoy
             let hasSessionToday = false;
             if (p.sessions && p.sessions.length > 0) {
                 hasSessionToday = p.sessions.some(s => s.datetime && s.datetime.startsWith(todayStr));
@@ -3151,13 +3154,75 @@ async function renderDashboard() {
             }
         });
 
+        // 4. Presupuestos y facturas emitidas vs aprobadas
+        let totalBudgets = 0;
+        let approvedBudgets = 0;
+        (allInvoices || []).forEach(inv => {
+            const isBudget = inv.id.startsWith('PRE-') || (inv.items && inv.items.length > 0);
+            if (isBudget) {
+                totalBudgets++;
+                if (inv.status === 'Aprobado' || inv.status === 'Pagada' || inv.status === 'Pagado') {
+                    approvedBudgets++;
+                }
+            }
+        });
+
+        const conversionPct = totalBudgets > 0 ? Math.round((approvedBudgets / totalBudgets) * 100) : 0;
+
+        // Render Cards
+        const metricToday = document.getElementById('metric-today-income');
+        if (metricToday) metricToday.innerText = `${curSymbol}${todayIncome.toFixed(2)}`;
+
+        const trendToday = document.getElementById('metric-today-trend');
+        if (trendToday) trendToday.innerHTML = `<i class="fa-solid fa-circle-dollar-to-slot"></i> ${curSymbol}${todayIncome.toFixed(2)} hoy`;
+
+        const metricMonth = document.getElementById('metric-month-income');
+        if (metricMonth) metricMonth.innerText = `${curSymbol}${monthIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+        const subMonth = document.getElementById('metric-month-sub');
+        if (subMonth) subMonth.innerText = `Total cobrado en ${new Date().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}`;
+
+        const metricConversion = document.getElementById('metric-conversion');
+        if (metricConversion) metricConversion.innerText = `${conversionPct}%`;
+
+        const subConversion = document.getElementById('metric-conversion-sub');
+        if (subConversion) subConversion.innerText = `${approvedBudgets} Aprobados de ${totalBudgets} Emitidos`;
+
+        const metricReceivables = document.getElementById('metric-receivables');
+        if (metricReceivables) metricReceivables.innerText = `${curSymbol}${totalReceivables.toFixed(2)}`;
+
+        const subReceivables = document.getElementById('metric-receivables-sub');
+        if (subReceivables) subReceivables.innerText = `${debtorPatientsSet.size} ${debtorPatientsSet.size === 1 ? 'paciente' : 'pacientes'} con saldo pendiente`;
+
         const metricAttendedToday = document.getElementById('metric-attended-today');
-        if (metricAttendedToday) {
-            metricAttendedToday.innerText = attendedCount.toString();
+        if (metricAttendedToday) metricAttendedToday.innerText = attendedCount.toString();
+
+        // Render Popular Treatments
+        const popularList = document.getElementById('popular-treatments-list');
+        if (popularList) {
+            const sortedProcedures = Object.entries(procedureCounts).sort((a, b) => b[1] - a[1]).slice(0, 4);
+            if (sortedProcedures.length > 0) {
+                popularList.innerHTML = sortedProcedures.map(([proc, count]) => `
+                    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border-color);">
+                        <span style="font-weight:600; color:var(--text-main); font-size:0.85rem;">${proc}</span>
+                        <span class="badge-tag cyan">${count} ${count === 1 ? 'asistencia' : 'asistencias'}</span>
+                    </div>
+                `).join('');
+            } else {
+                popularList.innerHTML = `
+                    <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.84rem;">
+                        <i class="fa-solid fa-chart-pie" style="font-size: 1.5rem; margin-bottom: 6px; display: block; opacity: 0.5;"></i>
+                        Sin procedimientos registrados aún.<br>Al atender sesiones o presupuestos aparecerán aquí las estadísticas en tiempo real.
+                    </div>
+                `;
+            }
         }
+
     } catch (e) {
-        console.warn("Error calculating attended patients for dashboard:", e);
+        console.warn("Error calculating real metrics for dashboard:", e);
     }
+
+    window.checkGlobalStockAlerts();
 }
 
 window.deleteAppointment = async function(apptId) {
