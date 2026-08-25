@@ -1918,11 +1918,15 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                 timeline.appendChild(trtSection);
             }
 
-            // 2. Renderizar Sesiones Realizadas
-            if (activePatient.sessions && activePatient.sessions.length > 0) {
-                const sortedSessions = [...activePatient.sessions].sort((a, b) => a.sessionNum - b.sessionNum);
-                
-                sortedSessions.forEach(s => {
+            // 2. Renderizar Línea de Tiempo de Sesiones (1 a Total): Flexibilidad total para atender en cualquier orden
+            const patientSessions = activePatient.sessions || [];
+
+            for (let sNum = 1; sNum <= totalSessions; sNum++) {
+                const s = patientSessions.find(sess => sess.sessionNum === sNum);
+                const trtItem = treatmentsList[sNum - 1];
+
+                if (s) {
+                    // SESIÓN REALIZADA
                     let matsHtml = '';
                     if (s.materials && s.materials.length > 0) {
                         matsHtml = '<div style="margin-top:8px; font-size:0.75rem; color:#64748b;"><strong>Insumos descargados:</strong> ';
@@ -1960,27 +1964,22 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                         </div>` : ''}
                     `;
                     timeline.appendChild(div);
-                });
-            }
-
-            // 3. Renderizar Sesiones Pendientes (si faltan sesiones por atender)
-            if (pendingSessions > 0) {
-                for (let sNum = completedSessions + 1; sNum <= totalSessions; sNum++) {
-                    // Obtener nombre del procedimiento correspondiente a esta sesión si está en el plan
-                    const trtItem = treatmentsList[sNum - 1];
-                    const procHint = trtItem ? `Procedimiento planificado: <strong>${trtItem.name}</strong> (Pieza ${trtItem.tooth || 'Gnl'})` : 'Continuación del plan de tratamiento';
+                } else {
+                    // SESIÓN PENDIENTE POR ATENDER
+                    const procHint = trtItem ? `Procedimiento asignado: <strong>${trtItem.name}</strong> (Pieza ${trtItem.tooth || 'Gnl'})` : 'Continuación del plan de tratamiento';
+                    const defaultProcName = trtItem ? trtItem.name : `Sesión #${sNum}`;
 
                     const pendingDiv = document.createElement('div');
                     pendingDiv.className = 'timeline-item timeline-item-pending';
                     pendingDiv.innerHTML = `
                         <div class="timeline-meta" style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 6px;">
-                            <span><strong style="color:#f59e0b;"><i class="fa-solid fa-hourglass-half"></i> Sesión N° ${sNum}</strong> — <span class="badge-tag amber">⏳ Pendiente por Atender</span></span>
+                            <span><strong style="color:#f59e0b;"><i class="fa-solid fa-hourglass-half"></i> Sesión N° ${sNum}</strong> — <span class="badge-tag amber">⏳ Pendiente</span></span>
                             <div style="display: flex; gap: 6px; align-items: center;">
-                                <button class="btn btn-xs btn-outline" style="border-color:var(--primary-cyan); color:var(--primary-cyan);" onclick="window.openAppointmentModalForPatient('${activePatient.id}', ${sNum}, '${(trtItem && trtItem.name) || 'Sesión #' + sNum}')">
-                                    <i class="fa-solid fa-calendar-plus"></i> Agendar Cita
+                                <button class="btn btn-xs btn-outline" style="border-color:var(--primary-cyan); color:var(--primary-cyan);" onclick="window.openAppointmentModalForPatient('${activePatient.id}', ${sNum}, '${defaultProcName}')" title="Agendar esta sesión en la Agenda">
+                                    <i class="fa-solid fa-calendar-plus"></i> Agendar
                                 </button>
-                                <button class="btn btn-xs btn-primary" onclick="window.openSessionModalForPatient('${activePatient.id}', ${sNum}, '${(trtItem && trtItem.name) || ''}')">
-                                    <i class="fa-solid fa-stethoscope"></i> Atender Sesión Ahora
+                                <button class="btn btn-xs btn-primary" style="background-color:var(--primary-cyan) !important; color:white !important;" onclick="window.openSessionModalForPatient('${activePatient.id}', ${sNum}, '${defaultProcName}')" title="Atender esta sesión ahora">
+                                    <i class="fa-solid fa-stethoscope"></i> Atender Sesión N° ${sNum}
                                 </button>
                             </div>
                         </div>
@@ -1990,31 +1989,37 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                 }
             }
 
-            if (!activePatient.sessions || activePatient.sessions.length === 0) {
-                if (pendingSessions === 0) {
-                    timeline.innerHTML = `<p class="text-muted text-center" style="padding:16px;"><i class="fa-solid fa-notes-medical" style="display:block; font-size:1.8rem; margin-bottom:8px;"></i>No hay sesiones registradas en este paciente. Haga clic en "+ Registrar Nueva Sesión" para iniciar su tratamiento.</p>`;
-                }
-            }
+            // 3. Renderizar Sesiones adicionales fuera del plan (si hubiere)
+            const extraSessions = patientSessions.filter(sess => sess.sessionNum > totalSessions);
+            extraSessions.forEach(s => {
+                const div = document.createElement('div');
+                div.className = 'timeline-item timeline-item-completed';
+                div.innerHTML = `
+                    <div class="timeline-meta" style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 6px;">
+                        <span><strong style="color:#10b981;"><i class="fa-solid fa-circle-check"></i> Sesión Extra N° ${s.sessionNum}</strong> — <i class="fa-solid fa-clock"></i> ${s.datetime}</span>
+                        <div style="display: flex; gap: 4px; align-items: center;">
+                            <span class="badge-tag green">✓ Realizada</span>
+                        </div>
+                    </div>
+                    <p style="margin:8px 0; font-size:0.88rem; color:var(--text-heading);">${s.procedure}</p>
+                `;
+                timeline.appendChild(div);
+            });
 
-            // Bind sessions add button
+            // Bind sessions add button (Permite registrar cualquier sesión libremente)
             const addSessBtn = document.getElementById('btn-add-session');
             if (addSessBtn) {
                 addSessBtn.onclick = async () => {
-                    const nextNum = completedSessions + 1;
-                    const trtItem = treatmentsList[completedSessions];
-                    const defaultProc = trtItem ? trtItem.name : '';
+                    // Encontrar la primera sesión que falte por atender
+                    let nextSuggestedNum = 1;
+                    for (let n = 1; n <= totalSessions + 1; n++) {
+                        if (!patientSessions.some(ps => ps.sessionNum === n)) {
+                            nextSuggestedNum = n;
+                            break;
+                        }
+                    }
 
-                    document.getElementById('s-num').value = nextNum;
-                    document.getElementById('s-datetime').value = new Date().toISOString().slice(0, 16);
-                    document.getElementById('s-procedure').value = defaultProc;
-                    document.getElementById('s-next-notes').value = '';
-
-                    const inventory = await SupabaseDataService.getInventory();
-                    const container = document.getElementById('session-materials-container');
-                    renderSessionMaterialsList(inventory, container);
-
-                    window.sessionSigPad = setupSignaturePad('session-signature-canvas', 'btn-clear-session-signature');
-                    openModal('modal-session');
+                    await window.openSessionModalForPatient(activePatient.id, nextSuggestedNum, '');
                 };
             }
 
@@ -2822,10 +2827,42 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
             return;
         }
 
-        document.getElementById('s-num').value = sessionNum;
+        const numInput = document.getElementById('s-num');
+        if (numInput) numInput.value = sessionNum;
+        
         document.getElementById('s-datetime').value = new Date().toISOString().slice(0, 16);
         document.getElementById('s-procedure').value = procedureName || `Sesión N° ${sessionNum}`;
         document.getElementById('s-next-notes').value = '';
+
+        // Populate planned treatments selector
+        const trtSelect = document.getElementById('s-planned-treatment-select');
+        if (trtSelect) {
+            trtSelect.innerHTML = '<option value="">-- Personalizado / Escribir manualmente --</option>';
+            const trts = (patient.metadata && patient.metadata.treatments) || [];
+            trts.forEach((t, idx) => {
+                const opt = document.createElement('option');
+                const tNum = t.sessionNum || (idx + 1);
+                opt.value = tNum;
+                opt.dataset.name = t.name;
+                opt.dataset.tooth = t.tooth || 'Gnl';
+                opt.innerText = `Sesión ${tNum}: ${t.name} (Pieza ${t.tooth || 'Gnl'}) - ${t.status || 'Planificado'}`;
+                if (parseInt(tNum) === parseInt(sessionNum)) {
+                    opt.selected = true;
+                }
+                trtSelect.appendChild(opt);
+            });
+
+            trtSelect.onchange = () => {
+                const chosenNum = trtSelect.value;
+                if (chosenNum) {
+                    if (numInput) numInput.value = chosenNum;
+                    const selOpt = trtSelect.options[trtSelect.selectedIndex];
+                    const procName = selOpt ? selOpt.dataset.name : '';
+                    const toothName = selOpt ? selOpt.dataset.tooth : '';
+                    document.getElementById('s-procedure').value = `${procName} (Pieza ${toothName})`;
+                }
+            };
+        }
 
         const inventory = await SupabaseDataService.getInventory();
         const container = document.getElementById('session-materials-container');
@@ -3518,7 +3555,13 @@ function initGlobalEvents() {
                 }
             }
 
-            patient.sessions.push(sessionObj);
+            // Check if sessionNum already exists to replace or append
+            const existingIdx = (patient.sessions || []).findIndex(s => s.sessionNum === sessionNum);
+            if (existingIdx >= 0) {
+                patient.sessions[existingIdx] = sessionObj;
+            } else {
+                patient.sessions.push(sessionObj);
+            }
 
             // Update treatments plan in metadata & Odontogram
             if (patient.metadata && patient.metadata.treatments && patient.metadata.treatments.length > 0) {

@@ -18,7 +18,7 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=93">
+    <link rel="stylesheet" href="styles.css?v=94">
 </head>
 <body class="light-theme">
 
@@ -2595,13 +2595,20 @@
                 <form id="form-session">
                     <div class="grid-form" style="grid-template-columns: 1fr 2fr; gap:15px; margin-bottom:15px;">
                         <div class="form-group">
-                            <label>N° de Sesión</label>
-                            <input type="number" id="s-num" readonly style="background-color:#f1f5f9; font-weight:700;">
+                            <label>N° de Sesión *</label>
+                            <input type="number" id="s-num" min="1" required style="font-weight:700; color: var(--primary-cyan);" title="Puede seleccionar cualquier número de sesión">
                         </div>
                         <div class="form-group">
                             <label>Fecha y Hora *</label>
                             <input type="datetime-local" id="s-datetime" required>
                         </div>
+                    </div>
+
+                    <div class="form-group mb-15" id="s-treatment-selector-container">
+                        <label><i class="fa-solid fa-clipboard-list text-cyan"></i> Tratamiento Planificado (Selección Rápida):</label>
+                        <select id="s-planned-treatment-select" class="form-input" style="width: 100%; font-size: 0.88rem;">
+                            <option value="">-- Personalizado / Escribir manualmente --</option>
+                        </select>
                     </div>
 
                     <div class="form-group mb-15">
@@ -2913,12 +2920,12 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=93"></script>
-    <script src="supabaseClient.js?v=93"></script>
-    <script src="odontogram.js?v=93"></script>
-    <script src="signature.js?v=93"></script>
-    <script src="whatsapp.js?v=93"></script>
-    <script src="kardex.js?v=93"></script>
-    <script src="app.js?v=93"></script>
+    <script src="seededData.js?v=94"></script>
+    <script src="supabaseClient.js?v=94"></script>
+    <script src="odontogram.js?v=94"></script>
+    <script src="signature.js?v=94"></script>
+    <script src="whatsapp.js?v=94"></script>
+    <script src="kardex.js?v=94"></script>
+    <script src="app.js?v=94"></script>
 </body>
 </html>
