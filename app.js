@@ -2348,6 +2348,92 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
             } else {
                 payTbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">Sin registro de pagos o saldos pendientes. Haga clic en "+ Registrar Pago / Abono" arriba.</td></tr>`;
             }
+
+            // 6. Galería de Fotos Clínicas & Rayos X
+            renderEHRGallery(activePatient, window.currentEHRGalleryFilter || 'all');
+
+            const filterChips = document.querySelectorAll('#ehr-gallery-filter-chips .check-chip');
+            filterChips.forEach(chip => {
+                chip.onclick = () => {
+                    filterChips.forEach(c => c.classList.remove('active'));
+                    chip.classList.add('active');
+                    renderEHRGallery(activePatient, chip.dataset.galleryFilter);
+                };
+            });
+
+            const openUploadBtn = document.getElementById('btn-open-upload-photo-modal');
+            if (openUploadBtn) {
+                openUploadBtn.onclick = () => {
+                    document.getElementById('form-ehr-photo-upload').reset();
+                    document.getElementById('ehr-photo-preview-container').style.display = 'none';
+                    openModal('modal-ehr-photo-upload');
+                };
+            }
+
+            const photoFileInput = document.getElementById('ehr-modal-photo-file');
+            if (photoFileInput) {
+                photoFileInput.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            const prevImg = document.getElementById('ehr-modal-photo-preview-img');
+                            if (prevImg) {
+                                prevImg.src = event.target.result;
+                                document.getElementById('ehr-photo-preview-container').style.display = 'block';
+                            }
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                };
+            }
+
+            const submitPhotoBtn = document.getElementById('btn-submit-ehr-photo');
+            if (submitPhotoBtn) {
+                submitPhotoBtn.onclick = async (e) => {
+                    e.preventDefault();
+                    const fileInput = document.getElementById('ehr-modal-photo-file');
+                    const category = document.getElementById('ehr-modal-photo-category').value;
+                    const title = document.getElementById('ehr-modal-photo-title').value.trim();
+                    const notes = document.getElementById('ehr-modal-photo-notes').value.trim();
+
+                    if (!fileInput.files[0] || !title) {
+                        Swal.fire({ icon: 'warning', text: 'Por favor seleccione una imagen y escriba un título para el estudio.' });
+                        return;
+                    }
+
+                    const reader = new FileReader();
+                    reader.onload = async (event) => {
+                        const photoBase64 = event.target.result;
+                        const newPhoto = {
+                            id: 'photo_' + Date.now(),
+                            url: photoBase64,
+                            category,
+                            title,
+                            notes,
+                            date: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
+                        };
+
+                        activePatient.metadata = activePatient.metadata || {};
+                        activePatient.metadata.photos = activePatient.metadata.photos || [];
+                        activePatient.metadata.photos.unshift(newPhoto);
+
+                        await SupabaseDataService.updatePatient(activePatient.id, activePatient);
+                        closeModal('modal-ehr-photo-upload');
+
+                        Swal.fire({
+                            icon: 'success',
+                            title: '¡Foto / Rayos X Guardado!',
+                            text: 'El estudio se añadió al álbum clínico del paciente.',
+                            timer: 1800,
+                            showConfirmButton: false
+                        });
+
+                        renderEHRGallery(activePatient, window.currentEHRGalleryFilter || 'all');
+                    };
+                    reader.readAsDataURL(fileInput.files[0]);
+                };
+            }
         }
     }
 
@@ -2367,6 +2453,124 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
         };
     });
 }
+
+window.currentEHRGalleryFilter = 'all';
+
+function renderEHRGallery(patient, filter = 'all') {
+    window.currentEHRGalleryFilter = filter;
+    const container = document.getElementById('ehr-gallery-photos-grid');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const photos = (patient.metadata && patient.metadata.photos) || patient.photos || [];
+    let filteredPhotos = [...photos];
+
+    if (filter !== 'all') {
+        filteredPhotos = filteredPhotos.filter(p => p.category === filter);
+    }
+
+    if (filteredPhotos.length === 0) {
+        container.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align: center; padding: 35px 20px; background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 10px;">
+                <i class="fa-solid fa-camera-retro" style="font-size: 2.2rem; color: #94a3b8; margin-bottom: 10px; display: block;"></i>
+                <h4 style="margin: 0 0 5px 0; color: #475569;">No hay imágenes registradas en esta categoría</h4>
+                <p class="text-muted" style="margin: 0; font-size: 0.85rem;">Haga clic en "+ Subir Foto / Rayos X" para añadir imágenes clínicas al expediente.</p>
+            </div>
+        `;
+        return;
+    }
+
+    filteredPhotos.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'ehr-photo-card';
+        card.style.cssText = `
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+        `;
+
+        let catBadgeColor = '#0284c7';
+        let catBg = '#e0f2fe';
+        if (p.category === 'Antes') { catBadgeColor = '#b45309'; catBg = '#fef3c7'; }
+        else if (p.category === 'Después') { catBadgeColor = '#059669'; catBg = '#d1fae5'; }
+        else if (p.category === 'Radiografía') { catBadgeColor = '#6d28d9'; catBg = '#ede9fe'; }
+
+        const safeTitle = (p.title || 'Foto Clínica').replace(/'/g, "\\'");
+        const safeCat = (p.category || 'Clínica').replace(/'/g, "\\'");
+        const safeDate = (p.date || '').replace(/'/g, "\\'");
+        const safeNotes = (p.notes || '').replace(/'/g, "\\'");
+
+        card.innerHTML = `
+            <div style="height: 150px; background: #0f172a; overflow: hidden; position: relative; cursor: pointer;" onclick="window.openEHRPhotoLightbox('${p.url}', '${safeTitle}', '${safeCat}', '${safeDate}', '${safeNotes}')">
+                <img src="${p.url}" style="width: 100%; height: 100%; object-fit: cover;" alt="${safeTitle}">
+                <span style="position: absolute; top: 8px; left: 8px; font-size: 0.72rem; font-weight: 700; background: ${catBg}; color: ${catBadgeColor}; padding: 2px 8px; border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.2);">${p.category || 'Clínica'}</span>
+            </div>
+            <div style="padding: 10px; flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                    <h5 style="margin: 0 0 4px 0; font-size: 0.88rem; color: #1e293b; line-height: 1.3;" title="${p.title}">${p.title}</h5>
+                    <small class="text-muted" style="font-size: 0.75rem; display: block; margin-bottom: 6px;"><i class="fa-regular fa-calendar"></i> ${p.date || 'Sin fecha'}</small>
+                    ${p.notes ? `<p style="margin: 0; font-size: 0.78rem; color: #64748b; line-height: 1.3; max-height: 36px; overflow: hidden; text-overflow: ellipsis;">${p.notes}</p>` : ''}
+                </div>
+                <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 8px;">
+                    <button class="btn btn-xs btn-outline" style="font-size: 0.75rem; padding: 2px 8px;" onclick="window.openEHRPhotoLightbox('${p.url}', '${safeTitle}', '${safeCat}', '${safeDate}', '${safeNotes}')">
+                        <i class="fa-solid fa-expand"></i> Ver
+                    </button>
+                    <button class="btn btn-xs btn-outline text-red" style="font-size: 0.75rem; padding: 2px 6px;" onclick="window.deleteEHRPhoto('${p.id}')" title="Eliminar Imagen">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+window.openEHRPhotoLightbox = function(url, title, category, date, notes) {
+    const imgEl = document.getElementById('ehr-lightbox-img');
+    const titleEl = document.getElementById('ehr-lightbox-title');
+    const catEl = document.getElementById('ehr-lightbox-category');
+    const dateEl = document.getElementById('ehr-lightbox-date');
+    const notesEl = document.getElementById('ehr-lightbox-notes');
+
+    if (imgEl) imgEl.src = url;
+    if (titleEl) titleEl.innerHTML = `<i class="fa-solid fa-image text-cyan"></i> ${title}`;
+    if (catEl) catEl.innerText = category;
+    if (dateEl) dateEl.innerText = date ? `Fecha: ${date}` : '';
+    if (notesEl) notesEl.innerText = notes || 'Sin notas adicionales.';
+
+    openModal('modal-ehr-lightbox');
+};
+
+window.deleteEHRPhoto = async function(photoId) {
+    Swal.fire({
+        title: '¿Eliminar imagen clínica?',
+        text: 'Esta fotografía o radiografía será eliminada del expediente del paciente.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            const activeId = getActivePatientId();
+            if (!activeId) return;
+            const patients = await SupabaseDataService.getPatients();
+            const patient = patients.find(p => p.id === activeId);
+            if (patient && patient.metadata && patient.metadata.photos) {
+                patient.metadata.photos = patient.metadata.photos.filter(p => p.id !== photoId);
+                await SupabaseDataService.updatePatient(patient.id, patient);
+                renderEHRGallery(patient, window.currentEHRGalleryFilter || 'all');
+                Swal.fire({ icon: 'success', title: 'Imagen eliminada', timer: 1500, showConfirmButton: false });
+            }
+        }
+    });
+};
 
 function setupSignaturePad(canvasId, clearBtnId) {
     const canvas = document.getElementById(canvasId);
@@ -2809,26 +3013,7 @@ async function renderDashboard() {
         `;
     }
 
-    const alertBox = document.getElementById('dashboard-stock-alerts');
-    if (alertBox && window.kardex) {
-        const alerts = window.kardex.getLowStockAlerts();
-        alertBox.innerHTML = '';
-        if (alerts.length > 0) {
-            alerts.forEach(a => {
-                const div = document.createElement('div');
-                div.style.padding = '8px 12px';
-                div.style.borderRadius = '6px';
-                div.style.background = 'rgba(245, 158, 11, 0.1)';
-                div.style.border = '1px solid rgba(245, 158, 11, 0.3)';
-                div.style.marginBottom = '8px';
-                div.style.fontSize = '0.82rem';
-                div.innerHTML = `<strong>${a.item.name}:</strong> ${a.message}`;
-                alertBox.appendChild(div);
-            });
-        } else {
-            alertBox.innerHTML = `<span class="text-muted">Todos los insumos con stock suficiente.</span>`;
-        }
-    }
+    window.checkGlobalStockAlerts();
 
     // Dynamic currency symbols for dashboard metrics
     const activeCurrency = localStorage.getItem('dental_exchange_currency') || 'USD';
@@ -3004,16 +3189,20 @@ async function renderAgendaView(filter = 'pending', searchQuery = '') {
 
         const editApptBtn = `<button class="btn btn-xs btn-outline btn-appt-edit" style="border-color: #0891b2; color: #0891b2;" onclick="window.editAppointment('${app.id}')" title="Editar Cita"><i class="fa-solid fa-pen-to-square"></i> <span class="btn-text-full">Editar</span></button>`;
 
-        let actionAttendOrViewHtml = '';
-        let statusBadgeHtml = `<span class="badge-tag blue">${app.status || 'Programada'}</span>`;
-        let itemClass = 'timeline-item';
-
         if (isAttended) {
             itemClass = 'timeline-item timeline-item-attended';
             statusBadgeHtml = `<span class="badge-tag green" style="background: rgba(16, 185, 129, 0.15); color: #059669; font-weight: 700;"><i class="fa-solid fa-circle-check"></i> Atendida</span>`;
             actionAttendOrViewHtml = `<button class="btn btn-xs btn-outline" style="border-color: #10b981; color: #059669; font-weight: 600;" onclick="window.viewAttendedSessionForPatient('${app.patientId}')" title="Ver Evolución Clínica"><i class="fa-solid fa-file-medical"></i> <span class="btn-text-full">Ver Evolución</span></button>`;
-        } else if (!isAssistant && (app.status === 'Programada' || app.status === 'En Espera' || !app.status)) {
-            actionAttendOrViewHtml = `<button class="btn btn-xs btn-primary btn-appt-attend" style="background-color: var(--primary-cyan) !important; color: white !important; border: none !important;" onclick="window.atenderAppointmentFromAgenda('${app.id}')" title="Atender esta cita ahora"><i class="fa-solid fa-user-doctor"></i> Atender</button>`;
+        } else if (app.status === 'Confirmada') {
+            statusBadgeHtml = `<button class="btn btn-xs btn-outline" style="border-color: #10b981; color: #059669; font-weight: 700; background: rgba(16, 185, 129, 0.12); border-radius: 12px; padding: 2px 8px; cursor: pointer;" onclick="window.toggleApptConfirmation('${app.id}')" title="Cita Confirmada (Clic para alternar)"><i class="fa-solid fa-check-double text-green"></i> Confirmada</button>`;
+            if (!isAssistant) {
+                actionAttendOrViewHtml = `<button class="btn btn-xs btn-primary btn-appt-attend" style="background-color: var(--primary-cyan) !important; color: white !important; border: none !important;" onclick="window.atenderAppointmentFromAgenda('${app.id}')" title="Atender esta cita ahora"><i class="fa-solid fa-user-doctor"></i> Atender</button>`;
+            }
+        } else {
+            statusBadgeHtml = `<button class="btn btn-xs btn-outline" style="border-color: #cbd5e1; color: #475569; font-weight: 600; border-radius: 12px; padding: 2px 8px; cursor: pointer;" onclick="window.toggleApptConfirmation('${app.id}')" title="Marcar como Confirmada"><i class="fa-regular fa-circle-check text-cyan"></i> ${app.status || 'Programada'} <span style="font-size: 0.7rem; color: #0284c7;">(✓)</span></button>`;
+            if (!isAssistant) {
+                actionAttendOrViewHtml = `<button class="btn btn-xs btn-primary btn-appt-attend" style="background-color: var(--primary-cyan) !important; color: white !important; border: none !important;" onclick="window.atenderAppointmentFromAgenda('${app.id}')" title="Atender esta cita ahora"><i class="fa-solid fa-user-doctor"></i> Atender</button>`;
+            }
         }
 
         const div = document.createElement('div');
@@ -3057,6 +3246,31 @@ async function renderAgendaView(filter = 'pending', searchQuery = '') {
     }
 }
 window.renderAgendaView = renderAgendaView;
+
+window.toggleApptConfirmation = async function(apptId) {
+    try {
+        const appts = await SupabaseDataService.getAppointments();
+        const appt = appts.find(a => a.id === apptId);
+        if (!appt) return;
+
+        const newStatus = appt.status === 'Confirmada' ? 'Programada' : 'Confirmada';
+        appt.status = newStatus;
+        await SupabaseDataService.updateAppointment(apptId, { status: newStatus });
+        
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: newStatus === 'Confirmada' ? `Cita de ${appt.patientName} marcada como Confirmada ✓` : `Cita marcada como Programada`,
+            showConfirmButton: false,
+            timer: 2000
+        });
+
+        await renderAgendaView();
+    } catch(err) {
+        console.error("Error toggling appointment confirmation:", err);
+    }
+};
 
 window.viewAttendedSessionForPatient = async function(patientId) {
     try {
@@ -3438,6 +3652,7 @@ async function renderInventoryTable(filter = 'all', searchQuery = '') {
         `;
         tbody.appendChild(tr);
     });
+    window.checkGlobalStockAlerts();
 }
 
 window.adjustStockPrompt = async function(code) {
@@ -3485,6 +3700,75 @@ window.deleteInventoryItem = async function(code) {
             await renderDashboard();
             Swal.fire({ icon: 'success', title: 'Insumo eliminado', timer: 1800, showConfirmButton: false });
         }
+    });
+};
+
+window.checkGlobalStockAlerts = function() {
+    if (!window.kardex) return;
+    const items = window.kardex.getAllItems();
+    const criticalItems = items.filter(i => (i.currentStock !== undefined && i.currentStock < 5) || i.currentStock <= (i.minStock || 5));
+    
+    const badge = document.getElementById('nav-stock-alert-badge');
+    if (badge) {
+        if (criticalItems.length > 0) {
+            badge.innerText = criticalItems.length;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+
+    const alertBox = document.getElementById('dashboard-stock-alerts');
+    if (alertBox) {
+        alertBox.innerHTML = '';
+        if (criticalItems.length > 0) {
+            let itemsHtml = criticalItems.map(a => `
+                <div style="padding: 8px 12px; border-radius: 6px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); margin-bottom: 8px; font-size: 0.82rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+                    <div>
+                        <strong style="color: #b91c1c;">${a.name}:</strong> ${a.currentStock} ${a.unit || 'U'} restantes (Mín: ${a.minStock || 5})
+                    </div>
+                    <span class="badge-tag red" style="font-size: 0.7rem; font-weight: 700;">Stock Crítico</span>
+                </div>
+            `).join('');
+
+            alertBox.innerHTML = `
+                <div style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                    <span style="font-size: 0.85rem; font-weight: 700; color: #dc2626;"><i class="fa-solid fa-triangle-exclamation"></i> ${criticalItems.length} insumos con stock crítico (< 5)</span>
+                    <button class="btn btn-xs btn-outline" style="border-color: #0891b2; color: #0891b2; font-weight: 600;" onclick="window.copyStockReorderList()"><i class="fa-solid fa-clipboard-list"></i> Copiar Lista de Reposición</button>
+                </div>
+                ${itemsHtml}
+            `;
+        } else {
+            alertBox.innerHTML = `<span class="text-muted" style="font-size: 0.85rem;"><i class="fa-solid fa-circle-check text-green"></i> Todos los insumos cuentan con stock adecuado.</span>`;
+        }
+    }
+};
+
+window.copyStockReorderList = function() {
+    if (!window.kardex) return;
+    const items = window.kardex.getAllItems();
+    const criticalItems = items.filter(i => (i.currentStock !== undefined && i.currentStock < 5) || i.currentStock <= (i.minStock || 5));
+    if (criticalItems.length === 0) {
+        Swal.fire({ icon: 'info', title: 'Inventario Completo', text: 'No hay insumos que requieran reposición en este momento.' });
+        return;
+    }
+
+    let text = `📋 ORDEN DE REPOSICIÓN DE INSUMOS - DENTALCARE PRO\nFecha: ${new Date().toLocaleDateString('es-ES')}\n\n`;
+    criticalItems.forEach((it, idx) => {
+        const needed = Math.max(10, (it.minStock || 5) * 2 - it.currentStock);
+        text += `${idx + 1}. ${it.name} (${it.code || 'N/A'})\n   - Stock Actual: ${it.currentStock} ${it.unit || 'U'}\n   - Cantidad a Solicitar: ${needed} ${it.unit || 'U'}\n\n`;
+    });
+
+    navigator.clipboard.writeText(text).then(() => {
+        Swal.fire({
+            icon: 'success',
+            title: '¡Lista Copiada al Portapapeles!',
+            text: 'Puedes pegarla en WhatsApp, correo o enviarla directamente a tu proveedor de insumos.',
+            timer: 2500,
+            showConfirmButton: false
+        });
+    }).catch(() => {
+        Swal.fire({ title: 'Lista de Reposición', html: `<pre style="text-align:left; font-size:0.8rem;">${text}</pre>` });
     });
 };
 
@@ -8498,6 +8782,244 @@ async function renderFinanceView() {
         document.getElementById('payable-form-title').innerHTML = `<i class="fa-solid fa-plus-circle text-cyan"></i> Registrar Gasto / Cuenta por Pagar`;
         document.getElementById('btn-cancel-payable').style.display = 'none';
     };
+
+    const exportExcelBtn = document.getElementById('btn-export-finance-excel');
+    if (exportExcelBtn) {
+        exportExcelBtn.onclick = () => {
+            exportFinanceCashFlowExcel();
+        };
+    }
+
+    const exportPdfBtn = document.getElementById('btn-export-finance-pdf');
+    if (exportPdfBtn) {
+        exportPdfBtn.onclick = () => {
+            exportFinanceCashFlowPDF();
+        };
+    }
+}
+
+async function exportFinanceCashFlowExcel() {
+    try {
+        if (!window.XLSX) {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Librería XLSX no disponible.' });
+            return;
+        }
+
+        const patients = await SupabaseDataService.getPatients();
+        const bills = await SupabaseDataService.getProviderBills();
+        const transfers = JSON.parse(localStorage.getItem('dental_account_transfers')) || [];
+
+        // 1. Sheet Flujo de Caja
+        const flowRows = [];
+        patients.forEach(p => {
+            (p.payments || []).forEach(pay => {
+                if (pay.paidUSD > 0) {
+                    flowRows.push({
+                        "Fecha": pay.date,
+                        "Tipo": "Ingreso",
+                        "Concepto": `Abono: ${p.fullname} (${pay.concept})`,
+                        "Método": pay.method ? getPaymentMethodLabel(pay.method) : 'Efectivo',
+                        "Monto (USD)": pay.paidUSD
+                    });
+                }
+            });
+        });
+
+        bills.forEach(bill => {
+            if (bill.status === 'Pagado') {
+                flowRows.push({
+                    "Fecha": bill.dueDate,
+                    "Tipo": "Egreso",
+                    "Concepto": `Gasto / Proveedor: ${bill.providerName} (${bill.serviceName})`,
+                    "Método": "Efectivo",
+                    "Monto (USD)": -bill.amount
+                });
+            }
+        });
+
+        transfers.forEach(t => {
+            flowRows.push({
+                "Fecha": t.date,
+                "Tipo": "Traslado",
+                "Concepto": `Traslado: ${getPaymentMethodLabel(t.fromAccount)} a ${getPaymentMethodLabel(t.toAccount)} ${t.notes ? `(${t.notes})` : ''}`,
+                "Método": `${getPaymentMethodLabel(t.fromAccount)} ➔ ${getPaymentMethodLabel(t.toAccount)}`,
+                "Monto (USD)": t.amountSent
+            });
+        });
+
+        flowRows.sort((a, b) => new Date(b.Fecha) - new Date(a.Fecha));
+
+        // 2. Sheet Cuentas por Cobrar
+        const recRows = [];
+        patients.forEach(p => {
+            const pendings = (p.payments || []).filter(pay => pay.status === 'Pendiente' || pay.balanceUSD > 0);
+            pendings.forEach(pay => {
+                recRows.push({
+                    "Cédula": p.id,
+                    "Paciente": p.fullname,
+                    "Teléfono": p.phone,
+                    "Tratamiento / Concepto": pay.concept,
+                    "Total (USD)": pay.totalUSD,
+                    "Abonado (USD)": pay.paidUSD,
+                    "Saldo Pendiente (USD)": pay.balanceUSD
+                });
+            });
+        });
+
+        // 3. Sheet Cuentas por Pagar
+        const payRows = bills.map(b => ({
+            "ID": b.id,
+            "Proveedor": b.providerName,
+            "Servicio / Concepto": b.serviceName,
+            "Monto (USD)": b.amount,
+            "Vencimiento": b.dueDate,
+            "Estado": b.status
+        }));
+
+        const wb = XLSX.utils.book_new();
+        const wsFlow = XLSX.utils.json_to_sheet(flowRows.length > 0 ? flowRows : [{ "Info": "Sin movimientos" }]);
+        const wsRec = XLSX.utils.json_to_sheet(recRows.length > 0 ? recRows : [{ "Info": "Sin cuentas por cobrar" }]);
+        const wsPay = XLSX.utils.json_to_sheet(payRows.length > 0 ? payRows : [{ "Info": "Sin cuentas por pagar" }]);
+
+        XLSX.utils.book_append_sheet(wb, wsFlow, "Flujo_de_Caja");
+        XLSX.utils.book_append_sheet(wb, wsRec, "Cuentas_por_Cobrar");
+        XLSX.utils.book_append_sheet(wb, wsPay, "Cuentas_por_Pagar");
+
+        const filename = `Reporte_Financiero_DentalCare_${new Date().toISOString().split('T')[0]}.xlsx`;
+        XLSX.writeFile(wb, filename);
+
+        Swal.fire({
+            icon: 'success',
+            title: '¡Reporte Excel Exportado!',
+            text: `Se ha generado el archivo ${filename}`,
+            timer: 2000,
+            showConfirmButton: false
+        });
+    } catch(err) {
+        console.error("Error exporting finance excel:", err);
+        Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo exportar el reporte financiero.' });
+    }
+}
+
+async function exportFinanceCashFlowPDF() {
+    try {
+        const stationery = await SupabaseDataService.getStationeryConfig();
+        const busData = getClinicBusData(stationery);
+        const patients = await SupabaseDataService.getPatients();
+        const bills = await SupabaseDataService.getProviderBills();
+        const transfers = JSON.parse(localStorage.getItem('dental_account_transfers')) || [];
+
+        let inflows = 0;
+        let outflows = 0;
+        const transactions = [];
+
+        patients.forEach(p => {
+            (p.payments || []).forEach(pay => {
+                if (pay.paidUSD > 0) {
+                    inflows += pay.paidUSD;
+                    transactions.push({
+                        date: pay.date,
+                        concept: `Abono: ${p.fullname} (${pay.concept})`,
+                        type: 'Ingreso',
+                        method: pay.method ? getPaymentMethodLabel(pay.method) : 'Efectivo',
+                        amount: pay.paidUSD
+                    });
+                }
+            });
+        });
+
+        bills.forEach(bill => {
+            if (bill.status === 'Pagado') {
+                outflows += bill.amount;
+                transactions.push({
+                    date: bill.dueDate,
+                    concept: `Gasto: ${bill.providerName} (${bill.serviceName})`,
+                    type: 'Egreso',
+                    method: 'Efectivo',
+                    amount: bill.amount
+                });
+            }
+        });
+
+        transfers.forEach(t => {
+            transactions.push({
+                date: t.date,
+                concept: `Traslado: ${getPaymentMethodLabel(t.fromAccount)} a ${getPaymentMethodLabel(t.toAccount)}`,
+                type: 'Traslado',
+                method: `${getPaymentMethodLabel(t.fromAccount)} ➔ ${getPaymentMethodLabel(t.toAccount)}`,
+                amount: t.amountSent
+            });
+        });
+
+        transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+        const netBalance = inflows - outflows;
+
+        let rowsHtml = '';
+        transactions.forEach(t => {
+            const color = t.type === 'Ingreso' ? '#059669' : (t.type === 'Egreso' ? '#dc2626' : '#7c3aed');
+            const sign = t.type === 'Ingreso' ? '+' : (t.type === 'Egreso' ? '-' : '⇄ ');
+            rowsHtml += `
+                <tr style="border-bottom: 1px solid #e2e8f0; font-size: 0.85rem;">
+                    <td style="padding: 8px 10px;">${t.date}</td>
+                    <td style="padding: 8px 10px; font-weight: 600;">${t.concept}</td>
+                    <td style="padding: 8px 10px; text-align: center;"><span style="color: ${color}; font-weight: 700;">${t.type}</span></td>
+                    <td style="padding: 8px 10px;">${t.method}</td>
+                    <td style="padding: 8px 10px; text-align: right; font-weight: 700; color: ${color};">${sign}$${t.amount.toFixed(2)}</td>
+                </tr>
+            `;
+        });
+
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 25px; color: #1e293b; background: #ffffff;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0066f5; padding-bottom: 15px; margin-bottom: 20px;">
+                    <div>
+                        <h2 style="margin: 0; color: #0066f5; font-size: 1.4rem;">${busData.name || 'Consultorio Odontológico'}</h2>
+                        <p style="margin: 3px 0; font-size: 0.85rem; color: #64748b;">RIF: ${busData.rif || 'N/A'} | Tel: ${busData.phone || 'N/A'}</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <h3 style="margin: 0; font-size: 1.1rem; color: #0f172a;">REPORTE DE FLUJO DE CAJA</h3>
+                        <p style="margin: 3px 0; font-size: 0.8rem; color: #64748b;">Fecha de emisión: ${new Date().toLocaleDateString('es-ES')}</p>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; text-align: center;">
+                        <span style="font-size: 0.8rem; color: #166534; font-weight: 600;">INGRESOS TOTALES</span>
+                        <h3 style="margin: 5px 0 0 0; color: #15803d; font-size: 1.3rem;">$${inflows.toFixed(2)}</h3>
+                    </div>
+                    <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px; text-align: center;">
+                        <span style="font-size: 0.8rem; color: #991b1b; font-weight: 600;">EGRESOS TOTALES</span>
+                        <h3 style="margin: 5px 0 0 0; color: #b91c1c; font-size: 1.3rem;">$${outflows.toFixed(2)}</h3>
+                    </div>
+                    <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px; text-align: center;">
+                        <span style="font-size: 0.8rem; color: #1e40af; font-weight: 600;">BALANCE NETO</span>
+                        <h3 style="margin: 5px 0 0 0; color: ${netBalance >= 0 ? '#1d4ed8' : '#b91c1c'}; font-size: 1.3rem;">$${netBalance.toFixed(2)}</h3>
+                    </div>
+                </div>
+
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                    <thead>
+                        <tr style="background: #0066f5; color: #ffffff; font-size: 0.82rem; text-transform: uppercase;">
+                            <th style="padding: 8px 10px; text-align: left;">Fecha</th>
+                            <th style="padding: 8px 10px; text-align: left;">Concepto</th>
+                            <th style="padding: 8px 10px; text-align: center;">Tipo</th>
+                            <th style="padding: 8px 10px; text-align: left;">Método</th>
+                            <th style="padding: 8px 10px; text-align: right;">Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml || '<tr><td colspan="5" style="text-align:center; padding: 15px;">Sin transacciones</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        const filename = `Reporte_Flujo_Caja_${new Date().toISOString().split('T')[0]}.pdf`;
+        generatePDFFromElement(wrapper, filename);
+    } catch(err) {
+        console.error("Error generating finance PDF:", err);
+    }
 }
 
 async function renderProviderBills() {
