@@ -9720,30 +9720,44 @@ async function renderStationeryView() {
         };
     });
 
-    document.getElementById('btn-print-preview-stationery').onclick = () => {
-        const previewEl = document.getElementById('stationery-live-paper');
-        if (!previewEl) return;
-        const printClone = previewEl.cloneNode(true);
-        document.body.appendChild(printClone);
-        printClone.classList.add('print-section');
-        window.print();
-        document.body.removeChild(printClone);
-    };
+    const btnPrintStationery = document.getElementById('btn-print-preview-stationery');
+    if (btnPrintStationery) {
+        btnPrintStationery.onclick = () => {
+            const previewEl = document.getElementById('stationery-live-paper');
+            if (!previewEl) return;
+            const printClone = previewEl.cloneNode(true);
+            printClone.style.height = 'auto';
+            printClone.style.maxHeight = 'none';
+            printClone.style.overflow = 'visible';
+            printClone.style.border = 'none';
+            printClone.style.boxShadow = 'none';
+            document.body.appendChild(printClone);
+            printClone.classList.add('print-section');
+            window.print();
+            document.body.removeChild(printClone);
+        };
+    }
 
-    document.getElementById('btn-pdf-preview-stationery').onclick = () => {
-        const previewEl = document.getElementById('stationery-live-paper');
-        if (!previewEl) return;
+    const btnPdfStationery = document.getElementById('btn-pdf-preview-stationery');
+    if (btnPdfStationery) {
+        btnPdfStationery.onclick = async () => {
+            const previewEl = document.getElementById('stationery-live-paper');
+            if (!previewEl) return;
 
-        const printClone = previewEl.cloneNode(true);
-        const wrapper = document.createElement('div');
-        wrapper.style.padding = '25px';
-        wrapper.style.fontFamily = "'Courier New', Courier, monospace";
-        wrapper.style.lineHeight = '1.4';
-        wrapper.appendChild(printClone);
+            const printClone = previewEl.cloneNode(true);
+            printClone.style.height = 'auto';
+            printClone.style.maxHeight = 'none';
+            printClone.style.overflow = 'visible';
+            printClone.style.border = 'none';
+            printClone.style.boxShadow = 'none';
+            printClone.style.padding = '0';
+            printClone.style.background = '#ffffff';
 
-        const filename = `Papeleria_${currentPreviewTemplate}.pdf`;
-        generatePDFFromElement(wrapper, filename);
-    };
+            const templateName = (currentPreviewTemplate || 'documento').toUpperCase();
+            const filename = `Papeleria_${templateName}.pdf`;
+            await generatePDFFromElement(printClone, filename);
+        };
+    }
 }
 
 async function refreshStationeryLivePreview() {
@@ -10464,6 +10478,13 @@ async function renderPublicBudgetView() {
                 <!-- CONSENT AND FOOTER NOTES -->
                 ${consentHtml}
                 ${notesHtml}
+
+                <!-- PIE DE PÁGINA OFICIAL DE PAPELERÍA -->
+                ${(stationery && (stationery.footer_text || stationery.footerText)) ? `
+                    <div style="margin-top: 25px; border-top: 1px dashed #cbd5e1; padding-top: 12px; text-align: center; font-size: 0.76rem; color: #64748b; font-style: italic; line-height: 1.4;">
+                        ${stationery.footer_text || stationery.footerText}
+                    </div>
+                ` : ''}
             </div>
         `;
 
@@ -10472,22 +10493,9 @@ async function renderPublicBudgetView() {
         // Hook up print & download
         document.getElementById('btn-public-print').onclick = () => window.print();
         document.getElementById('btn-public-download-pdf').onclick = async () => {
-            const opt = {
-                margin: 10,
-                filename: `Presupuesto_${budget.id}_${patient.fullname.replace(/\s+/g, '_')}.pdf`,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-            try {
-                if (typeof html2pdf !== 'undefined') {
-                    await html2pdf().from(publicContent).set(opt).save();
-                } else {
-                    window.print();
-                }
-            } catch (pdfErr) {
-                console.error("Public PDF Generation Error:", pdfErr);
-            }
+            const clone = publicContent.cloneNode(true);
+            const filename = `Presupuesto_${budget.id}_${patient.fullname.replace(/\s+/g, '_')}.pdf`;
+            await generatePDFFromElement(clone, filename);
         };
 
     } catch (err) {
@@ -10692,8 +10700,8 @@ async function renderPublicSessionReceiptView() {
                 </div>
 
                 <!-- FOOTER -->
-                <div style="border-top: 1px solid #e2e8f0; margin-top: 25px; padding-top: 12px; text-align: center; font-size: 0.75rem; color: #94a3b8;">
-                    ${stationery.footerText || 'Gracias por su confianza. Todo tratamiento dental requiere control periódico.'}
+                <div style="border-top: 1px dashed #cbd5e1; margin-top: 25px; padding-top: 12px; text-align: center; font-size: 0.75rem; color: #64748b; font-style: italic; line-height: 1.4;">
+                    ${(stationery && (stationery.footer_text || stationery.footerText)) || 'Gracias por su confianza. Todo tratamiento dental requiere control periódico.'}
                 </div>
             </div>
         `;
@@ -10702,22 +10710,9 @@ async function renderPublicSessionReceiptView() {
 
         document.getElementById('btn-public-session-print').onclick = () => window.print();
         document.getElementById('btn-public-session-download-pdf').onclick = async () => {
-            const opt = {
-                margin: 10,
-                filename: `Recibo_Sesion_${session.sessionNum}_${patient.fullname.replace(/\s+/g, '_')}.pdf`,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-            try {
-                if (typeof html2pdf !== 'undefined') {
-                    await html2pdf().from(publicContent).set(opt).save();
-                } else {
-                    window.print();
-                }
-            } catch (pdfErr) {
-                console.error("Public Session PDF Generation Error:", pdfErr);
-            }
+            const clone = publicContent.cloneNode(true);
+            const filename = `Recibo_Sesion_${session.sessionNum}_${patient.fullname.replace(/\s+/g, '_')}.pdf`;
+            await generatePDFFromElement(clone, filename);
         };
 
     } catch(err) {
