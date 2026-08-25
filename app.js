@@ -618,6 +618,7 @@ async function login(email, password) {
         checkAuthSession();
         
         // Render initial views for the newly authenticated session
+        try { await loadClinicBranding(); } catch(e) { console.error(e); }
         try { renderDashboard(); } catch(e) { console.error(e); }
         try { renderPatientsTable(); } catch(e) { console.error(e); }
         try { renderInventoryTable(); } catch(e) { console.error(e); }
@@ -5483,13 +5484,18 @@ async function renderSettingsView() {
 
         let busData = { name: '', type: 'Consultorio Privado', phone: '', email: '', rif: '', address: '', footer: '', logoUrl: '' };
         if (config) {
+            const rawHeader = config.header_text || config.headerText || '';
             try {
-                busData = JSON.parse(config.header_text);
+                if (rawHeader.startsWith('{')) {
+                    busData = JSON.parse(rawHeader);
+                } else {
+                    busData.name = rawHeader;
+                }
             } catch(e) {
-                busData.name = config.header_text || '';
+                busData.name = rawHeader;
             }
-            busData.footer = config.footer_text || '';
-            busData.logoUrl = config.logo_url || '';
+            busData.footer = config.footer_text || config.footerText || '';
+            busData.logoUrl = config.logo_url || config.logoUrl || '';
         }
 
         document.getElementById('set-bus-name').value = busData.name || '';

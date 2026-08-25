@@ -600,8 +600,11 @@ class SupabaseDataService {
         const defaultDoc = {
             id: 'default',
             headerText: 'DentalCare Pro - Clínica Odontológica Especializada\nDr. Alejandro Silva - C.O.V-14920\nAv. Principal, Mérida - WhatsApp: +584141234567',
+            header_text: 'DentalCare Pro - Clínica Odontológica Especializada\nDr. Alejandro Silva - C.O.V-14920\nAv. Principal, Mérida - WhatsApp: +584141234567',
             footerText: 'Gracias por su confianza. Todo tratamiento dental requiere control periódico cada 6 meses.',
-            logoUrl: ''
+            footer_text: 'Gracias por su confianza. Todo tratamiento dental requiere control periódico cada 6 meses.',
+            logoUrl: '',
+            logo_url: ''
         };
         if (!this.isCloudConnected()) {
             return JSON.parse(localStorage.getItem('dental_stationery_config')) || defaultDoc;
@@ -610,11 +613,15 @@ class SupabaseDataService {
             const { data, error } = await supabaseClient.from('stationery_config').select('*').eq('id', 'default');
             if (error) throw error;
             if (data && data.length > 0) {
+                const row = data[0];
                 const mapped = {
-                    id: data[0].id,
-                    headerText: data[0].header_text,
-                    footerText: data[0].footer_text,
-                    logoUrl: data[0].logo_url || ''
+                    id: row.id || 'default',
+                    headerText: row.header_text || '',
+                    header_text: row.header_text || '',
+                    footerText: row.footer_text || '',
+                    footer_text: row.footer_text || '',
+                    logoUrl: row.logo_url || '',
+                    logo_url: row.logo_url || ''
                 };
                 localStorage.setItem('dental_stationery_config', JSON.stringify(mapped));
                 return mapped;
@@ -627,15 +634,29 @@ class SupabaseDataService {
     }
 
     static async saveStationeryConfig(configObj) {
-        localStorage.setItem('dental_stationery_config', JSON.stringify(configObj));
+        const headerText = configObj.headerText || configObj.header_text || '';
+        const footerText = configObj.footerText || configObj.footer_text || '';
+        const logoUrl = configObj.logoUrl || configObj.logo_url || '';
+
+        const normalized = {
+            id: 'default',
+            headerText: headerText,
+            header_text: headerText,
+            footerText: footerText,
+            footer_text: footerText,
+            logoUrl: logoUrl,
+            logo_url: logoUrl
+        };
+
+        localStorage.setItem('dental_stationery_config', JSON.stringify(normalized));
 
         if (this.isCloudConnected()) {
             try {
                 const { error } = await supabaseClient.from('stationery_config').upsert({
                     id: 'default',
-                    header_text: configObj.headerText,
-                    footer_text: configObj.footerText,
-                    logo_url: configObj.logoUrl || null
+                    header_text: headerText,
+                    footer_text: footerText,
+                    logo_url: logoUrl || null
                 });
                 if (error) console.error('Supabase saveStationeryConfig Cloud Error:', error);
             } catch (err) {
