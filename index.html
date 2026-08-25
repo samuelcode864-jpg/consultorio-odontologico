@@ -18,7 +18,7 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=105">
+    <link rel="stylesheet" href="styles.css?v=106">
 </head>
 <body class="light-theme">
 
@@ -2520,6 +2520,22 @@
                                 <input type="text" id="p-habit-others" placeholder="ej: Bruxismo, empuje lingual, succión de labios...">
                             </div>
                         </div>
+
+                        <!-- Direct Budget Action at Step 3 -->
+                        <div style="margin-top: 20px; padding: 14px 18px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div style="width: 38px; height: 38px; border-radius: 50%; background: #10b981; color: white; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">
+                                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                                </div>
+                                <div>
+                                    <div style="font-weight: 700; color: #065f46; font-size: 0.95rem;">¿Desea presupuestar de una vez?</div>
+                                    <div style="font-size: 0.78rem; color: #047857;">Guarda la ficha del paciente y abre directamente el odontograma y presupuesto.</div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-success" id="btn-patient-step3-budget" style="background: #10b981 !important; color: white !important; font-weight: 700; padding: 8px 18px; border-radius: 6px; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(16,185,129,0.25);">
+                                <i class="fa-solid fa-calculator"></i> Guardar y Realizar Presupuesto
+                            </button>
+                        </div>
                     </div>
 
                     <!-- PASO 4: Inicialización del Plan de Tratamiento (Tratamientos Multisesión) -->
@@ -2561,8 +2577,11 @@
             </div>
             <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
                 <button class="btn btn-outline" id="btn-patient-prev" disabled>Anterior</button>
-                <div style="display:flex; gap:10px;">
+                <div style="display:flex; gap:10px; align-items: center;">
                     <button class="btn btn-outline" data-close="modal-patient">Cancelar</button>
+                    <button class="btn btn-success hidden" id="btn-patient-save-and-budget" style="background: #10b981 !important; color: white !important; font-weight: 700; border: none; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-file-invoice-dollar"></i> Guardar y Realizar Presupuesto
+                    </button>
                     <button class="btn btn-primary" id="btn-patient-next">Siguiente</button>
                     <button class="btn btn-success hidden" id="btn-save-patient">Guardar Paciente</button>
                 </div>
@@ -3029,12 +3048,12 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=105"></script>
-    <script src="supabaseClient.js?v=105"></script>
-    <script src="odontogram.js?v=105"></script>
-    <script src="signature.js?v=105"></script>
-    <script src="whatsapp.js?v=105"></script>
-    <script src="kardex.js?v=105"></script>
-    <script src="app.js?v=105"></script>
+    <script src="seededData.js?v=106"></script>
+    <script src="supabaseClient.js?v=106"></script>
+    <script src="odontogram.js?v=106"></script>
+    <script src="signature.js?v=106"></script>
+    <script src="whatsapp.js?v=106"></script>
+    <script src="kardex.js?v=106"></script>
+    <script src="app.js?v=106"></script>
 </body>
 </html>

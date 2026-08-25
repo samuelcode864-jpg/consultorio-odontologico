@@ -5315,297 +5315,367 @@ function initGlobalEvents() {
         };
     }
 
+    window.openBudgetForNewPatient = async function(patientId) {
+        setActivePatientId(patientId);
+        activeEditingBudgetId = null;
+        currentBudgetItems = [];
+
+        const navOdontogram = document.querySelector('.nav-item[data-tab="odontogram"]') || document.getElementById('mob-nav-odontogram');
+        if (navOdontogram) navOdontogram.click();
+
+        const listContainer = document.getElementById('odontogram-list-container');
+        const editorContainer = document.getElementById('odontogram-editor-container');
+        if (listContainer) listContainer.classList.add('hidden');
+        if (editorContainer) editorContainer.classList.remove('hidden');
+
+        await renderOdontogramView();
+
+        const notesEl = document.getElementById('budget-notes');
+        if (notesEl) notesEl.value = '';
+        const discEl = document.getElementById('budget-discount-input');
+        if (discEl) discEl.value = '0';
+
+        if (window.doctorSigPad) {
+            window.doctorSigPad.clear();
+            autoLoadDoctorSignatureInBudget();
+        }
+        if (window.patientSigPad) window.patientSigPad.clear();
+
+        renderBudgetTable();
+    };
+
+    window.savePatientRecord = async function(redirectToBudget = false) {
+        const getVal = (id) => {
+            const el = document.getElementById(id);
+            return el ? el.value.trim() : '';
+        };
+        const getChecked = (id) => {
+            const el = document.getElementById(id);
+            return el ? (el.checked ? 'Sí' : 'No') : 'No';
+        };
+
+        const id = getVal('p-id');
+        const firstname = getVal('p-firstname');
+        const lastname = getVal('p-lastname');
+        const fullname = `${firstname} ${lastname}`.trim();
+        const birthdate = getVal('p-birthdate');
+        const phone = getVal('p-mobile-phone');
+
+        if (!id || !firstname || !lastname || !birthdate || !phone) {
+            Swal.fire({ icon: 'warning', title: 'Campos requeridos', text: 'Por favor complete los campos obligatorios del Paso 1 (*)' });
+            if (typeof window.setPatientStepperStep === 'function') window.setPatientStepperStep(1);
+            return false;
+        }
+
+        const allergies = Array.from(document.querySelectorAll('input[name="p-allergies"]:checked')).map(cb => cb.value);
+        const systemic = Array.from(document.querySelectorAll('input[name="p-systemic"]:checked')).map(cb => cb.value);
+        const medication = getVal('p-medication');
+        const emergencyContact = getVal('p-emergency');
+
+        // Extract all detailed metadata fields
+        const type = getVal('p-type') || 'Adulto';
+        const age = parseInt(getVal('p-age')) || 0;
+        const gender = getVal('p-gender') || 'Femenino';
+        const address = getVal('p-address');
+        const mobilePhone = getVal('p-mobile-phone');
+        const localPhone = getVal('p-local-phone');
+        const workPhone = getVal('p-work-phone');
+        const profession = getVal('p-profession');
+        const consultReason = getVal('p-consult-reason');
+
+        const repName = getVal('p-rep-name');
+        const repId = getVal('p-rep-id');
+        const repPhone = getVal('p-rep-phone');
+        const repRelation = getVal('p-rep-relation');
+
+        const medicalTreatment = getChecked('p-medical-treatment');
+        const medicalTreatmentDetails = getVal('p-medical-treatment-details');
+        const childDiseases = getVal('p-child-diseases');
+        const hasAllergies = getChecked('p-has-allergies');
+        const allergiesDetails = getVal('p-allergies-details');
+        const surgeries = getVal('p-surgeries');
+        const bleedingIssue = getChecked('p-bleeding-issue');
+        const respiratoryIssues = getChecked('p-respiratory-issues');
+        const respiratoryIssuesDetails = getVal('p-respiratory-issues-details');
+        const anesthesiaReaction = getChecked('p-anesthesia-reaction');
+        const anesthesiaReactionDetails = getVal('p-anesthesia-reaction-details');
+        const penicillinAllergy = getChecked('p-penicillin-allergy');
+        const penicillinAllergyDetails = getVal('p-penicillin-allergy-details');
+        const heartIssues = getChecked('p-heart-issues');
+        const heartIssuesDetails = getVal('p-heart-issues-details');
+
+        const tissueHardPalate = getVal('p-tissue-hard-palate');
+        const tissueSoftPalate = getVal('p-tissue-soft-palate');
+        const tissueMouthFloor = getVal('p-tissue-mouth-floor');
+        const tissueCheeks = getVal('p-tissue-cheeks');
+        const tissueTongue = getVal('p-tissue-tongue');
+        const tissueFrenum = getVal('p-tissue-frenum');
+
+        const habitSwallowing = getChecked('p-habit-swallowing');
+        const habitNailbiting = getChecked('p-habit-nailbiting');
+        const habitThumbsucking = getChecked('p-habit-thumbsucking');
+        const habitThumbsuckingFinger = getVal('p-habit-thumbsucking-finger');
+        const habitOthers = getVal('p-habit-others');
+        const habitMouthbreather = getChecked('p-habit-mouthbreather');
+        const habitFrequency = getVal('p-habit-frequency');
+        const habitIntensity = getVal('p-habit-intensity');
+
+        // Collect sessions data from step 4
+        const sessionsData = [];
+        const planSessionsContainer = document.getElementById('plan-sessions-container');
+        const bItems = window.currentPlannerBudgetItems || (currentBudgetItems && currentBudgetItems.length > 0 ? currentBudgetItems : (window.currentBudgetItems || []));
+        if (planSessionsContainer && bItems.length > 0) {
+            const sessionBlocks = planSessionsContainer.querySelectorAll('.session-date-input');
+            sessionBlocks.forEach(input => {
+                const sessionNum = parseInt(input.dataset.session);
+                const dateVal = input.value;
+                const timeSelect = planSessionsContainer.querySelector(`.session-time-select[data-session="${sessionNum}"]`);
+                const timeVal = timeSelect ? timeSelect.value : '09:00 AM';
+                const checkedBoxes = planSessionsContainer.querySelectorAll(`.session-service-checkbox[data-session="${sessionNum}"]:checked`);
+                const services = Array.from(checkedBoxes).map(cb => {
+                    const idx = parseInt(cb.dataset.itemIdx);
+                    return bItems[idx];
+                }).filter(Boolean);
+                sessionsData.push({
+                    sessionNumber: sessionNum,
+                    date: dateVal,
+                    time: timeVal,
+                    services: services
+                });
+            });
+        }
+
+        let patientToSave = {};
+
+        try {
+            const patients = await SupabaseDataService.getPatients();
+            const existing = patients.find(p => p.id === id || (window.editingPatientId && p.id === window.editingPatientId));
+
+            if (existing) {
+                // MODO EDICIÓN: Actualizar todos los datos clínicos y personales preservando historial
+                patientToSave = {
+                    ...existing,
+                    id: existing.id,
+                    fullname,
+                    birthdate,
+                    phone,
+                    email: getVal('p-email'),
+                    occupation: profession,
+                    address: address,
+                    allergies,
+                    systemic,
+                    medication,
+                    emergencyContact,
+                    metadata: {
+                        ...(existing.metadata || {}),
+                        type,
+                        age,
+                        gender,
+                        address,
+                        mobilePhone,
+                        localPhone,
+                        workPhone,
+                        profession,
+                        consultReason,
+                        repName,
+                        repId,
+                        repPhone,
+                        repRelation,
+                        medicalTreatment,
+                        medicalTreatmentDetails,
+                        childDiseases,
+                        hasAllergies,
+                        allergiesDetails,
+                        surgeries,
+                        bleedingIssue,
+                        respiratoryIssues,
+                        respiratoryIssuesDetails,
+                        anesthesiaReaction,
+                        anesthesiaReactionDetails,
+                        penicillinAllergy,
+                        penicillinAllergyDetails,
+                        heartIssues,
+                        heartIssuesDetails,
+                        tissueHardPalate,
+                        tissueSoftPalate,
+                        tissueMouthFloor,
+                        tissueCheeks,
+                        tissueTongue,
+                        tissueFrenum,
+                        habitSwallowing,
+                        habitNailbiting,
+                        habitThumbsucking,
+                        habitThumbsuckingFinger,
+                        habitOthers,
+                        habitMouthbreather,
+                        habitFrequency,
+                        habitIntensity,
+                        initTreatmentName: getVal('p-init-treatment-name'),
+                        initTreatmentSessions: getVal('p-init-treatment-sessions'),
+                        initTreatmentInterval: getVal('p-init-treatment-interval'),
+                        sessionsPlan: (sessionsData && sessionsData.length > 0) ? sessionsData : (existing.metadata && existing.metadata.sessionsPlan)
+                    }
+                };
+            } else {
+                // MODO NUEVO PACIENTE: Guardar ficha integral con todos los datos de pasos 1, 2, 3 y 4
+                patientToSave = {
+                    id,
+                    fullname,
+                    birthdate,
+                    phone,
+                    email: getVal('p-email'),
+                    occupation: profession,
+                    allergies,
+                    systemic,
+                    medication,
+                    emergencyContact,
+                    status: 'Activo',
+                    createdAt: new Date().toISOString().split('T')[0],
+                    odontogramData: {},
+                    clinicalNotes: [],
+                    photos: [],
+                    payments: [],
+                    metadata: {
+                        type,
+                        age,
+                        gender,
+                        address,
+                        mobilePhone,
+                        localPhone,
+                        workPhone,
+                        profession,
+                        consultReason,
+                        repName,
+                        repId,
+                        repPhone,
+                        repRelation,
+                        medicalTreatment,
+                        medicalTreatmentDetails,
+                        childDiseases,
+                        hasAllergies,
+                        allergiesDetails,
+                        surgeries,
+                        bleedingIssue,
+                        respiratoryIssues,
+                        respiratoryIssuesDetails,
+                        anesthesiaReaction,
+                        anesthesiaReactionDetails,
+                        penicillinAllergy,
+                        penicillinAllergyDetails,
+                        heartIssues,
+                        heartIssuesDetails,
+                        tissueHardPalate,
+                        tissueSoftPalate,
+                        tissueMouthFloor,
+                        tissueCheeks,
+                        tissueTongue,
+                        tissueFrenum,
+                        habitSwallowing,
+                        habitNailbiting,
+                        habitThumbsucking,
+                        habitThumbsuckingFinger,
+                        habitOthers,
+                        habitMouthbreather,
+                        habitFrequency,
+                        habitIntensity,
+                        initTreatmentName: getVal('p-init-treatment-name'),
+                        initTreatmentSessions: getVal('p-init-treatment-sessions'),
+                        initTreatmentInterval: getVal('p-init-treatment-interval'),
+                        sessionsPlan: sessionsData
+                    }
+                };
+            }
+
+            await SupabaseDataService.savePatient(patientToSave);
+            window.editingPatientId = null;
+            
+            // Create automatically scheduled appointments for each session with a date
+            if (sessionsData && sessionsData.length > 0) {
+                let appointmentsScheduledCount = 0;
+                for (const session of sessionsData) {
+                    if (session.date) {
+                        const servicesText = session.services && session.services.length > 0
+                            ? session.services.map(s => `Pza ${s.tooth || 'Gnl'}: ${s.name}`).join(', ')
+                            : 'Tratamiento Planificado';
+                        
+                        const apptId = 'appt-' + Date.now() + '-' + Math.floor(Math.random() * 100000);
+                        const appt = {
+                            id: apptId,
+                            patientId: id,
+                            patientName: fullname,
+                            date: session.date,
+                            time: session.time || "09:00 AM",
+                            treatment: `Sesión ${session.sessionNumber}: ${servicesText}`,
+                            status: "Programada",
+                            isTomorrow: false
+                        };
+                        await SupabaseDataService.saveAppointment(appt);
+                        appointmentsScheduledCount++;
+                    }
+                }
+                if (appointmentsScheduledCount > 0) {
+                    await renderAgendaView(); // Reload agenda immediately
+                }
+            }
+
+            closeModal('modal-patient');
+            setActivePatientId(id);
+            await renderPatientsTable();
+            await renderEHRView();
+            await renderDashboard();
+            await renderAgendaView();
+
+            if (redirectToBudget) {
+                await window.openBudgetForNewPatient(id);
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Paciente Guardado!',
+                    text: `Ficha de ${fullname} creada. Redirigiendo a elaboración de presupuesto...`,
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            } else {
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Paciente Guardado!',
+                    text: `${fullname} ha sido guardado exitosamente en la nube de Supabase.`,
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            }
+            return true;
+        } catch (err) {
+            console.error("Error al guardar paciente:", err);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error de Servidor / Supabase',
+                text: `No se pudo guardar el paciente. Detalle: ${err.message || err}`
+            });
+            return false;
+        }
+    };
+
     const savePatientBtn = document.getElementById('btn-save-patient');
     if (savePatientBtn) {
         savePatientBtn.onclick = async (e) => {
             e.preventDefault();
+            await window.savePatientRecord(false);
+        };
+    }
 
-            const getVal = (id) => {
-                const el = document.getElementById(id);
-                return el ? el.value.trim() : '';
-            };
-            const getChecked = (id) => {
-                const el = document.getElementById(id);
-                return el ? (el.checked ? 'Sí' : 'No') : 'No';
-            };
+    const savePatientBudgetBtn = document.getElementById('btn-patient-save-and-budget');
+    if (savePatientBudgetBtn) {
+        savePatientBudgetBtn.onclick = async (e) => {
+            e.preventDefault();
+            await window.savePatientRecord(true);
+        };
+    }
 
-            const id = getVal('p-id');
-            const firstname = getVal('p-firstname');
-            const lastname = getVal('p-lastname');
-            const fullname = `${firstname} ${lastname}`.trim();
-            const birthdate = getVal('p-birthdate');
-            const phone = getVal('p-mobile-phone');
-
-            if (!id || !firstname || !lastname || !birthdate || !phone) {
-                Swal.fire({ icon: 'warning', title: 'Campos requeridos', text: 'Por favor complete los campos obligatorios (*)' });
-                return;
-            }
-
-            const allergies = Array.from(document.querySelectorAll('input[name="p-allergies"]:checked')).map(cb => cb.value);
-            const systemic = Array.from(document.querySelectorAll('input[name="p-systemic"]:checked')).map(cb => cb.value);
-            const medication = getVal('p-medication');
-            const emergencyContact = getVal('p-emergency');
-
-            // Extract all detailed metadata fields
-            const type = getVal('p-type') || 'Adulto';
-            const age = parseInt(getVal('p-age')) || 0;
-            const gender = getVal('p-gender') || 'Femenino';
-            const address = getVal('p-address');
-            const mobilePhone = getVal('p-mobile-phone');
-            const localPhone = getVal('p-local-phone');
-            const workPhone = getVal('p-work-phone');
-            const profession = getVal('p-profession');
-            const consultReason = getVal('p-consult-reason');
-
-            const repName = getVal('p-rep-name');
-            const repId = getVal('p-rep-id');
-            const repPhone = getVal('p-rep-phone');
-            const repRelation = getVal('p-rep-relation');
-
-            const medicalTreatment = getChecked('p-medical-treatment');
-            const medicalTreatmentDetails = getVal('p-medical-treatment-details');
-            const childDiseases = getVal('p-child-diseases');
-            const hasAllergies = getChecked('p-has-allergies');
-            const allergiesDetails = getVal('p-allergies-details');
-            const surgeries = getVal('p-surgeries');
-            const bleedingIssue = getChecked('p-bleeding-issue');
-            const respiratoryIssues = getChecked('p-respiratory-issues');
-            const respiratoryIssuesDetails = getVal('p-respiratory-issues-details');
-            const anesthesiaReaction = getChecked('p-anesthesia-reaction');
-            const anesthesiaReactionDetails = getVal('p-anesthesia-reaction-details');
-            const penicillinAllergy = getChecked('p-penicillin-allergy');
-            const penicillinAllergyDetails = getVal('p-penicillin-allergy-details');
-            const heartIssues = getChecked('p-heart-issues');
-            const heartIssuesDetails = getVal('p-heart-issues-details');
-
-            const tissueHardPalate = getVal('p-tissue-hard-palate');
-            const tissueSoftPalate = getVal('p-tissue-soft-palate');
-            const tissueMouthFloor = getVal('p-tissue-mouth-floor');
-            const tissueCheeks = getVal('p-tissue-cheeks');
-            const tissueTongue = getVal('p-tissue-tongue');
-            const tissueFrenum = getVal('p-tissue-frenum');
-
-            const habitSwallowing = getChecked('p-habit-swallowing');
-            const habitNailbiting = getChecked('p-habit-nailbiting');
-            const habitThumbsucking = getChecked('p-habit-thumbsucking');
-            const habitThumbsuckingFinger = getVal('p-habit-thumbsucking-finger');
-            const habitOthers = getVal('p-habit-others');
-            const habitMouthbreather = getChecked('p-habit-mouthbreather');
-            const habitFrequency = getVal('p-habit-frequency');
-            const habitIntensity = getVal('p-habit-intensity');
-
-            // Collect sessions data from step 4
-            const sessionsData = [];
-            const planSessionsContainer = document.getElementById('plan-sessions-container');
-            const bItems = window.currentPlannerBudgetItems || (currentBudgetItems && currentBudgetItems.length > 0 ? currentBudgetItems : (window.currentBudgetItems || []));
-            if (planSessionsContainer && bItems.length > 0) {
-                const sessionBlocks = planSessionsContainer.querySelectorAll('.session-date-input');
-                sessionBlocks.forEach(input => {
-                    const sessionNum = parseInt(input.dataset.session);
-                    const dateVal = input.value;
-                    const timeSelect = planSessionsContainer.querySelector(`.session-time-select[data-session="${sessionNum}"]`);
-                    const timeVal = timeSelect ? timeSelect.value : '09:00 AM';
-                    const checkedBoxes = planSessionsContainer.querySelectorAll(`.session-service-checkbox[data-session="${sessionNum}"]:checked`);
-                    const services = Array.from(checkedBoxes).map(cb => {
-                        const idx = parseInt(cb.dataset.itemIdx);
-                        return bItems[idx];
-                    }).filter(Boolean);
-                    sessionsData.push({
-                        sessionNumber: sessionNum,
-                        date: dateVal,
-                        time: timeVal,
-                        services: services
-                    });
-                });
-            }
-
-            let patientToSave = {};
-
-            try {
-                const patients = await SupabaseDataService.getPatients();
-                const existing = patients.find(p => p.id === id || (window.editingPatientId && p.id === window.editingPatientId));
-
-                if (existing) {
-                    // MODO EDICIÓN: Actualizar todos los datos clínicos y personales preservando historial
-                    patientToSave = {
-                        ...existing,
-                        id: existing.id,
-                        fullname,
-                        birthdate,
-                        phone,
-                        email: getVal('p-email'),
-                        occupation: profession,
-                        address: address,
-                        allergies,
-                        systemic,
-                        medication,
-                        emergencyContact,
-                        metadata: {
-                            ...(existing.metadata || {}),
-                            type,
-                            age,
-                            gender,
-                            address,
-                            mobilePhone,
-                            localPhone,
-                            workPhone,
-                            profession,
-                            consultReason,
-                            repName,
-                            repId,
-                            repPhone,
-                            repRelation,
-                            medicalTreatment,
-                            medicalTreatmentDetails,
-                            childDiseases,
-                            hasAllergies,
-                            allergiesDetails,
-                            surgeries,
-                            bleedingIssue,
-                            respiratoryIssues,
-                            respiratoryIssuesDetails,
-                            anesthesiaReaction,
-                            anesthesiaReactionDetails,
-                            penicillinAllergy,
-                            penicillinAllergyDetails,
-                            heartIssues,
-                            heartIssuesDetails,
-                            tissueHardPalate,
-                            tissueSoftPalate,
-                            tissueMouthFloor,
-                            tissueCheeks,
-                            tissueTongue,
-                            tissueFrenum,
-                            habitSwallowing,
-                            habitNailbiting,
-                            habitThumbsucking,
-                            habitThumbsuckingFinger,
-                            habitOthers,
-                            habitMouthbreather,
-                            habitFrequency,
-                            habitIntensity,
-                            initTreatmentName: getVal('p-init-treatment-name'),
-                            initTreatmentSessions: getVal('p-init-treatment-sessions'),
-                            initTreatmentInterval: getVal('p-init-treatment-interval'),
-                            sessionsPlan: (sessionsData && sessionsData.length > 0) ? sessionsData : (existing.metadata && existing.metadata.sessionsPlan)
-                        }
-                    };
-                } else {
-                    // MODO NUEVO PACIENTE: Guardar ficha integral con todos los datos de pasos 1, 2, 3 y 4
-                    patientToSave = {
-                        id,
-                        fullname,
-                        birthdate,
-                        phone,
-                        email: getVal('p-email'),
-                        occupation: profession,
-                        allergies,
-                        systemic,
-                        medication,
-                        emergencyContact,
-                        status: 'Activo',
-                        createdAt: new Date().toISOString().split('T')[0],
-                        odontogramData: {},
-                        clinicalNotes: [],
-                        photos: [],
-                        payments: [],
-                        metadata: {
-                            type,
-                            age,
-                            gender,
-                            address,
-                            mobilePhone,
-                            localPhone,
-                            workPhone,
-                            profession,
-                            consultReason,
-                            repName,
-                            repId,
-                            repPhone,
-                            repRelation,
-                            medicalTreatment,
-                            medicalTreatmentDetails,
-                            childDiseases,
-                            hasAllergies,
-                            allergiesDetails,
-                            surgeries,
-                            bleedingIssue,
-                            respiratoryIssues,
-                            respiratoryIssuesDetails,
-                            anesthesiaReaction,
-                            anesthesiaReactionDetails,
-                            penicillinAllergy,
-                            penicillinAllergyDetails,
-                            heartIssues,
-                            heartIssuesDetails,
-                            tissueHardPalate,
-                            tissueSoftPalate,
-                            tissueMouthFloor,
-                            tissueCheeks,
-                            tissueTongue,
-                            tissueFrenum,
-                            habitSwallowing,
-                            habitNailbiting,
-                            habitThumbsucking,
-                            habitThumbsuckingFinger,
-                            habitOthers,
-                            habitMouthbreather,
-                            habitFrequency,
-                            habitIntensity,
-                            initTreatmentName: getVal('p-init-treatment-name'),
-                            initTreatmentSessions: getVal('p-init-treatment-sessions'),
-                            initTreatmentInterval: getVal('p-init-treatment-interval'),
-                            sessionsPlan: sessionsData
-                        }
-                    };
-                }
-
-                await SupabaseDataService.savePatient(patientToSave);
-                window.editingPatientId = null;
-                
-                // Create automatically scheduled appointments for each session with a date
-                if (sessionsData && sessionsData.length > 0) {
-                    let appointmentsScheduledCount = 0;
-                    for (const session of sessionsData) {
-                        if (session.date) {
-                            const servicesText = session.services && session.services.length > 0
-                                ? session.services.map(s => `Pza ${s.tooth || 'Gnl'}: ${s.name}`).join(', ')
-                                : 'Tratamiento Planificado';
-                            
-                            const apptId = 'appt-' + Date.now() + '-' + Math.floor(Math.random() * 100000);
-                            const appt = {
-                                id: apptId,
-                                patientId: id,
-                                patientName: fullname,
-                                date: session.date,
-                                time: session.time || "09:00 AM",
-                                treatment: `Sesión ${session.sessionNumber}: ${servicesText}`,
-                                status: "Programada",
-                                isTomorrow: false
-                            };
-                            await SupabaseDataService.saveAppointment(appt);
-                            appointmentsScheduledCount++;
-                        }
-                    }
-                    if (appointmentsScheduledCount > 0) {
-                        await renderAgendaView(); // Reload agenda immediately
-                    }
-                }
-
-                setActivePatientId(id);
-                await renderPatientsTable();
-                await renderEHRView();
-                await renderDashboard();
-                await renderAgendaView();
-                Swal.fire({ icon: 'success', title: '¡Paciente Guardado!', text: `${fullname} ha sido guardado exitosamente en la nube de Supabase.`, timer: 2000, showConfirmButton: false });
-            } catch (err) {
-                console.error("Error al guardar paciente:", err);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error de Servidor / Supabase',
-                    text: `No se pudo guardar el paciente. Detalle: ${err.message || err}`
-                });
-            }
+    const step3BudgetBtn = document.getElementById('btn-patient-step3-budget');
+    if (step3BudgetBtn) {
+        step3BudgetBtn.onclick = async (e) => {
+            e.preventDefault();
+            await window.savePatientRecord(true);
         };
     }
 
@@ -7035,6 +7105,14 @@ function initPatientStepperWizard() {
                 btnSave.classList.remove('hidden');
             } else {
                 btnSave.classList.add('hidden');
+            }
+        }
+        const btnSaveAndBudget = document.getElementById('btn-patient-save-and-budget');
+        if (btnSaveAndBudget) {
+            if (step >= 3 || window.editingPatientId) {
+                btnSaveAndBudget.classList.remove('hidden');
+            } else {
+                btnSaveAndBudget.classList.add('hidden');
             }
         }
         if (step === 4) {
