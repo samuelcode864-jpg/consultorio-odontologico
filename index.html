@@ -18,7 +18,7 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=87">
+    <link rel="stylesheet" href="styles.css?v=88">
 </head>
 <body class="light-theme">
 
@@ -1991,15 +1991,16 @@
         </div>
     </div>
 
-    <!-- MODAL: AGREGAR NUEVA CITA -->
+    <!-- MODAL: AGREGAR / EDITAR CITA -->
     <div class="modal-overlay hidden" id="modal-appointment">
         <div class="modal-dialog">
             <div class="modal-header">
-                <h3><i class="fa-solid fa-calendar-plus"></i> Agendar Nueva Cita Médica</h3>
+                <h3 id="modal-appointment-title"><i class="fa-solid fa-calendar-plus text-cyan"></i> Agendar Nueva Cita Médica</h3>
                 <button class="modal-close" data-close="modal-appointment">&times;</button>
             </div>
             <div class="modal-body">
                 <form id="form-appointment" class="grid-form">
+                    <input type="hidden" id="app-id" value="">
                     <div class="form-group span-2">
                         <label>Paciente *</label>
                         <select id="app-patient-select" required>
@@ -2013,8 +2014,22 @@
                     <div class="form-group">
                         <label>Día Programado *</label>
                         <select id="app-day-target">
-                            <option value="tomorrow">Mañana (Enviar Recordatorio)</option>
                             <option value="today">Hoy (Cita Activa)</option>
+                            <option value="tomorrow">Mañana (Enviar Recordatorio)</option>
+                            <option value="custom">Fecha Específica...</option>
+                        </select>
+                    </div>
+                    <div class="form-group span-2 hidden" id="app-custom-date-group">
+                        <label>Fecha de la Cita *</label>
+                        <input type="date" id="app-custom-date" class="form-control">
+                    </div>
+                    <div class="form-group span-2">
+                        <label>Estado de la Cita</label>
+                        <select id="app-status">
+                            <option value="Programada" selected>Programada</option>
+                            <option value="En Espera">En Espera</option>
+                            <option value="Atendida">Atendida</option>
+                            <option value="Cancelada">Cancelada</option>
                         </select>
                     </div>
                     <div class="form-group span-2">
@@ -2898,12 +2913,12 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=87"></script>
-    <script src="supabaseClient.js?v=87"></script>
-    <script src="odontogram.js?v=87"></script>
-    <script src="signature.js?v=87"></script>
-    <script src="whatsapp.js?v=87"></script>
-    <script src="kardex.js?v=87"></script>
-    <script src="app.js?v=87"></script>
+    <script src="seededData.js?v=88"></script>
+    <script src="supabaseClient.js?v=88"></script>
+    <script src="odontogram.js?v=88"></script>
+    <script src="signature.js?v=88"></script>
+    <script src="whatsapp.js?v=88"></script>
+    <script src="kardex.js?v=88"></script>
+    <script src="app.js?v=88"></script>
 </body>
 </html>

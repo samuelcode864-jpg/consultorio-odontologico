@@ -831,8 +831,7 @@ function initMobileFabActions() {
     if (actAppointment) {
         actAppointment.onclick = async () => {
             closeModal('modal-mobile-quick-actions');
-            await populateAppointmentPatientSelect();
-            openModal('modal-appointment');
+            await window.openNewAppointmentModal();
         };
     }
 
@@ -2285,6 +2284,8 @@ async function renderDashboard() {
                 whatsappBtnHtml = `<span class="badge-tag green" style="font-size:0.75rem;">Cita de Hoy</span>`;
             }
 
+            const editApptBtn = `<button class="btn btn-xs btn-outline btn-appt-edit" style="border-color: #0891b2; color: #0891b2;" onclick="window.editAppointment('${app.id}')" title="Editar Cita"><i class="fa-solid fa-pen-to-square"></i> <span class="btn-text-full">Editar</span></button>`;
+
             const deleteApptBtn = isAssistant ? '' : `<button class="btn btn-xs btn-outline text-red" onclick="deleteAppointment('${app.id}')" title="Eliminar Cita"><i class="fa-solid fa-trash"></i></button>`;
 
             const atenderBtn = (!isAssistant && app.status === 'Programada') 
@@ -2302,6 +2303,7 @@ async function renderDashboard() {
                     </div>
                     <div class="timeline-actions">
                         ${whatsappBtnHtml}
+                        ${editApptBtn}
                         ${atenderBtn}
                         ${deleteApptBtn}
                     </div>
@@ -2500,6 +2502,8 @@ async function renderAgendaView(filter = 'all', searchQuery = '') {
             </button>
         `;
 
+        const editApptBtn = `<button class="btn btn-xs btn-outline btn-appt-edit" style="border-color: #0891b2; color: #0891b2;" onclick="window.editAppointment('${app.id}')" title="Editar Cita"><i class="fa-solid fa-pen-to-square"></i> <span class="btn-text-full">Editar</span></button>`;
+
         const atenderBtn = (!isAssistant && app.status === 'Programada') 
             ? `<button class="btn btn-xs btn-primary btn-appt-attend" style="background-color: var(--primary-cyan) !important; color: white !important; border: none !important;" onclick="window.atenderAppointmentFromAgenda('${app.id}')" title="Atender esta cita ahora"><i class="fa-solid fa-user-doctor"></i> Atender</button>`
             : '';
@@ -2516,6 +2520,7 @@ async function renderAgendaView(filter = 'all', searchQuery = '') {
                 <div class="timeline-actions">
                     ${whatsappBtnHtml}
                     ${gCalBtn}
+                    ${editApptBtn}
                     ${atenderBtn}
                     ${deleteApptBtn}
                 </div>
@@ -2538,8 +2543,7 @@ async function renderAgendaView(filter = 'all', searchQuery = '') {
     const addAppointmentBtn = document.getElementById('btn-add-appointment-agenda');
     if (addAppointmentBtn) {
         addAppointmentBtn.onclick = async () => {
-            await populateAppointmentPatientSelect();
-            openModal('modal-appointment');
+            await window.openNewAppointmentModal();
         };
     }
 }
@@ -3946,12 +3950,118 @@ function initGlobalEvents() {
         };
     }
 
-    // Modal Cita Listener
+    // Day Target selector toggle custom date
+    const dayTargetSelect = document.getElementById('app-day-target');
+    const customDateGroup = document.getElementById('app-custom-date-group');
+    if (dayTargetSelect && customDateGroup) {
+        dayTargetSelect.onchange = () => {
+            if (dayTargetSelect.value === 'custom') {
+                customDateGroup.classList.remove('hidden');
+                const customDateInput = document.getElementById('app-custom-date');
+                if (customDateInput && !customDateInput.value) {
+                    customDateInput.value = new Date().toISOString().split('T')[0];
+                }
+            } else {
+                customDateGroup.classList.add('hidden');
+            }
+        };
+    }
+
+    // Modal Cita Helpers: New & Edit
+    window.openNewAppointmentModal = async function() {
+        await populateAppointmentPatientSelect();
+
+        const titleEl = document.getElementById('modal-appointment-title');
+        if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-calendar-plus text-cyan"></i> Agendar Nueva Cita Médica';
+
+        const saveBtn = document.getElementById('btn-save-appointment');
+        if (saveBtn) saveBtn.textContent = 'Guardar Cita';
+
+        const appIdInput = document.getElementById('app-id');
+        if (appIdInput) appIdInput.value = '';
+
+        const timeInput = document.getElementById('app-time');
+        if (timeInput) timeInput.value = '';
+
+        const treatmentInput = document.getElementById('app-treatment');
+        if (treatmentInput) treatmentInput.value = '';
+
+        const statusSelect = document.getElementById('app-status');
+        if (statusSelect) statusSelect.value = 'Programada';
+
+        const daySel = document.getElementById('app-day-target');
+        const customGrp = document.getElementById('app-custom-date-group');
+        if (daySel) daySel.value = 'today';
+        if (customGrp) customGrp.classList.add('hidden');
+
+        openModal('modal-appointment');
+    };
+
+    window.editAppointment = async function(apptId) {
+        try {
+            const appts = await SupabaseDataService.getAppointments();
+            const app = appts.find(a => a.id === apptId);
+            if (!app) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'No se encontró la información de la cita seleccionada.' });
+                return;
+            }
+
+            await populateAppointmentPatientSelect();
+
+            const titleEl = document.getElementById('modal-appointment-title');
+            if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-pen-to-square text-cyan"></i> Editar Cita Médica';
+
+            const saveBtn = document.getElementById('btn-save-appointment');
+            if (saveBtn) saveBtn.textContent = 'Actualizar Cita';
+
+            const appIdInput = document.getElementById('app-id');
+            if (appIdInput) appIdInput.value = app.id;
+
+            const pSelect = document.getElementById('app-patient-select');
+            if (pSelect) pSelect.value = app.patientId;
+
+            const timeInput = document.getElementById('app-time');
+            if (timeInput) timeInput.value = app.time || '';
+
+            const treatmentInput = document.getElementById('app-treatment');
+            if (treatmentInput) treatmentInput.value = app.treatment || '';
+
+            const statusSelect = document.getElementById('app-status');
+            if (statusSelect) statusSelect.value = app.status || 'Programada';
+
+            const daySel = document.getElementById('app-day-target');
+            const customGrp = document.getElementById('app-custom-date-group');
+            const customDateInput = document.getElementById('app-custom-date');
+
+            if (daySel) {
+                if (app.date === 'today' || app.date === 'today-appt' || app.isTomorrow === false) {
+                    daySel.value = 'today';
+                    if (customGrp) customGrp.classList.add('hidden');
+                } else if (app.date === 'tomorrow' || app.isTomorrow === true) {
+                    daySel.value = 'tomorrow';
+                    if (customGrp) customGrp.classList.add('hidden');
+                } else if (app.date && app.date.includes('-')) {
+                    daySel.value = 'custom';
+                    if (customGrp) customGrp.classList.remove('hidden');
+                    if (customDateInput) customDateInput.value = app.date;
+                } else {
+                    daySel.value = 'today';
+                    if (customGrp) customGrp.classList.add('hidden');
+                }
+            }
+
+            openModal('modal-appointment');
+        } catch(e) {
+            console.error("Error editing appointment:", e);
+            Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo abrir el editor de la cita.' });
+        }
+    };
+
+    // Modal Cita Trigger Listener
     const btnAddAppt = document.getElementById('btn-add-appointment');
     if (btnAddAppt) {
         btnAddAppt.onclick = async () => {
-            await populateAppointmentPatientSelect();
-            openModal('modal-appointment');
+            await window.openNewAppointmentModal();
         };
     }
 
@@ -4013,7 +4123,10 @@ function initGlobalEvents() {
             const patientSelect = document.getElementById('app-patient-select');
             const time = document.getElementById('app-time').value.trim();
             const dayTarget = document.getElementById('app-day-target').value;
+            const customDate = document.getElementById('app-custom-date') ? document.getElementById('app-custom-date').value : '';
             const treatment = document.getElementById('app-treatment').value.trim();
+            const statusVal = document.getElementById('app-status') ? document.getElementById('app-status').value : 'Programada';
+            const existingId = document.getElementById('app-id') ? document.getElementById('app-id').value : '';
 
             if (!patientSelect || !time || !treatment) {
                 Swal.fire({ icon: 'warning', title: 'Campos requeridos', text: 'Por favor complete los campos obligatorios (*)' });
@@ -4021,18 +4134,21 @@ function initGlobalEvents() {
             }
 
             const selectedOption = patientSelect.options[patientSelect.selectedIndex];
-            const patientName = selectedOption.dataset.name;
-            const patientId = selectedOption.value;
+            const patientName = selectedOption ? selectedOption.dataset.name : '';
+            const patientId = selectedOption ? selectedOption.value : '';
+
+            const finalDate = (dayTarget === 'custom' && customDate) ? customDate : (dayTarget === 'tomorrow' ? 'tomorrow' : 'today');
+            const isTomorrow = dayTarget === 'tomorrow';
 
             const appointmentObj = {
-                id: 'appt-' + Date.now(),
+                id: existingId || ('appt-' + Date.now()),
                 time,
                 patientName,
                 patientId,
                 treatment,
-                status: 'Programada',
-                isTomorrow: dayTarget === 'tomorrow',
-                date: dayTarget
+                status: statusVal,
+                isTomorrow: isTomorrow,
+                date: finalDate
             };
 
             await SupabaseDataService.saveAppointment(appointmentObj);
@@ -4041,20 +4157,30 @@ function initGlobalEvents() {
             await renderDashboard();
             await renderAgendaView();
 
-            Swal.fire({
-                icon: 'success',
-                title: '¡Cita Agendada!',
-                text: 'La cita ha sido añadida a la agenda.',
-                showCancelButton: true,
-                confirmButtonColor: '#2563eb',
-                cancelButtonColor: '#64748b',
-                confirmButtonText: '<i class="fa-solid fa-calendar-plus"></i> Añadir a Google Calendar',
-                cancelButtonText: 'Cerrar'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    window.addApptToGoogleCalendarDirect(appointmentObj.id);
-                }
-            });
+            if (existingId) {
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Cita Actualizada!',
+                    text: 'Los cambios de la cita han sido guardados.',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            } else {
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Cita Agendada!',
+                    text: 'La cita ha sido añadida a la agenda.',
+                    showCancelButton: true,
+                    confirmButtonColor: '#2563eb',
+                    cancelButtonColor: '#64748b',
+                    confirmButtonText: '<i class="fa-solid fa-calendar-plus"></i> Añadir a Google Calendar',
+                    cancelButtonText: 'Cerrar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.addApptToGoogleCalendarDirect(appointmentObj.id);
+                    }
+                });
+            }
         };
     }
 
