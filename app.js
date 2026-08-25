@@ -4305,7 +4305,7 @@ function initGlobalEvents() {
             // Collect sessions data from step 4
             const sessionsData = [];
             const planSessionsContainer = document.getElementById('plan-sessions-container');
-            const bItems = window.currentBudgetItems || [];
+            const bItems = window.currentPlannerBudgetItems || (currentBudgetItems && currentBudgetItems.length > 0 ? currentBudgetItems : (window.currentBudgetItems || []));
             if (planSessionsContainer && bItems.length > 0) {
                 const sessionBlocks = planSessionsContainer.querySelectorAll('.session-date-input');
                 sessionBlocks.forEach(input => {
@@ -4317,7 +4317,7 @@ function initGlobalEvents() {
                     const services = Array.from(checkedBoxes).map(cb => {
                         const idx = parseInt(cb.dataset.itemIdx);
                         return bItems[idx];
-                    });
+                    }).filter(Boolean);
                     sessionsData.push({
                         sessionNumber: sessionNum,
                         date: dateVal,
@@ -5633,27 +5633,79 @@ function renderSessionsPlanner() {
         return;
     }
 
-    const budgetItems = window.currentBudgetItems || [];
+    let budgetItems = (currentBudgetItems && currentBudgetItems.length > 0) ? currentBudgetItems : (window.currentBudgetItems || []);
+    
+    // If still empty, check editing patient object
+    const p = window.currentEditingPatientObj;
+    if (budgetItems.length === 0 && p) {
+        if (p.metadata?.sessionsPlan && Array.isArray(p.metadata.sessionsPlan)) {
+            const extracted = [];
+            p.metadata.sessionsPlan.forEach(s => {
+                if (s.services && Array.isArray(s.services)) {
+                    s.services.forEach(srv => {
+                        if (srv && srv.name && !extracted.some(e => e.name === srv.name && e.tooth === srv.tooth)) {
+                            extracted.push(srv);
+                        }
+                    });
+                }
+            });
+            if (extracted.length > 0) {
+                budgetItems = extracted;
+            }
+        }
+        if (budgetItems.length === 0 && p.metadata?.initTreatmentName) {
+            budgetItems = [{
+                key: 'init-proc-1',
+                tooth: 'General',
+                face: 'Gnl',
+                name: p.metadata.initTreatmentName,
+                price: 0
+            }];
+        }
+    }
+
+    window.currentPlannerBudgetItems = budgetItems;
+
     if (budgetItems.length === 0) {
-        container.innerHTML = '<div style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 10px; border: 1px dashed var(--border-color); border-radius:6px; background:var(--bg-main);"><i class="fa-solid fa-triangle-exclamation text-amber"></i> No hay tratamientos cargados en el presupuesto activo para distribuir en las sesiones.</div>';
+        container.innerHTML = '<div style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 12px; border: 1px dashed var(--border-color); border-radius:6px; background:var(--bg-main);"><i class="fa-solid fa-triangle-exclamation text-amber"></i> No hay tratamientos cargados en el presupuesto activo para distribuir en las sesiones.<br><small style="margin-top:6px; display:block; color:var(--text-muted);">Agregue tratamientos en el Presupuesto / Odontodiagrama o ingrese el Tratamiento Propuesto en este formulario.</small></div>';
         return;
     }
 
     // Preserve current selections, dates and times before redrawing
     const prevData = {};
+    
+    // First, populate from saved patient sessionsPlan if editing existing patient
+    if (p && p.metadata?.sessionsPlan && Array.isArray(p.metadata.sessionsPlan)) {
+        p.metadata.sessionsPlan.forEach(s => {
+            const sNum = s.sessionNumber;
+            const selIdxs = [];
+            if (s.services && Array.isArray(s.services)) {
+                s.services.forEach(srv => {
+                    const idx = budgetItems.findIndex(b => b.name === srv.name && (b.tooth === srv.tooth || !srv.tooth));
+                    if (idx >= 0) selIdxs.push(idx.toString());
+                });
+            }
+            prevData[sNum] = {
+                date: s.date || '',
+                time: s.time || '09:00 AM',
+                selectedIdxs: selIdxs
+            };
+        });
+    }
+
+    // Override with any live form input if previously rendered
     container.querySelectorAll('.session-date-input').forEach(input => {
         const sNum = input.dataset.session;
         const timeSelect = container.querySelector(`.session-time-select[data-session="${sNum}"]`);
-        prevData[sNum] = {
-            date: input.value,
-            time: timeSelect ? timeSelect.value : '09:00 AM',
-            selectedIdxs: []
-        };
+        if (!prevData[sNum]) prevData[sNum] = { selectedIdxs: [] };
+        if (input.value) prevData[sNum].date = input.value;
+        if (timeSelect) prevData[sNum].time = timeSelect.value;
     });
     container.querySelectorAll('.session-service-checkbox:checked').forEach(cb => {
         const sNum = cb.dataset.session;
         const idx = cb.dataset.itemIdx;
-        if (prevData[sNum]) {
+        if (!prevData[sNum]) prevData[sNum] = { selectedIdxs: [] };
+        if (!prevData[sNum].selectedIdxs.includes(idx)) {
             prevData[sNum].selectedIdxs.push(idx);
         }
     });
@@ -6295,6 +6347,22 @@ function loadPatientDataIntoForm(p) {
     if (p.metadata?.habitMouthbreather) document.getElementById('p-habit-mouthbreather').value = p.metadata.habitMouthbreather;
     if (p.metadata?.habitFrequency) document.getElementById('p-habit-frequency').value = p.metadata.habitFrequency;
     if (p.metadata?.habitIntensity) document.getElementById('p-habit-intensity').value = p.metadata.habitIntensity;
+
+    // Step 4: Plan Clínico
+    if (p.metadata?.initTreatmentSessions) {
+        const sInput = document.getElementById('p-init-treatment-sessions');
+        if (sInput) sInput.value = p.metadata.initTreatmentSessions;
+    }
+    if (p.metadata?.initTreatmentInterval) {
+        const intInput = document.getElementById('p-init-treatment-interval');
+        if (intInput) intInput.value = p.metadata.initTreatmentInterval;
+    }
+    if (p.metadata?.initTreatmentName) {
+        const nameInput = document.getElementById('p-init-treatment-name');
+        if (nameInput) nameInput.value = p.metadata.initTreatmentName;
+    }
+
+    window.currentEditingPatientObj = p;
 }
 
 function initSettingsEvents() {
