@@ -1563,6 +1563,7 @@ async function renderPatientsTable(filter = 'all', searchQuery = '') {
             <td><span class="badge-tag ${statusClass}">${p.status}</span></td>
             <td>
                 <div class="actions-cell-group">
+                    <button class="btn btn-xs btn-outline" style="border-color:#0891b2; color:#0891b2;" onclick="window.editPatient('${p.id}')" title="Editar Ficha / Historia"><i class="fa-solid fa-pen-to-square"></i> <span class="btn-text-full">Editar</span></button>
                     <button class="btn btn-xs btn-primary" onclick="selectPatientForOdontogram('${p.id}')" title="Emitir Presupuesto"><i class="fa-solid fa-tooth"></i> Presupuesto</button>
                     <button class="btn btn-xs btn-outline" onclick="openEHRForPatient('${p.id}')" title="Ver Historia"><i class="fa-solid fa-folder-open"></i> EHR</button>
                     ${deleteBtnHtml}
@@ -1718,6 +1719,11 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                     <div><strong>Contacto Emergencia:</strong> ${activePatient.emergencyContact || 'Sin registrar'}</div>
                     <div><strong>Medicación Actual:</strong> ${activePatient.medication || 'Sin registrar'}</div>
                     ${repInfo}
+                    <div style="grid-column: span 2; margin-top: 12px; display: flex; justify-content: flex-end;">
+                        <button class="btn btn-xs btn-outline" style="border-color:#0891b2; color:#0891b2; font-weight:600;" onclick="window.editPatient('${activePatient.id}')" title="Editar todos los datos del paciente (Paso 1, 2, 3 y 4)">
+                            <i class="fa-solid fa-user-pen"></i> Editar Ficha Completa del Paciente
+                        </button>
+                    </div>
                 `;
             }
 
@@ -1744,6 +1750,11 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
             if (anamnesisContent) {
                 anamnesisContent.innerHTML = `
                     <div style="display: flex; flex-direction: column; gap: 15px; padding: 10px;">
+                        <div style="display: flex; justify-content: flex-end;">
+                            <button class="btn btn-xs btn-outline" style="border-color:#0891b2; color:#0891b2; font-weight:600;" onclick="window.editPatient('${activePatient.id}')">
+                                <i class="fa-solid fa-pen-to-square"></i> Editar Anamnesis y Hábitos
+                            </button>
+                        </div>
                         <div class="details-section">
                             <h4 style="margin: 0 0 10px 0; color: #dc2626;"><i class="fa-solid fa-notes-medical"></i> Cuestionario de Anamnesis Clínica</h4>
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.88rem;">
@@ -4831,16 +4842,20 @@ function initGlobalEvents() {
             let patientToSave = {};
 
             try {
-                if (typeof wizardMode !== 'undefined' && wizardMode === 'clinical_complete') {
-                    // Update mode - Fetch patient, merge clinical info, preserve odontogram, notes, etc.
-                    const patients = await SupabaseDataService.getPatients();
-                    const existing = patients.find(p => p.id === id);
-                    if (!existing) {
-                        throw new Error(`No se encontró el paciente seleccionado (${id}) en el sistema.`);
-                    }
+                const patients = await SupabaseDataService.getPatients();
+                const existing = patients.find(p => p.id === id || (window.editingPatientId && p.id === window.editingPatientId));
 
+                if (existing) {
+                    // MODO EDICIÓN: Actualizar todos los datos clínicos y personales preservando historial
                     patientToSave = {
                         ...existing,
+                        id: existing.id,
+                        fullname,
+                        birthdate,
+                        phone,
+                        email: getVal('p-email'),
+                        occupation: profession,
+                        address: address,
                         allergies,
                         systemic,
                         medication,
@@ -4892,19 +4907,11 @@ function initGlobalEvents() {
                             initTreatmentName: getVal('p-init-treatment-name'),
                             initTreatmentSessions: getVal('p-init-treatment-sessions'),
                             initTreatmentInterval: getVal('p-init-treatment-interval'),
-                            sessionsPlan: sessionsData
+                            sessionsPlan: (sessionsData && sessionsData.length > 0) ? sessionsData : (existing.metadata && existing.metadata.sessionsPlan)
                         }
                     };
                 } else {
-                    // New registration (filiación básica)
-                    // Check duplicate ID
-                    const patients = await SupabaseDataService.getPatients();
-                    const duplicate = patients.find(p => p.id === id);
-                    if (duplicate) {
-                        Swal.fire({ icon: 'error', title: 'Cédula Duplicada', text: 'Ya existe un paciente registrado con esta Cédula / ID.' });
-                        return;
-                    }
-
+                    // MODO NUEVO PACIENTE: Guardar ficha integral con todos los datos de pasos 1, 2, 3 y 4
                     patientToSave = {
                         id,
                         fullname,
@@ -4912,10 +4919,10 @@ function initGlobalEvents() {
                         phone,
                         email: getVal('p-email'),
                         occupation: profession,
-                        allergies: [],
-                        systemic: [],
-                        medication: '',
-                        emergencyContact: '',
+                        allergies,
+                        systemic,
+                        medication,
+                        emergencyContact,
                         status: 'Activo',
                         createdAt: new Date().toISOString().split('T')[0],
                         odontogramData: {},
@@ -4935,12 +4942,46 @@ function initGlobalEvents() {
                             repName,
                             repId,
                             repPhone,
-                            repRelation
+                            repRelation,
+                            medicalTreatment,
+                            medicalTreatmentDetails,
+                            childDiseases,
+                            hasAllergies,
+                            allergiesDetails,
+                            surgeries,
+                            bleedingIssue,
+                            respiratoryIssues,
+                            respiratoryIssuesDetails,
+                            anesthesiaReaction,
+                            anesthesiaReactionDetails,
+                            penicillinAllergy,
+                            penicillinAllergyDetails,
+                            heartIssues,
+                            heartIssuesDetails,
+                            tissueHardPalate,
+                            tissueSoftPalate,
+                            tissueMouthFloor,
+                            tissueCheeks,
+                            tissueTongue,
+                            tissueFrenum,
+                            habitSwallowing,
+                            habitNailbiting,
+                            habitThumbsucking,
+                            habitThumbsuckingFinger,
+                            habitOthers,
+                            habitMouthbreather,
+                            habitFrequency,
+                            habitIntensity,
+                            initTreatmentName: getVal('p-init-treatment-name'),
+                            initTreatmentSessions: getVal('p-init-treatment-sessions'),
+                            initTreatmentInterval: getVal('p-init-treatment-interval'),
+                            sessionsPlan: sessionsData
                         }
                     };
                 }
 
                 await SupabaseDataService.savePatient(patientToSave);
+                window.editingPatientId = null;
                 
                 // Create automatically scheduled appointments for each session with a date
                 if (sessionsData && sessionsData.length > 0) {
@@ -6401,14 +6442,14 @@ function initPatientStepperWizard() {
             }
         }
         if (btnNext) {
-            if (step === totalSteps || (window.wizardMode === 'new_basic' && step === 1)) {
+            if (step === totalSteps) {
                 btnNext.classList.add('hidden');
             } else {
                 btnNext.classList.remove('hidden');
             }
         }
         if (btnSave) {
-            if (step === totalSteps || (window.wizardMode === 'new_basic' && step === 1)) {
+            if (step === totalSteps || window.editingPatientId) {
                 btnSave.classList.remove('hidden');
             } else {
                 btnSave.classList.add('hidden');
@@ -6745,32 +6786,84 @@ function initPatientStepperWizard() {
         }
     };
 
-    window.openClinicalWizardForPatientId = (patient) => {
-        window.currentPatientId = patient.id;
-        window.wizardMode = 'clinical_complete';
+    window.openPatientModalForNew = () => {
+        window.currentPatientId = null;
+        window.editingPatientId = null;
+        window.wizardMode = 'all_steps';
         resetWizard();
+        
+        const modalTitle = document.getElementById('modal-patient-title');
+        if (modalTitle) {
+            modalTitle.innerHTML = `<i class="fa-solid fa-user-plus text-cyan"></i> Registro de Paciente`;
+        }
+        const saveBtn = document.getElementById('btn-save-patient');
+        if (saveBtn) saveBtn.innerText = 'Guardar Paciente';
 
-        loadPatientDataIntoForm(patient);
-
-        // Disable Step 1 inputs (read-only)
-        toggleStep1InputsReadonly(true);
-
-        // Show all indicators and lines
+        const pIdInput = document.getElementById('p-id');
+        if (pIdInput) pIdInput.readOnly = false;
+        
+        // Show all Step indicators 1, 2, 3, 4 and lines
         document.getElementById('step-ind-2').classList.remove('hidden');
         document.getElementById('step-ind-3').classList.remove('hidden');
         document.getElementById('step-ind-4').classList.remove('hidden');
         document.getElementById('step-line-1').classList.remove('hidden');
         document.getElementById('step-line-2').classList.remove('hidden');
         document.getElementById('step-line-3').classList.remove('hidden');
-
-        // Open modal starting at step 1
+        
         showStep(1);
         openModal('modal-patient');
     };
 
+    window.editPatient = async function(patientId) {
+        try {
+            const patients = await SupabaseDataService.getPatients();
+            const p = patients.find(pat => pat.id === patientId);
+            if (!p) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'No se encontró la ficha del paciente.' });
+                return;
+            }
+
+            window.currentPatientId = p.id;
+            window.editingPatientId = p.id;
+            window.wizardMode = 'clinical_complete';
+            resetWizard();
+
+            const modalTitle = document.getElementById('modal-patient-title');
+            if (modalTitle) {
+                modalTitle.innerHTML = `<i class="fa-solid fa-user-pen text-cyan"></i> Editar Paciente: ${p.fullname}`;
+            }
+            const saveBtn = document.getElementById('btn-save-patient');
+            if (saveBtn) {
+                saveBtn.innerText = 'Guardar Cambios';
+                saveBtn.classList.remove('hidden');
+            }
+
+            // Show all Step indicators 1, 2, 3, 4 and lines
+            document.getElementById('step-ind-2').classList.remove('hidden');
+            document.getElementById('step-ind-3').classList.remove('hidden');
+            document.getElementById('step-ind-4').classList.remove('hidden');
+            document.getElementById('step-line-1').classList.remove('hidden');
+            document.getElementById('step-line-2').classList.remove('hidden');
+            document.getElementById('step-line-3').classList.remove('hidden');
+
+            loadPatientDataIntoForm(p);
+
+            const pIdInput = document.getElementById('p-id');
+            if (pIdInput) pIdInput.readOnly = true;
+
+            showStep(1);
+            openModal('modal-patient');
+        } catch(e) {
+            console.error("Error editing patient:", e);
+        }
+    };
+
+    window.openClinicalWizardForPatientId = (patient) => {
+        window.editPatient(patient.id);
+    };
+
     window.selectRegisterFlow = async () => {
-        // Assistants and Admins register new patients directly (Step 1 Filiación only)
-        openPatientModalForNew();
+        window.openPatientModalForNew();
     };
 
     const btnQuickP = document.getElementById('btn-quick-patient');
@@ -6788,115 +6881,106 @@ function initPatientStepperWizard() {
         btnEditClinical.onclick = async () => {
             const activeId = getActivePatientId();
             if (!activeId) {
-                Swal.fire({ icon: 'warning', title: 'Paciente No Seleccionado', text: 'Por favor, seleccione un paciente de la lista de la izquierda primero para completar su historia clínica.' });
+                Swal.fire({ icon: 'warning', title: 'Paciente No Seleccionado', text: 'Por favor, seleccione un paciente primero para editar su historia clínica.' });
                 return;
             }
-            try {
-                const patients = await SupabaseDataService.getPatients();
-                const p = patients.find(pat => pat.id === activeId);
-                if (p) {
-                    window.openClinicalWizardForPatientId(p);
-                } else {
-                    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo encontrar al paciente en el sistema.' });
-                }
-            } catch(e) {
-                console.error("Error launching clinical wizard:", e);
-            }
+            window.editPatient(activeId);
         };
     }
 }
 
 function toggleStep1InputsReadonly(isReadonly) {
-    const ids = ['p-type', 'p-id', 'p-firstname', 'p-lastname', 'p-birthdate', 'p-age', 'p-gender', 'p-profession', 'p-mobile-phone', 'p-local-phone', 'p-work-phone', 'p-email', 'p-address', 'p-rep-name', 'p-rep-id', 'p-rep-phone', 'p-rep-relation'];
-    ids.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            if (isReadonly) {
-                el.setAttribute('disabled', 'true');
-            } else {
-                el.removeAttribute('disabled');
-            }
-        }
-    });
+    // Keep inputs enabled so they can always be edited, only p-id is guarded during edit
+    const pIdInput = document.getElementById('p-id');
+    if (pIdInput) pIdInput.readOnly = isReadonly;
 }
 
 function loadPatientDataIntoForm(p) {
-    document.getElementById('p-id').value = p.id;
-    if (document.getElementById('p-firstname') && p.fullname) {
+    const setVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.value = (val !== undefined && val !== null) ? val : '';
+    };
+    const setChecked = (id, isChecked, detailsId) => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.checked = !!isChecked;
+            if (detailsId) {
+                const det = document.getElementById(detailsId);
+                if (det) det.style.display = el.checked ? 'block' : 'none';
+            }
+        }
+    };
+
+    setVal('p-id', p.id);
+    if (p.fullname) {
         const parts = p.fullname.split(' ');
-        document.getElementById('p-firstname').value = parts[0] || '';
-        document.getElementById('p-lastname').value = parts.slice(1).join(' ') || '';
+        setVal('p-firstname', parts[0] || '');
+        setVal('p-lastname', parts.slice(1).join(' ') || '');
     }
-    document.getElementById('p-birthdate').value = p.birthdate;
+    setVal('p-birthdate', p.birthdate || '');
     const age = calculateAge(p.birthdate);
-    document.getElementById('p-age').value = age;
-    document.getElementById('p-mobile-phone').value = p.phone;
-    if (document.getElementById('p-email')) document.getElementById('p-email').value = p.email || '';
-    if (document.getElementById('p-profession')) document.getElementById('p-profession').value = p.occupation || '';
-    
-    if (document.getElementById('p-type')) {
-        document.getElementById('p-type').value = p.metadata?.type || (age < 18 ? 'Infantil' : 'Adulto');
-        document.getElementById('p-birthdate').dispatchEvent(new Event('change'));
-    }
-    
-    if (p.metadata?.gender) {
-        document.getElementById('p-gender').value = p.metadata.gender;
-    }
-    if (p.metadata?.address) {
-        document.getElementById('p-address').value = p.metadata.address;
-    }
-    if (p.metadata?.localPhone) {
-        document.getElementById('p-local-phone').value = p.metadata.localPhone;
-    }
-    if (p.metadata?.workPhone) {
-        document.getElementById('p-work-phone').value = p.metadata.workPhone;
-    }
-    if (p.metadata?.consultReason) {
-        document.getElementById('p-consult-reason').value = p.metadata.consultReason;
+    setVal('p-age', (p.metadata && p.metadata.age) || age || '');
+    setVal('p-mobile-phone', p.phone || (p.metadata && p.metadata.mobilePhone) || '');
+    setVal('p-local-phone', p.metadata?.localPhone || '');
+    setVal('p-email', p.email || '');
+    setVal('p-profession', p.occupation || p.metadata?.profession || '');
+    setVal('p-gender', p.metadata?.gender || 'Femenino');
+    setVal('p-address', p.address || p.metadata?.address || '');
+    setVal('p-consult-reason', p.metadata?.consultReason || '');
+
+    const pType = p.metadata?.type || (age < 18 ? 'Infantil' : 'Adulto');
+    setVal('p-type', pType);
+    const repFieldsDiv = document.getElementById('representative-fields');
+    if (repFieldsDiv) {
+        if (pType === 'Infantil') {
+            repFieldsDiv.classList.remove('hidden');
+        } else {
+            repFieldsDiv.classList.add('hidden');
+        }
     }
 
-    if (p.metadata?.repName) document.getElementById('p-rep-name').value = p.metadata.repName;
-    if (p.metadata?.repId) document.getElementById('p-rep-id').value = p.metadata.repId;
-    if (p.metadata?.repPhone) document.getElementById('p-rep-phone').value = p.metadata.repPhone;
-    if (p.metadata?.repRelation) document.getElementById('p-rep-relation').value = p.metadata.repRelation;
+    setVal('p-rep-name', p.metadata?.repName || '');
+    setVal('p-rep-id', p.metadata?.repId || '');
+    setVal('p-rep-phone', p.metadata?.repPhone || '');
+    setVal('p-rep-relation', p.metadata?.repRelation || '');
 
-    document.querySelectorAll('input[name="p-allergies"]').forEach(cb => cb.checked = false);
-    if (p.allergies) {
-        p.allergies.forEach(val => {
-            const cb = document.querySelector(`input[name="p-allergies"][value="${val}"]`);
-            if (cb) cb.checked = true;
-        });
-    }
+    // Step 2: Anamnesis
+    document.querySelectorAll('input[name="p-allergies"]').forEach(cb => {
+        cb.checked = (p.allergies || []).includes(cb.value);
+    });
+    document.querySelectorAll('input[name="p-systemic"]').forEach(cb => {
+        cb.checked = (p.systemic || []).includes(cb.value);
+    });
 
-    document.querySelectorAll('input[name="p-systemic"]').forEach(cb => cb.checked = false);
-    if (p.systemic) {
-        p.systemic.forEach(val => {
-            const cb = document.querySelector(`input[name="p-systemic"][value="${val}"]`);
-            if (cb) cb.checked = true;
-        });
-    }
+    const isMed = p.metadata?.medicalTreatment === 'Sí' || p.metadata?.medicalTreatment === true;
+    setChecked('p-medical-treatment', isMed, 'details-medical-treatment');
+    setVal('p-medical-treatment-details', p.metadata?.medicalTreatmentDetails || '');
 
-    const medEl = document.getElementById('p-medication');
-    if (medEl) medEl.value = p.medication || '';
-    const emergEl = document.getElementById('p-emergency');
-    if (emergEl) emergEl.value = p.emergencyContact || '';
+    const isAll = p.metadata?.hasAllergies === 'Sí' || p.metadata?.hasAllergies === true || (p.allergies && p.allergies.length > 0);
+    setChecked('p-has-allergies', isAll, 'details-has-allergies');
+    setVal('p-allergies-details', p.metadata?.allergiesDetails || '');
 
-    if (p.metadata?.medicalTreatment) document.getElementById('p-medical-treatment').value = p.metadata.medicalTreatment;
-    if (p.metadata?.medicalTreatmentDetails) document.getElementById('p-medical-treatment-details').value = p.metadata.medicalTreatmentDetails;
-    if (p.metadata?.childDiseases) document.getElementById('p-child-diseases').value = p.metadata.childDiseases;
-    if (p.metadata?.hasAllergies) document.getElementById('p-has-allergies').value = p.metadata.hasAllergies;
-    if (p.metadata?.allergiesDetails) document.getElementById('p-allergies-details').value = p.metadata.allergiesDetails;
-    if (p.metadata?.surgeries) document.getElementById('p-surgeries').value = p.metadata.surgeries;
-    if (p.metadata?.bleedingIssue) document.getElementById('p-bleeding-issue').value = p.metadata.bleedingIssue;
-    if (p.metadata?.respiratoryIssues) document.getElementById('p-respiratory-issues').value = p.metadata.respiratoryIssues;
-    if (p.metadata?.respiratoryIssuesDetails) document.getElementById('p-respiratory-issues-details').value = p.metadata.respiratoryIssuesDetails;
-    if (p.metadata?.anesthesiaReaction) document.getElementById('p-anesthesia-reaction').value = p.metadata.anesthesiaReaction;
-    if (p.metadata?.anesthesiaReactionDetails) document.getElementById('p-anesthesia-reaction-details').value = p.metadata.anesthesiaReactionDetails;
-    if (p.metadata?.penicillinAllergy) document.getElementById('p-penicillin-allergy').value = p.metadata.penicillinAllergy;
-    if (p.metadata?.penicillinAllergyDetails) document.getElementById('p-penicillin-allergy-details').value = p.metadata.penicillinAllergyDetails;
-    if (p.metadata?.heartIssues) document.getElementById('p-heart-issues').value = p.metadata.heartIssues;
-    if (p.metadata?.heartIssuesDetails) document.getElementById('p-heart-issues-details').value = p.metadata.heartIssuesDetails;
+    const isResp = p.metadata?.respiratoryIssues === 'Sí' || p.metadata?.respiratoryIssues === true;
+    setChecked('p-respiratory-issues', isResp, 'details-respiratory-issues');
+    setVal('p-respiratory-issues-details', p.metadata?.respiratoryIssuesDetails || '');
 
+    const isAnest = p.metadata?.anesthesiaReaction === 'Sí' || p.metadata?.anesthesiaReaction === true;
+    setChecked('p-anesthesia-reaction', isAnest, 'details-anesthesia-reaction');
+    setVal('p-anesthesia-reaction-details', p.metadata?.anesthesiaReactionDetails || '');
+
+    const isPeni = p.metadata?.penicillinAllergy === 'Sí' || p.metadata?.penicillinAllergy === true || (p.allergies && p.allergies.includes('Penicilina'));
+    setChecked('p-penicillin-allergy', isPeni, 'details-penicillin-allergy');
+    setVal('p-penicillin-allergy-details', p.metadata?.penicillinAllergyDetails || '');
+
+    const isHeart = p.metadata?.heartIssues === 'Sí' || p.metadata?.heartIssues === true;
+    setChecked('p-heart-issues', isHeart, 'details-heart-issues');
+    setVal('p-heart-issues-details', p.metadata?.heartIssuesDetails || '');
+
+    setChecked('p-bleeding-issue', p.metadata?.bleedingIssue === 'Sí' || p.metadata?.bleedingIssue === true);
+    setVal('p-surgeries', p.metadata?.surgeries || '');
+    setVal('p-child-diseases', p.metadata?.childDiseases || '');
+
+    // Step 3: Tejidos y Hábitos
     const tissues = ['hardPalate', 'softPalate', 'mouthFloor', 'cheeks', 'tongue', 'frenum'];
     tissues.forEach(t => {
         const key = 'tissue' + t.charAt(0).toUpperCase() + t.slice(1);
@@ -6920,28 +7004,22 @@ function loadPatientDataIntoForm(p) {
         }
     });
 
-    if (p.metadata?.habitSwallowing) document.getElementById('p-habit-swallowing').value = p.metadata.habitSwallowing;
-    if (p.metadata?.habitNailbiting) document.getElementById('p-habit-nailbiting').value = p.metadata.habitNailbiting;
-    if (p.metadata?.habitThumbsucking) document.getElementById('p-habit-thumbsucking').value = p.metadata.habitThumbsucking;
-    if (p.metadata?.habitThumbsuckingFinger) document.getElementById('p-habit-thumbsucking-finger').value = p.metadata.habitThumbsuckingFinger;
-    if (p.metadata?.habitOthers) document.getElementById('p-habit-others').value = p.metadata.habitOthers;
-    if (p.metadata?.habitMouthbreather) document.getElementById('p-habit-mouthbreather').value = p.metadata.habitMouthbreather;
-    if (p.metadata?.habitFrequency) document.getElementById('p-habit-frequency').value = p.metadata.habitFrequency;
-    if (p.metadata?.habitIntensity) document.getElementById('p-habit-intensity').value = p.metadata.habitIntensity;
+    setChecked('p-habit-swallowing', p.metadata?.habitSwallowing === 'Sí' || p.metadata?.habitSwallowing === true);
+    setChecked('p-habit-nailbiting', p.metadata?.habitNailbiting === 'Sí' || p.metadata?.habitNailbiting === true);
+    
+    const isThumb = p.metadata?.habitThumbsucking === 'Sí' || p.metadata?.habitThumbsucking === true;
+    setChecked('p-habit-thumbsucking', isThumb, 'details-thumbsucking');
+    setVal('p-habit-thumbsucking-finger', p.metadata?.habitThumbsuckingFinger || '');
 
-    // Step 4: Plan Clínico
-    if (p.metadata?.initTreatmentSessions) {
-        const sInput = document.getElementById('p-init-treatment-sessions');
-        if (sInput) sInput.value = p.metadata.initTreatmentSessions;
-    }
-    if (p.metadata?.initTreatmentInterval) {
-        const intInput = document.getElementById('p-init-treatment-interval');
-        if (intInput) intInput.value = p.metadata.initTreatmentInterval;
-    }
-    if (p.metadata?.initTreatmentName) {
-        const nameInput = document.getElementById('p-init-treatment-name');
-        if (nameInput) nameInput.value = p.metadata.initTreatmentName;
-    }
+    setChecked('p-habit-mouthbreather', p.metadata?.habitMouthbreather === 'Sí' || p.metadata?.habitMouthbreather === true);
+    setVal('p-habit-frequency', p.metadata?.habitFrequency || '');
+    setVal('p-habit-intensity', p.metadata?.habitIntensity || '');
+    setVal('p-habit-others', p.metadata?.habitOthers || '');
+
+    // Step 4: Plan
+    setVal('p-init-treatment-sessions', (p.metadata?.initialTreatmentPlan && p.metadata.initialTreatmentPlan.totalSessions) || p.metadata?.initTreatmentSessions || 4);
+    setVal('p-init-treatment-interval', (p.metadata?.initialTreatmentPlan && p.metadata.initialTreatmentPlan.interval) || p.metadata?.initTreatmentInterval || 'Quincenal');
+    setVal('p-init-treatment-name', p.metadata?.initTreatmentName || '');
 
     window.currentEditingPatientObj = p;
 }
