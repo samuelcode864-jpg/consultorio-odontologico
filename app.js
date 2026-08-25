@@ -1472,14 +1472,44 @@ async function renderOdontogramView() {
 
 async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
     if (mode === 'clear') {
-        currentBudgetItems = currentBudgetItems.filter(item => item.key !== key && item.key !== `${toothNumber}-absence`);
+        currentBudgetItems = currentBudgetItems.filter(item => item.key !== key && item.key !== `${toothNumber}-absence` && item.key !== `${toothNumber}-extraction`);
         await autoSaveActivePatientOdontogram();
         renderBudgetTable();
         return;
     }
 
     if (mode === 'absence') {
+        currentBudgetItems = currentBudgetItems.filter(item => item.key !== `${toothNumber}-extraction`);
         await autoSaveActivePatientOdontogram();
+        renderBudgetTable();
+        return;
+    }
+
+    if (mode === 'extraction') {
+        // Look up extraction / exodoncia from baremo or default
+        const baremo = await SupabaseDataService.getBaremo();
+        const extractionProc = baremo.find(p => p.code === 'EXO-01' || p.name.toLowerCase().includes('exodoncia') || p.name.toLowerCase().includes('extracción')) || {
+            code: 'EXO-01',
+            name: 'Exodoncia Simple / Extracción Dental',
+            priceUSD: 25.00,
+            category: 'Cirugía'
+        };
+
+        const existingIdx = currentBudgetItems.findIndex(it => it.key === `${toothNumber}-extraction` || (it.tooth == toothNumber && it.name.toLowerCase().includes('exodoncia')));
+        if (existingIdx === -1) {
+            currentBudgetItems.push({
+                key: `${toothNumber}-extraction`,
+                tooth: toothNumber,
+                face: 'Gnl',
+                serviceCode: extractionProc.code,
+                name: `${extractionProc.name} (Pieza ${toothNumber})`,
+                price: extractionProc.priceUSD || 25,
+                discount: 0,
+                specialist: (getCurrentUser() && getCurrentUser().fullname) || 'Cirujano Bucal / Odontólogo'
+            });
+        }
+        await autoSaveActivePatientOdontogram();
+        renderBudgetTable();
         return;
     }
 

@@ -213,18 +213,23 @@ class OdontogramEngine {
             svg.appendChild(el);
         });
 
-        // Check for tooth absence marking (X completa sobre el diente)
+        // Check for tooth absence (X azul) or extraction (X roja)
         const isAbsent = !!this.toothData[`${toothNumber}-absence`] || this.toothData[`${toothNumber}-all`] === 'absence' || this.toothData[`${toothNumber}`] === 'absence';
-        if (isAbsent) {
+        const isExtraction = !!this.toothData[`${toothNumber}-extraction`] || this.toothData[`${toothNumber}-all`] === 'extraction' || this.toothData[`${toothNumber}`] === 'extraction';
+
+        if (isAbsent || isExtraction) {
+            const crossColor = isAbsent ? '#2563eb' : '#dc2626';
+            const crossClass = isAbsent ? 'tooth-absence-x' : 'tooth-extraction-x';
+
             const line1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
             line1.setAttribute('x1', '2');
             line1.setAttribute('y1', '2');
             line1.setAttribute('x2', '38');
             line1.setAttribute('y2', '38');
-            line1.setAttribute('stroke', '#dc2626');
+            line1.setAttribute('stroke', crossColor);
             line1.setAttribute('stroke-width', '3.5');
             line1.setAttribute('stroke-linecap', 'round');
-            line1.setAttribute('class', 'tooth-absence-x');
+            line1.setAttribute('class', crossClass);
             svg.appendChild(line1);
 
             const line2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -232,13 +237,13 @@ class OdontogramEngine {
             line2.setAttribute('y1', '2');
             line2.setAttribute('x2', '2');
             line2.setAttribute('y2', '38');
-            line2.setAttribute('stroke', '#dc2626');
+            line2.setAttribute('stroke', crossColor);
             line2.setAttribute('stroke-width', '3.5');
             line2.setAttribute('stroke-linecap', 'round');
-            line2.setAttribute('class', 'tooth-absence-x');
+            line2.setAttribute('class', crossClass);
             svg.appendChild(line2);
             
-            box.classList.add('is-absent');
+            box.classList.add(isAbsent ? 'is-absent' : 'is-extraction');
         }
 
         box.appendChild(svg);
@@ -255,6 +260,9 @@ class OdontogramEngine {
         
         if (this.currentMode === 'absence') {
             const absenceKey = `${toothNumber}-absence`;
+            const extractionKey = `${toothNumber}-extraction`;
+            delete this.toothData[extractionKey];
+
             if (this.toothData[absenceKey]) {
                 delete this.toothData[absenceKey];
             } else {
@@ -267,8 +275,26 @@ class OdontogramEngine {
             return;
         }
 
+        if (this.currentMode === 'extraction') {
+            const extractionKey = `${toothNumber}-extraction`;
+            const absenceKey = `${toothNumber}-absence`;
+            delete this.toothData[absenceKey];
+
+            if (this.toothData[extractionKey]) {
+                delete this.toothData[extractionKey];
+            } else {
+                this.toothData[extractionKey] = 'extraction';
+            }
+            this.render();
+            if (this.onFaceClickCallback) {
+                this.onFaceClickCallback(toothNumber, 'all', 'extraction', extractionKey);
+            }
+            return;
+        }
+
         if (this.currentMode === 'clear') {
             delete this.toothData[`${toothNumber}-absence`];
+            delete this.toothData[`${toothNumber}-extraction`];
             delete this.toothData[key];
             this.render();
         } else {
@@ -284,6 +310,7 @@ class OdontogramEngine {
     handleFaceRightClick(toothNumber, faceId, key, el) {
         if (this.readOnly) return;
         delete this.toothData[`${toothNumber}-absence`];
+        delete this.toothData[`${toothNumber}-extraction`];
         delete this.toothData[key];
         this.render();
 

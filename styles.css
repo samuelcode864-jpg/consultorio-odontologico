@@ -985,6 +985,26 @@ h4 { font-size: 1rem; }
     color: #fff !important;
 }
 
+.tool-btn[data-mode="absence"] {
+    border: 1px solid #2563eb !important;
+    color: #2563eb !important;
+    background: transparent !important;
+}
+.tool-btn[data-mode="absence"].active {
+    background: #2563eb !important;
+    color: #fff !important;
+}
+
+.tool-btn[data-mode="extraction"] {
+    border: 1px solid #dc2626 !important;
+    color: #dc2626 !important;
+    background: transparent !important;
+}
+.tool-btn[data-mode="extraction"].active {
+    background: #dc2626 !important;
+    color: #fff !important;
+}
+
 .tool-btn[data-mode="clear"] {
     border: 1px solid #f97316 !important;
     color: #f97316 !important;
@@ -1013,6 +1033,12 @@ h4 { font-size: 1rem; }
 
 .tool-btn[data-mode="endo"] .mode-dot { background: #9333ea; border: 1px solid transparent; }
 .tool-btn[data-mode="endo"].active .mode-dot { background: transparent; border: 1px solid #fff; }
+
+.tool-btn[data-mode="absence"] .mode-dot { background: #2563eb; border: 1px solid transparent; }
+.tool-btn[data-mode="absence"].active .mode-dot { background: transparent; border: 1px solid #fff; }
+
+.tool-btn[data-mode="extraction"] .mode-dot { background: #dc2626; border: 1px solid transparent; }
+.tool-btn[data-mode="extraction"].active .mode-dot { background: transparent; border: 1px solid #fff; }
 
 .tool-btn[data-mode="clear"] .mode-dot { background: #f97316; border: 1px solid transparent; }
 .tool-btn[data-mode="clear"].active .mode-dot { background: transparent; border: 1px solid #fff; }
