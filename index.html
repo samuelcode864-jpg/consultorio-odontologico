@@ -163,6 +163,12 @@
                 </div>
 
                 <div class="header-actions">
+                    <!-- Launch Interactive Tutorial Button -->
+                    <button id="btn-launch-tutorial" class="btn btn-sm btn-outline" style="border-color: var(--primary-cyan); color: var(--primary-cyan); font-weight: 700; display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; padding: 6px 12px;" title="Ver Tutorial Guiado del Flujo de Atención">
+                        <i class="fa-solid fa-graduation-cap" style="font-size: 1rem;"></i>
+                        <span class="btn-text-full">Tutorial Guiado</span>
+                    </button>
+
                     <!-- Unified Interactive BCV Exchange Rate Toggle Button -->
                     <button id="currency-btn" class="currency-unified-badge" title="Haga clic para alternar entre USD ($) y EUR (€) o refrescar tasa oficial">
                         <i class="fa-solid fa-coins text-cyan"></i>
@@ -1801,6 +1807,22 @@
                         </div>
                     </div>
 
+                    <div class="card" style="margin-bottom:20px; background: linear-gradient(135deg, rgba(8, 145, 178, 0.08), rgba(16, 185, 129, 0.08)); border: 1px solid rgba(8, 145, 178, 0.3); border-radius: 12px;">
+                        <div class="card-body" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; padding: 20px 24px;">
+                            <div style="max-width: 650px;">
+                                <h3 style="margin: 0 0 6px 0; color: var(--text-heading); display: flex; align-items: center; gap: 8px;">
+                                    <i class="fa-solid fa-graduation-cap text-cyan"></i> Tutorial Interactivo: Flujo de Atención del Paciente
+                                </h3>
+                                <p style="margin: 0; color: var(--text-muted); font-size: 0.9rem;">
+                                    Aprenda paso a paso cómo registrar un nuevo paciente, elaborar su odontograma y presupuesto, agendar su cita, atender la sesión clínica y registrar pagos con banco y referencia.
+                                </p>
+                            </div>
+                            <button class="btn btn-primary" onclick="window.startClinicalWorkflowTutorial(0)" style="padding: 10px 20px; font-weight: 700; border-radius: 8px;">
+                                <i class="fa-solid fa-play"></i> Iniciar Tutorial Guiado
+                            </button>
+                        </div>
+                    </div>
+
                     <div class="card" style="margin-bottom:20px;">
                         <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
                             <h3><i class="fa-solid fa-circle-info text-cyan"></i> Preguntas Frecuentes (FAQs)</h3>
@@ -3108,12 +3130,13 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=112"></script>
-    <script src="supabaseClient.js?v=112"></script>
-    <script src="odontogram.js?v=112"></script>
-    <script src="signature.js?v=112"></script>
-    <script src="whatsapp.js?v=112"></script>
-    <script src="kardex.js?v=112"></script>
-    <script src="app.js?v=112"></script>
+    <script src="seededData.js?v=113"></script>
+    <script src="supabaseClient.js?v=113"></script>
+    <script src="odontogram.js?v=113"></script>
+    <script src="signature.js?v=113"></script>
+    <script src="whatsapp.js?v=113"></script>
+    <script src="kardex.js?v=113"></script>
+    <script src="app.js?v=113"></script>
+    <script src="tutorial.js?v=113"></script>
 </body>
 </html>

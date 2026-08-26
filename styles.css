@@ -3977,3 +3977,198 @@ select, .form-select, select.form-control {
     }
 }
 
+/* ==========================================================================
+   INTERACTIVE TUTORIAL OVERLAY & SPOTLIGHT STYLES
+   ========================================================================== */
+
+.tutorial-root-container {
+    position: fixed;
+    inset: 0;
+    z-index: 999990;
+    pointer-events: auto;
+}
+
+.tutorial-root-container.hidden {
+    display: none !important;
+}
+
+.tutorial-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: 999991;
+    transition: opacity 0.3s ease;
+}
+
+.tutorial-spotlight {
+    position: fixed;
+    z-index: 999995;
+    border-radius: 8px;
+    box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.65), 0 0 25px rgba(8, 145, 178, 0.85);
+    border: 2.5px solid var(--primary-cyan);
+    pointer-events: none;
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    box-sizing: border-box;
+}
+
+.tutorial-popover {
+    position: fixed;
+    z-index: 999999;
+    width: 350px;
+    max-width: calc(100vw - 28px);
+    background: #ffffff;
+    color: #1e293b;
+    border-radius: 14px;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(8, 145, 178, 0.3);
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    animation: tutorialPopIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: top 0.3s ease, left 0.3s ease, transform 0.3s ease;
+}
+
+.dark-theme .tutorial-popover {
+    background: #1e293b;
+    color: #f1f5f9;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(8, 145, 178, 0.4);
+}
+
+@keyframes tutorialPopIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.tutorial-popover-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    padding-bottom: 8px;
+}
+
+.dark-theme .tutorial-popover-header {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.tutorial-step-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--primary-cyan);
+    background: rgba(8, 145, 178, 0.1);
+    padding: 3px 8px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.tutorial-btn-close {
+    background: transparent;
+    border: none;
+    font-size: 1.35rem;
+    line-height: 1;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 0 4px;
+    transition: color 0.15s ease;
+}
+
+.tutorial-btn-close:hover {
+    color: #ef4444;
+}
+
+.tutorial-popover-body h4 {
+    margin: 0 0 8px 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-heading);
+}
+
+.tutorial-popover-body p {
+    margin: 0;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: #475569;
+}
+
+.dark-theme .tutorial-popover-body p {
+    color: #cbd5e1;
+}
+
+.tutorial-popover-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 8px;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.dark-theme .tutorial-popover-footer {
+    border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+.tutorial-dots {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+.tutorial-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #cbd5e1;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.dark-theme .tutorial-dot {
+    background: #475569;
+}
+
+.tutorial-dot.active {
+    width: 20px;
+    border-radius: 4px;
+    background: var(--primary-cyan);
+}
+
+.tutorial-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+@media (max-width: 768px) {
+    #btn-launch-tutorial .btn-text-full {
+        display: none !important;
+    }
+    #btn-launch-tutorial {
+        padding: 6px 9px !important;
+    }
+    .tutorial-popover {
+        width: calc(100vw - 24px) !important;
+        max-width: 100vw !important;
+        padding: 14px 16px !important;
+    }
+    .tutorial-popover-body h4 {
+        font-size: 0.98rem !important;
+    }
+    .tutorial-popover-body p {
+        font-size: 0.83rem !important;
+    }
+}
+
+
