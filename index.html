@@ -18,12 +18,37 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=107">
+    <link rel="stylesheet" href="styles.css?v=114">
+
+    <!-- Anti-Flash Instant Auth Guard -->
+    <script>
+        (function() {
+            var urlParams = new URLSearchParams(window.location.search);
+            var isPublic = (urlParams.get('view') === 'budget' || urlParams.get('view') === 'receipt') && urlParams.get('patientId');
+            var session = sessionStorage.getItem('dental_current_user');
+            if (session || isPublic) {
+                document.documentElement.classList.add('has-auth-session');
+            } else {
+                document.documentElement.classList.add('no-auth-session');
+            }
+        })();
+    </script>
+    <style>
+        /* Instant Zero-Flash Login Protection */
+        .has-auth-session #login-screen {
+            display: none !important;
+        }
+        .no-auth-session .sidebar,
+        .no-auth-session .main-content,
+        .no-auth-session .mobile-backdrop {
+            visibility: hidden !important;
+        }
+    </style>
 </head>
 <body class="light-theme">
 
     <!-- FULLSCREEN LOGIN OVERLAY (EXACT REPLICA OF THE SPECIFIED IMAGE) -->
-    <div id="login-screen" class="login-overlay hidden">
+    <div id="login-screen" class="login-overlay">
         <div class="login-card-glass">
             <div class="login-logo-container">
                 <img src="jjj.png" alt="Rodrigo Navas Logo" class="login-logo-img">
@@ -3130,13 +3155,13 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=113"></script>
-    <script src="supabaseClient.js?v=113"></script>
-    <script src="odontogram.js?v=113"></script>
-    <script src="signature.js?v=113"></script>
-    <script src="whatsapp.js?v=113"></script>
-    <script src="kardex.js?v=113"></script>
-    <script src="app.js?v=113"></script>
-    <script src="tutorial.js?v=113"></script>
+    <script src="seededData.js?v=114"></script>
+    <script src="supabaseClient.js?v=114"></script>
+    <script src="odontogram.js?v=114"></script>
+    <script src="signature.js?v=114"></script>
+    <script src="whatsapp.js?v=114"></script>
+    <script src="kardex.js?v=114"></script>
+    <script src="app.js?v=114"></script>
+    <script src="tutorial.js?v=114"></script>
 </body>
 </html>

@@ -376,12 +376,16 @@ function checkAuthSession() {
     const loginOverlay = document.getElementById('login-screen');
 
     if (isPublicBudget) {
+        document.documentElement.classList.add('has-auth-session');
+        document.documentElement.classList.remove('no-auth-session');
         if (loginOverlay) loginOverlay.classList.add('hidden');
         renderPublicBudgetView();
         return;
     }
 
     if (isPublicReceipt) {
+        document.documentElement.classList.add('has-auth-session');
+        document.documentElement.classList.remove('no-auth-session');
         if (loginOverlay) loginOverlay.classList.add('hidden');
         renderPublicSessionReceiptView();
         return;
@@ -392,7 +396,9 @@ function checkAuthSession() {
     if (currentSession) {
         try {
             const user = JSON.parse(currentSession);
-            loginOverlay.classList.add('hidden');
+            document.documentElement.classList.add('has-auth-session');
+            document.documentElement.classList.remove('no-auth-session');
+            if (loginOverlay) loginOverlay.classList.add('hidden');
             
             document.getElementById('dr-name-display').innerText = user.fullname;
             const roleEl = document.getElementById('dr-role-display');
@@ -415,11 +421,13 @@ function checkAuthSession() {
             resetInactivityTimer();
             return;
         } catch(e) {
-            alert("Auth Session Try-Catch Error:\n" + e.message + "\nStack:\n" + e.stack);
+            console.error("Auth Session Error:", e);
             sessionStorage.removeItem('dental_current_user');
         }
     }
-    loginOverlay.classList.remove('hidden');
+    document.documentElement.classList.remove('has-auth-session');
+    document.documentElement.classList.add('no-auth-session');
+    if (loginOverlay) loginOverlay.classList.remove('hidden');
 }
 
 function applyRolePermissionsUI(role) {
@@ -651,6 +659,10 @@ async function login(email, password) {
 
 function logout() {
     sessionStorage.removeItem('dental_current_user');
+    document.documentElement.classList.remove('has-auth-session');
+    document.documentElement.classList.add('no-auth-session');
+    const loginOverlay = document.getElementById('login-screen');
+    if (loginOverlay) loginOverlay.classList.remove('hidden');
     checkAuthSession();
 }
 
