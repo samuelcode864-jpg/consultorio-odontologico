@@ -137,37 +137,55 @@ class SupabaseDataService {
     // 2. BAREMO SERVICES
     // ==========================================
     static async getBaremo() {
-        if (!this.isCloudConnected()) {
-            return JSON.parse(localStorage.getItem('dental_baremo')) || (typeof INITIAL_BAREMO !== 'undefined' ? INITIAL_BAREMO : []);
-        }
-        try {
-            const { data, error } = await supabaseClient.from('baremo_services').select('*');
-            if (error) throw error;
-            if (data && data.length > 0) {
-                const mapped = data.map(d => ({
-                    code: d.code,
-                    category: d.category,
-                    name: d.name,
-                    priceUSD: parseFloat(d.price_usd || 0),
-                    chairTimeMin: d.chair_time_min,
-                    materials: d.materials || [],
-                    hygienistBonus: parseFloat(d.hygienist_bonus || 0)
-                }));
-                localStorage.setItem('dental_baremo', JSON.stringify(mapped));
-                return mapped;
-            }
-            // If cloud baremo is empty, seed it with INITIAL_BAREMO
-            if (typeof INITIAL_BAREMO !== 'undefined' && INITIAL_BAREMO.length > 0) {
-                for (const srv of INITIAL_BAREMO) {
-                    await this.saveBaremoService(srv);
+        let baremoList = null;
+
+        if (this.isCloudConnected()) {
+            try {
+                // 1. Try dedicated baremo_services table first
+                const { data, error } = await supabaseClient.from('baremo_services').select('*');
+                if (!error && data && data.length > 0) {
+                    baremoList = data.map(d => ({
+                        code: d.code,
+                        category: d.category,
+                        name: d.name,
+                        priceUSD: parseFloat(d.price_usd || 0),
+                        chairTimeMin: d.chair_time_min,
+                        materials: d.materials || [],
+                        hygienistBonus: parseFloat(d.hygienist_bonus || 0)
+                    }));
+                } else {
+                    // 2. Check SYS-BAREMO-CONFIG row in patients table (100% fail-safe JSONB cloud storage)
+                    const { data: pData } = await supabaseClient.from('patients').select('*').eq('id', 'SYS-BAREMO-CONFIG');
+                    if (pData && pData.length > 0 && pData[0].odontogram_data && pData[0].odontogram_data._is_baremo_config) {
+                        baremoList = pData[0].odontogram_data._baremo || [];
+                    }
                 }
-                return INITIAL_BAREMO;
+            } catch (err) {
+                console.error('Supabase getBaremo Error:', err);
             }
-            return JSON.parse(localStorage.getItem('dental_baremo')) || [];
-        } catch (err) {
-            console.error('Supabase getBaremo Error:', err);
-            return JSON.parse(localStorage.getItem('dental_baremo')) || (typeof INITIAL_BAREMO !== 'undefined' ? INITIAL_BAREMO : []);
         }
+
+        // If cloud returned a valid list (even empty if user intentionally deleted all items), use it!
+        if (baremoList !== null) {
+            localStorage.setItem('dental_baremo', JSON.stringify(baremoList));
+            return baremoList;
+        }
+
+        // Fallback to local storage if offline or not fetched yet
+        const local = localStorage.getItem('dental_baremo');
+        if (local !== null) {
+            return JSON.parse(local);
+        }
+
+        // Only seed INITIAL_BAREMO if system has never been initialized
+        const seeded = (typeof INITIAL_BAREMO !== 'undefined' ? INITIAL_BAREMO : []);
+        localStorage.setItem('dental_baremo', JSON.stringify(seeded));
+        if (this.isCloudConnected() && seeded.length > 0) {
+            for (const srv of seeded) {
+                await this.saveBaremoService(srv);
+            }
+        }
+        return seeded;
     }
 
     static async saveBaremoService(srvObj) {
@@ -179,7 +197,8 @@ class SupabaseDataService {
 
         if (this.isCloudConnected()) {
             try {
-                const { error } = await supabaseClient.from('baremo_services').upsert({
+                // Attempt 1: Upsert with hygienist_bonus column
+                let { error: err1 } = await supabaseClient.from('baremo_services').upsert({
                     code: srvObj.code,
                     category: srvObj.category,
                     name: srvObj.name,
@@ -188,7 +207,34 @@ class SupabaseDataService {
                     materials: srvObj.materials || [],
                     hygienist_bonus: srvObj.hygienistBonus || 0
                 });
-                if (error) console.error('Supabase saveBaremoService Cloud Error:', error);
+
+                // Attempt 2: Fallback if hygienist_bonus column is missing in schema cache
+                if (err1) {
+                    let { error: err2 } = await supabaseClient.from('baremo_services').upsert({
+                        code: srvObj.code,
+                        category: srvObj.category,
+                        name: srvObj.name,
+                        price_usd: srvObj.priceUSD,
+                        chair_time_min: srvObj.chairTimeMin,
+                        materials: srvObj.materials || []
+                    });
+                    if (err2) console.error('Supabase saveBaremoService Cloud Error:', err2);
+                }
+
+                // Guaranteed secondary backup in SYS-BAREMO-CONFIG row
+                await supabaseClient.from('patients').upsert({
+                    id: 'SYS-BAREMO-CONFIG',
+                    fullname: 'Configuración Baremo Maestro',
+                    birthdate: '2026-01-01',
+                    phone: 'SYS',
+                    status: 'Sistema',
+                    odontogram_data: {
+                        _is_baremo_config: true,
+                        _initialized: true,
+                        _baremo: localBaremo
+                    }
+                });
+                console.log('✅ Baremo service synced to Supabase Cloud:', srvObj.code);
             } catch (err) {
                 console.error('Supabase saveBaremoService Exception:', err);
             }
@@ -202,7 +248,23 @@ class SupabaseDataService {
 
         if (this.isCloudConnected()) {
             try {
+                // Delete from baremo_services table
                 await supabaseClient.from('baremo_services').delete().eq('code', code);
+
+                // Update SYS-BAREMO-CONFIG backup row
+                await supabaseClient.from('patients').upsert({
+                    id: 'SYS-BAREMO-CONFIG',
+                    fullname: 'Configuración Baremo Maestro',
+                    birthdate: '2026-01-01',
+                    phone: 'SYS',
+                    status: 'Sistema',
+                    odontogram_data: {
+                        _is_baremo_config: true,
+                        _initialized: true,
+                        _baremo: localBaremo
+                    }
+                });
+                console.log('✅ Baremo service deleted from Supabase Cloud:', code);
             } catch (err) {
                 console.error('Supabase deleteBaremoService Error:', err);
             }
