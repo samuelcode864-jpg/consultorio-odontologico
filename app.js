@@ -1497,38 +1497,16 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
         return;
     }
 
+    // For extraction or normal tooth faces, open modal to select procedure!
     if (mode === 'extraction') {
-        // Look up extraction / exodoncia from baremo or default
-        const baremo = await SupabaseDataService.getBaremo();
-        const extractionProc = baremo.find(p => p.code === 'EXO-01' || p.name.toLowerCase().includes('exodoncia') || p.name.toLowerCase().includes('extracción')) || {
-            code: 'EXO-01',
-            name: 'Exodoncia Simple / Extracción Dental',
-            priceUSD: 25.00,
-            category: 'Cirugía'
-        };
-
-        const existingIdx = currentBudgetItems.findIndex(it => it.key === `${toothNumber}-extraction` || (it.tooth == toothNumber && it.name.toLowerCase().includes('exodoncia')));
-        if (existingIdx === -1) {
-            currentBudgetItems.push({
-                key: `${toothNumber}-extraction`,
-                tooth: toothNumber,
-                face: 'Gnl',
-                serviceCode: extractionProc.code,
-                name: `${extractionProc.name} (Pieza ${toothNumber})`,
-                price: extractionProc.priceUSD || 25,
-                discount: 0,
-                specialist: (getCurrentUser() && getCurrentUser().fullname) || 'Cirujano Bucal / Odontólogo'
-            });
-        }
-        await autoSaveActivePatientOdontogram();
-        renderBudgetTable();
-        return;
+        key = `${toothNumber}-extraction`;
+        faceId = 'Gnl';
     }
 
     pendingToothFaceKey = { toothNumber, faceId, mode, key };
     
     document.getElementById('modal-tooth-id').innerText = toothNumber;
-    document.getElementById('modal-face-id').innerText = faceId;
+    document.getElementById('modal-face-id').innerText = mode === 'extraction' ? 'Extracción / Cirugía' : faceId;
 
     const searchInput = document.getElementById('tooth-treatment-search');
     if (searchInput) searchInput.value = '';
@@ -1541,11 +1519,22 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
         listContainer.innerHTML = '';
         const normalizedQuery = query.toLowerCase().trim();
         
-        const filtered = baremo.filter(proc => 
+        let filtered = baremo.filter(proc => 
             proc.name.toLowerCase().includes(normalizedQuery) ||
             proc.category.toLowerCase().includes(normalizedQuery) ||
             proc.code.toLowerCase().includes(normalizedQuery)
         );
+
+        // If in extraction mode and no search query, prioritize Cirugía / Exodoncia / Extracción
+        if (mode === 'extraction' && !normalizedQuery) {
+            filtered.sort((a, b) => {
+                const aIsExt = a.category.toLowerCase().includes('cirugía') || a.name.toLowerCase().includes('exodoncia') || a.name.toLowerCase().includes('extrac');
+                const bIsExt = b.category.toLowerCase().includes('cirugía') || b.name.toLowerCase().includes('exodoncia') || b.name.toLowerCase().includes('extrac');
+                if (aIsExt && !bIsExt) return -1;
+                if (!aIsExt && bIsExt) return 1;
+                return 0;
+            });
+        }
 
         if (filtered.length === 0) {
             listContainer.innerHTML = '<div class="text-center text-muted p-10" style="width: 100%;">No se encontraron procedimientos</div>';
@@ -1553,6 +1542,9 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
         }
 
         filtered.forEach(proc => {
+            const isExtProc = proc.category.toLowerCase().includes('cirugía') || proc.name.toLowerCase().includes('exodoncia') || proc.name.toLowerCase().includes('extrac');
+            const badgeColor = isExtProc ? 'red' : 'blue';
+
             const btn = document.createElement('button');
             btn.className = 'treatment-opt-btn';
             btn.innerHTML = `
@@ -1560,7 +1552,7 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
                     <strong>${proc.name}</strong>
                     <small class="text-muted" style="display:block;">Categoría: ${proc.category} (${proc.chairTimeMin} min)</small>
                 </div>
-                <span class="badge-tag blue">$${proc.priceUSD.toFixed(2)}</span>
+                <span class="badge-tag ${badgeColor}">$${proc.priceUSD.toFixed(2)}</span>
             `;
             btn.onclick = async () => {
                 addProcedureToBudget(pendingToothFaceKey, proc);
@@ -1582,12 +1574,16 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
 }
 
 function addProcedureToBudget(toothKeyObj, procedure) {
+    const itemName = toothKeyObj.mode === 'extraction' 
+        ? `${procedure.name} (Pieza ${toothKeyObj.toothNumber})`
+        : procedure.name;
+
     const newItem = {
         key: toothKeyObj.key,
         tooth: toothKeyObj.toothNumber,
         face: toothKeyObj.faceId,
         serviceCode: procedure.code,
-        name: procedure.name,
+        name: itemName,
         price: procedure.priceUSD,
         discount: 0
     };
