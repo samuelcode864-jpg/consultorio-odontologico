@@ -56,6 +56,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         try { await renderPricingTable(); } catch(e) { console.error("Error rendering Pricing:", e); }
         try { await renderEHRView(); } catch(e) { console.error("Error rendering EHR:", e); }
         try { await renderUsersTable(); } catch(e) { console.error("Error rendering Users:", e); }
+
+        // Restore exact tab/module active before page refresh
+        const savedTab = localStorage.getItem('dental_active_tab') || 'dashboard';
+        const urlParams = new URLSearchParams(window.location.search);
+        const isPublic = (urlParams.get('view') === 'budget' || urlParams.get('view') === 'receipt') && urlParams.get('patientId');
+
+        if (!isPublic) {
+            await window.navigateToTab(savedTab);
+        }
     }
 
     // 7. Global Event Listeners & Modals
@@ -386,7 +395,7 @@ function applyTheme(theme) {
 // AUTHENTICATION & ROLE-BASED PERMISSIONS (RBAC)
 // ==========================================
 function getCurrentUser() {
-    const session = sessionStorage.getItem('dental_current_user');
+    const session = sessionStorage.getItem('dental_current_user') || localStorage.getItem('dental_current_user');
     return session ? JSON.parse(session) : null;
 }
 
@@ -412,11 +421,14 @@ function checkAuthSession() {
         return;
     }
 
-    const currentSession = sessionStorage.getItem('dental_current_user');
+    const currentSession = sessionStorage.getItem('dental_current_user') || localStorage.getItem('dental_current_user');
 
     if (currentSession) {
         try {
             const user = JSON.parse(currentSession);
+            sessionStorage.setItem('dental_current_user', currentSession);
+            localStorage.setItem('dental_current_user', currentSession);
+
             document.documentElement.classList.add('has-auth-session');
             document.documentElement.classList.remove('no-auth-session');
             if (loginOverlay) loginOverlay.classList.add('hidden');
@@ -444,6 +456,7 @@ function checkAuthSession() {
         } catch(e) {
             console.error("Auth Session Error:", e);
             sessionStorage.removeItem('dental_current_user');
+            localStorage.removeItem('dental_current_user');
         }
     }
     document.documentElement.classList.remove('has-auth-session');
@@ -652,6 +665,7 @@ async function login(email, password) {
     if (match) {
         if (errorMsg) errorMsg.classList.add('hidden');
         sessionStorage.setItem('dental_current_user', JSON.stringify(match));
+        localStorage.setItem('dental_current_user', JSON.stringify(match));
         checkAuthSession();
         
         // Render initial views for the newly authenticated session
@@ -680,6 +694,8 @@ async function login(email, password) {
 
 function logout() {
     sessionStorage.removeItem('dental_current_user');
+    localStorage.removeItem('dental_current_user');
+    localStorage.removeItem('dental_active_tab');
     document.documentElement.classList.remove('has-auth-session');
     document.documentElement.classList.add('no-auth-session');
     const loginOverlay = document.getElementById('login-screen');
@@ -699,7 +715,7 @@ function resetInactivityTimer() {
     }
     
     // Solo activar si hay un usuario logueado en la pestaña actual
-    if (sessionStorage.getItem('dental_current_user')) {
+    if (getCurrentUser()) {
         inactivityTimer = setTimeout(handleInactivityTimeout, INACTIVITY_LIMIT);
     }
 }
@@ -707,6 +723,8 @@ function resetInactivityTimer() {
 function handleInactivityTimeout() {
     // Limpiar sesión por inactividad
     sessionStorage.removeItem('dental_current_user');
+    localStorage.removeItem('dental_current_user');
+    localStorage.removeItem('dental_active_tab');
     checkAuthSession();
     
     // Ocultar modales activos
@@ -742,6 +760,9 @@ window.navigateToTab = async function(tabName) {
     const navItems = document.querySelectorAll('.nav-item');
     const mobNavBtns = document.querySelectorAll('.mobile-nav-btn');
     const tabViews = document.querySelectorAll('.tab-view');
+
+    // Persist active tab so page refreshes maintain the user in this exact module!
+    localStorage.setItem('dental_active_tab', tabName);
 
     // RBAC Navigation Guard
     const user = getCurrentUser();

@@ -25,7 +25,7 @@
         (function() {
             var urlParams = new URLSearchParams(window.location.search);
             var isPublic = (urlParams.get('view') === 'budget' || urlParams.get('view') === 'receipt') && urlParams.get('patientId');
-            var session = sessionStorage.getItem('dental_current_user');
+            var session = sessionStorage.getItem('dental_current_user') || localStorage.getItem('dental_current_user');
             if (session || isPublic) {
                 document.documentElement.classList.add('has-auth-session');
             } else {
@@ -3155,13 +3155,13 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=121"></script>
-    <script src="supabaseClient.js?v=121"></script>
-    <script src="odontogram.js?v=121"></script>
-    <script src="signature.js?v=121"></script>
-    <script src="whatsapp.js?v=121"></script>
-    <script src="kardex.js?v=121"></script>
-    <script src="app.js?v=121"></script>
-    <script src="tutorial.js?v=121"></script>
+    <script src="seededData.js?v=122"></script>
+    <script src="supabaseClient.js?v=122"></script>
+    <script src="odontogram.js?v=122"></script>
+    <script src="signature.js?v=122"></script>
+    <script src="whatsapp.js?v=122"></script>
+    <script src="kardex.js?v=122"></script>
+    <script src="app.js?v=122"></script>
+    <script src="tutorial.js?v=122"></script>
 </body>
 </html>
