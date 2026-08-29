@@ -688,10 +688,10 @@ function logout() {
 }
 
 // ==========================================
-// INACTIVITY TIMEOUT DETECTOR (5 MINUTES)
+// INACTIVITY TIMEOUT DETECTOR (1 HOUR)
 // ==========================================
 let inactivityTimer = null;
-const INACTIVITY_LIMIT = 5 * 60 * 1000; // 5 minutos de inactividad
+const INACTIVITY_LIMIT = 60 * 60 * 1000; // 60 minutos (1 hora) de inactividad
 
 function resetInactivityTimer() {
     if (inactivityTimer) {
@@ -717,9 +717,9 @@ function handleInactivityTimeout() {
 
     Swal.fire({
         icon: 'warning',
-        title: 'Sesión Expirada',
-        text: 'Tu sesión ha sido cerrada automáticamente por inactividad.',
-        confirmButtonText: 'Volver a iniciar'
+        title: 'Sesión Expirada por Inactividad',
+        text: 'Tu sesión ha sido cerrada automáticamente tras 1 hora (60 min) de inactividad por seguridad.',
+        confirmButtonText: 'Iniciar Sesión'
     });
 }
 
