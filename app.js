@@ -272,37 +272,89 @@ function getExchangeRate() {
     return parseFloat(localStorage.getItem('dental_exchange_rate')) || DEFAULT_EXCHANGE_RATE;
 }
 
-// Helper: Persist Active Patient's Odontogram & Draft Budget Changes
+// Helper: Persist Active Patient's Odontogram & Draft Budget Changes (With Anonymous Fallback)
 async function autoSaveActivePatientOdontogram() {
+    const odData = window.odontogram ? window.odontogram.getData() : {};
+    
+    const discInput = document.getElementById('budget-discount-input');
+    const notesInput = document.getElementById('budget-notes');
+    const termsInput = document.getElementById('payment-mode-select');
+    const payMethodSelect = document.getElementById('budget-payment-method');
+    const consentInput = document.getElementById('budget-consent-text');
+
+    const draft = {
+        items: currentBudgetItems || [],
+        discountPct: discInput ? discInput.value : '0',
+        notes: notesInput ? notesInput.value : '',
+        terms: termsInput ? termsInput.value : 'Contado',
+        paymentMethod: payMethodSelect ? payMethodSelect.value : 'pagomovil',
+        consentText: consentInput ? (consentInput.value || consentInput.innerText) : '',
+        doctorSignature: window.doctorSigPad ? window.doctorSigPad.toDataURL() : null,
+        patientSignature: window.patientSigPad ? window.patientSigPad.toDataURL() : null
+    };
+
+    // Always save fallback copy to localStorage so reloading before selecting a patient loses NOTHING!
+    localStorage.setItem('dental_anonymous_odontogram_data', JSON.stringify(odData));
+    localStorage.setItem('dental_anonymous_draft_budget', JSON.stringify(draft));
+
     const activeId = getActivePatientId();
     if (!activeId) return;
 
     const patients = await SupabaseDataService.getPatients();
     const patient = patients.find(p => p.id === activeId);
     if (patient) {
-        if (window.odontogram) {
-            patient.odontogramData = window.odontogram.getData();
-        }
+        patient.odontogramData = odData;
         if (!patient.metadata) patient.metadata = {};
-
-        const discInput = document.getElementById('budget-discount-input');
-        const notesInput = document.getElementById('budget-notes');
-        const termsInput = document.getElementById('payment-mode-select');
-        const payMethodSelect = document.getElementById('budget-payment-method');
-        const consentInput = document.getElementById('budget-consent-text');
-
-        patient.metadata.draftBudget = {
-            items: currentBudgetItems || [],
-            discountPct: discInput ? discInput.value : '0',
-            notes: notesInput ? notesInput.value : '',
-            terms: termsInput ? termsInput.value : 'Contado',
-            paymentMethod: payMethodSelect ? payMethodSelect.value : 'pagomovil',
-            consentText: consentInput ? (consentInput.value || consentInput.innerText) : '',
-            doctorSignature: window.doctorSigPad ? window.doctorSigPad.toDataURL() : null,
-            patientSignature: window.patientSigPad ? window.patientSigPad.toDataURL() : null
-        };
-
+        patient.metadata.draftBudget = draft;
         await SupabaseDataService.savePatient(patient);
+    }
+}
+
+function restoreDraftBudgetUI(draft) {
+    if (!draft) return;
+    if (draft.items && Array.isArray(draft.items) && draft.items.length > 0) {
+        currentBudgetItems = draft.items;
+    }
+    const discInput = document.getElementById('budget-discount-input');
+    if (discInput && draft.discountPct !== undefined) discInput.value = draft.discountPct;
+
+    const notesInput = document.getElementById('budget-notes');
+    if (notesInput && draft.notes !== undefined) notesInput.value = draft.notes;
+
+    const termsInput = document.getElementById('payment-mode-select');
+    if (termsInput && draft.terms !== undefined) termsInput.value = draft.terms;
+
+    const payMethodSelect = document.getElementById('budget-payment-method');
+    if (payMethodSelect && draft.paymentMethod) {
+        payMethodSelect.value = draft.paymentMethod;
+        document.querySelectorAll('.pay-method-btn').forEach(btn => {
+            const method = btn.getAttribute('data-method');
+            if (method === draft.paymentMethod) {
+                btn.classList.add('active');
+                btn.style.background = '#0d9488';
+                btn.style.color = '#fff';
+            } else {
+                btn.classList.remove('active');
+                btn.style.background = 'transparent';
+                btn.style.color = 'var(--text-main)';
+            }
+        });
+    }
+
+    const consentInput = document.getElementById('budget-consent-text');
+    if (consentInput && draft.consentText) {
+        if (consentInput.tagName === 'TEXTAREA' || consentInput.tagName === 'INPUT') {
+            consentInput.value = draft.consentText;
+        } else {
+            consentInput.innerText = draft.consentText;
+        }
+    }
+
+    if (window.doctorSigPad && draft.doctorSignature) {
+        try { window.doctorSigPad.loadFromDataURL(draft.doctorSignature); } catch(e){}
+    }
+    if (window.patientSigPad && draft.patientSignature) {
+        try { window.patientSigPad.loadFromDataURL(draft.patientSignature); } catch(e){}
     }
 }
 
@@ -1473,51 +1525,7 @@ async function renderOdontogramView() {
             
             // Restablecer el borrador del presupuesto activo si existe
             if (patient.metadata && patient.metadata.draftBudget) {
-                const draft = patient.metadata.draftBudget;
-                if (draft.items && Array.isArray(draft.items) && draft.items.length > 0) {
-                    currentBudgetItems = draft.items;
-                }
-                const discInput = document.getElementById('budget-discount-input');
-                if (discInput && draft.discountPct !== undefined) discInput.value = draft.discountPct;
-
-                const notesInput = document.getElementById('budget-notes');
-                if (notesInput && draft.notes !== undefined) notesInput.value = draft.notes;
-
-                const termsInput = document.getElementById('payment-mode-select');
-                if (termsInput && draft.terms !== undefined) termsInput.value = draft.terms;
-
-                const payMethodSelect = document.getElementById('budget-payment-method');
-                if (payMethodSelect && draft.paymentMethod) {
-                    payMethodSelect.value = draft.paymentMethod;
-                    document.querySelectorAll('.pay-method-btn').forEach(btn => {
-                        const method = btn.getAttribute('data-method');
-                        if (method === draft.paymentMethod) {
-                            btn.classList.add('active');
-                            btn.style.background = '#0d9488';
-                            btn.style.color = '#fff';
-                        } else {
-                            btn.classList.remove('active');
-                            btn.style.background = 'transparent';
-                            btn.style.color = 'var(--text-main)';
-                        }
-                    });
-                }
-
-                const consentInput = document.getElementById('budget-consent-text');
-                if (consentInput && draft.consentText) {
-                    if (consentInput.tagName === 'TEXTAREA' || consentInput.tagName === 'INPUT') {
-                        consentInput.value = draft.consentText;
-                    } else {
-                        consentInput.innerText = draft.consentText;
-                    }
-                }
-
-                if (window.doctorSigPad && draft.doctorSignature) {
-                    try { window.doctorSigPad.loadFromDataURL(draft.doctorSignature); } catch(e){}
-                }
-                if (window.patientSigPad && draft.patientSignature) {
-                    try { window.patientSigPad.loadFromDataURL(draft.patientSignature); } catch(e){}
-                }
+                restoreDraftBudgetUI(patient.metadata.draftBudget);
             }
 
             // Sincronizar datos del expediente (Seccion 2)
@@ -1550,7 +1558,18 @@ async function renderOdontogramView() {
             }
         }
     } else {
-        window.odontogram.setData({});
+        // Cargar respaldo de odontograma y presupuesto anónimo si no se ha seleccionado paciente aún
+        const anonOdData = JSON.parse(localStorage.getItem('dental_anonymous_odontogram_data') || '{}');
+        const anonDraft = JSON.parse(localStorage.getItem('dental_anonymous_draft_budget') || 'null');
+
+        if (window.odontogram) {
+            window.odontogram.setData(anonOdData);
+        }
+
+        if (anonDraft) {
+            restoreDraftBudgetUI(anonDraft);
+        }
+
         alertBanner.classList.add('hidden');
         
         // Reset a valores por defecto
@@ -6324,6 +6343,9 @@ function initGlobalEvents() {
             activeEditingBudgetId = null;
             setActivePatientId(null);
             currentBudgetItems = [];
+            localStorage.removeItem('dental_anonymous_odontogram_data');
+            localStorage.removeItem('dental_anonymous_draft_budget');
+            if (window.odontogram) window.odontogram.setData({});
             
             const listContainer = document.getElementById('odontogram-list-container');
             const editorContainer = document.getElementById('odontogram-editor-container');
