@@ -1601,13 +1601,19 @@ function addProcedureToBudget(toothKeyObj, procedure) {
 async function getDoctorsList() {
     try {
         const users = await SupabaseDataService.getUsers();
-        const doctors = users.filter(u => u.role && (u.role.toLowerCase().includes('odont') || u.role.toLowerCase().includes('médic') || u.role.toLowerCase().includes('doctor')));
+        const doctors = users.filter(u => {
+            if (!u.role) return false;
+            const r = u.role.toLowerCase();
+            if (r.includes('asistente') || r.includes('recep')) return false;
+            return true;
+        });
         if (doctors.length === 0) {
-            return [{ fullname: 'Dr. Alejandro Silva' }, { fullname: 'Dr. Rodrigo Navas' }];
+            return users && users.length > 0 ? users : [{ fullname: 'Dr. Alejandro Silva' }];
         }
         return doctors;
     } catch (err) {
-        return [{ fullname: 'Dr. Alejandro Silva' }, { fullname: 'Dr. Rodrigo Navas' }];
+        console.error('Error in getDoctorsList:', err);
+        return [{ fullname: 'Dr. Alejandro Silva' }];
     }
 }
 
@@ -1664,7 +1670,9 @@ async function renderBudgetTable() {
     currentBudgetItems.forEach((item, index) => {
         if (item.price === undefined) item.price = 0;
         if (!item.specialist) {
-            item.specialist = doctors[0] ? doctors[0].fullname : 'Dr. Alejandro Silva';
+            const currentUser = getCurrentUser();
+            const currentDoc = currentUser && currentUser.role && !currentUser.role.toLowerCase().includes('asistente') ? currentUser.fullname : null;
+            item.specialist = currentDoc || (doctors[0] ? doctors[0].fullname : 'Dr. Alejandro Silva');
         }
 
         subtotalUSD += item.price;
@@ -1691,15 +1699,17 @@ async function renderBudgetTable() {
 
         // Handle specialist select change
         const specSelect = tr.querySelector('.srv-specialist-select');
-        specSelect.addEventListener('change', (e) => {
+        specSelect.addEventListener('change', async (e) => {
             currentBudgetItems[index].specialist = e.target.value;
+            await autoSaveActivePatientOdontogram();
         });
 
         // Handle price input edit
         const priceIn = tr.querySelector('.srv-price-input');
-        priceIn.addEventListener('change', (e) => {
+        priceIn.addEventListener('change', async (e) => {
             const val = parseFloat(e.target.value) || 0;
             currentBudgetItems[index].price = Math.max(0, val);
+            await autoSaveActivePatientOdontogram();
             renderBudgetTable();
         });
 
