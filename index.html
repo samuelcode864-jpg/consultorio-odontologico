@@ -30,6 +30,8 @@
                 document.documentElement.classList.add('has-auth-session');
                 var savedTab = localStorage.getItem('dental_active_tab') || 'dashboard';
                 document.documentElement.setAttribute('data-active-tab', savedTab);
+                var subview = localStorage.getItem('dental_odontogram_subview') || 'editor';
+                document.documentElement.setAttribute('data-odontogram-subview', subview);
             } else {
                 document.documentElement.classList.add('no-auth-session');
             }
@@ -74,6 +76,14 @@
         html[data-active-tab="stationery"] #view-stationery,
         html[data-active-tab="settings"] #view-settings,
         html[data-active-tab="help"] #view-help {
+            display: block !important;
+        }
+
+        /* Instant Odontogram Subview Persistence (Editor vs List) */
+        html[data-active-tab="odontogram"][data-odontogram-subview="editor"] #odontogram-list-container {
+            display: none !important;
+        }
+        html[data-active-tab="odontogram"][data-odontogram-subview="editor"] #odontogram-editor-container {
             display: block !important;
         }
     </style>
@@ -3188,13 +3198,13 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=123"></script>
-    <script src="supabaseClient.js?v=123"></script>
-    <script src="odontogram.js?v=123"></script>
-    <script src="signature.js?v=123"></script>
-    <script src="whatsapp.js?v=123"></script>
-    <script src="kardex.js?v=123"></script>
-    <script src="app.js?v=123"></script>
-    <script src="tutorial.js?v=123"></script>
+    <script src="seededData.js?v=124"></script>
+    <script src="supabaseClient.js?v=124"></script>
+    <script src="odontogram.js?v=124"></script>
+    <script src="signature.js?v=124"></script>
+    <script src="whatsapp.js?v=124"></script>
+    <script src="kardex.js?v=124"></script>
+    <script src="app.js?v=124"></script>
+    <script src="tutorial.js?v=124"></script>
 </body>
 </html>

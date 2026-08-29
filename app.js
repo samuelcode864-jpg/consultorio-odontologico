@@ -808,16 +808,22 @@ window.navigateToTab = async function(tabName) {
     document.documentElement.setAttribute('data-active-tab', tabName);
 
     if (tabName === 'odontogram') {
+        const subview = localStorage.getItem('dental_odontogram_subview') || 'editor';
         const activeId = getActivePatientId();
         const editorContainer = document.getElementById('odontogram-editor-container');
         const listContainer = document.getElementById('odontogram-list-container');
-        if (activeId) {
+
+        if (subview === 'editor' || activeId) {
+            localStorage.setItem('dental_odontogram_subview', 'editor');
+            document.documentElement.setAttribute('data-odontogram-subview', 'editor');
             if (listContainer) listContainer.classList.add('hidden');
             if (editorContainer) editorContainer.classList.remove('hidden');
             await renderOdontogramView();
-        } else if (editorContainer && !editorContainer.classList.contains('hidden')) {
-            await renderOdontogramView();
         } else {
+            localStorage.setItem('dental_odontogram_subview', 'list');
+            document.documentElement.setAttribute('data-odontogram-subview', 'list');
+            if (editorContainer) editorContainer.classList.add('hidden');
+            if (listContainer) listContainer.classList.remove('hidden');
             await renderBudgetListView();
         }
     } else if (tabName === 'patients') {
@@ -1072,6 +1078,8 @@ async function renderPatientSearchResults(query) {
 }
 
 async function renderBudgetListView() {
+    localStorage.setItem('dental_odontogram_subview', 'list');
+    document.documentElement.setAttribute('data-odontogram-subview', 'list');
     const listContainer = document.getElementById('odontogram-list-container');
     const editorContainer = document.getElementById('odontogram-editor-container');
     if (listContainer) listContainer.classList.remove('hidden');
@@ -1437,6 +1445,8 @@ window.loadBudgetIntoEditor = async function(budgetId) {
 // ODONTOGRAM & BUDGET VIEW
 // ==========================================
 async function renderOdontogramView() {
+    localStorage.setItem('dental_odontogram_subview', 'editor');
+    document.documentElement.setAttribute('data-odontogram-subview', 'editor');
     await updateActivePatientUI();
 
     const searchInput = document.getElementById('od-patient-search-input');
