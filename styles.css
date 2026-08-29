@@ -1106,6 +1106,14 @@ h4 { font-size: 1rem; }
 .tooth-face.endo { fill: #9333ea !important; }
 
 .tooth-absence-x {
+    stroke: #2563eb !important;
+    stroke-width: 3.5 !important;
+    stroke-linecap: round !important;
+    pointer-events: none !important;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35));
+}
+
+.tooth-extraction-x {
     stroke: #dc2626 !important;
     stroke-width: 3.5 !important;
     stroke-linecap: round !important;
@@ -1113,18 +1121,26 @@ h4 { font-size: 1rem; }
     filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35));
 }
 
-.tooth-box.is-absent {
+.tooth-box.is-absent,
+.tooth-box.is-extraction {
     position: relative;
 }
 
-.tooth-box.is-absent .tooth-svg {
+.tooth-box.is-absent .tooth-svg,
+.tooth-box.is-extraction .tooth-svg {
     opacity: 0.85;
 }
 
 .tool-btn[data-mode="absence"].active {
-    background: #fee2e2 !important;
-    color: #b91c1c !important;
-    border-color: #ef4444 !important;
+    background: #2563eb !important;
+    color: #ffffff !important;
+    border-color: #2563eb !important;
+}
+
+.tool-btn[data-mode="extraction"].active {
+    background: #dc2626 !important;
+    color: #ffffff !important;
+    border-color: #dc2626 !important;
 }
 
 /* Budget Summary Box */
