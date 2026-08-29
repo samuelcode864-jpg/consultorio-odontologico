@@ -48,16 +48,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 5. UI Navigation & Tab Controller
     initNavigation();
 
-    // 6. Render Initial Views & Data from Supabase Cloud (Only if user is logged in)
+    // 6. Restore Active Tab & Render Primary View Immediately
     if (getCurrentUser()) {
-        try { await renderDashboard(); } catch(e) { console.error("Error rendering Dashboard:", e); }
-        try { await renderPatientsTable(); } catch(e) { console.error("Error rendering Patients:", e); }
-        try { await renderInventoryTable(); } catch(e) { console.error("Error rendering Inventory:", e); }
-        try { await renderPricingTable(); } catch(e) { console.error("Error rendering Pricing:", e); }
-        try { await renderEHRView(); } catch(e) { console.error("Error rendering EHR:", e); }
-        try { await renderUsersTable(); } catch(e) { console.error("Error rendering Users:", e); }
-
-        // Restore exact tab/module active before page refresh
         const savedTab = localStorage.getItem('dental_active_tab') || 'dashboard';
         const urlParams = new URLSearchParams(window.location.search);
         const isPublic = (urlParams.get('view') === 'budget' || urlParams.get('view') === 'receipt') && urlParams.get('patientId');
@@ -65,6 +57,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!isPublic) {
             await window.navigateToTab(savedTab);
         }
+
+        // Secondary background pre-rendering for instant tab switching
+        setTimeout(async () => {
+            try { await loadClinicBranding(); } catch(e){}
+            try { renderDashboard(); } catch(e){}
+            try { renderPatientsTable(); } catch(e){}
+            try { renderInventoryTable(); } catch(e){}
+            try { renderPricingTable(); } catch(e){}
+            try { renderEHRView(); } catch(e){}
+            try { renderUsersTable(); } catch(e){}
+        }, 100);
     }
 
     // 7. Global Event Listeners & Modals
@@ -802,13 +805,18 @@ window.navigateToTab = async function(tabName) {
     const targetView = document.getElementById(`view-${tabName}`);
     if (targetView) targetView.classList.add('active');
 
-    // Close mobile sidebar if open
-    if (window.closeMobileSidebar) window.closeMobileSidebar();
+    document.documentElement.setAttribute('data-active-tab', tabName);
 
     if (tabName === 'odontogram') {
+        const activeId = getActivePatientId();
         const editorContainer = document.getElementById('odontogram-editor-container');
-        if (editorContainer && !editorContainer.classList.contains('hidden')) {
-            // Do nothing, stay in editor view
+        const listContainer = document.getElementById('odontogram-list-container');
+        if (activeId) {
+            if (listContainer) listContainer.classList.add('hidden');
+            if (editorContainer) editorContainer.classList.remove('hidden');
+            await renderOdontogramView();
+        } else if (editorContainer && !editorContainer.classList.contains('hidden')) {
+            await renderOdontogramView();
         } else {
             await renderBudgetListView();
         }

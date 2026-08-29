@@ -20,7 +20,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="styles.css?v=116">
 
-    <!-- Anti-Flash Instant Auth Guard -->
+    <!-- Anti-Flash Instant Auth & Tab Guard -->
     <script>
         (function() {
             var urlParams = new URLSearchParams(window.location.search);
@@ -28,13 +28,15 @@
             var session = sessionStorage.getItem('dental_current_user') || localStorage.getItem('dental_current_user');
             if (session || isPublic) {
                 document.documentElement.classList.add('has-auth-session');
+                var savedTab = localStorage.getItem('dental_active_tab') || 'dashboard';
+                document.documentElement.setAttribute('data-active-tab', savedTab);
             } else {
                 document.documentElement.classList.add('no-auth-session');
             }
         })();
     </script>
     <style>
-        /* Instant Zero-Flash Login Protection */
+        /* Instant Zero-Flash Login & Tab Protection */
         .has-auth-session #login-screen {
             display: none !important;
         }
@@ -42,6 +44,37 @@
         .no-auth-session .main-content,
         .no-auth-session .mobile-backdrop {
             visibility: hidden !important;
+        }
+
+        /* Instant Active Tab Rendering without Dashboard Flash */
+        html[data-active-tab="odontogram"] .tab-view:not(#view-odontogram),
+        html[data-active-tab="patients"] .tab-view:not(#view-patients),
+        html[data-active-tab="agenda"] .tab-view:not(#view-agenda),
+        html[data-active-tab="billing"] .tab-view:not(#view-billing),
+        html[data-active-tab="finance"] .tab-view:not(#view-finance),
+        html[data-active-tab="ehr"] .tab-view:not(#view-ehr),
+        html[data-active-tab="inventory"] .tab-view:not(#view-inventory),
+        html[data-active-tab="pricing"] .tab-view:not(#view-pricing),
+        html[data-active-tab="users"] .tab-view:not(#view-users),
+        html[data-active-tab="stationery"] .tab-view:not(#view-stationery),
+        html[data-active-tab="settings"] .tab-view:not(#view-settings),
+        html[data-active-tab="help"] .tab-view:not(#view-help) {
+            display: none !important;
+        }
+
+        html[data-active-tab="odontogram"] #view-odontogram,
+        html[data-active-tab="patients"] #view-patients,
+        html[data-active-tab="agenda"] #view-agenda,
+        html[data-active-tab="billing"] #view-billing,
+        html[data-active-tab="finance"] #view-finance,
+        html[data-active-tab="ehr"] #view-ehr,
+        html[data-active-tab="inventory"] #view-inventory,
+        html[data-active-tab="pricing"] #view-pricing,
+        html[data-active-tab="users"] #view-users,
+        html[data-active-tab="stationery"] #view-stationery,
+        html[data-active-tab="settings"] #view-settings,
+        html[data-active-tab="help"] #view-help {
+            display: block !important;
         }
     </style>
 </head>
@@ -3155,13 +3188,13 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=122"></script>
-    <script src="supabaseClient.js?v=122"></script>
-    <script src="odontogram.js?v=122"></script>
-    <script src="signature.js?v=122"></script>
-    <script src="whatsapp.js?v=122"></script>
-    <script src="kardex.js?v=122"></script>
-    <script src="app.js?v=122"></script>
-    <script src="tutorial.js?v=122"></script>
+    <script src="seededData.js?v=123"></script>
+    <script src="supabaseClient.js?v=123"></script>
+    <script src="odontogram.js?v=123"></script>
+    <script src="signature.js?v=123"></script>
+    <script src="whatsapp.js?v=123"></script>
+    <script src="kardex.js?v=123"></script>
+    <script src="app.js?v=123"></script>
+    <script src="tutorial.js?v=123"></script>
 </body>
 </html>
