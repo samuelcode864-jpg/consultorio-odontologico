@@ -1567,6 +1567,12 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
         return;
     }
 
+    if (mode === 'treated') {
+        await autoSaveActivePatientOdontogram();
+        renderBudgetTable();
+        return;
+    }
+
     // For extraction or normal tooth faces, open modal to select procedure!
     if (mode === 'extraction') {
         key = `${toothNumber}-extraction`;
