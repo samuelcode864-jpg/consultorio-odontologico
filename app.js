@@ -9091,6 +9091,83 @@ async function downloadBudgetPDF() {
 let billingItems = [];
 let activeBillingInvoice = null;
 
+async function loadPatientBillingItems(pId) {
+    if (!pId) {
+        billingItems = [];
+        renderBillingItemsTable();
+        return;
+    }
+
+    const invoices = await SupabaseDataService.getInvoices();
+    // Find latest budget / quotation for this patient
+    const patientInvoices = invoices.filter(inv => String(inv.patientId) === String(pId));
+    const latestBudget = patientInvoices.sort((a, b) => new Date(b.invoiceDate || b.createdAt || 0) - new Date(a.invoiceDate || a.createdAt || 0))[0];
+
+    const baremo = await SupabaseDataService.getBaremo();
+    let loadedItems = [];
+
+    if (latestBudget && latestBudget.items && latestBudget.items.length > 0) {
+        loadedItems = latestBudget.items.map(item => {
+            const code = item.code || item.serviceCode || 'CUSTOM';
+            const srv = baremo.find(b => b.code === code);
+            return {
+                code: code,
+                name: item.name,
+                price: item.price,
+                hygienistBonus: srv ? (srv.hygienistBonus || 0) : 0,
+                qty: 1
+            };
+        });
+    } else {
+        // Fallback: check patient metadata
+        const patients = await SupabaseDataService.getPatients();
+        const activePatient = patients.find(p => String(p.id) === String(pId));
+
+        if (activePatient && activePatient.metadata) {
+            const extracted = [];
+            if (activePatient.metadata.treatments && Array.isArray(activePatient.metadata.treatments)) {
+                activePatient.metadata.treatments.forEach(t => extracted.push(t));
+            } else if (activePatient.metadata.sessionsPlan && Array.isArray(activePatient.metadata.sessionsPlan)) {
+                activePatient.metadata.sessionsPlan.forEach(s => {
+                    if (s.services && Array.isArray(s.services)) {
+                        s.services.forEach(srv => extracted.push(srv));
+                    }
+                });
+            }
+            if (extracted.length > 0) {
+                loadedItems = extracted.map(item => {
+                    const code = item.serviceCode || item.code || 'CUSTOM';
+                    const srv = baremo.find(b => b.code === code);
+                    return {
+                        code: code,
+                        name: item.name,
+                        price: item.price || 0,
+                        hygienistBonus: srv ? (srv.hygienistBonus || 0) : 0,
+                        qty: 1
+                    };
+                });
+            }
+        }
+        
+        if (loadedItems.length === 0 && String(pId) === String(getActivePatientId()) && currentBudgetItems.length > 0) {
+            loadedItems = currentBudgetItems.map(item => {
+                const code = item.serviceCode || 'CUSTOM';
+                const srv = baremo.find(b => b.code === code);
+                return {
+                    code: code,
+                    name: item.name,
+                    price: item.price,
+                    hygienistBonus: srv ? (srv.hygienistBonus || 0) : 0,
+                    qty: 1
+                };
+            });
+        }
+    }
+
+    billingItems = loadedItems;
+    renderBillingItemsTable();
+}
+
 async function renderBillingView() {
     const patientSelect = document.getElementById('bill-patient-select');
     const assistantSelect = document.getElementById('bill-assistant');
@@ -9119,7 +9196,6 @@ async function renderBillingView() {
             assistantSelect.appendChild(opt);
         }
     });
-    // Auto-select first assistant if available
     if (assistantSelect.options.length > 1) {
         assistantSelect.selectedIndex = 1;
     }
@@ -9128,51 +9204,39 @@ async function renderBillingView() {
     const rate = getExchangeRate();
     document.getElementById('bill-exchange-rate').innerText = `Bs. ${rate.toFixed(2)}`;
 
-    // Reset list and draw table
-    billingItems = [];
-    renderBillingItemsTable();
+    // Auto-load items on change
+    patientSelect.onchange = async () => {
+        const pId = patientSelect.value;
+        if (pId) {
+            setActivePatientId(pId);
+            await loadPatientBillingItems(pId);
+        } else {
+            billingItems = [];
+            renderBillingItemsTable();
+        }
+    };
 
-    // Event listener for loading budget items
+    // Initial load if patient already selected
+    if (patientSelect.value) {
+        await loadPatientBillingItems(patientSelect.value);
+    } else {
+        billingItems = [];
+        renderBillingItemsTable();
+    }
+
+    // Manual reload button
     document.getElementById('btn-load-budget-items').onclick = async () => {
         const pId = patientSelect.value;
         if (!pId) {
             Swal.fire({ icon: 'warning', title: 'Paciente no seleccionado', text: 'Por favor seleccione un paciente.' });
             return;
         }
-        const activePatient = patients.find(p => p.id === pId);
-        if (pId === activeId && currentBudgetItems.length > 0) {
-            billingItems = currentBudgetItems.map(item => ({
-                code: item.serviceCode || 'CUSTOM',
-                name: item.name,
-                price: item.price * (1 - (item.discount || 0) / 100),
-                hygienistBonus: 0,
-                qty: 1
-            }));
-            // Look up hygienist bonus from baremo
-            const baremo = await SupabaseDataService.getBaremo();
-            billingItems.forEach(bi => {
-                const srv = baremo.find(b => b.code === bi.code);
-                if (srv) bi.hygienistBonus = srv.hygienistBonus || 0;
-            });
-            Swal.fire({ icon: 'success', title: 'Items cargados', text: 'Se cargaron los items del presupuesto activo.', timer: 1500, showConfirmButton: false });
-        } else if (activePatient && activePatient.payments && activePatient.payments.length > 0) {
-            const pendingPayments = activePatient.payments.filter(pay => pay.status === 'Pendiente');
-            if (pendingPayments.length > 0) {
-                billingItems = pendingPayments.map(pay => ({
-                    code: 'DEUDA',
-                    name: pay.concept,
-                    price: pay.balanceUSD,
-                    hygienistBonus: 0,
-                    qty: 1
-                }));
-                Swal.fire({ icon: 'success', title: 'Deuda cargada', text: 'Se cargaron los saldos pendientes del paciente.', timer: 1500, showConfirmButton: false });
-            } else {
-                Swal.fire({ icon: 'info', title: 'Sin presupuesto activo', text: 'El paciente no tiene tratamientos pendientes por facturar.' });
-            }
+        await loadPatientBillingItems(pId);
+        if (billingItems.length > 0) {
+            Swal.fire({ icon: 'success', title: 'Servicios cargados', text: `Se cargaron ${billingItems.length} servicios de la última cotización del paciente.`, timer: 1500, showConfirmButton: false });
         } else {
-            Swal.fire({ icon: 'info', title: 'Sin presupuesto activo', text: 'El paciente no tiene tratamientos pendientes por facturar.' });
+            Swal.fire({ icon: 'info', title: 'Sin servicios cotizados', text: 'El paciente no tiene tratamientos ni cotizaciones pendientes.' });
         }
-        renderBillingItemsTable();
     };
 
     // Open add baremo item modal
