@@ -7385,6 +7385,17 @@ function renderSessionsPlanner() {
         }
     });
 
+    // Record currently expanded accordions before redrawing
+    const expandedSessions = new Set();
+    container.querySelectorAll('.accordion-item').forEach(item => {
+        const header = item.querySelector('.accordion-header');
+        const content = item.querySelector('.accordion-content');
+        if (header && content && content.style.display === 'block') {
+            const sNum = parseInt(header.dataset.session);
+            if (sNum) expandedSessions.add(sNum);
+        }
+    });
+
     let html = '';
     const timesArray = [
         "08:00 AM", "08:30 AM", "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
@@ -7434,8 +7445,9 @@ function renderSessionsPlanner() {
             timeOptionsHtml += `<option value="${t}" ${isSel}>${t}</option>`;
         });
 
-        const isExpanded = (i === 1) ? 'block' : 'none';
-        const arrowRotation = (i === 1) ? 'rotate(180deg)' : 'rotate(0deg)';
+        const isInitiallyExpanded = (expandedSessions.size === 0 && i === 1);
+        const isExpanded = (expandedSessions.has(i) || isInitiallyExpanded) ? 'block' : 'none';
+        const arrowRotation = (isExpanded === 'block') ? 'rotate(180deg)' : 'rotate(0deg)';
 
         html += `
             <div class="accordion-item card" style="margin-bottom: 10px; border: 1px solid var(--border-color); background: var(--bg-card); border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); overflow: hidden;">
