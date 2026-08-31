@@ -246,6 +246,56 @@ class OdontogramEngine {
             box.classList.add(isAbsent ? 'is-absent' : 'is-extraction');
         }
 
+        // Check for Endodontic status (Sano = linea azul, Por Hacer = linea roja, Rehacer = doble linea azul + roja)
+        const endoStatus = this.toothData[`${toothNumber}-endo`] || this.toothData[`${toothNumber}-endo-status`];
+        if (endoStatus) {
+            if (endoStatus === 'sano') {
+                const lineBlue = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                lineBlue.setAttribute('x1', '20');
+                lineBlue.setAttribute('y1', '0');
+                lineBlue.setAttribute('x2', '20');
+                lineBlue.setAttribute('y2', '40');
+                lineBlue.setAttribute('stroke', '#2563eb');
+                lineBlue.setAttribute('stroke-width', '4.5');
+                lineBlue.setAttribute('stroke-linecap', 'butt');
+                lineBlue.setAttribute('class', 'tooth-endo-line-sano');
+                svg.appendChild(lineBlue);
+            } else if (endoStatus === 'por_hacer') {
+                const lineRed = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                lineRed.setAttribute('x1', '20');
+                lineRed.setAttribute('y1', '0');
+                lineRed.setAttribute('x2', '20');
+                lineRed.setAttribute('y2', '40');
+                lineRed.setAttribute('stroke', '#dc2626');
+                lineRed.setAttribute('stroke-width', '4.5');
+                lineRed.setAttribute('stroke-linecap', 'butt');
+                lineRed.setAttribute('class', 'tooth-endo-line-porhacer');
+                svg.appendChild(lineRed);
+            } else if (endoStatus === 'rehacer') {
+                const lineBlue = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                lineBlue.setAttribute('x1', '17');
+                lineBlue.setAttribute('y1', '0');
+                lineBlue.setAttribute('x2', '17');
+                lineBlue.setAttribute('y2', '40');
+                lineBlue.setAttribute('stroke', '#2563eb');
+                lineBlue.setAttribute('stroke-width', '3.5');
+                lineBlue.setAttribute('stroke-linecap', 'butt');
+                lineBlue.setAttribute('class', 'tooth-endo-line-rehacer-blue');
+                svg.appendChild(lineBlue);
+
+                const lineRed = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                lineRed.setAttribute('x1', '23');
+                lineRed.setAttribute('y1', '0');
+                lineRed.setAttribute('x2', '23');
+                lineRed.setAttribute('y2', '40');
+                lineRed.setAttribute('stroke', '#dc2626');
+                lineRed.setAttribute('stroke-width', '3.5');
+                lineRed.setAttribute('stroke-linecap', 'butt');
+                lineRed.setAttribute('class', 'tooth-endo-line-rehacer-red');
+                svg.appendChild(lineRed);
+            }
+        }
+
         box.appendChild(svg);
         
         if (!isUpper) {
@@ -257,6 +307,13 @@ class OdontogramEngine {
 
     handleFaceClick(toothNumber, faceId, key, el) {
         if (this.readOnly) return;
+
+        if (this.currentMode === 'endo') {
+            if (this.onFaceClickCallback) {
+                this.onFaceClickCallback(toothNumber, 'all', 'endo', `${toothNumber}-endo`);
+            }
+            return;
+        }
         
         if (this.currentMode === 'absence') {
             const absenceKey = `${toothNumber}-absence`;
@@ -311,6 +368,8 @@ class OdontogramEngine {
         if (this.currentMode === 'clear') {
             delete this.toothData[`${toothNumber}-absence`];
             delete this.toothData[`${toothNumber}-extraction`];
+            delete this.toothData[`${toothNumber}-endo`];
+            delete this.toothData[`${toothNumber}-endo-status`];
             ['top', 'right', 'bottom', 'left', 'center'].forEach(f => {
                 delete this.toothData[`${toothNumber}-${f}`];
             });

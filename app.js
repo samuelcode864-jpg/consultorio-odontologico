@@ -1684,8 +1684,80 @@ async function renderOdontogramView() {
 }
 
 async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
+    if (mode === 'endo') {
+        const { value: endoStatus } = await Swal.fire({
+            title: `<i class="fa-solid fa-tooth text-cyan"></i> Endodoncia - Pieza ${toothNumber}`,
+            html: `<div style="font-size:0.9rem; color:var(--text-muted); margin-bottom:15px;">Seleccione el estado clínico de la Endodoncia para la pieza ${toothNumber}:</div>`,
+            showCancelButton: true,
+            cancelButtonText: 'Cancelar',
+            showDenyButton: true,
+            denyButtonText: '🔴 Por Hacer (Conducto)',
+            denyButtonColor: '#dc2626',
+            confirmButtonText: '🔵 Sano (En buen estado)',
+            confirmButtonColor: '#2563eb',
+            footer: '<button id="swal-btn-endo-rehacer" class="swal2-confirm swal2-styled" style="background-color: #0891b2; font-weight: 700; width: 100%; margin-top: 6px;">🔵🔴 Rehacer (Retratamiento)</button>',
+            didOpen: () => {
+                const rehacerBtn = document.getElementById('swal-btn-endo-rehacer');
+                if (rehacerBtn) {
+                    rehacerBtn.onclick = () => {
+                        Swal.close({ value: 'rehacer' });
+                    };
+                }
+            }
+        }).then(res => {
+            if (res.isConfirmed) return { value: 'sano' };
+            if (res.isDenied) return { value: 'por_hacer' };
+            if (res.value === 'rehacer') return { value: 'rehacer' };
+            return { value: null };
+        });
+
+        if (endoStatus) {
+            const odData = window.odontogram ? window.odontogram.getData() : {};
+            odData[`${toothNumber}-endo`] = endoStatus;
+            if (window.odontogram) window.odontogram.setData(odData);
+
+            if (endoStatus === 'por_hacer') {
+                const baremo = await SupabaseDataService.getBaremo();
+                const endoProc = baremo.find(b => b.name.toLowerCase().includes('conducto') || b.category.toLowerCase().includes('endodoncia')) || {
+                    name: 'Tratamiento de Conducto (Endodoncia)',
+                    priceUSD: 120.00,
+                    code: 'EN-01'
+                };
+                currentBudgetItems.push({
+                    key: `${toothNumber}-endo-proc-${Date.now()}`,
+                    tooth: toothNumber,
+                    face: 'Gnl',
+                    serviceCode: endoProc.code || 'EN-01',
+                    name: `Endodoncia: ${endoProc.name}`,
+                    price: endoProc.priceUSD || 120.00,
+                    specialist: 'Dr. Alejandro Silva'
+                });
+            } else if (endoStatus === 'rehacer') {
+                const baremo = await SupabaseDataService.getBaremo();
+                const endoProc = baremo.find(b => b.name.toLowerCase().includes('multirradicular') || b.name.toLowerCase().includes('conducto')) || {
+                    name: 'Retratamiento de Conducto (Re-Endodoncia)',
+                    priceUSD: 150.00,
+                    code: 'EN-02'
+                };
+                currentBudgetItems.push({
+                    key: `${toothNumber}-endo-proc-${Date.now()}`,
+                    tooth: toothNumber,
+                    face: 'Gnl',
+                    serviceCode: endoProc.code || 'EN-02',
+                    name: `Retratamiento de Endodoncia: ${endoProc.name}`,
+                    price: endoProc.priceUSD || 150.00,
+                    specialist: 'Dr. Alejandro Silva'
+                });
+            }
+
+            await autoSaveActivePatientOdontogram();
+            renderBudgetTable();
+        }
+        return;
+    }
+
     if (mode === 'clear') {
-        currentBudgetItems = currentBudgetItems.filter(item => item.key !== key && item.key !== `${toothNumber}-absence` && item.key !== `${toothNumber}-extraction`);
+        currentBudgetItems = currentBudgetItems.filter(item => item.key !== key && item.key !== `${toothNumber}-absence` && item.key !== `${toothNumber}-extraction` && !item.key.startsWith(`${toothNumber}-endo`));
         await autoSaveActivePatientOdontogram();
         renderBudgetTable();
         return;
