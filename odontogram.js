@@ -292,10 +292,28 @@ class OdontogramEngine {
             return;
         }
 
+        if (this.currentMode === 'treated') {
+            const faces = ['top', 'right', 'bottom', 'left', 'center'];
+            delete this.toothData[`${toothNumber}-absence`];
+            delete this.toothData[`${toothNumber}-extraction`];
+
+            faces.forEach(f => {
+                const fKey = `${toothNumber}-${f}`;
+                this.toothData[fKey] = 'treated';
+            });
+            this.render();
+            if (this.onFaceClickCallback) {
+                this.onFaceClickCallback(toothNumber, 'all', 'treated', `${toothNumber}-treated`);
+            }
+            return;
+        }
+
         if (this.currentMode === 'clear') {
             delete this.toothData[`${toothNumber}-absence`];
             delete this.toothData[`${toothNumber}-extraction`];
-            delete this.toothData[key];
+            ['top', 'right', 'bottom', 'left', 'center'].forEach(f => {
+                delete this.toothData[`${toothNumber}-${f}`];
+            });
             this.render();
         } else {
             this.toothData[key] = this.currentMode;
