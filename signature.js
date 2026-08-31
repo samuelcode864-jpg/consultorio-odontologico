@@ -9,6 +9,7 @@ class SignaturePad {
 
         this.ctx = this.canvas.getContext('2d');
         this.isDrawing = false;
+        this.hasDrawn = false;
         this.lastX = 0;
         this.lastY = 0;
 
@@ -51,6 +52,7 @@ class SignaturePad {
             this.ctx.lineTo(pos.x, pos.y);
             this.ctx.stroke();
 
+            this.hasDrawn = true;
             this.lastX = pos.x;
             this.lastY = pos.y;
         };
@@ -76,6 +78,7 @@ class SignaturePad {
 
     clear() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.hasDrawn = false;
     }
 
     loadFromDataURL(dataUrl) {
@@ -89,15 +92,13 @@ class SignaturePad {
             const x = (this.canvas.width - w) / 2;
             const y = (this.canvas.height - h) / 2;
             this.ctx.drawImage(img, x, y, w, h);
+            this.hasDrawn = true;
         };
         img.src = dataUrl;
     }
 
     isEmpty() {
-        const blank = document.createElement('canvas');
-        blank.width = this.canvas.width;
-        blank.height = this.canvas.height;
-        return this.canvas.toDataURL() === blank.toDataURL();
+        return !this.hasDrawn;
     }
 
     toDataURL() {

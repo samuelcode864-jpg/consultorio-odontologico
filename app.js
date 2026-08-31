@@ -5884,7 +5884,7 @@ function initGlobalEvents() {
         }
 
         activeEditingBudgetId = null;
-        currentBudgetItems = deduplicateBudgetItems(currentBudgetItems);
+        currentBudgetItems = [];
 
         const navOdontogram = document.querySelector('.nav-item[data-tab="odontogram"]') || document.getElementById('mob-nav-odontogram');
         if (navOdontogram) navOdontogram.click();
@@ -5895,6 +5895,29 @@ function initGlobalEvents() {
         if (editorContainer) editorContainer.classList.remove('hidden');
 
         await renderOdontogramView();
+
+        // Extract items from patient metadata sessionsPlan ONLY if currentBudgetItems is empty
+        if (currentBudgetItems.length === 0) {
+            const patients = await SupabaseDataService.getPatients();
+            const patient = patients.find(p => String(p.id) === String(patientId));
+            if (patient && patient.metadata) {
+                const extracted = [];
+                if (patient.metadata.sessionsPlan && Array.isArray(patient.metadata.sessionsPlan)) {
+                    patient.metadata.sessionsPlan.forEach(s => {
+                        if (s.services && Array.isArray(s.services)) {
+                            s.services.forEach(srv => {
+                                if (srv && srv.name) extracted.push(srv);
+                            });
+                        }
+                    });
+                }
+                if (extracted.length > 0) {
+                    currentBudgetItems = deduplicateBudgetItems(extracted);
+                }
+            }
+        } else {
+            currentBudgetItems = deduplicateBudgetItems(currentBudgetItems);
+        }
 
         const notesEl = document.getElementById('budget-notes');
         if (notesEl) notesEl.value = '';
