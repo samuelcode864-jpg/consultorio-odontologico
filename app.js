@@ -372,10 +372,21 @@ async function autoSaveActivePatientOdontogram() {
     }
 }
 
+function deduplicateBudgetItems(items) {
+    if (!Array.isArray(items)) return [];
+    const seen = new Set();
+    return items.filter(item => {
+        const key = `${item.tooth || 'Gnl'}_${item.face || 'Gnl'}_${item.name || item.serviceCode}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
 function restoreDraftBudgetUI(draft) {
     if (!draft) return;
     if (draft.items && Array.isArray(draft.items) && draft.items.length > 0) {
-        currentBudgetItems = draft.items;
+        currentBudgetItems = deduplicateBudgetItems(draft.items);
     }
     const discInput = document.getElementById('budget-discount-input');
     if (discInput && draft.discountPct !== undefined) discInput.value = draft.discountPct;
@@ -5720,8 +5731,18 @@ function initGlobalEvents() {
 
     window.openBudgetForNewPatient = async function(patientId) {
         setActivePatientId(patientId);
+
+        // Check if an existing budget already exists for this patient
+        const invoices = await SupabaseDataService.getInvoices();
+        const existingBudget = invoices.find(inv => String(inv.patientId) === String(patientId));
+
+        if (existingBudget && window.loadBudgetIntoEditor) {
+            await window.loadBudgetIntoEditor(existingBudget.id);
+            return;
+        }
+
         activeEditingBudgetId = null;
-        currentBudgetItems = [];
+        currentBudgetItems = deduplicateBudgetItems(currentBudgetItems);
 
         const navOdontogram = document.querySelector('.nav-item[data-tab="odontogram"]') || document.getElementById('mob-nav-odontogram');
         if (navOdontogram) navOdontogram.click();
