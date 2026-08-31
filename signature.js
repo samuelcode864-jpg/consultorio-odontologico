@@ -56,7 +56,10 @@ class SignaturePad {
         };
 
         const stopDraw = () => {
-            this.isDrawing = false;
+            if (this.isDrawing) {
+                this.isDrawing = false;
+                if (this.onEnd) this.onEnd();
+            }
         };
 
         // Mouse events

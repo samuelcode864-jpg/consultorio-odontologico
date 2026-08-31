@@ -374,6 +374,10 @@ class OdontogramEngine {
                 delete this.toothData[`${toothNumber}-${f}`];
             });
             this.render();
+            if (this.onFaceClickCallback) {
+                this.onFaceClickCallback(toothNumber, 'all', 'clear', `${toothNumber}-clear`);
+            }
+            return;
         } else {
             this.toothData[key] = this.currentMode;
             el.setAttribute('class', `tooth-face ${this.currentMode}`);
@@ -388,11 +392,15 @@ class OdontogramEngine {
         if (this.readOnly) return;
         delete this.toothData[`${toothNumber}-absence`];
         delete this.toothData[`${toothNumber}-extraction`];
-        delete this.toothData[key];
+        delete this.toothData[`${toothNumber}-endo`];
+        delete this.toothData[`${toothNumber}-endo-status`];
+        ['top', 'right', 'bottom', 'left', 'center'].forEach(f => {
+            delete this.toothData[`${toothNumber}-${f}`];
+        });
         this.render();
 
         if (this.onFaceClickCallback) {
-            this.onFaceClickCallback(toothNumber, faceId, 'clear', key);
+            this.onFaceClickCallback(toothNumber, 'all', 'clear', `${toothNumber}-clear`);
         }
     }
 }

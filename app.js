@@ -1685,7 +1685,8 @@ async function renderOdontogramView() {
 
 async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
     if (mode === 'endo') {
-        const endoStatus = await Swal.fire({
+        let chosenEndoStatus = null;
+        await Swal.fire({
             html: `
                 <div class="endo-modal-premium" style="text-align: left; padding: 4px;">
                     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; border-bottom: 1px dashed var(--border-color, #e2e8f0); padding-bottom: 12px;">
@@ -1765,26 +1766,27 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
                         card.style.boxShadow = 'none';
                     });
                     card.addEventListener('click', () => {
-                        const status = card.dataset.status;
-                        Swal.close(status);
+                        chosenEndoStatus = card.dataset.status;
+                        Swal.close();
                     });
                 });
 
                 const cancelBtn = popup.querySelector('#endo-cancel-btn');
                 if (cancelBtn) {
                     cancelBtn.addEventListener('click', () => {
-                        Swal.close(null);
+                        chosenEndoStatus = null;
+                        Swal.close();
                     });
                 }
             }
-        }).then(res => res.value);
+        });
 
-        if (endoStatus) {
+        if (chosenEndoStatus) {
             const odData = window.odontogram ? window.odontogram.getData() : {};
-            odData[`${toothNumber}-endo`] = endoStatus;
+            odData[`${toothNumber}-endo`] = chosenEndoStatus;
             if (window.odontogram) window.odontogram.setData(odData);
 
-            if (endoStatus === 'por_hacer') {
+            if (chosenEndoStatus === 'por_hacer') {
                 const baremo = await SupabaseDataService.getBaremo();
                 const endoProc = baremo.find(b => b.name.toLowerCase().includes('conducto') || b.category.toLowerCase().includes('endodoncia')) || {
                     name: 'Tratamiento de Conducto (Endodoncia)',
@@ -1800,7 +1802,7 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
                     price: endoProc.priceUSD || 120.00,
                     specialist: 'Dr. Alejandro Silva'
                 });
-            } else if (endoStatus === 'rehacer') {
+            } else if (chosenEndoStatus === 'rehacer') {
                 const baremo = await SupabaseDataService.getBaremo();
                 const endoProc = baremo.find(b => b.name.toLowerCase().includes('multirradicular') || b.name.toLowerCase().includes('conducto')) || {
                     name: 'Retratamiento de Conducto (Re-Endodoncia)',
@@ -6346,6 +6348,26 @@ function initGlobalEvents() {
             const notes = document.getElementById('budget-notes').value;
             const consentText = document.getElementById('consent-text').value;
 
+            let docSig = null;
+            if (window.doctorSigPad && !window.doctorSigPad.isEmpty()) {
+                docSig = window.doctorSigPad.toDataURL();
+            } else {
+                const canvas = document.getElementById('doctor-sig-canvas');
+                if (canvas && canvas.toDataURL) {
+                    try { docSig = canvas.toDataURL(); } catch(e) {}
+                }
+            }
+
+            let patSig = null;
+            if (window.patientSigPad && !window.patientSigPad.isEmpty()) {
+                patSig = window.patientSigPad.toDataURL();
+            } else {
+                const canvas = document.getElementById('patient-sig-canvas');
+                if (canvas && canvas.toDataURL) {
+                    try { patSig = canvas.toDataURL(); } catch(e) {}
+                }
+            }
+
             // Generate or load budget invoice record ID
             const invoiceId = activeEditingBudgetId || `PRE-${Date.now().toString().slice(-6)}`;
             const invoiceObj = {
@@ -6364,6 +6386,8 @@ function initGlobalEvents() {
                 totalRef: totalUSD,
                 totalBcv: parseFloat(totalVES),
                 status: 'Aprobado',
+                doctorSignature: docSig,
+                patientSignature: patSig,
                 footerText: `Descuento global del ${discountPct}% aplicado. Ahorro: $${discountAmountUSD.toFixed(2)}.`
             };
 
