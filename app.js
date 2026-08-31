@@ -1738,16 +1738,21 @@ async function getDoctorsList() {
         const doctors = users.filter(u => {
             if (!u.role) return false;
             const r = u.role.toLowerCase();
-            if (r.includes('asistente') || r.includes('recep')) return false;
+            // Strictly exclude non-doctors: assistants, receptionists, administrators
+            if (r.includes('asistente') || r.includes('recep') || r.includes('admin') || r.includes('super')) return false;
             return true;
         });
         if (doctors.length === 0) {
-            return users && users.length > 0 ? users : [{ fullname: 'Dr. Alejandro Silva' }];
+            const fallback = users.filter(u => {
+                const r = (u.role || '').toLowerCase();
+                return !r.includes('admin') && !r.includes('super') && !r.includes('asistente') && !r.includes('recep');
+            });
+            return fallback.length > 0 ? fallback : [{ fullname: 'Dr. Alejandro Silva', role: 'Odontólogo Principal' }];
         }
         return doctors;
     } catch (err) {
         console.error('Error in getDoctorsList:', err);
-        return [{ fullname: 'Dr. Alejandro Silva' }];
+        return [{ fullname: 'Dr. Alejandro Silva', role: 'Odontólogo Principal' }];
     }
 }
 
@@ -1825,13 +1830,13 @@ async function renderBudgetTable() {
     }
 
     let subtotalUSD = 0;
+    const currentUser = getCurrentUser();
+    const loggedInDoctor = currentUser && doctors.find(d => d.fullname === currentUser.fullname);
 
     currentBudgetItems.forEach((item, index) => {
         if (item.price === undefined) item.price = 0;
-        if (!item.specialist) {
-            const currentUser = getCurrentUser();
-            const currentDoc = currentUser && currentUser.role && !currentUser.role.toLowerCase().includes('asistente') ? currentUser.fullname : null;
-            item.specialist = currentDoc || (doctors[0] ? doctors[0].fullname : 'Dr. Alejandro Silva');
+        if (!item.specialist || !doctors.some(d => d.fullname === item.specialist)) {
+            item.specialist = loggedInDoctor ? loggedInDoctor.fullname : (doctors[0] ? doctors[0].fullname : 'Dr. Alejandro Silva');
         }
 
         subtotalUSD += item.price;
