@@ -8832,11 +8832,11 @@ function buildMedicalDocumentHTML(opts) {
             
             <!-- 1. Header (Logo left, Title & metadata right) -->
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; padding-bottom: 15px; border-bottom: 1px solid #f1f5f9;">
-                <div style="flex: 1; max-width: 240px;">
+                <div style="flex: 1; max-width: 450px;">
                     ${logoUrl ? `
-                        <img src="${logoUrl}" style="max-height: 65px; max-width: 150px; object-fit: contain; display: block;" alt="Logo">
+                        <img src="${logoUrl}" style="max-height: 195px; max-width: 450px; object-fit: contain; display: block;" alt="Logo">
                     ` : `
-                        <div style="border: 2px dashed #0284c7; border-radius: 6px; padding: 10px 18px; display: inline-block; color: #0284c7; font-weight: 800; font-size: 1rem; letter-spacing: 0.05em;">
+                        <div style="border: 2px dashed #0284c7; border-radius: 6px; padding: 18px 30px; display: inline-block; color: #0284c7; font-weight: 800; font-size: 1.4rem; letter-spacing: 0.05em;">
                             LOGO
                         </div>
                     `}
@@ -11050,7 +11050,7 @@ async function renderPublicBudgetView() {
                 <!-- HEADER -->
                 <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #06b6d4; padding-bottom: 15px; margin-bottom: 25px; align-items: flex-start; text-align: left;">
                     <div>
-                        ${logoBase64 ? `<img src="${logoBase64}" style="max-height: 60px; margin-bottom: 10px; display: block;" alt="Logo Clinic">` : ''}
+                        ${logoBase64 ? `<img src="${logoBase64}" style="max-height: 195px; max-width: 450px; margin-bottom: 12px; display: block;" alt="Logo Clinic">` : ''}
                         <h2 style="margin: 0; font-size: 1.3rem; color: #0f172a; font-weight: 800;">${busData.name || 'Consultorio Odontológico'}</h2>
                         <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #64748b;">
                             ${busData.rif ? `RIF: ${busData.rif} | ` : ''} 
@@ -11230,7 +11230,7 @@ async function renderPublicSessionReceiptView() {
 
         let logoImgHtml = '';
         if (stationery && stationery.logo_url) {
-            logoImgHtml = `<img src="${stationery.logo_url}" style="max-height: 70px; max-width: 150px; object-fit: contain; margin-bottom: 10px;" alt="Logo Clínica">`;
+            logoImgHtml = `<img src="${stationery.logo_url}" style="max-height: 195px; max-width: 450px; object-fit: contain; margin-bottom: 12px;" alt="Logo Clínica">`;
         }
 
         let matsHtml = '';
