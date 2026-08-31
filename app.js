@@ -7284,25 +7284,21 @@ function renderSessionsPlanner() {
         return;
     }
 
-    let budgetItems = (currentBudgetItems && currentBudgetItems.length > 0) ? currentBudgetItems : (window.currentBudgetItems || []);
-    
-    // If still empty, check editing patient object
+    let budgetItems = [];
     const p = window.currentEditingPatientObj;
-    if (budgetItems.length === 0 && p) {
+
+    // Isolate budget items strictly per patient
+    if (p) {
         if (p.metadata?.sessionsPlan && Array.isArray(p.metadata.sessionsPlan)) {
-            const extracted = [];
             p.metadata.sessionsPlan.forEach(s => {
                 if (s.services && Array.isArray(s.services)) {
                     s.services.forEach(srv => {
-                        if (srv && srv.name && !extracted.some(e => e.name === srv.name && e.tooth === srv.tooth)) {
-                            extracted.push(srv);
+                        if (srv && srv.name && !budgetItems.some(e => e.name === srv.name && e.tooth === srv.tooth)) {
+                            budgetItems.push(srv);
                         }
                     });
                 }
             });
-            if (extracted.length > 0) {
-                budgetItems = extracted;
-            }
         }
         if (budgetItems.length === 0 && p.metadata?.initTreatmentName) {
             budgetItems = [{
@@ -7312,6 +7308,13 @@ function renderSessionsPlanner() {
                 name: p.metadata.initTreatmentName,
                 price: 0
             }];
+        }
+        if (budgetItems.length === 0 && currentBudgetItems && currentBudgetItems.length > 0 && p.id === getActivePatientId()) {
+            budgetItems = currentBudgetItems;
+        }
+    } else {
+        if (currentBudgetItems && currentBudgetItems.length > 0 && !getActivePatientId()) {
+            budgetItems = currentBudgetItems;
         }
     }
 
@@ -7373,16 +7376,36 @@ function renderSessionsPlanner() {
         const savedTime = prevData[i] ? prevData[i].time : '09:00 AM';
         const savedSelected = prevData[i] ? prevData[i].selectedIdxs : [];
 
+        // Build set of item indices assigned in ALL OTHER sessions
+        const assignedInOtherSessions = new Set();
+        for (let k = 1; k <= sessionsCount; k++) {
+            if (k !== i && prevData[k] && prevData[k].selectedIdxs) {
+                prevData[k].selectedIdxs.forEach(idxStr => assignedInOtherSessions.add(idxStr));
+            }
+        }
+
         let servicesHtml = '';
+        let availableCount = 0;
         budgetItems.forEach((item, idx) => {
-            const isChecked = savedSelected.includes(idx.toString()) ? 'checked' : '';
-            servicesHtml += `
-                <label style="font-size:0.8rem; display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; margin:0; color: var(--text-main);">
-                    <input type="checkbox" class="session-service-checkbox" data-session="${i}" data-item-idx="${idx}" ${isChecked}>
-                    Pza ${item.tooth || 'Gnl'} (${item.face || 'Gnl'}): ${item.name}
-                </label>
-            `;
+            const idxStr = idx.toString();
+            const isChecked = savedSelected.includes(idxStr);
+            const isAssignedElsewhere = assignedInOtherSessions.has(idxStr);
+
+            if (!isAssignedElsewhere || isChecked) {
+                availableCount++;
+                const checkAttr = isChecked ? 'checked' : '';
+                servicesHtml += `
+                    <label style="font-size:0.8rem; display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; margin:0; color: var(--text-main);">
+                        <input type="checkbox" class="session-service-checkbox" data-session="${i}" data-item-idx="${idx}" ${checkAttr}>
+                        Pza ${item.tooth || 'Gnl'} (${item.face || 'Gnl'}): ${item.name}
+                    </label>
+                `;
+            }
         });
+
+        if (availableCount === 0) {
+            servicesHtml = `<div style="font-size:0.78rem; color: #059669; background: rgba(16, 185, 129, 0.08); padding: 8px 12px; border-radius: 6px; font-weight: 600; grid-column: 1 / -1;"><i class="fa-solid fa-circle-check"></i> Todos los servicios planificados ya fueron asignados en las sesiones anteriores.</div>`;
+        }
 
         let timeOptionsHtml = '';
         timesArray.forEach(t => {
@@ -7463,6 +7486,7 @@ function renderSessionsPlanner() {
         container.querySelectorAll(`.session-service-checkbox[data-session="${i}"]`).forEach(cb => {
             cb.onchange = () => {
                 window.updateAccordionHeaderSummary(i);
+                renderSessionsPlanner();
             };
         });
     }
