@@ -3521,6 +3521,10 @@ async function renderAgendaView(filter = 'pending', searchQuery = '') {
 
         const editApptBtn = `<button class="btn btn-xs btn-outline btn-appt-edit" style="border-color: #0891b2; color: #0891b2;" onclick="window.editAppointment('${app.id}')" title="Editar Cita"><i class="fa-solid fa-pen-to-square"></i> <span class="btn-text-full">Editar</span></button>`;
 
+        let itemClass = 'timeline-item';
+        let actionAttendOrViewHtml = '';
+        let statusBadgeHtml = `<span class="badge-tag blue">${app.status || 'Programada'}</span>`;
+
         if (isAttended) {
             itemClass = 'timeline-item timeline-item-attended';
             statusBadgeHtml = `<span class="badge-tag green" style="background: rgba(16, 185, 129, 0.15); color: #059669; font-weight: 700;"><i class="fa-solid fa-circle-check"></i> Atendida</span>`;
