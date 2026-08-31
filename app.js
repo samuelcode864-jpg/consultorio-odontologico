@@ -1685,6 +1685,18 @@ async function renderOdontogramView() {
 
 async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
     if (mode === 'endo') {
+        const baremo = await SupabaseDataService.getBaremo();
+        const porHacerProc = baremo.find(b => b.code === 'EN-01' || b.name.toLowerCase().includes('unirradicular') || (b.category.toLowerCase().includes('endodoncia') && !b.name.toLowerCase().includes('multi'))) || {
+            name: 'Tratamiento de Conducto Unirradicular',
+            priceUSD: 120.00,
+            code: 'EN-01'
+        };
+        const rehacerProc = baremo.find(b => b.code === 'EN-02' || b.name.toLowerCase().includes('multirradicular') || b.name.toLowerCase().includes('retratamiento')) || {
+            name: 'Tratamiento de Conducto Multirradicular (Molar)',
+            priceUSD: 180.00,
+            code: 'EN-02'
+        };
+
         let chosenEndoStatus = null;
         await Swal.fire({
             html: `
@@ -1695,7 +1707,7 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
                         </div>
                         <div>
                             <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text-main, #0f172a);">Endodoncia • Pieza ${toothNumber}</h3>
-                            <span style="font-size: 0.8rem; color: var(--text-muted, #64748b);">Seleccione el estado clínico de la endodoncia</span>
+                            <span style="font-size: 0.8rem; color: var(--text-muted, #64748b);">Seleccione el estado clínico y consulte el arancel del Baremo</span>
                         </div>
                     </div>
 
@@ -1709,7 +1721,7 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
                                     <div style="font-size: 0.75rem; color: #3b82f6;">Tratamiento completo • Traza línea azul</div>
                                 </div>
                             </div>
-                            <i class="fa-solid fa-chevron-right" style="color: #3b82f6; font-size: 0.85rem;"></i>
+                            <span style="font-size: 0.82rem; font-weight: 700; color: #2563eb; background: rgba(37, 99, 235, 0.1); padding: 4px 8px; border-radius: 6px;">Sin Costo</span>
                         </div>
 
                         <!-- Option 2: Por Hacer -->
@@ -1717,11 +1729,11 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
                             <div style="display: flex; align-items: center; gap: 12px;">
                                 <div style="width: 14px; height: 14px; border-radius: 50%; background: #dc2626; box-shadow: 0 0 8px rgba(220, 38, 38, 0.4); flex-shrink: 0;"></div>
                                 <div>
-                                    <div style="font-weight: 700; font-size: 0.9rem; color: #991b1b;">Por Hacer (Conducto)</div>
+                                    <div style="font-weight: 700; font-size: 0.88rem; color: #991b1b;">Por Hacer: ${porHacerProc.name}</div>
                                     <div style="font-size: 0.75rem; color: #ef4444;">Tratamiento pendiente • Traza línea roja</div>
                                 </div>
                             </div>
-                            <i class="fa-solid fa-chevron-right" style="color: #ef4444; font-size: 0.85rem;"></i>
+                            <span style="font-size: 0.85rem; font-weight: 700; color: #dc2626; background: rgba(220, 38, 38, 0.1); padding: 4px 10px; border-radius: 6px; white-space: nowrap;">$${parseFloat(porHacerProc.priceUSD).toFixed(2)}</span>
                         </div>
 
                         <!-- Option 3: Rehacer -->
@@ -1732,11 +1744,11 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
                                     <div style="width: 8px; height: 14px; border-radius: 2px; background: #dc2626;"></div>
                                 </div>
                                 <div>
-                                    <div style="font-weight: 700; font-size: 0.9rem; color: #581c87;">Rehacer (Retratamiento)</div>
+                                    <div style="font-weight: 700; font-size: 0.88rem; color: #581c87;">Rehacer: ${rehacerProc.name}</div>
                                     <div style="font-size: 0.75rem; color: #9333ea;">Re-endodoncia requerida • Traza doble línea</div>
                                 </div>
                             </div>
-                            <i class="fa-solid fa-chevron-right" style="color: #9333ea; font-size: 0.85rem;"></i>
+                            <span style="font-size: 0.85rem; font-weight: 700; color: #9333ea; background: rgba(147, 51, 234, 0.1); padding: 4px 10px; border-radius: 6px; white-space: nowrap;">$${parseFloat(rehacerProc.priceUSD).toFixed(2)}</span>
                         </div>
                     </div>
 
@@ -1747,7 +1759,7 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
             `,
             showConfirmButton: false,
             showCancelButton: false,
-            width: '420px',
+            width: '440px',
             padding: '16px',
             background: 'var(--bg-card, #ffffff)',
             customClass: {
@@ -1787,35 +1799,23 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
             if (window.odontogram) window.odontogram.setData(odData);
 
             if (chosenEndoStatus === 'por_hacer') {
-                const baremo = await SupabaseDataService.getBaremo();
-                const endoProc = baremo.find(b => b.name.toLowerCase().includes('conducto') || b.category.toLowerCase().includes('endodoncia')) || {
-                    name: 'Tratamiento de Conducto (Endodoncia)',
-                    priceUSD: 120.00,
-                    code: 'EN-01'
-                };
                 currentBudgetItems.push({
                     key: `${toothNumber}-endo-proc-${Date.now()}`,
                     tooth: toothNumber,
                     face: 'Gnl',
-                    serviceCode: endoProc.code || 'EN-01',
-                    name: `Endodoncia: ${endoProc.name}`,
-                    price: endoProc.priceUSD || 120.00,
+                    serviceCode: porHacerProc.code || 'EN-01',
+                    name: `Endodoncia: ${porHacerProc.name}`,
+                    price: porHacerProc.priceUSD || 120.00,
                     specialist: 'Dr. Alejandro Silva'
                 });
             } else if (chosenEndoStatus === 'rehacer') {
-                const baremo = await SupabaseDataService.getBaremo();
-                const endoProc = baremo.find(b => b.name.toLowerCase().includes('multirradicular') || b.name.toLowerCase().includes('conducto')) || {
-                    name: 'Retratamiento de Conducto (Re-Endodoncia)',
-                    priceUSD: 150.00,
-                    code: 'EN-02'
-                };
                 currentBudgetItems.push({
                     key: `${toothNumber}-endo-proc-${Date.now()}`,
                     tooth: toothNumber,
                     face: 'Gnl',
-                    serviceCode: endoProc.code || 'EN-02',
-                    name: `Retratamiento de Endodoncia: ${endoProc.name}`,
-                    price: endoProc.priceUSD || 150.00,
+                    serviceCode: rehacerProc.code || 'EN-02',
+                    name: `Retratamiento de Endodoncia: ${rehacerProc.name}`,
+                    price: rehacerProc.priceUSD || 180.00,
                     specialist: 'Dr. Alejandro Silva'
                 });
             }
