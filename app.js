@@ -1685,31 +1685,99 @@ async function renderOdontogramView() {
 
 async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
     if (mode === 'endo') {
-        const { value: endoStatus } = await Swal.fire({
-            title: `<i class="fa-solid fa-tooth text-cyan"></i> Endodoncia - Pieza ${toothNumber}`,
-            html: `<div style="font-size:0.9rem; color:var(--text-muted); margin-bottom:15px;">Seleccione el estado clínico de la Endodoncia para la pieza ${toothNumber}:</div>`,
-            showCancelButton: true,
-            cancelButtonText: 'Cancelar',
-            showDenyButton: true,
-            denyButtonText: '🔴 Por Hacer (Conducto)',
-            denyButtonColor: '#dc2626',
-            confirmButtonText: '🔵 Sano (En buen estado)',
-            confirmButtonColor: '#2563eb',
-            footer: '<button id="swal-btn-endo-rehacer" class="swal2-confirm swal2-styled" style="background-color: #0891b2; font-weight: 700; width: 100%; margin-top: 6px;">🔵🔴 Rehacer (Retratamiento)</button>',
+        const endoStatus = await Swal.fire({
+            html: `
+                <div class="endo-modal-premium" style="text-align: left; padding: 4px;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; border-bottom: 1px dashed var(--border-color, #e2e8f0); padding-bottom: 12px;">
+                        <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(8, 145, 178, 0.12); display: flex; align-items: center; justify-content: center; shrink: 0;">
+                            <i class="fa-solid fa-tooth" style="font-size: 1.3rem; color: #0891b2;"></i>
+                        </div>
+                        <div>
+                            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text-main, #0f172a);">Endodoncia • Pieza ${toothNumber}</h3>
+                            <span style="font-size: 0.8rem; color: var(--text-muted, #64748b);">Seleccione el estado clínico de la endodoncia</span>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;">
+                        <!-- Option 1: Sano -->
+                        <div class="endo-opt-card" data-status="sano" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-radius: 10px; border: 1px solid #bfdbfe; background: #f0f7ff; cursor: pointer; transition: all 0.2s;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div style="width: 14px; height: 14px; border-radius: 50%; background: #2563eb; box-shadow: 0 0 8px rgba(37, 99, 235, 0.4); flex-shrink: 0;"></div>
+                                <div>
+                                    <div style="font-weight: 700; font-size: 0.9rem; color: #1e3a8a;">Sano (En buen estado)</div>
+                                    <div style="font-size: 0.75rem; color: #3b82f6;">Tratamiento completo • Traza línea azul</div>
+                                </div>
+                            </div>
+                            <i class="fa-solid fa-chevron-right" style="color: #3b82f6; font-size: 0.85rem;"></i>
+                        </div>
+
+                        <!-- Option 2: Por Hacer -->
+                        <div class="endo-opt-card" data-status="por_hacer" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-radius: 10px; border: 1px solid #fecaca; background: #fef2f2; cursor: pointer; transition: all 0.2s;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div style="width: 14px; height: 14px; border-radius: 50%; background: #dc2626; box-shadow: 0 0 8px rgba(220, 38, 38, 0.4); flex-shrink: 0;"></div>
+                                <div>
+                                    <div style="font-weight: 700; font-size: 0.9rem; color: #991b1b;">Por Hacer (Conducto)</div>
+                                    <div style="font-size: 0.75rem; color: #ef4444;">Tratamiento pendiente • Traza línea roja</div>
+                                </div>
+                            </div>
+                            <i class="fa-solid fa-chevron-right" style="color: #ef4444; font-size: 0.85rem;"></i>
+                        </div>
+
+                        <!-- Option 3: Rehacer -->
+                        <div class="endo-opt-card" data-status="rehacer" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-radius: 10px; border: 1px solid #e9d5ff; background: #faf5ff; cursor: pointer; transition: all 0.2s;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div style="display: flex; gap: 3px; flex-shrink: 0;">
+                                    <div style="width: 8px; height: 14px; border-radius: 2px; background: #2563eb;"></div>
+                                    <div style="width: 8px; height: 14px; border-radius: 2px; background: #dc2626;"></div>
+                                </div>
+                                <div>
+                                    <div style="font-weight: 700; font-size: 0.9rem; color: #581c87;">Rehacer (Retratamiento)</div>
+                                    <div style="font-size: 0.75rem; color: #9333ea;">Re-endodoncia requerida • Traza doble línea</div>
+                                </div>
+                            </div>
+                            <i class="fa-solid fa-chevron-right" style="color: #9333ea; font-size: 0.85rem;"></i>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end;">
+                        <button id="endo-cancel-btn" style="border-radius: 8px; color: #64748b; border: 1px solid #cbd5e1; background: transparent; padding: 6px 14px; font-weight: 600; font-size: 0.82rem; cursor: pointer; transition: all 0.2s;">Cancelar</button>
+                    </div>
+                </div>
+            `,
+            showConfirmButton: false,
+            showCancelButton: false,
+            width: '420px',
+            padding: '16px',
+            background: 'var(--bg-card, #ffffff)',
+            customClass: {
+                popup: 'endo-premium-popup'
+            },
             didOpen: () => {
-                const rehacerBtn = document.getElementById('swal-btn-endo-rehacer');
-                if (rehacerBtn) {
-                    rehacerBtn.onclick = () => {
-                        Swal.close({ value: 'rehacer' });
-                    };
+                const popup = Swal.getPopup();
+                if (!popup) return;
+                popup.querySelectorAll('.endo-opt-card').forEach(card => {
+                    card.addEventListener('mouseenter', () => {
+                        card.style.transform = 'translateY(-2px)';
+                        card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)';
+                    });
+                    card.addEventListener('mouseleave', () => {
+                        card.style.transform = 'translateY(0)';
+                        card.style.boxShadow = 'none';
+                    });
+                    card.addEventListener('click', () => {
+                        const status = card.dataset.status;
+                        Swal.close(status);
+                    });
+                });
+
+                const cancelBtn = popup.querySelector('#endo-cancel-btn');
+                if (cancelBtn) {
+                    cancelBtn.addEventListener('click', () => {
+                        Swal.close(null);
+                    });
                 }
             }
-        }).then(res => {
-            if (res.isConfirmed) return { value: 'sano' };
-            if (res.isDenied) return { value: 'por_hacer' };
-            if (res.value === 'rehacer') return { value: 'rehacer' };
-            return { value: null };
-        });
+        }).then(res => res.value);
 
         if (endoStatus) {
             const odData = window.odontogram ? window.odontogram.getData() : {};
