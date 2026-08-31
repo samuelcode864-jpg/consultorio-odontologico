@@ -2062,7 +2062,11 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
     listGroup.innerHTML = '';
     const allPatients = await SupabaseDataService.getPatients();
     let patients = [...allPatients];
-    const activeId = getActivePatientId() || (patients[0] ? patients[0].id : null);
+    let activeId = getActivePatientId();
+    if (!activeId && patients.length > 0) {
+        activeId = patients[0].id;
+        setActivePatientId(activeId);
+    }
     const currentUser = getCurrentUser();
     const isAssistant = currentUser && currentUser.role.toLowerCase().includes('asistente');
 
