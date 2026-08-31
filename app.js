@@ -4523,12 +4523,17 @@ function initGlobalEvents() {
         uRoleSelect.onchange = () => {
             const role = uRoleSelect.value;
             const isDoctor = role.includes('Odontólogo') || role.includes('Especialista') || role.includes('Cirujano');
+            const licGroup = document.getElementById('u-license-group');
             if (isDoctor) {
                 docFieldsDiv.classList.remove('hidden');
+                if (licGroup) licGroup.classList.remove('hidden');
                 document.getElementById('u-schedule').setAttribute('required', 'true');
                 document.getElementById('u-commission').setAttribute('required', 'true');
             } else {
                 docFieldsDiv.classList.add('hidden');
+                if (licGroup) licGroup.classList.add('hidden');
+                const licInput = document.getElementById('u-license');
+                if (licInput) licInput.value = '';
                 document.getElementById('u-schedule').removeAttribute('required');
                 document.getElementById('u-commission').removeAttribute('required');
             }
@@ -5826,7 +5831,7 @@ function initGlobalEvents() {
             const email = document.getElementById('u-email').value.trim();
             const password = document.getElementById('u-password').value.trim();
             const role = document.getElementById('u-role').value;
-            const license = document.getElementById('u-license').value.trim();
+            const rawLicense = document.getElementById('u-license').value.trim();
 
             if (!fullname || !email || !password) {
                 Swal.fire({ icon: 'warning', title: 'Campos requeridos', text: 'Por favor complete los campos obligatorios (*)' });
@@ -5834,6 +5839,7 @@ function initGlobalEvents() {
             }
 
             const isDoctor = role.includes('Odontólogo') || role.includes('Especialista') || role.includes('Cirujano');
+            const license = isDoctor ? (rawLicense || 'N/A') : 'N/A';
             let doctorProfile = null;
 
             if (isDoctor) {
