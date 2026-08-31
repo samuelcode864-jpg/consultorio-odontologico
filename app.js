@@ -45,6 +45,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.doctorSigPad = new SignaturePad('doctor-sig-canvas');
     window.patientSigPad = new SignaturePad('patient-sig-canvas');
 
+    const docCanvas = document.getElementById('doctor-sig-canvas');
+    if (docCanvas) {
+        ['mouseup', 'touchend', 'mouseleave'].forEach(evt => {
+            docCanvas.addEventListener(evt, async () => {
+                if (window.doctorSigPad && !window.doctorSigPad.isEmpty()) {
+                    const sigDataUrl = window.doctorSigPad.toDataURL();
+                    await saveDoctorSignatureToCloud(sigDataUrl);
+                }
+            });
+        });
+    }
+
     // 5. UI Navigation & Tab Controller
     initNavigation();
 
@@ -159,16 +171,66 @@ function applyClinicBrandingUI(config) {
     if (loginName && busName) loginName.textContent = busName;
 }
 
-function autoLoadDoctorSignatureInBudget() {
+async function saveDoctorSignatureToCloud(sigDataUrl, docName = null) {
+    if (!sigDataUrl) return;
+    const currentUser = getCurrentUser();
+    const targetName = docName || (currentUser ? currentUser.fullname : null);
+    if (!targetName) return;
+
+    try {
+        const users = await SupabaseDataService.getUsers();
+        let userToUpdate = users.find(u => u.fullname === targetName) || (currentUser && currentUser.fullname === targetName ? currentUser : null);
+        
+        if (userToUpdate) {
+            const currentDocProf = userToUpdate.doctorProfile || userToUpdate.doctor_profile || {};
+            const updatedProfile = {
+                ...currentDocProf,
+                signature: sigDataUrl
+            };
+            
+            userToUpdate.doctorProfile = updatedProfile;
+            userToUpdate.doctor_profile = updatedProfile;
+            
+            // Persist to Supabase Cloud users table!
+            await SupabaseDataService.saveUser(userToUpdate);
+            
+            // Also sync active logged-in session if it matches current user
+            if (currentUser && (currentUser.id === userToUpdate.id || currentUser.fullname === userToUpdate.fullname)) {
+                currentUser.doctorProfile = updatedProfile;
+                currentUser.doctor_profile = updatedProfile;
+                sessionStorage.setItem('dental_current_user', JSON.stringify(currentUser));
+                localStorage.setItem('dental_current_user', JSON.stringify(currentUser));
+            }
+        }
+    } catch(err) {
+        console.error('Error saving doctor signature to cloud:', err);
+    }
+}
+
+async function autoLoadDoctorSignatureInBudget(targetDoctorName = null) {
     if (!window.doctorSigPad) return;
     
-    // Check if currently active user or logged-in doctor has signature
-    const user = getCurrentUser();
-    if (!user) return;
-    
-    const sig = (user.doctorProfile && user.doctorProfile.signature) || (user.doctor_profile && user.doctor_profile.signature);
-    if (sig) {
-        window.doctorSigPad.loadFromDataURL(sig);
+    try {
+        const users = await SupabaseDataService.getUsers();
+        const currentUser = getCurrentUser();
+        
+        let doctorUser = null;
+        if (targetDoctorName) {
+            doctorUser = users.find(u => u.fullname === targetDoctorName);
+        }
+        if (!doctorUser && currentUser) {
+            doctorUser = users.find(u => u.id === currentUser.id || u.fullname === currentUser.fullname) || currentUser;
+        }
+        if (!doctorUser && users.length > 0) {
+            doctorUser = users.find(u => u.role && !u.role.toLowerCase().includes('admin') && !u.role.toLowerCase().includes('asistente'));
+        }
+        
+        const sig = doctorUser && ((doctorUser.doctorProfile && doctorUser.doctorProfile.signature) || (doctorUser.doctor_profile && doctorUser.doctor_profile.signature));
+        if (sig && window.doctorSigPad) {
+            window.doctorSigPad.loadFromDataURL(sig);
+        }
+    } catch(e) {
+        console.error("Error auto loading doctor signature from cloud:", e);
     }
 }
 
@@ -1864,7 +1926,9 @@ async function renderBudgetTable() {
         // Handle specialist select change
         const specSelect = tr.querySelector('.srv-specialist-select');
         specSelect.addEventListener('change', async (e) => {
-            currentBudgetItems[index].specialist = e.target.value;
+            const selectedDoc = e.target.value;
+            currentBudgetItems[index].specialist = selectedDoc;
+            await autoLoadDoctorSignatureInBudget(selectedDoc);
             await autoSaveActivePatientOdontogram();
         });
 
