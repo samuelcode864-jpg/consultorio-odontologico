@@ -5915,24 +5915,31 @@ function initGlobalEvents() {
             await SupabaseDataService.savePatient(patientToSave);
             window.editingPatientId = null;
             
-            // Create automatically scheduled appointments for each session with a date
+            // Create or update automatically scheduled appointments for each session with a date
             if (sessionsData && sessionsData.length > 0) {
                 let appointmentsScheduledCount = 0;
+                const existingAppts = await SupabaseDataService.getAppointments();
+                
                 for (const session of sessionsData) {
                     if (session.date) {
                         const servicesText = session.services && session.services.length > 0
                             ? session.services.map(s => `Pza ${s.tooth || 'Gnl'}: ${s.name}`).join(', ')
                             : 'Tratamiento Planificado';
                         
-                        const apptId = 'appt-' + Date.now() + '-' + Math.floor(Math.random() * 100000);
+                        const treatmentTitle = `Sesión ${session.sessionNumber}: ${servicesText}`;
+                        const safeId = (id || '').replace(/[^a-zA-Z0-9]/g, '_');
+                        const apptId = `appt-${safeId}-session-${session.sessionNumber}`;
+                        
+                        const existingAppt = existingAppts.find(a => a.id === apptId || (a.patientId === id && a.treatment && a.treatment.startsWith(`Sesión ${session.sessionNumber}:`)));
+                        
                         const appt = {
-                            id: apptId,
+                            id: existingAppt ? existingAppt.id : apptId,
                             patientId: id,
                             patientName: fullname,
                             date: session.date,
                             time: session.time || "09:00 AM",
-                            treatment: `Sesión ${session.sessionNumber}: ${servicesText}`,
-                            status: "Programada",
+                            treatment: treatmentTitle,
+                            status: existingAppt ? existingAppt.status : "Programada",
                             isTomorrow: false
                         };
                         await SupabaseDataService.saveAppointment(appt);
