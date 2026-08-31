@@ -45,6 +45,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.doctorSigPad = new SignaturePad('doctor-sig-canvas');
     window.patientSigPad = new SignaturePad('patient-sig-canvas');
 
+    if (window.patientSigPad) {
+        window.patientSigPad.onEnd = async () => {
+            const activeId = getActivePatientId();
+            if (!activeId || window.patientSigPad.isEmpty()) return;
+            try {
+                const sigUrl = window.patientSigPad.toDataURL();
+                const patients = await SupabaseDataService.getPatients();
+                const patient = patients.find(p => String(p.id) === String(activeId));
+                if (patient) {
+                    if (!patient.metadata) patient.metadata = {};
+                    patient.metadata.patientSignature = sigUrl;
+                    await SupabaseDataService.savePatient(patient);
+                }
+            } catch(e) {
+                console.error("Error auto-saving patient signature:", e);
+            }
+        };
+    }
+
     const docCanvas = document.getElementById('doctor-sig-canvas');
     if (docCanvas) {
         ['mouseup', 'touchend', 'mouseleave'].forEach(evt => {
@@ -376,7 +395,17 @@ function deduplicateBudgetItems(items) {
     if (!Array.isArray(items)) return [];
     const seen = new Set();
     return items.filter(item => {
-        const key = `${item.tooth || 'Gnl'}_${item.face || 'Gnl'}_${item.name || item.serviceCode}`;
+        if (!item) return false;
+        const tooth = String(item.tooth || 'Gnl').trim();
+        const code = (item.serviceCode || item.code || '').trim();
+        const rawName = (item.name || '').trim();
+        const cleanName = rawName
+            .replace(/^Pza\s*\d+\s*\([^\)]+\):\s*/i, '')
+            .replace(/^(Endodoncia|Retratamiento de Endodoncia):\s*/i, '')
+            .trim()
+            .toLowerCase();
+        
+        const key = code ? `${tooth}_${code}` : `${tooth}_${cleanName}`;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -1553,13 +1582,16 @@ window.loadBudgetIntoEditor = async function(budgetId) {
         if (budget.doctorSignature) {
             window.doctorSigPad.loadFromDataURL(budget.doctorSignature);
         } else {
-            autoLoadDoctorSignatureInBudget();
+            await autoLoadDoctorSignatureInBudget();
         }
     }
     if (window.patientSigPad) {
         window.patientSigPad.clear();
-        if (budget.patientSignature) {
-            window.patientSigPad.loadFromDataURL(budget.patientSignature);
+        const patients = await SupabaseDataService.getPatients();
+        const pat = patients.find(p => String(p.id) === String(budget.patientId));
+        const patSigToLoad = budget.patientSignature || (pat && pat.metadata && pat.metadata.patientSignature);
+        if (patSigToLoad) {
+            window.patientSigPad.loadFromDataURL(patSigToLoad);
         }
     }
 
@@ -1599,6 +1631,12 @@ async function renderOdontogramView() {
             // Restablecer el borrador del presupuesto activo si existe
             if (patient.metadata && patient.metadata.draftBudget) {
                 restoreDraftBudgetUI(patient.metadata.draftBudget);
+            }
+
+            // Auto-cargar firma del Odontólogo y Paciente guardada en el perfil/expediente
+            await autoLoadDoctorSignatureInBudget(patient.assignedDoctor);
+            if (patient.metadata && patient.metadata.patientSignature && window.patientSigPad) {
+                window.patientSigPad.loadFromDataURL(patient.metadata.patientSignature);
             }
 
             // Sincronizar datos del expediente (Seccion 2)
@@ -6381,20 +6419,15 @@ function initGlobalEvents() {
             if (window.doctorSigPad && !window.doctorSigPad.isEmpty()) {
                 docSig = window.doctorSigPad.toDataURL();
             } else {
-                const canvas = document.getElementById('doctor-sig-canvas');
-                if (canvas && canvas.toDataURL) {
-                    try { docSig = canvas.toDataURL(); } catch(e) {}
-                }
+                const currentUser = getCurrentUser();
+                docSig = currentUser ? ((currentUser.doctorProfile && currentUser.doctorProfile.signature) || (currentUser.doctor_profile && currentUser.doctor_profile.signature)) : null;
             }
 
             let patSig = null;
             if (window.patientSigPad && !window.patientSigPad.isEmpty()) {
                 patSig = window.patientSigPad.toDataURL();
-            } else {
-                const canvas = document.getElementById('patient-sig-canvas');
-                if (canvas && canvas.toDataURL) {
-                    try { patSig = canvas.toDataURL(); } catch(e) {}
-                }
+            } else if (patient && patient.metadata && patient.metadata.patientSignature) {
+                patSig = patient.metadata.patientSignature;
             }
 
             // Generate or load budget invoice record ID
@@ -6424,8 +6457,11 @@ function initGlobalEvents() {
                 // Save Invoice
                 await SupabaseDataService.saveInvoice(invoiceObj);
 
-                // Sync treatments and planned sessions to patient metadata
+                // Sync signatures, treatments and planned sessions to patient metadata
                 if (!patient.metadata) patient.metadata = {};
+                if (patSig) patient.metadata.patientSignature = patSig;
+                if (docSig) patient.metadata.doctorSignature = docSig;
+                await SupabaseDataService.savePatient(patient);
                 patient.metadata.treatments = currentBudgetItems.map((item, idx) => ({
                     id: 'trt-' + (idx + 1),
                     serviceCode: item.serviceCode || '',
