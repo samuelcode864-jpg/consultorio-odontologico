@@ -9428,6 +9428,9 @@ async function renderBillingView() {
         const previewEl = document.getElementById('invoice-paper-preview');
         if (!previewEl) return;
         const printClone = previewEl.cloneNode(true);
+        printClone.style.padding = '0';
+        printClone.style.margin = '0 auto';
+        printClone.style.maxWidth = '100%';
         document.body.appendChild(printClone);
         printClone.classList.add('print-section');
         window.print();
@@ -9439,14 +9442,8 @@ async function renderBillingView() {
         if (!previewEl) return;
 
         const printClone = previewEl.cloneNode(true);
-        const wrapper = document.createElement('div');
-        wrapper.style.padding = '25px';
-        wrapper.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-        wrapper.style.lineHeight = '1.4';
-        wrapper.appendChild(printClone);
-
         const filename = `Factura_${(activeBillingInvoice && activeBillingInvoice.id) || 'Digital'}.pdf`;
-        generatePDFFromElement(wrapper, filename);
+        generatePDFFromElement(printClone, filename);
     };
 }
 
@@ -10594,14 +10591,23 @@ function getPaymentMethodLabel(method) {
 
 async function generatePDFFromElement(element, filename) {
     element.style.position = 'relative';
-    element.style.width = '780px';
-    element.style.margin = '20px auto';
+    element.style.width = '720px';
+    element.style.maxWidth = '720px';
+    element.style.margin = '0 auto';
     element.style.backgroundColor = '#ffffff';
     element.style.color = '#1e293b';
     element.style.display = 'block';
     element.style.visibility = 'visible';
-    element.style.padding = '20px';
+    element.style.padding = '10px 15px';
     element.style.boxSizing = 'border-box';
+
+    const innerDoc = element.querySelector('.medical-doc-container');
+    if (innerDoc) {
+        innerDoc.style.maxWidth = '100%';
+        innerDoc.style.padding = '10px 15px';
+        innerDoc.style.margin = '0';
+        innerDoc.style.boxShadow = 'none';
+    }
 
     document.body.appendChild(element);
 
@@ -10609,7 +10615,7 @@ async function generatePDFFromElement(element, filename) {
         title: 'Generando Documento PDF...',
         html: `
             <div style="margin-bottom: 10px; font-weight: bold; color: #0284c7;">
-                <i class="fa-solid fa-circle-notch fa-spin"></i> Compilando firmas, historial clínico y abonos...
+                <i class="fa-solid fa-circle-notch fa-spin"></i> Ajustando márgenes y compilando documento...
             </div>
             <div style="font-size: 0.8rem; color: #64748b;">
                 Generando documento en alta resolución. Por favor espere.
@@ -10624,11 +10630,12 @@ async function generatePDFFromElement(element, filename) {
                 try {
                     if (typeof window.html2pdf === 'function') {
                         const opt = {
-                            margin: [10, 10, 10, 10],
+                            margin: [5, 6, 5, 6],
                             filename: filename,
                             image: { type: 'jpeg', quality: 0.98 },
-                            html2canvas: { scale: 2, useCORS: true, letterRendering: true, backgroundColor: '#ffffff', logging: false },
-                            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                            html2canvas: { scale: 2, useCORS: true, letterRendering: true, backgroundColor: '#ffffff', logging: false, width: 720 },
+                            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
                         };
                         await window.html2pdf().set(opt).from(element).save();
                     } else {
@@ -10636,7 +10643,7 @@ async function generatePDFFromElement(element, filename) {
                         if (!jsPDFClass || !window.html2canvas) {
                             throw new Error("Librerías de PDF no disponibles en el navegador");
                         }
-                        const canvas = await window.html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+                        const canvas = await window.html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff', width: 720 });
                         const imgString = canvas.toDataURL('image/jpeg', 0.95);
                         const pdf = new jsPDFClass('p', 'mm', 'a4');
                         const imgWidth = 210;
@@ -10646,11 +10653,15 @@ async function generatePDFFromElement(element, filename) {
                     }
 
                     try { document.body.removeChild(element); } catch (e) {}
-                    Swal.close();
-                    Swal.fire({ icon: 'success', title: '¡PDF Descargado!', text: 'El expediente se ha guardado exitosamente en su dispositivo.', timer: 2200, showConfirmButton: false });
 
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡PDF Generado!',
+                        text: `Se ha descargado ${filename}`,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
                 } catch (err) {
-                    console.error("PDF generation failure:", err);
                     try {
                         document.body.removeChild(element);
                     } catch (e) {}
