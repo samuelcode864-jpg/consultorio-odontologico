@@ -3943,15 +3943,18 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
         // Populate planned treatments selector
         const trtSelect = document.getElementById('s-planned-treatment-select');
         if (trtSelect) {
-            trtSelect.innerHTML = '<option value="">-- Personalizado / Escribir manualmente --</option>';
+            trtSelect.innerHTML = '<option value="">-- Selección manual / Tratamiento libre --</option>';
             const trts = (patient.metadata && patient.metadata.treatments) || [];
             trts.forEach((t, idx) => {
                 const opt = document.createElement('option');
                 const tNum = t.sessionNum || (idx + 1);
+                const toothNum = extractToothNumber(t);
                 opt.value = tNum;
                 opt.dataset.name = t.name;
-                opt.dataset.tooth = t.tooth || 'Gnl';
-                opt.innerText = `Sesión ${tNum}: ${t.name} (Pieza ${t.tooth || 'Gnl'}) - ${t.status || 'Planificado'}`;
+                opt.dataset.tooth = toothNum;
+                const toothText = toothNum === 'General' ? 'Pieza General' : `Pieza ${toothNum}`;
+                const statusTag = t.status === 'Completado' ? '✓ Atendido' : '⏳ Planificado';
+                opt.innerText = `Sesión ${tNum}: ${t.name} (${toothText}) — ${statusTag}`;
                 if (parseInt(tNum) === parseInt(sessionNum)) {
                     opt.selected = true;
                 }
@@ -3965,7 +3968,18 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
                     const selOpt = trtSelect.options[trtSelect.selectedIndex];
                     const procName = selOpt ? selOpt.dataset.name : '';
                     const toothName = selOpt ? selOpt.dataset.tooth : '';
-                    document.getElementById('s-procedure').value = `${procName} (Pieza ${toothName})`;
+                    const toothLabel = (toothName && toothName !== 'General' && toothName !== 'Gnl') ? ` (Pieza ${toothName})` : '';
+                    const newProcText = (procName && procName.includes(`Pieza ${toothName}`)) ? procName : `${procName}${toothLabel}`.trim();
+
+                    const procInput = document.getElementById('s-procedure');
+                    if (procInput) {
+                        const currentVal = procInput.value.trim();
+                        if (currentVal && !currentVal.includes(newProcText)) {
+                            procInput.value = `${currentVal}\n• ${newProcText}`;
+                        } else {
+                            procInput.value = newProcText;
+                        }
+                    }
                 }
             };
         }
