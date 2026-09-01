@@ -7980,19 +7980,13 @@ function initPatientStepperWizard() {
         };
     });
 
-    // Toggle Switches and Conditional Fields Interaction
+    // Toggle Switches and Conditional Fields Interaction (Fixed Double-Toggle Bug)
     document.querySelectorAll('.toggle-switch-wrapper').forEach(wrapper => {
-        wrapper.onclick = (e) => {
-            const input = wrapper.querySelector('input[type="checkbox"]');
-            if (!input) return;
+        const input = wrapper.querySelector('input[type="checkbox"]');
+        if (!input) return;
 
-            if (e.target !== input) {
-                input.checked = !input.checked;
-            }
-            
+        const updateState = () => {
             wrapper.classList.toggle('is-checked', input.checked);
-
-            // Handle conditional details animation
             const parentDiv = wrapper.parentElement;
             if (parentDiv) {
                 const details = parentDiv.querySelector('.conditional-details');
@@ -8009,19 +8003,34 @@ function initPatientStepperWizard() {
                 }
             }
         };
+
+        input.addEventListener('change', updateState);
+
+        wrapper.addEventListener('click', (e) => {
+            if (e.target.tagName.toLowerCase() !== 'input') {
+                e.preventDefault();
+                input.checked = !input.checked;
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        });
     });
 
-    // Check-Chips Selection Interaction
+    // Check-Chips Selection Interaction (Fixed Double-Toggle Bug for Allergies & Systemic Chips)
     document.querySelectorAll('.check-chip').forEach(chip => {
-        chip.onclick = (e) => {
-            const input = chip.querySelector('input[type="checkbox"]');
-            if (!input) return;
+        const input = chip.querySelector('input[type="checkbox"]');
+        if (!input) return;
 
-            if (e.target !== input) {
-                input.checked = !input.checked;
-            }
+        input.addEventListener('change', () => {
             chip.classList.toggle('active', input.checked);
-        };
+        });
+
+        chip.addEventListener('click', (e) => {
+            if (e.target.tagName.toLowerCase() !== 'input') {
+                e.preventDefault();
+                input.checked = !input.checked;
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        });
     });
 
     // Auto redraw sessions on sessions count change
@@ -8383,13 +8392,24 @@ function loadPatientDataIntoForm(p) {
     setVal('p-rep-relation', p.metadata?.repRelation || '');
 
     // Step 2: Anamnesis
+    const currentAllergies = Array.isArray(p.allergies) ? p.allergies : [];
     document.querySelectorAll('input[name="p-allergies"]').forEach(cb => {
-        cb.checked = (p.allergies || []).includes(cb.value);
+        const valClean = cb.value.toLowerCase().replace(/\s+/g, '');
+        cb.checked = currentAllergies.some(a => {
+            const aClean = String(a).toLowerCase().replace(/\s+/g, '');
+            return aClean === valClean || aClean.includes(valClean) || valClean.includes(aClean);
+        });
         const chip = cb.closest('.check-chip');
         if (chip) chip.classList.toggle('active', cb.checked);
     });
+
+    const currentSystemic = Array.isArray(p.systemic) ? p.systemic : [];
     document.querySelectorAll('input[name="p-systemic"]').forEach(cb => {
-        cb.checked = (p.systemic || []).includes(cb.value);
+        const valClean = cb.value.toLowerCase().replace(/\s+/g, '');
+        cb.checked = currentSystemic.some(s => {
+            const sClean = String(s).toLowerCase().replace(/\s+/g, '');
+            return sClean === valClean || sClean.includes(valClean) || valClean.includes(sClean);
+        });
         const chip = cb.closest('.check-chip');
         if (chip) chip.classList.toggle('active', cb.checked);
     });
