@@ -8992,18 +8992,18 @@ function buildMedicalDocumentHTML(opts) {
         <div class="medical-doc-container" style="background: #ffffff; color: #1e293b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 0.80rem; line-height: 1.30; width: 100%; max-width: 780px; margin: 0 auto; padding: 10px 18px; box-sizing: border-box; page-break-inside: avoid !important; break-inside: avoid !important;">
             
             <!-- 1. Header (Logo left, Title & metadata right) -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; min-height: 140px;">
-                <div style="flex: 2; max-width: 500px; display: flex; align-items: center;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0; gap: 20px;">
+                <div style="flex: 1; max-width: 340px; display: flex; align-items: center; justify-content: flex-start;">
                     ${logoUrl ? `
-                        <img src="${logoUrl}" style="width: 450px; max-width: 480px; height: auto; max-height: 240px; object-fit: contain; object-position: left center; display: block;" alt="Logo">
+                        <img src="${logoUrl}" style="width: 100%; max-width: 280px; height: auto; max-height: 120px; object-fit: contain; object-position: left top; display: block;" alt="Logo">
                     ` : `
-                        <div style="border: 2px dashed #0284c7; border-radius: 6px; padding: 14px 28px; display: inline-block; color: #0284c7; font-weight: 800; font-size: 1.5rem; letter-spacing: 0.05em;">
+                        <div style="border: 2px dashed #0284c7; border-radius: 6px; padding: 12px 24px; display: inline-block; color: #0284c7; font-weight: 800; font-size: 1.3rem; letter-spacing: 0.05em;">
                             LOGO
                         </div>
                     `}
                 </div>
-                <div style="text-align: right; flex: 1;">
-                    <h1 style="margin: 0 0 4px 0; font-size: 1.4rem; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">${docTitle}</h1>
+                <div style="text-align: right; min-width: 260px; flex-shrink: 0;">
+                    <h1 style="margin: 0 0 4px 0; font-size: 1.4rem; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; white-space: nowrap;">${docTitle}</h1>
                     <div style="font-size: 0.78rem; color: #475569; display: flex; flex-direction: column; gap: 2px;">
                         <div><span style="color: #64748b;">Fecha de Emisión:</span> <strong style="color: #0f172a;">${emissionDate}</strong></div>
                         <div><span style="color: #64748b;">N° de Control:</span> <strong style="color: #0f172a; letter-spacing: 0.03em;">${controlNumber}</strong></div>
