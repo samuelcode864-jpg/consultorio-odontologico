@@ -8992,12 +8992,12 @@ function buildMedicalDocumentHTML(opts) {
         <div class="medical-doc-container" style="background: #ffffff; color: #1e293b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 0.82rem; line-height: 1.35; width: 100%; max-width: 780px; margin: 0 auto; padding: 12px 20px; box-sizing: border-box; page-break-inside: avoid !important; break-inside: avoid !important;">
             
             <!-- 1. Header (Logo left, Title & metadata right) -->
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #f1f5f9;">
-                <div style="flex: 1; max-width: 380px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0;">
+                <div style="flex: 1; max-width: 440px; display: flex; align-items: center;">
                     ${logoUrl ? `
-                        <img src="${logoUrl}" style="max-height: 110px; max-width: 320px; object-fit: contain; display: block;" alt="Logo">
+                        <img src="${logoUrl}" style="height: 155px; max-height: 170px; width: auto; max-width: 420px; object-fit: contain; object-position: left center; display: block;" alt="Logo">
                     ` : `
-                        <div style="border: 2px dashed #0284c7; border-radius: 6px; padding: 10px 20px; display: inline-block; color: #0284c7; font-weight: 800; font-size: 1.2rem; letter-spacing: 0.05em;">
+                        <div style="border: 2px dashed #0284c7; border-radius: 6px; padding: 12px 24px; display: inline-block; color: #0284c7; font-weight: 800; font-size: 1.4rem; letter-spacing: 0.05em;">
                             LOGO
                         </div>
                     `}
