@@ -8989,22 +8989,22 @@ function buildMedicalDocumentHTML(opts) {
     const effectiveApproved = (approvedAmountUSD > 0) ? approvedAmountUSD : totalUSD;
 
     return `
-        <div class="medical-doc-container" style="background: #ffffff; color: #1e293b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 0.88rem; line-height: 1.45; width: 100%; max-width: 820px; margin: 0 auto; padding: 25px 30px; box-sizing: border-box;">
+        <div class="medical-doc-container" style="background: #ffffff; color: #1e293b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 0.82rem; line-height: 1.35; width: 100%; max-width: 780px; margin: 0 auto; padding: 12px 20px; box-sizing: border-box; page-break-inside: avoid !important; break-inside: avoid !important;">
             
             <!-- 1. Header (Logo left, Title & metadata right) -->
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; padding-bottom: 15px; border-bottom: 1px solid #f1f5f9;">
-                <div style="flex: 1; max-width: 450px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #f1f5f9;">
+                <div style="flex: 1; max-width: 380px;">
                     ${logoUrl ? `
-                        <img src="${logoUrl}" style="max-height: 195px; max-width: 450px; object-fit: contain; display: block;" alt="Logo">
+                        <img src="${logoUrl}" style="max-height: 110px; max-width: 320px; object-fit: contain; display: block;" alt="Logo">
                     ` : `
-                        <div style="border: 2px dashed #0284c7; border-radius: 6px; padding: 18px 30px; display: inline-block; color: #0284c7; font-weight: 800; font-size: 1.4rem; letter-spacing: 0.05em;">
+                        <div style="border: 2px dashed #0284c7; border-radius: 6px; padding: 10px 20px; display: inline-block; color: #0284c7; font-weight: 800; font-size: 1.2rem; letter-spacing: 0.05em;">
                             LOGO
                         </div>
                     `}
                 </div>
                 <div style="text-align: right;">
-                    <h1 style="margin: 0 0 6px 0; font-size: 1.6rem; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">${docTitle}</h1>
-                    <div style="font-size: 0.82rem; color: #475569; display: flex; flex-direction: column; gap: 3px;">
+                    <h1 style="margin: 0 0 4px 0; font-size: 1.4rem; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">${docTitle}</h1>
+                    <div style="font-size: 0.78rem; color: #475569; display: flex; flex-direction: column; gap: 2px;">
                         <div><span style="color: #64748b;">Fecha de Emisión:</span> <strong style="color: #0f172a;">${emissionDate}</strong></div>
                         <div><span style="color: #64748b;">N° de Control:</span> <strong style="color: #0f172a; letter-spacing: 0.03em;">${controlNumber}</strong></div>
                         <div><span style="color: #64748b;">Método de Pago:</span> <strong style="color: #0f172a; text-transform: uppercase;">${paymentMethod}</strong></div>
@@ -9013,40 +9013,40 @@ function buildMedicalDocumentHTML(opts) {
             </div>
 
             <!-- 2. 3-Column Info Cards -->
-            <div style="display: grid; grid-template-columns: 1.15fr 1.15fr 1fr; gap: 18px; margin-bottom: 22px; font-size: 0.83rem;">
+            <div style="display: grid; grid-template-columns: 1.15fr 1.15fr 1fr; gap: 12px; margin-bottom: 12px; font-size: 0.78rem;">
                 <!-- Col 1: Consultorio -->
                 <div>
-                    <div style="font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">CONSULTORIO ODONTOLÓGICO</div>
-                    <strong style="font-size: 0.95rem; color: #0f172a; display: block; margin-bottom: 2px;">${clinicName}</strong>
+                    <div style="font-size: 0.68rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">CONSULTORIO ODONTOLÓGICO</div>
+                    <strong style="font-size: 0.88rem; color: #0f172a; display: block; margin-bottom: 1px;">${clinicName}</strong>
                     <div style="color: #475569;">Tlf: ${clinicPhone}</div>
-                    <div style="color: #64748b; font-size: 0.78rem; margin-top: 2px;">${clinicAddress}</div>
+                    <div style="color: #64748b; font-size: 0.74rem; margin-top: 1px;">${clinicAddress}</div>
                 </div>
 
                 <!-- Col 2: Odontólogo Tratante -->
                 <div>
-                    <div style="font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">MÉDICO / ODONTÓLOGO TRATANTE</div>
-                    <strong style="font-size: 0.95rem; color: #0f172a; display: block; margin-bottom: 2px;">${doctorName}</strong>
+                    <div style="font-size: 0.68rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">MÉDICO / ODONTÓLOGO TRATANTE</div>
+                    <strong style="font-size: 0.88rem; color: #0f172a; display: block; margin-bottom: 1px;">${doctorName}</strong>
                     <div style="color: #475569;">Especialidad: ${doctorSpecialty}</div>
                     <div style="color: #475569;">Tlf: ${doctorPhone}</div>
                 </div>
 
                 <!-- Col 3: Datos del Paciente -->
                 <div>
-                    <div style="font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">DATOS DEL PACIENTE</div>
-                    <strong style="font-size: 0.95rem; color: #0f172a; display: block; margin-bottom: 2px;">${patientName}</strong>
+                    <div style="font-size: 0.68rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">DATOS DEL PACIENTE</div>
+                    <strong style="font-size: 0.88rem; color: #0f172a; display: block; margin-bottom: 1px;">${patientName}</strong>
                     <div style="color: #475569;">C.I.: ${patientId}</div>
                     <div style="color: #475569;">Tlf: ${patientPhone}</div>
                 </div>
             </div>
 
             <!-- 3. Procedures Table with Solid Electric Blue Header Bar -->
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 22px;">
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px;">
                 <thead>
                     <tr>
-                        <th style="background: #0066f5; color: #ffffff; padding: 10px 14px; font-size: 0.76rem; font-weight: 700; letter-spacing: 0.05em; text-align: left; text-transform: uppercase; border-top-left-radius: 4px; border-bottom-left-radius: 4px;">PROCEDIMIENTO / TRATAMIENTO</th>
-                        <th style="background: #0066f5; color: #ffffff; padding: 10px 8px; font-size: 0.76rem; font-weight: 700; letter-spacing: 0.05em; text-align: center; text-transform: uppercase; width: 80px;">CANTIDAD</th>
-                        <th style="background: #0066f5; color: #ffffff; padding: 10px 14px; font-size: 0.76rem; font-weight: 700; letter-spacing: 0.05em; text-align: right; text-transform: uppercase; width: 110px;">PRECIO UNIT.</th>
-                        <th style="background: #0066f5; color: #ffffff; padding: 10px 14px; font-size: 0.76rem; font-weight: 700; letter-spacing: 0.05em; text-align: right; text-transform: uppercase; width: 110px; border-top-right-radius: 4px; border-bottom-right-radius: 4px;">MONTO</th>
+                        <th style="background: #0066f5; color: #ffffff; padding: 7px 10px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-align: left; text-transform: uppercase; border-top-left-radius: 4px; border-bottom-left-radius: 4px;">PROCEDIMIENTO / TRATAMIENTO</th>
+                        <th style="background: #0066f5; color: #ffffff; padding: 7px 6px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-align: center; text-transform: uppercase; width: 70px;">CANTIDAD</th>
+                        <th style="background: #0066f5; color: #ffffff; padding: 7px 10px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-align: right; text-transform: uppercase; width: 100px;">PRECIO UNIT.</th>
+                        <th style="background: #0066f5; color: #ffffff; padding: 7px 10px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-align: right; text-transform: uppercase; width: 100px; border-top-right-radius: 4px; border-bottom-right-radius: 4px;">MONTO</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -9055,45 +9055,45 @@ function buildMedicalDocumentHTML(opts) {
             </table>
 
             <!-- 4. Terms and Totals Split Section -->
-            <div style="display: grid; grid-template-columns: 1.35fr 1fr; gap: 20px; margin-bottom: 22px; align-items: start;">
+            <div style="display: grid; grid-template-columns: 1.35fr 1fr; gap: 14px; margin-bottom: 12px; align-items: start;">
                 <!-- Left: Terms & Banking Box -->
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 16px; font-size: 0.81rem; line-height: 1.45;">
-                    <strong style="font-size: 0.88rem; color: #0f172a; display: block; margin-bottom: 6px;">Términos y Datos de Pago</strong>
-                    <div style="margin-bottom: 8px;">
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 12px; font-size: 0.78rem; line-height: 1.35;">
+                    <strong style="font-size: 0.82rem; color: #0f172a; display: block; margin-bottom: 4px;">Términos y Datos de Pago</strong>
+                    <div style="margin-bottom: 6px;">
                         <strong>Términos de Pago:</strong> ${paymentTerms}
                     </div>
-                    <div style="font-weight: 600; color: #334155; margin-bottom: 3px;">Datos Bancarios:</div>
-                    <div style="color: #475569; font-size: 0.78rem; line-height: 1.4;">
+                    <div style="font-weight: 600; color: #334155; margin-bottom: 2px;">Datos Bancarios:</div>
+                    <div style="color: #475569; font-size: 0.74rem; line-height: 1.3;">
                         ${bankingDetails}
                     </div>
                 </div>
 
                 <!-- Right: Totals Breakdown Table -->
                 <div>
-                    <table style="width: 100%; border-collapse: collapse; font-size: 0.86rem;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.80rem;">
                         <tr>
-                            <td style="padding: 4px 0; color: #64748b; text-align: right;">Subtotal:</td>
-                            <td style="padding: 4px 0 4px 14px; text-align: right; font-weight: 600; color: #0f172a; width: 110px;">$ ${subtotalUSD.toFixed(2).replace('.', ',')}</td>
+                            <td style="padding: 3px 0; color: #64748b; text-align: right;">Subtotal:</td>
+                            <td style="padding: 3px 0 3px 10px; text-align: right; font-weight: 600; color: #0f172a; width: 95px;">$ ${subtotalUSD.toFixed(2).replace('.', ',')}</td>
                         </tr>
                         <tr>
-                            <td style="padding: 4px 0; color: #64748b; text-align: right;">Descuento (${discountPct}%):</td>
-                            <td style="padding: 4px 0 4px 14px; text-align: right; font-weight: 600; color: #0f172a;">$ ${discountUSD.toFixed(2).replace('.', ',')}</td>
+                            <td style="padding: 3px 0; color: #64748b; text-align: right;">Descuento (${discountPct}%):</td>
+                            <td style="padding: 3px 0 3px 10px; text-align: right; font-weight: 600; color: #0f172a;">$ ${discountUSD.toFixed(2).replace('.', ',')}</td>
                         </tr>
                         <tr>
-                            <td style="padding: 4px 0; color: #64748b; text-align: right;">I.V.A. (0%):</td>
-                            <td style="padding: 4px 0 4px 14px; text-align: right; font-weight: 600; color: #0f172a;">$ 0,00</td>
+                            <td style="padding: 3px 0; color: #64748b; text-align: right;">I.V.A. (0%):</td>
+                            <td style="padding: 3px 0 3px 10px; text-align: right; font-weight: 600; color: #0f172a;">$ 0,00</td>
                         </tr>
                         <tr style="border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;">
-                            <td style="padding: 8px 0; font-weight: 800; font-size: 0.95rem; color: #0f172a; text-align: right;">Total:</td>
-                            <td style="padding: 8px 0 8px 14px; text-align: right; font-weight: 800; font-size: 1.15rem; color: #0066f5;">$ ${totalUSD.toFixed(2).replace('.', ',')}</td>
+                            <td style="padding: 6px 0; font-weight: 800; font-size: 0.90rem; color: #0f172a; text-align: right;">Total:</td>
+                            <td style="padding: 6px 0 6px 10px; text-align: right; font-weight: 800; font-size: 1.05rem; color: #0066f5;">$ ${totalUSD.toFixed(2).replace('.', ',')}</td>
                         </tr>
                         <tr>
-                            <td style="padding: 6px 0; font-weight: 700; color: #334155; text-align: right;">Monto Aprobado:</td>
-                            <td style="padding: 6px 0 6px 14px; text-align: right; font-weight: 700; color: #0066f5;">$ ${effectiveApproved.toFixed(2).replace('.', ',')}</td>
+                            <td style="padding: 4px 0; font-weight: 700; color: #334155; text-align: right;">Monto Aprobado:</td>
+                            <td style="padding: 4px 0 4px 10px; text-align: right; font-weight: 700; color: #0066f5;">$ ${effectiveApproved.toFixed(2).replace('.', ',')}</td>
                         </tr>
                         ${totalVES ? `
                         <tr>
-                            <td colspan="2" style="padding: 2px 0; text-align: right; font-size: 0.78rem; color: #64748b;">
+                            <td colspan="2" style="padding: 2px 0; text-align: right; font-size: 0.74rem; color: #64748b;">
                                 Equivalente Ref.: <strong style="color:#0f172a;">${totalVES}</strong>
                             </td>
                         </tr>` : ''}
@@ -9102,38 +9102,38 @@ function buildMedicalDocumentHTML(opts) {
             </div>
 
             <!-- 5. Clinical Observations (Left Blue Border Card) -->
-            <div style="border-left: 4px solid #0066f5; background: #ffffff; border-top: 1px solid #f1f5f9; border-right: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9; border-radius: 0 4px 4px 0; padding: 10px 14px; margin-bottom: 14px; font-size: 0.81rem; line-height: 1.45;">
-                <strong style="text-transform: uppercase; color: #0f172a; font-size: 0.74rem; letter-spacing: 0.05em; display: block; margin-bottom: 4px;">OBSERVACIONES CLÍNICAS</strong>
+            <div style="border-left: 4px solid #0066f5; background: #ffffff; border-top: 1px solid #f1f5f9; border-right: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9; border-radius: 0 4px 4px 0; padding: 7px 12px; margin-bottom: 8px; font-size: 0.76rem; line-height: 1.35;">
+                <strong style="text-transform: uppercase; color: #0f172a; font-size: 0.70rem; letter-spacing: 0.05em; display: block; margin-bottom: 2px;">OBSERVACIONES CLÍNICAS</strong>
                 <div style="color: #475569;">${observations}</div>
             </div>
 
             <!-- 6. Informed Consent (Left Blue Border Card) -->
-            <div style="border-left: 4px solid #0066f5; background: #ffffff; border-top: 1px solid #f1f5f9; border-right: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9; border-radius: 0 4px 4px 0; padding: 10px 14px; margin-bottom: 26px; font-size: 0.81rem; line-height: 1.45;">
-                <strong style="text-transform: uppercase; color: #0f172a; font-size: 0.74rem; letter-spacing: 0.05em; display: block; margin-bottom: 4px;">CONSENTIMIENTO INFORMADO</strong>
+            <div style="border-left: 4px solid #0066f5; background: #ffffff; border-top: 1px solid #f1f5f9; border-right: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9; border-radius: 0 4px 4px 0; padding: 7px 12px; margin-bottom: 12px; font-size: 0.76rem; line-height: 1.35;">
+                <strong style="text-transform: uppercase; color: #0f172a; font-size: 0.70rem; letter-spacing: 0.05em; display: block; margin-bottom: 2px;">CONSENTIMIENTO INFORMADO</strong>
                 <div style="color: #475569;">${consentText}</div>
             </div>
 
             <!-- 7. Dual Signature Section -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 20px; padding-top: 10px; text-align: center;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 10px; padding-top: 4px; text-align: center;">
                 <div>
                     ${doctorSig ? `
-                        <img src="${doctorSig}" style="max-height: 52px; max-width: 150px; object-fit: contain; margin: 0 auto 4px auto; display: block;" alt="Firma Médico">
-                    ` : `<div style="height: 52px;"></div>`}
-                    <div style="border-top: 1px solid #94a3b8; padding-top: 6px; font-size: 0.82rem; font-weight: 700; color: #0f172a;">Firma / Sello del Médico Tratante</div>
-                    <div style="font-size: 0.75rem; color: #64748b;">${doctorName} — M.P.P.S. / C.O.V.</div>
+                        <img src="${doctorSig}" style="max-height: 40px; max-width: 140px; object-fit: contain; margin: 0 auto 2px auto; display: block;" alt="Firma Médico">
+                    ` : `<div style="height: 40px;"></div>`}
+                    <div style="border-top: 1px solid #94a3b8; padding-top: 4px; font-size: 0.78rem; font-weight: 700; color: #0f172a;">Firma / Sello del Médico Tratante</div>
+                    <div style="font-size: 0.72rem; color: #64748b;">${doctorName} — M.P.P.S. / C.O.V.</div>
                 </div>
 
                 <div>
                     ${patientSig ? `
-                        <img src="${patientSig}" style="max-height: 52px; max-width: 150px; object-fit: contain; margin: 0 auto 4px auto; display: block;" alt="Firma Paciente">
-                    ` : `<div style="height: 52px;"></div>`}
-                    <div style="border-top: 1px solid #94a3b8; padding-top: 6px; font-size: 0.82rem; font-weight: 700; color: #0f172a;">Firma del Paciente / Representante</div>
-                    <div style="font-size: 0.75rem; color: #64748b;">C.I.: ${patientId}</div>
+                        <img src="${patientSig}" style="max-height: 40px; max-width: 140px; object-fit: contain; margin: 0 auto 2px auto; display: block;" alt="Firma Paciente">
+                    ` : `<div style="height: 40px;"></div>`}
+                    <div style="border-top: 1px solid #94a3b8; padding-top: 4px; font-size: 0.78rem; font-weight: 700; color: #0f172a;">Firma del Paciente / Representante</div>
+                    <div style="font-size: 0.72rem; color: #64748b;">C.I.: ${patientId}</div>
                 </div>
             </div>
 
             ${footerNote ? `
-                <div style="text-align: center; margin-top: 25px; padding-top: 10px; border-top: 1px dashed #cbd5e1; font-size: 0.74rem; color: #94a3b8;">
+                <div style="text-align: center; margin-top: 12px; padding-top: 6px; border-top: 1px dashed #cbd5e1; font-size: 0.70rem; color: #94a3b8;">
                     ${footerNote}
                 </div>
             ` : ''}
@@ -11012,28 +11012,9 @@ window.downloadSessionReceiptPDF = async (patient, sessionObj) => {
 
     const element = document.createElement('div');
     element.innerHTML = htmlContent;
-    document.body.appendChild(element);
 
-    const opt = {
-        margin: 10,
-        filename: `Comprobante_Sesion_${sessionObj.sessionNum}_${patient.fullname.replace(/\s+/g, '_')}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-
-    try {
-        if (typeof html2pdf !== 'undefined') {
-            await html2pdf().from(element).set(opt).save();
-        } else {
-            Swal.fire({ icon: 'warning', title: 'Librería PDF no cargada', text: 'No se pudo descargar el PDF automáticamente, pero se abrirá el cuadro de impresión.' });
-            window.printSessionReceipt(patient, sessionObj);
-        }
-    } catch (err) {
-        console.error("Error generating session PDF:", err);
-    } finally {
-        document.body.removeChild(element);
-    }
+    const filename = `Comprobante_Sesion_${sessionObj.sessionNum}_${patient.fullname.replace(/\s+/g, '_')}.pdf`;
+    await generatePDFFromElement(element, filename);
 };
 
 async function renderAttendedPatientsModal(dateStr) {
