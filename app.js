@@ -7003,12 +7003,67 @@ function initGlobalEvents() {
         });
     }
 
+    window.openAddClinicalNoteModal = async function() {
+        const activeId = getActivePatientId();
+        if (!activeId) {
+            Swal.fire({ icon: 'warning', title: 'Paciente No Seleccionado', text: 'Por favor active un paciente antes de registrar una evolución.' });
+            return;
+        }
+
+        const patients = await SupabaseDataService.getPatients();
+        const patient = patients.find(p => p.id === activeId);
+        if (!patient) return;
+
+        document.getElementById('note-datetime').value = new Date().toISOString().slice(0, 16);
+        document.getElementById('note-content').value = '';
+        document.getElementById('note-payment').value = '0.00';
+
+        // Populate note-treatment-select dropdown with treatments from active budget / odontogram
+        const noteTrtSelect = document.getElementById('note-treatment-select');
+        if (noteTrtSelect) {
+            noteTrtSelect.innerHTML = '<option value="">-- Selección libre / Escribir manualmente --</option>';
+            const trts = (patient.metadata && patient.metadata.treatments) || [];
+            trts.forEach((t, idx) => {
+                const opt = document.createElement('option');
+                const tNum = t.sessionNum || (idx + 1);
+                const toothNum = extractToothNumber(t);
+                opt.value = tNum;
+                opt.dataset.name = t.name;
+                opt.dataset.tooth = toothNum;
+                const toothText = toothNum === 'General' ? 'Pieza General' : `Pieza ${toothNum}`;
+                const statusTag = t.status === 'Completado' ? '✓ Atendido' : '⏳ Planificado';
+                opt.innerText = `Sesión ${tNum}: ${t.name} (${toothText}) — ${statusTag}`;
+                noteTrtSelect.appendChild(opt);
+            });
+
+            noteTrtSelect.onchange = () => {
+                const chosenNum = noteTrtSelect.value;
+                if (chosenNum) {
+                    const selOpt = noteTrtSelect.options[noteTrtSelect.selectedIndex];
+                    const procName = selOpt ? selOpt.dataset.name : '';
+                    const toothName = selOpt ? selOpt.dataset.tooth : '';
+                    const toothLabel = (toothName && toothName !== 'General' && toothName !== 'Gnl') ? ` (Pieza ${toothName})` : '';
+                    const newProcText = (procName && procName.includes(`Pieza ${toothName}`)) ? procName : `${procName}${toothLabel}`.trim();
+
+                    const contentInput = document.getElementById('note-content');
+                    if (contentInput) {
+                        const currentVal = contentInput.value.trim();
+                        if (currentVal && !currentVal.includes(newProcText)) {
+                            contentInput.value = `${currentVal}\n• ${newProcText}`;
+                        } else {
+                            contentInput.value = newProcText;
+                        }
+                    }
+                }
+            };
+        }
+
+        openModal('modal-note');
+    };
+
     const addNoteBtn = document.getElementById('btn-add-clinical-note');
     if (addNoteBtn) {
-        addNoteBtn.onclick = () => {
-            document.getElementById('note-datetime').value = new Date().toISOString().slice(0, 16);
-            openModal('modal-note');
-        };
+        addNoteBtn.onclick = () => window.openAddClinicalNoteModal();
     }
 
     const saveNoteBtn = document.getElementById('btn-save-note');
@@ -7022,9 +7077,9 @@ function initGlobalEvents() {
             const paymentUSD = parseFloat(document.getElementById('note-payment').value) || 0;
             const datetime = document.getElementById('note-datetime').value;
             const paymentMethod = document.getElementById('note-payment-method') ? document.getElementById('note-payment-method').value : 'cash';
-
             const paymentBank = document.getElementById('note-payment-bank') ? document.getElementById('note-payment-bank').value.trim() : '';
             const paymentReference = document.getElementById('note-payment-reference') ? document.getElementById('note-payment-reference').value.trim() : '';
+            const selectedTrtVal = document.getElementById('note-treatment-select') ? document.getElementById('note-treatment-select').value : '';
 
             if (!content) {
                 Swal.fire({ icon: 'warning', title: 'Campos requeridos', text: 'Debe ingresar la nota de la evolución.' });
@@ -7044,6 +7099,21 @@ function initGlobalEvents() {
                     paymentBank: paymentBank || (paymentMethod === 'cash' ? 'Efectivo en Mano' : 'No especificado'),
                     paymentReference: paymentReference || 'N/A'
                 });
+
+                if (selectedTrtVal && p.metadata && p.metadata.treatments) {
+                    const trt = p.metadata.treatments.find(t => String(t.sessionNum) === String(selectedTrtVal)) || p.metadata.treatments[parseInt(selectedTrtVal) - 1];
+                    if (trt) {
+                        trt.status = 'Completado';
+                        trt.completedDate = datetime;
+                        const toothNum = extractToothNumber(trt);
+                        if (toothNum !== 'General' && !isNaN(parseInt(toothNum))) {
+                            if (!p.odontogramData) p.odontogramData = {};
+                            const toothInt = parseInt(toothNum);
+                            const faceKey = trt.face && trt.face !== 'Gnl' ? `${toothInt}-${trt.face}` : `${toothInt}-center`;
+                            p.odontogramData[faceKey] = 'treated'; // Green completed in odontogram!
+                        }
+                    }
+                }
 
                 if (paymentUSD > 0) {
                     if (!p.payments) p.payments = [];
