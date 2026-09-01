@@ -8992,10 +8992,10 @@ function buildMedicalDocumentHTML(opts) {
         <div class="medical-doc-container" style="background: #ffffff; color: #1e293b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 0.80rem; line-height: 1.30; width: 100%; max-width: 780px; margin: 0 auto; padding: 10px 18px; box-sizing: border-box; page-break-inside: avoid !important; break-inside: avoid !important;">
             
             <!-- 1. Header (Logo left, Title & metadata right) -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; min-height: 120px;">
-                <div style="flex: 1.5; max-width: 480px; display: flex; align-items: center;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; min-height: 110px;">
+                <div style="flex: 1.5; max-width: 460px; display: flex; align-items: center;">
                     ${logoUrl ? `
-                        <img src="${logoUrl}" style="height: 190px; max-height: 210px; width: auto; max-width: 460px; object-fit: contain; object-position: left center; display: block;" alt="Logo">
+                        <img src="${logoUrl}" style="height: 140px; max-height: 155px; width: auto; max-width: 440px; object-fit: contain; object-position: left center; display: block;" alt="Logo">
                     ` : `
                         <div style="border: 2px dashed #0284c7; border-radius: 6px; padding: 12px 24px; display: inline-block; color: #0284c7; font-weight: 800; font-size: 1.4rem; letter-spacing: 0.05em;">
                             LOGO
