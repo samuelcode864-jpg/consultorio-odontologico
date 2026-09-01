@@ -391,12 +391,29 @@ async function autoSaveActivePatientOdontogram() {
     }
 }
 
+function extractToothNumber(item) {
+    if (!item) return 'General';
+    const rawTooth = String(item.tooth || '').trim();
+    if (rawTooth && rawTooth !== 'Gnl' && rawTooth !== 'General' && rawTooth !== 'gnl' && rawTooth !== 'undefined' && rawTooth !== 'null') {
+        const cleaned = rawTooth.replace(/[^\d]/g, '');
+        if (cleaned && !isNaN(parseInt(cleaned))) return cleaned;
+    }
+
+    const searchString = `${item.name || ''} ${item.procedure || ''} ${item.description || ''} ${item.serviceCode || ''} ${item.code || ''}`;
+    const match = searchString.match(/(?:Pieza|Pza\.?|Diente|Tooth|\(Pieza)\s*:?\s*(\d{1,2})/i);
+    if (match && match[1]) {
+        return match[1];
+    }
+
+    return 'General';
+}
+
 function deduplicateBudgetItems(items) {
     if (!Array.isArray(items)) return [];
     const seen = new Set();
     return items.filter(item => {
         if (!item) return false;
-        const tooth = String(item.tooth || 'Gnl').trim();
+        const tooth = extractToothNumber(item);
         const code = (item.serviceCode || item.code || '').trim();
         const rawName = (item.name || '').trim();
         const cleanName = rawName
@@ -1534,7 +1551,7 @@ window.loadBudgetIntoEditor = async function(budgetId) {
     // Load treatments
     currentBudgetItems = (budget.items || []).map((item, idx) => ({
         key: 'proc-' + idx + '-' + Date.now(),
-        tooth: item.tooth || 'General',
+        tooth: extractToothNumber(item),
         face: item.face || 'Gnl',
         serviceCode: item.code || '',
         name: item.name,
@@ -2621,9 +2638,11 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
 
                 let trtRowsHtml = treatmentsList.map((t, idx) => {
                     const isDone = (idx < completedSessions) || t.status === 'Completado';
+                    const toothNum = extractToothNumber(t);
+                    const toothLabel = toothNum === 'General' ? 'Pieza General' : `Pieza ${toothNum}`;
                     return `
                         <tr style="border-bottom: 1px solid var(--border-color); font-size: 0.85rem;">
-                            <td style="padding: 6px 8px;"><strong>Pieza ${t.tooth || 'Gnl'}</strong></td>
+                            <td style="padding: 6px 8px;"><strong>${toothLabel}</strong></td>
                             <td style="padding: 6px 8px;">${t.name}</td>
                             <td style="padding: 6px 8px; color: #15803d; font-weight: 600;">$${parseFloat(t.price || 0).toFixed(2)}</td>
                             <td style="padding: 6px 8px;">${t.specialist || 'Dr. Asignado'}</td>
@@ -6442,6 +6461,8 @@ function initGlobalEvents() {
                 items: currentBudgetItems.map(item => ({
                     code: item.serviceCode,
                     name: item.name,
+                    tooth: extractToothNumber(item),
+                    face: item.face || 'Gnl',
                     price: item.price,
                     specialist: item.specialist || ''
                 })),
@@ -6461,18 +6482,18 @@ function initGlobalEvents() {
                 if (!patient.metadata) patient.metadata = {};
                 if (patSig) patient.metadata.patientSignature = patSig;
                 if (docSig) patient.metadata.doctorSignature = docSig;
-                await SupabaseDataService.savePatient(patient);
                 patient.metadata.treatments = currentBudgetItems.map((item, idx) => ({
                     id: 'trt-' + (idx + 1),
                     serviceCode: item.serviceCode || '',
                     name: item.name,
-                    tooth: item.tooth || 'Gnl',
-                    face: item.face || '',
+                    tooth: extractToothNumber(item),
+                    face: item.face || 'Gnl',
                     price: item.price,
                     specialist: item.specialist || '',
                     status: 'Planificado',
                     sessionNum: item.sessionNum || (idx + 1)
                 }));
+                await SupabaseDataService.savePatient(patient);
 
                 // Save odontogram data from current budget
                 if (window.odontogram) {
