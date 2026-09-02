@@ -2141,11 +2141,19 @@ html, body {
 
 /* MOBILE MEDIUM BREAKPOINT (<= 768px) */
 @media (max-width: 768px) {
+    #active-patient-bar {
+        display: none !important;
+    }
+
     .tool-mode-bar {
-        flex-wrap: wrap !important;
-        justify-content: center !important;
-        gap: 6px !important;
         padding: 10px 8px !important;
+        width: 100% !important;
+    }
+
+    .tool-mode-bar > div, .tool-mode-buttons-container {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
         width: 100% !important;
     }
 
@@ -2158,7 +2166,8 @@ html, body {
     }
 
     .tool-btn {
-        flex: 1 1 calc(50% - 8px) !important;
+        width: 100% !important;
+        flex: none !important;
         display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
@@ -2166,6 +2175,13 @@ html, body {
         padding: 8px 10px !important;
         font-size: 0.78rem !important;
         white-space: nowrap !important;
+    }
+
+    .tool-btn[data-mode="extraction"], .tool-btn-extraction {
+        grid-column: 1 / -1 !important;
+        justify-self: center !important;
+        width: 80% !important;
+        margin: 0 auto !important;
     }
 
     .layer-legend {

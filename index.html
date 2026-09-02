@@ -247,7 +247,7 @@
                         <i class="fa-solid fa-user-plus"></i> <span>Nuevo Paciente</span>
                     </button>
 
-                    <div class="current-patient-pill hidden" id="active-patient-bar">
+                    <div class="current-patient-pill hidden" id="active-patient-bar" style="display: none !important;">
                         <i class="fa-solid fa-user-check"></i>
                         <span><strong id="active-patient-name">Ninguno</strong></span>
                         <button id="btn-clear-active-patient" title="Deseleccionar"><i class="fa-solid fa-xmark"></i></button>
@@ -618,12 +618,12 @@
                                 <!-- Mode Selector Bar -->
                                 <div class="tool-mode-bar" style="background: rgba(0,0,0,0.02); padding: 12px 15px; border-radius: var(--radius-md); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;">
                                     <span class="tool-label" style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Modo de Marcado:</span>
-                                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                    <div class="tool-mode-buttons-container" style="display: flex; gap: 10px; flex-wrap: wrap;">
                                         <button class="tool-btn active" data-mode="patology" style="border-radius: 20px; padding: 6px 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: all 0.2s;"><span class="mode-dot"></span> Lesión (Rojo)</button>
                                         <button class="tool-btn" data-mode="treated" style="border-radius: 20px; padding: 6px 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: all 0.2s;"><span class="mode-dot"></span> Sano (Azul)</button>
                                         <button class="tool-btn" data-mode="endo" style="border-radius: 20px; padding: 6px 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: all 0.2s;"><span class="mode-dot"></span> Endodoncia / Corona</button>
                                         <button class="tool-btn" data-mode="absence" style="border-radius: 20px; padding: 6px 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: all 0.2s;"><span class="mode-dot" style="background:#2563eb; color:white; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center;">✕</span> Ausencia (Azul)</button>
-                                        <button class="tool-btn" data-mode="extraction" style="border-radius: 20px; padding: 6px 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: all 0.2s;"><span class="mode-dot" style="background:#dc2626; color:white; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center;">✕</span> Extracción (Rojo)</button>
+                                        <button class="tool-btn tool-btn-extraction" data-mode="extraction" style="border-radius: 20px; padding: 6px 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: all 0.2s;"><span class="mode-dot" style="background:#dc2626; color:white; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center;">✕</span> Extracción (Rojo)</button>
                                     </div>
                                 </div>
 
@@ -3483,13 +3483,13 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=176"></script>
-    <script src="supabaseClient.js?v=176"></script>
-    <script src="odontogram.js?v=176"></script>
-    <script src="signature.js?v=176"></script>
-    <script src="whatsapp.js?v=176"></script>
-    <script src="kardex.js?v=176"></script>
-    <script src="app.js?v=176"></script>
-    <script src="tutorial.js?v=176"></script>
+    <script src="seededData.js?v=177"></script>
+    <script src="supabaseClient.js?v=177"></script>
+    <script src="odontogram.js?v=177"></script>
+    <script src="signature.js?v=177"></script>
+    <script src="whatsapp.js?v=177"></script>
+    <script src="kardex.js?v=177"></script>
+    <script src="app.js?v=177"></script>
+    <script src="tutorial.js?v=177"></script>
 </body>
 </html>
