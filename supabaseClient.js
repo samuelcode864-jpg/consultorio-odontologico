@@ -133,10 +133,14 @@ class SupabaseDataService {
                         license: licensePayload,
                         status: userObj.status || 'Activo'
                     });
-                    if (err2) console.error('Supabase saveUser Cloud Error:', err2);
+                    if (err2) {
+                        console.error('Supabase saveUser Cloud Error:', err2);
+                        throw new Error(`Supabase Error: ${err2.message}`);
+                    }
                 }
             } catch (err) {
                 console.error('Supabase saveUser Exception:', err);
+                throw err;
             }
         }
     }
@@ -536,9 +540,13 @@ class SupabaseDataService {
                     status: appointmentObj.status || 'Programada',
                     is_tomorrow: appointmentObj.isTomorrow || false
                 });
-                if (error) console.error('Supabase saveAppointment Cloud Error:', error);
+                if (error) {
+                    console.error('Supabase saveAppointment Cloud Error:', error);
+                    throw new Error(`Supabase Error: ${error.message}`);
+                }
             } catch (err) {
                 console.error('Supabase saveAppointment Exception:', err);
+                throw err;
             }
         }
     }
@@ -631,9 +639,13 @@ class SupabaseDataService {
                     unit: itemObj.unit,
                     expiry_date: itemObj.expiryDate
                 });
-                if (error) console.error('Supabase saveInventoryItem Cloud Error:', error);
+                if (error) {
+                    console.error('Supabase saveInventoryItem Cloud Error:', error);
+                    throw new Error(`Supabase Error: ${error.message}`);
+                }
             } catch (err) {
                 console.error('Supabase saveInventoryItem Exception:', err);
+                throw err;
             }
         }
     }
@@ -1296,4 +1308,21 @@ class SupabaseDataService {
 }
 
 window.SupabaseDataService = SupabaseDataService;
+
+// Auto-sync offline changes when Internet connection is restored
+if (typeof window !== 'undefined') {
+    window.addEventListener('online', async () => {
+        console.log('🌐 Internet connection restored. Syncing pending offline data to Supabase Cloud...');
+        try {
+            if (window.SupabaseDataService && window.SupabaseDataService.syncLocalTrashAndAuditToCloud) {
+                await window.SupabaseDataService.syncLocalTrashAndAuditToCloud();
+                if (typeof renderPatientsTable === 'function') await renderPatientsTable();
+                if (typeof renderEHRView === 'function') await renderEHRView();
+                if (typeof renderAgendaView === 'function') await renderAgendaView();
+            }
+        } catch(e) {
+            console.warn('Auto re-sync warning:', e);
+        }
+    });
+}
 
