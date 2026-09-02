@@ -525,8 +525,8 @@
                     <div class="card mb-20">
                         <div class="card-body" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap; padding: 20px;">
                             <div style="flex: 2; min-width: 300px; display: flex; flex-direction: column; gap: 6px;">
-                                <span class="badge-tag green" style="text-transform: uppercase; width: fit-content; font-size: 0.78rem; font-weight: 600; padding: 4px 10px; border-radius: 12px; background: rgba(5, 150, 105, 0.08); color: #059669;">Sección 1 • Control Clínico</span>
-                                <h2 style="font-size: 1.6rem; font-weight: 700; margin-top: 5px; color: var(--text-main); line-height: 1.2; display: flex; align-items: center; gap: 10px;"><i class="fa-solid fa-stethoscope text-cyan" style="font-size: 1.8rem;"></i> Emisión, Presupuesto Clínico & Firma Digital Unificada</h2>
+                                <span class="badge-tag green" style="text-transform: uppercase; width: fit-content; font-size: 0.78rem; font-weight: 600; padding: 4px 10px; border-radius: 12px; background: rgba(5, 150, 105, 0.08); color: #059669;">Sesión 1</span>
+                                <h2 style="font-size: 1.6rem; font-weight: 700; margin-top: 5px; color: var(--text-main); line-height: 1.2; display: flex; align-items: center; gap: 10px;"><i class="fa-solid fa-stethoscope text-cyan" style="font-size: 1.8rem;"></i> Emisión de un presupuesto</h2>
                                 <p class="text-muted" style="font-size: 0.9rem; margin-top: 5px; max-width: 650px; line-height: 1.4;">Flujo clínico completo: selecciona el paciente, marca hallazgos en el odontodiagrama, genera la propuesta económica y certifica con firma digital.</p>
                             </div>
                             <div class="action-buttons-sec1" style="display: flex; flex-direction: column; gap: 10px; min-width: 240px; flex: 1;">
@@ -563,8 +563,8 @@
                         <div class="card-body" style="display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; padding: 20px;">
                             <!-- Left: Search & Select Dropdown -->
                             <div style="flex: 1.2; min-width: 300px; display: flex; flex-direction: column; gap: 10px;">
-                                <span class="badge-tag green" style="text-transform: uppercase; width: fit-content; font-size: 0.78rem; font-weight: 600; padding: 4px 10px; border-radius: 12px; background: rgba(5, 150, 105, 0.08); color: #059669;">Sección 2 • Identificación del Paciente</span>
-                                <h2 style="font-size: 1.4rem; font-weight: 700; color: var(--text-main); margin: 0; display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-id-card text-cyan"></i> Selección y Datos del Expediente</h2>
+                                <span class="badge-tag green" style="text-transform: uppercase; width: fit-content; font-size: 0.78rem; font-weight: 600; padding: 4px 10px; border-radius: 12px; background: rgba(5, 150, 105, 0.08); color: #059669;">Sesión 2</span>
+                                <h2 style="font-size: 1.4rem; font-weight: 700; color: var(--text-main); margin: 0; display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-id-card text-cyan"></i> Selecciona un paciente</h2>
                                 
                                 <div class="form-group mb-0" style="display: flex; flex-direction: column; gap: 8px;">
                                     <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: var(--text-main); margin-bottom: 2px;">Buscar / Seleccionar Paciente</label>
@@ -599,14 +599,17 @@
                         <div class="card odontogram-card">
                             <div class="card-header border-bottom flex-wrap" style="justify-content: space-between; align-items: center; display: flex; width: 100%; gap: 15px;">
                                 <div style="display: flex; flex-direction: column; gap: 4px;">
-                                    <span class="badge-tag green" style="text-transform: uppercase; width: fit-content;">Sección 3 • Mapeo Anatómico</span>
-                                    <h3 style="font-size: 1.4rem; font-weight: 700; color: var(--text-main); margin: 0;"><i class="fa-solid fa-tooth text-cyan"></i> Odontodiagrama 2D Clínico (Estructura FDI Regulada)</h3>
+                                    <span class="badge-tag green" style="text-transform: uppercase; width: fit-content;">Sesión 3</span>
+                                    <h3 style="font-size: 1.4rem; font-weight: 700; color: var(--text-main); margin: 0;"><i class="fa-solid fa-tooth text-cyan"></i> Odontograma</h3>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
                                     <span class="text-muted" style="font-size: 0.85rem; font-weight: 600;">Haz clic sobre cualquier pieza dental para cambiar su diagnóstico.</span>
-                                    <div class="dentition-toggle" style="display: flex; gap: 10px;">
+                                    <div class="dentition-toggle" style="display: flex; gap: 10px; align-items: center;">
                                         <button id="btn-dentition-adult" class="btn btn-sm btn-outline active">Dentición Adulto</button>
                                         <button id="btn-dentition-pediatric" class="btn btn-sm btn-outline">Dentición Infantil</button>
+                                        <button id="btn-clear-all-odontogram" class="btn btn-sm btn-outline text-red" style="border-color: #ef4444 !important; color: #ef4444 !important; font-weight: 600; display: flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 6px;">
+                                            <i class="fa-solid fa-trash"></i> Borrar todo
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -628,11 +631,11 @@
                                 <div class="odontogram-viewport" id="odontogram-viewport">
                                     <!-- Rendered dynamically via odontogram.js -->
                                 </div>
-                                               <!-- SECCIÓN 4: PRESUPUESTO GENERADO -->
+                        <!-- SECCIÓN 4: PRESUPUESTO GENERADO -->
                         <div class="card budget-card">
                             <div class="card-header border-bottom" style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
-                                <span class="badge-tag green" style="text-transform: uppercase;">Sección 4 • Propuesta Económica</span>
-                                <h3 style="font-size: 1.4rem; font-weight: 700; color: var(--text-main); margin: 0;"><i class="fa-solid fa-calculator text-green"></i> Presupuesto Generado & Desglose de Tratamiento</h3>
+                                <span class="badge-tag green" style="text-transform: uppercase;">Sesión 4</span>
+                                <h3 style="font-size: 1.4rem; font-weight: 700; color: var(--text-main); margin: 0;"><i class="fa-solid fa-calculator text-green"></i> Presupuesto</h3>
                             </div>
                             
                             <!-- Direct Custom Item Input Form Row -->
@@ -751,11 +754,11 @@
                             </div>
                         </div>
 
-                        <!-- SECCIÓN 4.5: PLAN CLÍNICO & AGENDAMIENTO DE CITAS -->
+                        <!-- SECCIÓN 4.1: PLAN CLÍNICO & AGENDAMIENTO DE CITAS -->
                         <div class="card" style="margin-bottom: 20px; border: 1px solid rgba(13, 148, 136, 0.25);">
                             <div class="card-header border-bottom" style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start; background: rgba(13, 148, 136, 0.02); padding: 15px 20px;">
-                                <span class="badge-tag cyan" style="text-transform: uppercase;">Sección 4.5 • Plan Clínico & Citas</span>
-                                <h3 style="font-size: 1.4rem; font-weight: 700; color: var(--text-main); margin: 0;"><i class="fa-solid fa-notes-medical text-cyan"></i> Historia Clínica & Planificación de Sesiones</h3>
+                                <span class="badge-tag cyan" style="text-transform: uppercase;">Sesión 4.1 plan clínico y citas</span>
+                                <h3 style="font-size: 1.4rem; font-weight: 700; color: var(--text-main); margin: 0;"><i class="fa-solid fa-notes-medical text-cyan"></i> Crear plan de tratamiento</h3>
                             </div>
                             <div class="card-body" style="padding: 20px; display: flex; flex-direction: column; gap: 15px;">
                                 <p class="text-muted" style="font-size: 0.88rem; margin: 0; line-height: 1.4;">
@@ -770,8 +773,8 @@
                         <!-- SECCIÓN 5: OBSERVACIONES CLÍNICAS, CONSENTIMIENTO INFORMADO & FIRMAS DIGITALES -->
                         <div class="card consent-card">
                             <div class="card-header border-bottom" style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
-                                <span class="badge-tag green" style="text-transform: uppercase;">Sección 5 • Certificación Legal & Firmas</span>
-                                <h3 style="font-size: 1.4rem; font-weight: 700; color: var(--text-main); margin: 0;"><i class="fa-solid fa-file-signature text-purple"></i> Observaciones Clínicas, Consentimiento Informado & Firmas Digitales</h3>
+                                <span class="badge-tag green" style="text-transform: uppercase;">Sesión 5</span>
+                                <h3 style="font-size: 1.4rem; font-weight: 700; color: var(--text-main); margin: 0;"><i class="fa-solid fa-file-signature text-purple"></i> Observaciones</h3>
                             </div>
                             <div class="card-body flex-column gap-20" style="padding: 20px;">
                                 
@@ -3202,13 +3205,13 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=165"></script>
-    <script src="supabaseClient.js?v=165"></script>
-    <script src="odontogram.js?v=165"></script>
-    <script src="signature.js?v=165"></script>
-    <script src="whatsapp.js?v=165"></script>
-    <script src="kardex.js?v=165"></script>
-    <script src="app.js?v=165"></script>
-    <script src="tutorial.js?v=165"></script>
+    <script src="seededData.js?v=166"></script>
+    <script src="supabaseClient.js?v=166"></script>
+    <script src="odontogram.js?v=166"></script>
+    <script src="signature.js?v=166"></script>
+    <script src="whatsapp.js?v=166"></script>
+    <script src="kardex.js?v=166"></script>
+    <script src="app.js?v=166"></script>
+    <script src="tutorial.js?v=166"></script>
 </body>
 </html>

@@ -1734,6 +1734,43 @@ async function renderOdontogramView() {
         window.odontogram.setPediatric(true);
     };
 
+    const btnClearAllOd = document.getElementById('btn-clear-all-odontogram');
+    if (btnClearAllOd) {
+        btnClearAllOd.onclick = async () => {
+            const result = await Swal.fire({
+                title: '¿Está seguro de borrar todo?',
+                text: 'Esta acción limpiará por completo el odontograma y el presupuesto generado.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, borrar todo',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#64748b'
+            });
+
+            if (result.isConfirmed) {
+                currentBudgetItems = [];
+                if (window.odontogram) {
+                    window.odontogram.setData({});
+                }
+                const activeId = getActivePatientId();
+                if (activeId) {
+                    const patients = await SupabaseDataService.getPatients();
+                    const patient = patients.find(p => String(p.id) === String(activeId));
+                    if (patient && patient.metadata) {
+                        delete patient.metadata.draftBudget;
+                        patient.odontogramData = {};
+                        await SupabaseDataService.savePatient(patient);
+                    }
+                }
+                localStorage.removeItem('dental_anonymous_odontogram_data');
+                localStorage.removeItem('dental_anonymous_draft_budget');
+                renderBudgetTable();
+                Swal.fire({ icon: 'success', title: 'Odontograma y presupuesto limpiados', timer: 1500, showConfirmButton: false });
+            }
+        };
+    }
+
     document.querySelectorAll('.tool-btn').forEach(btn => {
         btn.onclick = function(e) {
             e.stopPropagation();
