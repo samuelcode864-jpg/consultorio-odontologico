@@ -18,7 +18,7 @@ class SignaturePad {
     }
 
     setupCanvas() {
-        this.ctx.strokeStyle = '#00f2fe'; // Cyan digital ink
+        this.ctx.strokeStyle = '#000000'; // Black digital ink
         this.ctx.lineWidth = 2.5;
         this.ctx.lineCap = 'round';
         this.ctx.lineJoin = 'round';
@@ -79,6 +79,10 @@ class SignaturePad {
     clear() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.hasDrawn = false;
+        this.ctx.strokeStyle = '#000000';
+        this.ctx.lineWidth = 2.5;
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
     }
 
     loadFromDataURL(dataUrl) {
