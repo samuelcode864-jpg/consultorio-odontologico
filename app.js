@@ -7167,6 +7167,19 @@ function initGlobalEvents() {
         };
     }
 
+    async function isCurrentBudgetApproved() {
+        if (!activeEditingBudgetId) return false;
+        try {
+            const invoices = await SupabaseDataService.getInvoices();
+            const budget = invoices.find(inv => String(inv.id) === String(activeEditingBudgetId));
+            if (!budget) return false;
+            const status = String(budget.status).toLowerCase();
+            return status === 'aprobado' || status === 'approved' || status === 'completada' || status === 'finalizado';
+        } catch(e) {
+            return false;
+        }
+    }
+
     const btnBillBudgetDirect = document.getElementById('btn-bill-budget-direct');
     if (btnBillBudgetDirect) {
         btnBillBudgetDirect.onclick = async () => {
@@ -7177,6 +7190,16 @@ function initGlobalEvents() {
             }
             if (currentBudgetItems.length === 0) {
                 Swal.fire({ icon: 'warning', title: 'Presupuesto vacío', text: 'Agregue tratamientos al presupuesto.' });
+                return;
+            }
+
+            const approved = await isCurrentBudgetApproved();
+            if (!approved) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Presupuesto no guardado / aprobado',
+                    text: 'Debe guardar y aprobar este presupuesto antes de poder facturarlo.'
+                });
                 return;
             }
 
@@ -7215,20 +7238,21 @@ function initGlobalEvents() {
     const btnCloseFinancialDirect = document.getElementById('btn-close-financial-direct');
     if (btnCloseFinancialDirect) {
         btnCloseFinancialDirect.onclick = async () => {
-            if (activeEditingBudgetId) {
-                await window.closeBudgetFinanciallyDirect(activeEditingBudgetId);
-                // Go back to the budget list view
-                const listContainer = document.getElementById('odontogram-list-container');
-                const editorContainer = document.getElementById('odontogram-editor-container');
-                if (listContainer) listContainer.classList.remove('hidden');
-                if (editorContainer) editorContainer.classList.add('hidden');
-            } else {
+            const approved = await isCurrentBudgetApproved();
+            if (!approved) {
                 Swal.fire({
-                    icon: 'info',
-                    title: 'Presupuesto no guardado',
-                    text: 'Por favor apruebe o guarde el presupuesto primero para asignarle un número de control.'
+                    icon: 'warning',
+                    title: 'Presupuesto no guardado / aprobado',
+                    text: 'Debe guardar y aprobar este presupuesto antes de poder finalizarlo.'
                 });
+                return;
             }
+
+            await window.closeBudgetFinanciallyDirect(activeEditingBudgetId);
+            const listContainer = document.getElementById('odontogram-list-container');
+            const editorContainer = document.getElementById('odontogram-editor-container');
+            if (listContainer) listContainer.classList.remove('hidden');
+            if (editorContainer) editorContainer.classList.add('hidden');
         };
     }
 
