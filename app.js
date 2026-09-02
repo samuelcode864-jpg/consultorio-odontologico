@@ -9503,7 +9503,25 @@ async function renderBillingView() {
     };
 
     // Listeners for selectors to update live preview
-    patientSelect.onchange = () => refreshBillingLivePreview();
+    patientSelect.onchange = async () => {
+        const pId = patientSelect.value;
+        if (pId) {
+            const invoices = await SupabaseDataService.getInvoices();
+            const patientInvoices = invoices.filter(i => String(i.patientId) === String(pId));
+            const latestInvoice = patientInvoices.find(i => i.status === 'Aprobado') || patientInvoices[patientInvoices.length - 1];
+            if (latestInvoice && latestInvoice.items && latestInvoice.items.length > 0) {
+                billingItems = latestInvoice.items.map(item => ({
+                    code: item.code || item.serviceCode || (item.tooth ? `PZA-${item.tooth}` : 'MANUAL'),
+                    name: item.name,
+                    price: item.price || item.priceUSD || 0,
+                    hygienistBonus: item.hygienistBonus || 0,
+                    qty: 1
+                }));
+                renderBillingItemsTable();
+            }
+        }
+        await refreshBillingLivePreview();
+    };
     assistantSelect.onchange = () => refreshBillingLivePreview();
     document.getElementById('bill-currency').onchange = () => updateBillingTotals();
     document.getElementById('bill-terms').onchange = () => updateBillingTotals();
@@ -9514,7 +9532,7 @@ async function renderBillingView() {
     // Auto-load current budget items if available on entry
     if (billingItems.length === 0 && currentBudgetItems.length > 0) {
         billingItems = currentBudgetItems.map(item => ({
-            code: item.serviceCode || 'CUSTOM',
+            code: item.serviceCode || (item.tooth ? `PZA-${item.tooth}` : 'MANUAL'),
             name: item.name,
             price: item.price * (1 - (item.discount || 0) / 100),
             hygienistBonus: 0,
