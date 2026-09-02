@@ -754,28 +754,28 @@ h4 { font-size: 1rem; }
 }
 
 .stat-card {
-    background: linear-gradient(135deg, #031836 0%, #082c57 50%, #020f24 100%) !important;
-    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    background: linear-gradient(135deg, #0284c7 0%, #1d4ed8 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.28) !important;
     border-radius: 20px !important;
     padding: 24px !important;
     position: relative !important;
     overflow: hidden !important;
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+    box-shadow: 0 10px 28px rgba(2, 132, 199, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
     color: #ffffff !important;
 }
 
 .stat-card:hover {
     transform: translateY(-4px) !important;
-    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
-    border-color: rgba(56, 189, 248, 0.5) !important;
+    box-shadow: 0 16px 36px rgba(2, 132, 199, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.45) !important;
+    filter: brightness(1.05) !important;
 }
 
-.stat-card.border-cyan { border-top: 4px solid #38bdf8 !important; }
-.stat-card.border-green { border-top: 4px solid #34d399 !important; }
-.stat-card.border-purple { border-top: 4px solid #a78bfa !important; }
+.stat-card.border-cyan { border-top: 4px solid #ffffff !important; }
+.stat-card.border-green { border-top: 4px solid #4ade80 !important; }
+.stat-card.border-purple { border-top: 4px solid #c084fc !important; }
 .stat-card.border-red { border-top: 4px solid #f87171 !important; }
-.stat-card.border-blue { border-top: 4px solid #60a5fa !important; }
+.stat-card.border-blue { border-top: 4px solid #93c5fd !important; }
 
 .stat-header {
     display: flex !important;
@@ -783,13 +783,14 @@ h4 { font-size: 1rem; }
     align-items: center !important;
     font-size: 0.88rem !important;
     font-weight: 700 !important;
-    color: rgba(255, 255, 255, 0.9) !important;
+    color: #ffffff !important;
     margin-bottom: 12px !important;
     letter-spacing: 0.3px !important;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
 }
 
 .stat-header span {
-    color: rgba(255, 255, 255, 0.92) !important;
+    color: #ffffff !important;
     font-weight: 700 !important;
 }
 
@@ -801,66 +802,51 @@ h4 { font-size: 1rem; }
     align-items: center !important;
     justify-content: center !important;
     font-size: 1.15rem !important;
+    background: rgba(255, 255, 255, 0.22) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15) !important;
     backdrop-filter: blur(8px) !important;
     transition: all 0.2s ease !important;
 }
 
-.stat-icon.cyan {
-    background: rgba(56, 189, 248, 0.18) !important;
-    color: #38bdf8 !important;
-    border: 1px solid rgba(56, 189, 248, 0.35) !important;
-    box-shadow: 0 4px 14px rgba(56, 189, 248, 0.25) !important;
-}
-
-.stat-icon.green {
-    background: rgba(52, 211, 153, 0.18) !important;
-    color: #34d399 !important;
-    border: 1px solid rgba(52, 211, 153, 0.35) !important;
-    box-shadow: 0 4px 14px rgba(52, 211, 153, 0.25) !important;
-}
-
-.stat-icon.purple {
-    background: rgba(167, 139, 250, 0.18) !important;
-    color: #a78bfa !important;
-    border: 1px solid rgba(167, 139, 250, 0.35) !important;
-    box-shadow: 0 4px 14px rgba(167, 139, 250, 0.25) !important;
-}
-
-.stat-icon.red {
-    background: rgba(248, 113, 113, 0.18) !important;
-    color: #f87171 !important;
-    border: 1px solid rgba(248, 113, 113, 0.35) !important;
-    box-shadow: 0 4px 14px rgba(248, 113, 113, 0.25) !important;
-}
-
+.stat-icon.cyan,
+.stat-icon.green,
+.stat-icon.purple,
+.stat-icon.red,
 .stat-icon.blue {
-    background: rgba(96, 165, 250, 0.18) !important;
-    color: #60a5fa !important;
-    border: 1px solid rgba(96, 165, 250, 0.35) !important;
-    box-shadow: 0 4px 14px rgba(96, 165, 250, 0.25) !important;
+    background: rgba(255, 255, 255, 0.22) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15) !important;
 }
 
 .stat-card h2,
 .stat-card .stat-value {
-    font-size: 2.15rem !important;
+    font-size: 2.2rem !important;
     font-weight: 900 !important;
     letter-spacing: -0.03em !important;
     color: #ffffff !important;
     margin-bottom: 6px !important;
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
 }
 
 .stat-card small,
 .stat-card .stat-subtext,
 .stat-card .text-muted {
     font-size: 0.82rem !important;
-    color: rgba(255, 255, 255, 0.85) !important;
+    color: rgba(255, 255, 255, 0.95) !important;
     font-weight: 600 !important;
     display: inline-block !important;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
 }
 
 .trend.up {
-    color: #4ade80 !important;
+    color: #ffffff !important;
+    background: rgba(16, 185, 129, 0.35) !important;
+    padding: 3px 8px !important;
+    border-radius: 8px !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
     font-size: 0.82rem !important;
     font-weight: 700 !important;
 }
