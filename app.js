@@ -9509,8 +9509,8 @@ function buildMedicalDocumentHTML(opts) {
                 </div>
             </div>
 
-            <!-- 2. 3-Column Info Cards -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin-bottom: 6px; font-size: 0.74rem;">
+            <!-- 2. 3-Column Info Cards (Horizontal Row) -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 6px; font-size: 0.74rem;">
                 <!-- Col 1: Consultorio -->
                 <div>
                     <div style="font-size: 0.64rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1px;">CONSULTORIO ODONTOLÓGICO</div>
@@ -9551,8 +9551,8 @@ function buildMedicalDocumentHTML(opts) {
                 </tbody>
             </table>
 
-            <!-- 4. Terms and Totals Split Section -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; margin-bottom: 6px; align-items: start;">
+            <!-- 4. Terms and Totals Split Section (Horizontal 2-Column Row) -->
+            <div style="display: grid; grid-template-columns: 1.25fr 1fr; gap: 8px; margin-bottom: 6px; align-items: start;">
                 <!-- Left: Terms & Banking Box -->
                 <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px; padding: 6px 8px; font-size: 0.72rem; line-height: 1.2;">
                     <strong style="font-size: 0.76rem; color: #0f172a; display: block; margin-bottom: 2px;">Términos y Datos de Pago</strong>
