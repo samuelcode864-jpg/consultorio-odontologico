@@ -5818,6 +5818,25 @@ function initGlobalEvents() {
         btn.onclick = () => closeModal(btn.dataset.close);
     });
 
+    // Close modal when clicking backdrop outside modal dialog
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                overlay.classList.add('hidden');
+            }
+        });
+    });
+
+    // Close modal when pressing ESC key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' || e.key === 'Esc') {
+            const openModals = document.querySelectorAll('.modal-overlay:not(.hidden)');
+            openModals.forEach(m => {
+                m.classList.add('hidden');
+            });
+        }
+    });
+
     // Agenda View Filters and Search Handler
     document.querySelectorAll('#view-agenda .filter-btn').forEach(btn => {
         btn.onclick = async function() {
