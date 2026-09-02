@@ -1029,6 +1029,48 @@ window.navigateToTab = async function(tabName) {
     } else if (tabName === 'help') {
         await renderHelpView();
     }
+
+    // Update floating budget bubble visibility upon navigation
+    if (window.updateFloatingBudgetBubble) window.updateFloatingBudgetBubble();
+};
+
+window.updateFloatingBudgetBubble = function() {
+    const bubble = document.getElementById('floating-budget-bubble');
+    if (!bubble) return;
+
+    const currentActiveView = document.querySelector('.tab-view.active');
+    const currentTab = currentActiveView ? currentActiveView.id.replace('view-', '') : '';
+
+    const hasDraft = (typeof currentBudgetItems !== 'undefined' && currentBudgetItems && currentBudgetItems.length > 0) || window.currentEditingBudgetId || window.hasActiveDraftBudget;
+
+    if (currentTab !== 'odontogram' && hasDraft) {
+        bubble.classList.remove('hidden');
+        const subtitle = document.getElementById('floating-budget-subtitle');
+        if (subtitle) {
+            if (window.currentEditingBudgetId) {
+                subtitle.textContent = `Editando ${window.currentEditingBudgetId} (Clic para retomar)`;
+            } else if (typeof currentBudgetItems !== 'undefined' && currentBudgetItems && currentBudgetItems.length > 0) {
+                subtitle.textContent = `${currentBudgetItems.length} servicio(s) cargado(s)`;
+            } else {
+                subtitle.textContent = `Clic para retomar`;
+            }
+        }
+    } else {
+        bubble.classList.add('hidden');
+    }
+};
+
+window.returnToActiveBudgetView = function() {
+    window.navigateToTab('odontogram');
+    const bubble = document.getElementById('floating-budget-bubble');
+    if (bubble) bubble.classList.add('hidden');
+};
+
+window.dismissFloatingBudgetBubble = function() {
+    window.hasActiveDraftBudget = false;
+    window.currentEditingBudgetId = null;
+    const bubble = document.getElementById('floating-budget-bubble');
+    if (bubble) bubble.classList.add('hidden');
 };
 
 function initNavigation() {
@@ -1765,6 +1807,7 @@ async function renderOdontogramView() {
                 }
                 localStorage.removeItem('dental_anonymous_odontogram_data');
                 localStorage.removeItem('dental_anonymous_draft_budget');
+                if (window.dismissFloatingBudgetBubble) window.dismissFloatingBudgetBubble();
                 renderBudgetTable();
                 Swal.fire({ icon: 'success', title: 'Odontograma y presupuesto limpiados', timer: 1500, showConfirmButton: false });
             }
@@ -6771,6 +6814,7 @@ function initGlobalEvents() {
                 document.getElementById('budget-discount-input').value = '0';
                 if (window.doctorSigPad) window.doctorSigPad.clear();
                 if (window.patientSigPad) window.patientSigPad.clear();
+                if (window.dismissFloatingBudgetBubble) window.dismissFloatingBudgetBubble();
 
                 await renderBudgetListView();
 
@@ -7158,6 +7202,7 @@ function initGlobalEvents() {
                 document.getElementById('budget-discount-input').value = '0';
                 if (window.doctorSigPad) window.doctorSigPad.clear();
                 if (window.patientSigPad) window.patientSigPad.clear();
+                if (window.dismissFloatingBudgetBubble) window.dismissFloatingBudgetBubble();
 
                 await renderBudgetListView();
                 

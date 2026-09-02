@@ -3467,16 +3467,24 @@
                 </div>
             </div>
         </div>
+    <!-- BURBUJA FLOTANTE DE PRESUPUESTO EN CURSO -->
+    <div id="floating-budget-bubble" class="hidden" onclick="window.returnToActiveBudgetView()" title="Regresar al Presupuesto en curso" style="position: fixed; bottom: 25px; right: 25px; z-index: 9999; display: flex; align-items: center; gap: 10px; background: linear-gradient(135deg, #0d9488 0%, #0891b2 100%); color: white; padding: 10px 18px; border-radius: 50px; box-shadow: 0 10px 25px rgba(13, 148, 136, 0.4); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; border: 2px solid #ffffff;">
+        <i class="fa-solid fa-file-invoice-dollar" style="font-size: 1.3rem; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));"></i>
+        <div style="display: flex; flex-direction: column; line-height: 1.2;">
+            <span style="font-weight: 800; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.5px;">Presupuesto en curso</span>
+            <small id="floating-budget-subtitle" style="font-size: 0.72rem; opacity: 0.9;">Clic para retomar</small>
+        </div>
+        <span style="display: inline-block; width: 10px; height: 10px; background: #10b981; border-radius: 50%; border: 2px solid white; margin-left: 4px; box-shadow: 0 0 8px #10b981;"></span>
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=172"></script>
-    <script src="supabaseClient.js?v=172"></script>
-    <script src="odontogram.js?v=172"></script>
-    <script src="signature.js?v=172"></script>
-    <script src="whatsapp.js?v=172"></script>
-    <script src="kardex.js?v=172"></script>
-    <script src="app.js?v=172"></script>
-    <script src="tutorial.js?v=172"></script>
+    <script src="seededData.js?v=173"></script>
+    <script src="supabaseClient.js?v=173"></script>
+    <script src="odontogram.js?v=173"></script>
+    <script src="signature.js?v=173"></script>
+    <script src="whatsapp.js?v=173"></script>
+    <script src="kardex.js?v=173"></script>
+    <script src="app.js?v=173"></script>
+    <script src="tutorial.js?v=173"></script>
 </body>
 </html>
