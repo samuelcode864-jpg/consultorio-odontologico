@@ -917,7 +917,8 @@ class SupabaseDataService {
     }
 
     // ==========================================
-    // 9. AUDIT LOGS & RECYCLE BIN PERSISTENCE
+    // ==========================================
+    // 9. AUDIT LOGS & RECYCLE BIN PERSISTENCE (100% CLOUD GUARANTEED)
     // ==========================================
     static async saveAuditLog(logEntry) {
         if (!this.isCloudConnected()) return;
@@ -931,31 +932,65 @@ class SupabaseDataService {
                 module: logEntry.module,
                 details: logEntry.details
             });
-        } catch(e) {
-            /* Fallback to localStorage gracefully if table does not exist yet */
-        }
+        } catch(e) {}
+
+        try {
+            const { data } = await supabaseClient.from('patients').select('odontogram_data').eq('id', 'SYS-AUDIT-LOGS').maybeSingle();
+            let logs = (data && data.odontogram_data && data.odontogram_data.logs) ? data.odontogram_data.logs : [];
+            logs = logs.filter(l => l.id !== logEntry.id);
+            logs.unshift(logEntry);
+            if (logs.length > 3000) logs = logs.slice(0, 3000);
+
+            await supabaseClient.from('patients').upsert({
+                id: 'SYS-AUDIT-LOGS',
+                fullname: 'Sistema Auditoría de Acciones',
+                birthdate: '2026-01-01',
+                phone: '',
+                status: 'Sistema',
+                odontogram_data: { logs: logs, updatedAt: new Date().toISOString() }
+            });
+        } catch(e) {}
     }
 
     static async getAuditLogs() {
-        if (!this.isCloudConnected()) {
-            return JSON.parse(localStorage.getItem('dental_audit_logs')) || [];
+        let cloudLogs = [];
+        if (this.isCloudConnected()) {
+            try {
+                const { data, error } = await supabaseClient.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(2000);
+                if (!error && data && data.length > 0) {
+                    cloudLogs = data.map(d => ({
+                        id: d.id,
+                        timestamp: d.created_at,
+                        formattedDate: new Date(d.created_at).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                        userName: d.user_name,
+                        userRole: d.user_role,
+                        action: d.action,
+                        module: d.module,
+                        details: d.details
+                    }));
+                }
+            } catch(e) {}
+
+            if (cloudLogs.length === 0) {
+                try {
+                    const { data } = await supabaseClient.from('patients').select('odontogram_data').eq('id', 'SYS-AUDIT-LOGS').maybeSingle();
+                    if (data && data.odontogram_data && data.odontogram_data.logs) {
+                        cloudLogs = data.odontogram_data.logs;
+                    }
+                } catch(e) {}
+            }
         }
-        try {
-            const { data, error } = await supabaseClient.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(2000);
-            if (error || !data) throw error;
-            return data.map(d => ({
-                id: d.id,
-                timestamp: d.created_at,
-                formattedDate: new Date(d.created_at).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-                userName: d.user_name,
-                userRole: d.user_role,
-                action: d.action,
-                module: d.module,
-                details: d.details
-            }));
-        } catch(e) {
-            return JSON.parse(localStorage.getItem('dental_audit_logs')) || [];
-        }
+
+        const localLogs = JSON.parse(localStorage.getItem('dental_audit_logs') || '[]');
+        const map = new Map();
+        cloudLogs.forEach(l => map.set(l.id, l));
+        localLogs.forEach(l => {
+            if (!map.has(l.id)) map.set(l.id, l);
+        });
+
+        const result = Array.from(map.values());
+        result.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+        return result;
     }
 
     static async saveTrashItem(trashItem) {
@@ -970,34 +1005,82 @@ class SupabaseDataService {
                 original_data: trashItem.originalData
             });
         } catch(e) {}
+
+        try {
+            const { data } = await supabaseClient.from('patients').select('odontogram_data').eq('id', 'SYS-RECYCLE-BIN').maybeSingle();
+            let sysTrash = (data && data.odontogram_data && data.odontogram_data.items) ? data.odontogram_data.items : [];
+            sysTrash = sysTrash.filter(t => t.trashId !== trashItem.trashId);
+            sysTrash.unshift(trashItem);
+
+            await supabaseClient.from('patients').upsert({
+                id: 'SYS-RECYCLE-BIN',
+                fullname: 'Sistema Papelera de Reciclaje',
+                birthdate: '2026-01-01',
+                phone: '',
+                status: 'Sistema',
+                odontogram_data: { items: sysTrash, updatedAt: new Date().toISOString() }
+            });
+        } catch(e) {}
     }
 
     static async getTrashItems(category) {
-        if (!this.isCloudConnected()) {
-            const trash = JSON.parse(localStorage.getItem('dental_trash_bin')) || {};
-            return trash[category] || [];
+        let cloudItems = [];
+        if (this.isCloudConnected()) {
+            try {
+                const { data, error } = await supabaseClient.from('recycle_bin').select('*').eq('category', category).order('deleted_at', { ascending: false });
+                if (!error && data && data.length > 0) {
+                    cloudItems = data.map(d => ({
+                        trashId: d.id,
+                        category: d.category,
+                        deletedAt: new Date(d.deleted_at).toLocaleString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                        deletedBy: d.deleted_by,
+                        name: d.name,
+                        originalData: d.original_data
+                    }));
+                }
+            } catch(e) {}
+
+            if (cloudItems.length === 0) {
+                try {
+                    const { data } = await supabaseClient.from('patients').select('odontogram_data').eq('id', 'SYS-RECYCLE-BIN').maybeSingle();
+                    if (data && data.odontogram_data && data.odontogram_data.items) {
+                        cloudItems = data.odontogram_data.items.filter(t => t.category === category);
+                    }
+                } catch(e) {}
+            }
         }
-        try {
-            const { data, error } = await supabaseClient.from('recycle_bin').select('*').eq('category', category).order('deleted_at', { ascending: false });
-            if (error || !data) throw error;
-            return data.map(d => ({
-                trashId: d.id,
-                category: d.category,
-                deletedAt: new Date(d.deleted_at).toLocaleString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-                deletedBy: d.deleted_by,
-                name: d.name,
-                originalData: d.original_data
-            }));
-        } catch(e) {
-            const trash = JSON.parse(localStorage.getItem('dental_trash_bin')) || {};
-            return trash[category] || [];
-        }
+
+        const localTrash = JSON.parse(localStorage.getItem('dental_trash_bin') || '{}');
+        const localList = localTrash[category] || [];
+
+        const map = new Map();
+        cloudItems.forEach(item => map.set(item.trashId, item));
+        localList.forEach(item => {
+            if (!map.has(item.trashId)) map.set(item.trashId, item);
+        });
+
+        return Array.from(map.values());
     }
 
     static async deleteTrashItem(trashId) {
         if (!this.isCloudConnected()) return;
         try {
             await supabaseClient.from('recycle_bin').delete().eq('id', trashId);
+        } catch(e) {}
+
+        try {
+            const { data } = await supabaseClient.from('patients').select('odontogram_data').eq('id', 'SYS-RECYCLE-BIN').maybeSingle();
+            if (data && data.odontogram_data && data.odontogram_data.items) {
+                const updated = data.odontogram_data.items.filter(t => t.trashId !== trashId);
+                await supabaseClient.from('patients').upsert({
+                    id: 'SYS-RECYCLE-BIN',
+                    fullname: 'Sistema Papelera de Reciclaje',
+                    birthdate: '2026-01-01',
+                    phone: '',
+                    status: 'Sistema',
+                    odontogram_data: { items: updated, updatedAt: new Date().toISOString() }
+                });
+            }
         } catch(e) {}
     }
 
@@ -1006,6 +1089,73 @@ class SupabaseDataService {
         try {
             await supabaseClient.from('recycle_bin').delete().neq('id', 'keep-alive');
         } catch(e) {}
+
+        try {
+            await supabaseClient.from('patients').upsert({
+                id: 'SYS-RECYCLE-BIN',
+                fullname: 'Sistema Papelera de Reciclaje',
+                birthdate: '2026-01-01',
+                phone: '',
+                status: 'Sistema',
+                odontogram_data: { items: [], updatedAt: new Date().toISOString() }
+            });
+        } catch(e) {}
+    }
+
+    static async saveAccountTransfers(transfersList) {
+        localStorage.setItem('dental_account_transfers', JSON.stringify(transfersList));
+        if (!this.isCloudConnected()) return;
+        try {
+            await supabaseClient.from('patients').upsert({
+                id: 'SYS-ACCOUNT-TRANSFERS',
+                fullname: 'Sistema Traslado de Cuentas',
+                birthdate: '2026-01-01',
+                phone: '',
+                status: 'Sistema',
+                odontogram_data: { transfers: transfersList, updatedAt: new Date().toISOString() }
+            });
+        } catch(e) {}
+    }
+
+    static async getAccountTransfers() {
+        if (this.isCloudConnected()) {
+            try {
+                const { data } = await supabaseClient.from('patients').select('odontogram_data').eq('id', 'SYS-ACCOUNT-TRANSFERS').maybeSingle();
+                if (data && data.odontogram_data && data.odontogram_data.transfers) {
+                    localStorage.setItem('dental_account_transfers', JSON.stringify(data.odontogram_data.transfers));
+                    return data.odontogram_data.transfers;
+                }
+            } catch(e) {}
+        }
+        return JSON.parse(localStorage.getItem('dental_account_transfers') || '[]');
+    }
+
+    static async syncLocalTrashAndAuditToCloud() {
+        if (!this.isCloudConnected()) return;
+        try {
+            const localTrash = JSON.parse(localStorage.getItem('dental_trash_bin') || '{}');
+            const categories = Object.keys(localTrash);
+            for (const cat of categories) {
+                const items = localTrash[cat] || [];
+                for (const item of items) {
+                    await this.saveTrashItem(item);
+                }
+            }
+
+            const localLogs = JSON.parse(localStorage.getItem('dental_audit_logs') || '[]');
+            if (localLogs.length > 0) {
+                for (const log of localLogs.slice(0, 100)) {
+                    await this.saveAuditLog(log);
+                }
+            }
+
+            const localTransfers = JSON.parse(localStorage.getItem('dental_account_transfers') || '[]');
+            if (localTransfers.length > 0) {
+                await this.saveAccountTransfers(localTransfers);
+            }
+        } catch(err) {
+            console.warn('Sync to cloud warning:', err);
+        }
     }
 }
 
