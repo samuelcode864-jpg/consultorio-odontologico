@@ -754,93 +754,116 @@ h4 { font-size: 1rem; }
 }
 
 .stat-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    padding: 22px;
-    position: relative;
-    overflow: hidden;
-    box-shadow: var(--shadow-soft);
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    background: linear-gradient(135deg, #031836 0%, #082c57 50%, #020f24 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    border-radius: 20px !important;
+    padding: 24px !important;
+    position: relative !important;
+    overflow: hidden !important;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    color: #ffffff !important;
 }
 
 .stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-elevated);
-    border-color: rgba(2, 132, 199, 0.3);
+    transform: translateY(-4px) !important;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+    border-color: rgba(56, 189, 248, 0.5) !important;
 }
 
-.stat-card.border-cyan { border-top: 4px solid var(--primary-cyan); }
-.stat-card.border-green { border-top: 4px solid var(--status-proposed); }
-.stat-card.border-purple { border-top: 4px solid var(--accent-purple); }
-.stat-card.border-red { border-top: 4px solid var(--status-patology); }
-.stat-card.border-blue { border-top: 4px solid #3b82f6; }
+.stat-card.border-cyan { border-top: 4px solid #38bdf8 !important; }
+.stat-card.border-green { border-top: 4px solid #34d399 !important; }
+.stat-card.border-purple { border-top: 4px solid #a78bfa !important; }
+.stat-card.border-red { border-top: 4px solid #f87171 !important; }
+.stat-card.border-blue { border-top: 4px solid #60a5fa !important; }
 
 .stat-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.84rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    margin-bottom: 12px;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    font-size: 0.88rem !important;
+    font-weight: 700 !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+    margin-bottom: 12px !important;
+    letter-spacing: 0.3px !important;
+}
+
+.stat-header span {
+    color: rgba(255, 255, 255, 0.92) !important;
+    font-weight: 700 !important;
 }
 
 .stat-icon {
-    width: 38px;
-    height: 38px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.05rem;
-    transition: all 0.2s ease;
+    width: 42px !important;
+    height: 42px !important;
+    border-radius: 12px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.15rem !important;
+    backdrop-filter: blur(8px) !important;
+    transition: all 0.2s ease !important;
 }
 
 .stat-icon.cyan {
-    background: linear-gradient(135deg, rgba(2, 132, 199, 0.15) 0%, rgba(37, 99, 235, 0.08) 100%);
-    color: var(--primary-cyan);
-    border: 1px solid rgba(2, 132, 199, 0.2);
-    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.12);
+    background: rgba(56, 189, 248, 0.18) !important;
+    color: #38bdf8 !important;
+    border: 1px solid rgba(56, 189, 248, 0.35) !important;
+    box-shadow: 0 4px 14px rgba(56, 189, 248, 0.25) !important;
 }
 
 .stat-icon.green {
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.08) 100%);
-    color: var(--status-proposed);
-    border: 1px solid rgba(16, 185, 129, 0.2);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.12);
+    background: rgba(52, 211, 153, 0.18) !important;
+    color: #34d399 !important;
+    border: 1px solid rgba(52, 211, 153, 0.35) !important;
+    box-shadow: 0 4px 14px rgba(52, 211, 153, 0.25) !important;
 }
 
 .stat-icon.purple {
-    background: linear-gradient(135deg, rgba(124, 58, 237, 0.15) 0%, rgba(139, 92, 246, 0.08) 100%);
-    color: var(--accent-purple);
-    border: 1px solid rgba(124, 58, 237, 0.2);
-    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.12);
+    background: rgba(167, 139, 250, 0.18) !important;
+    color: #a78bfa !important;
+    border: 1px solid rgba(167, 139, 250, 0.35) !important;
+    box-shadow: 0 4px 14px rgba(167, 139, 250, 0.25) !important;
 }
 
 .stat-icon.red {
-    background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.08) 100%);
-    color: var(--status-patology);
-    border: 1px solid rgba(239, 68, 68, 0.2);
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.12);
+    background: rgba(248, 113, 113, 0.18) !important;
+    color: #f87171 !important;
+    border: 1px solid rgba(248, 113, 113, 0.35) !important;
+    box-shadow: 0 4px 14px rgba(248, 113, 113, 0.25) !important;
 }
 
 .stat-icon.blue {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.08) 100%);
-    color: #3b82f6;
-    border: 1px solid rgba(59, 130, 246, 0.2);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.12);
+    background: rgba(96, 165, 250, 0.18) !important;
+    color: #60a5fa !important;
+    border: 1px solid rgba(96, 165, 250, 0.35) !important;
+    box-shadow: 0 4px 14px rgba(96, 165, 250, 0.25) !important;
 }
 
-.stat-card h2 {
-    font-size: 2.05rem;
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    color: var(--text-heading);
-    margin-bottom: 4px;
+.stat-card h2,
+.stat-card .stat-value {
+    font-size: 2.15rem !important;
+    font-weight: 900 !important;
+    letter-spacing: -0.03em !important;
+    color: #ffffff !important;
+    margin-bottom: 6px !important;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
 }
 
-.trend.up { color: var(--status-proposed); font-size: 0.8rem; font-weight: 600; }
+.stat-card small,
+.stat-card .stat-subtext,
+.stat-card .text-muted {
+    font-size: 0.82rem !important;
+    color: rgba(255, 255, 255, 0.85) !important;
+    font-weight: 600 !important;
+    display: inline-block !important;
+}
+
+.trend.up {
+    color: #4ade80 !important;
+    font-size: 0.82rem !important;
+    font-weight: 700 !important;
+}
 
 .grid-2-col {
     display: grid;
