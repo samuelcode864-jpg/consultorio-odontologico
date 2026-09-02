@@ -3126,21 +3126,43 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
         }
     }
 
+    // Bind click events on subtabs
     document.querySelectorAll('#view-ehr .subtab-btn').forEach(btn => {
         btn.onclick = function() {
             document.querySelectorAll('#view-ehr .subtab-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('#view-ehr .subtab-content').forEach(c => c.classList.remove('active'));
             
             this.classList.add('active');
-            const target = document.getElementById(`subtab-${this.dataset.subtab}`);
+            const subtabVal = this.dataset.subtab;
+            window.currentEHRSubtab = subtabVal;
+            localStorage.setItem('dental_ehr_subtab', subtabVal);
+
+            const target = document.getElementById(`subtab-${subtabVal}`);
             if (target) target.classList.add('active');
 
-            if (this.dataset.subtab === 'odontogram-comp') {
+            if (subtabVal === 'odontogram-comp') {
                 if (window.ehrInitialOdontogram) window.ehrInitialOdontogram.render();
                 if (window.ehrCurrentOdontogram) window.ehrCurrentOdontogram.render();
             }
         };
     });
+
+    // Auto-restore active subtab state (e.g. 'interconsultation', 'summary', etc.) without resetting
+    const savedSubtab = localStorage.getItem('dental_ehr_subtab') || window.currentEHRSubtab || 'summary';
+    const targetSubtabBtn = document.querySelector(`#view-ehr .subtab-btn[data-subtab="${savedSubtab}"]`);
+    if (targetSubtabBtn) {
+        document.querySelectorAll('#view-ehr .subtab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('#view-ehr .subtab-content').forEach(c => c.classList.remove('active'));
+        
+        targetSubtabBtn.classList.add('active');
+        const targetPane = document.getElementById(`subtab-${savedSubtab}`);
+        if (targetPane) targetPane.classList.add('active');
+
+        if (savedSubtab === 'odontogram-comp') {
+            if (window.ehrInitialOdontogram) window.ehrInitialOdontogram.render();
+            if (window.ehrCurrentOdontogram) window.ehrCurrentOdontogram.render();
+        }
+    }
 }
 
 window.currentEHRGalleryFilter = 'all';
@@ -12445,6 +12467,8 @@ window.saveInterconsultationFull = async function() {
         await SupabaseDataService.savePatient(p);
 
         closeModal('modal-interconsultation');
+        localStorage.setItem('dental_ehr_subtab', 'interconsultation');
+        window.currentEHRSubtab = 'interconsultation';
         await renderEHRView();
 
         Swal.fire({
@@ -12498,6 +12522,8 @@ window.saveRecipeAndIndicationsFinal = async function() {
 
         closeModal('modal-recipe-and-indications');
         if (document.getElementById('modal-interconsultation')) closeModal('modal-interconsultation');
+        localStorage.setItem('dental_ehr_subtab', 'interconsultation');
+        window.currentEHRSubtab = 'interconsultation';
         await renderEHRView();
 
         Swal.fire({
