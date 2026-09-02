@@ -7768,38 +7768,176 @@ async function renderSettingsView() {
     }
 }
 
+function validateSessionsChronology(container, changedSessionNum = 1) {
+    if (!container) return;
+    const inputs = Array.from(container.querySelectorAll('.session-date-input'));
+    let prevDateStr = '';
+
+    inputs.forEach((input) => {
+        const sNum = parseInt(input.dataset.session);
+
+        if (prevDateStr) {
+            const prevD = new Date(prevDateStr + 'T00:00:00');
+            prevD.setDate(prevD.getDate() + 1);
+            const minStr = prevD.toISOString().split('T')[0];
+            input.min = minStr;
+
+            if (input.value && input.value <= prevDateStr) {
+                if (sNum === changedSessionNum || sNum > changedSessionNum) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Incongruencia Cronológica de Fechas',
+                        html: `La <strong>Sesión N° ${sNum}</strong> debe realizarse en una fecha estrictamente posterior a la <strong>Sesión N° ${sNum - 1}</strong> (${prevDateStr}).<br><br>Por favor seleccione una fecha posterior.`
+                    });
+                    input.value = '';
+                    const infoDiv = document.getElementById(`conflict-info-${sNum}`);
+                    if (infoDiv) {
+                        infoDiv.style.display = 'none';
+                        infoDiv.innerHTML = '';
+                    }
+                }
+            }
+        } else {
+            input.removeAttribute('min');
+        }
+
+        if (input.value) {
+            prevDateStr = input.value;
+        }
+    });
+}
+
 async function updateConflictInfoForSession(dateVal, sessionNum) {
     const infoDiv = document.getElementById(`conflict-info-${sessionNum}`);
+    const container = document.getElementById('plan-sessions-container');
+    const dateInput = container ? container.querySelector(`.session-date-input[data-session="${sessionNum}"]`) : null;
+    const timeSelect = container ? container.querySelector(`.session-time-select[data-session="${sessionNum}"]`) : null;
+
     if (!infoDiv) return;
 
     if (!dateVal) {
         infoDiv.innerHTML = '';
-        infoDiv.style.background = 'transparent';
-        infoDiv.style.border = 'none';
+        infoDiv.style.display = 'none';
+        if (dateInput) {
+            dateInput.style.borderColor = 'var(--border-color)';
+            dateInput.style.boxShadow = 'none';
+        }
         return;
     }
 
-    infoDiv.innerHTML = '<span style="color:var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Consultando agenda...</span>';
-    infoDiv.style.background = 'rgba(0,0,0,0.02)';
-    infoDiv.style.border = '1px solid var(--border-color)';
+    infoDiv.style.display = 'block';
+    infoDiv.innerHTML = '<span style="color:var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Sincronizando disponibilidad con Módulo de Citas...</span>';
 
     try {
         const appts = await SupabaseDataService.getAppointments();
         const dailyAppts = appts.filter(a => a.date === dateVal && a.status !== 'Cancelada');
 
-        if (dailyAppts.length === 0) {
-            infoDiv.innerHTML = '<span style="color:#059669; font-weight: 600;"><i class="fa-solid fa-circle-check"></i> Día Libre: Sin citas registradas para esta fecha.</span>';
-            infoDiv.style.background = 'rgba(5, 150, 105, 0.05)';
-            infoDiv.style.border = '1px solid rgba(5, 150, 105, 0.2)';
-        } else {
-            const times = dailyAppts.map(a => `<strong style="color:var(--text-main); font-weight:700;">${a.time}</strong> (${a.patientName})`).join(', ');
-            infoDiv.innerHTML = `<span style="color:#d97706; font-weight: 600;"><i class="fa-solid fa-calendar-check"></i> Citas ocupadas para esta fecha: ${times}</span>`;
-            infoDiv.style.background = 'rgba(217, 119, 6, 0.05)';
-            infoDiv.style.border = '1px solid rgba(217, 119, 6, 0.2)';
+        const timesArray = [
+            "08:00 AM", "08:30 AM", "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
+            "11:00 AM", "11:30 AM", "12:00 PM", "01:00 PM", "01:30 PM", "02:00 PM",
+            "02:30 PM", "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM", "05:00 PM"
+        ];
+
+        const totalSlots = timesArray.length;
+        const occupiedSlots = dailyAppts.length;
+        const freeSlots = Math.max(0, totalSlots - occupiedSlots);
+
+        const occupiedTimesMap = {};
+        dailyAppts.forEach(a => {
+            if (a.time) occupiedTimesMap[a.time] = a.patientName || 'Paciente';
+        });
+
+        // Actualizar opciones del selector de hora con semáforo (Rojo = Ocupado, Gris/Blanco = Libre, Azul = Seleccionado)
+        if (timeSelect) {
+            const currentSelectedTime = timeSelect.value;
+            let optionsHtml = '';
+
+            timesArray.forEach(t => {
+                const isOccupied = !!occupiedTimesMap[t];
+                const isSelected = (currentSelectedTime === t);
+
+                if (isOccupied) {
+                    // 🔴 Rojo: Horario tomado en el Módulo de Citas
+                    optionsHtml += `<option value="${t}" ${isSelected ? 'selected' : ''} style="color: #dc2626; font-weight: 700; background: #fef2f2;">🔴 ${t} — [OCUPADO: ${occupiedTimesMap[t]}]</option>`;
+                } else {
+                    // ⚪ Gris / 🔵 Azul: Disponible o Seleccionado
+                    if (isSelected) {
+                        optionsHtml += `<option value="${t}" selected style="color: #2563eb; font-weight: 700; background: #eff6ff;">🔵 ${t} — [SELECCIONADO]</option>`;
+                    } else {
+                        optionsHtml += `<option value="${t}" style="color: #475569; background: #ffffff;">⚪ ${t} — Libre</option>`;
+                    }
+                }
+            });
+
+            timeSelect.innerHTML = optionsHtml;
+
+            // Si el horario actualmente seleccionado está ocupado por otra cita, advertir y cambiar al próximo libre
+            if (occupiedTimesMap[currentSelectedTime]) {
+                const firstFree = timesArray.find(t => !occupiedTimesMap[t]);
+                if (firstFree) {
+                    timeSelect.value = firstFree;
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Horario Ocupado en la Agenda',
+                        html: `La hora <strong>${currentSelectedTime}</strong> ya fue tomada por la cita de <strong>${occupiedTimesMap[currentSelectedTime]}</strong>.<br><br>Se ha reasignado automáticamente al horario libre <strong>${firstFree}</strong>.`
+                    });
+                }
+            }
+
+            timeSelect.style.border = '2px solid #2563eb';
+            timeSelect.style.background = 'rgba(37, 99, 235, 0.05)';
+            timeSelect.style.color = '#1e3a8a';
+            timeSelect.style.fontWeight = '700';
         }
+
+        // Semáforo de disponibilidad para la Fecha (🔴 Rojo = 0 Libres, 🟠 Naranja = Pocos Cupos, 🟢 Verde = 100% Libre)
+        let badgeHtml = '';
+        let dateBorderColor = '#2563eb';
+
+        if (freeSlots === 0 || occupiedSlots >= totalSlots) {
+            dateBorderColor = '#ef4444';
+            badgeHtml = `
+                <div style="display:flex; align-items:center; justify-content:space-between; color:#b91c1c; font-weight:700; font-size:0.82rem;">
+                    <span><i class="fa-solid fa-circle-xmark text-red"></i> 🔴 FECHA SATURADA: Sin disponibilidad de agenda para este doctor.</span>
+                    <span class="badge-tag red">0 Cupos</span>
+                </div>
+            `;
+            infoDiv.style.background = 'rgba(239, 68, 68, 0.08)';
+            infoDiv.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+        } else if (freeSlots <= 6) {
+            dateBorderColor = '#f97316';
+            badgeHtml = `
+                <div style="display:flex; align-items:center; justify-content:space-between; color:#c2410c; font-weight:700; font-size:0.82rem;">
+                    <span><i class="fa-solid fa-triangle-exclamation text-amber"></i> 🟠 POCA DISPONIBILIDAD: Quedan solo ${freeSlots} cupos libres para este doctor.</span>
+                    <span class="badge-tag amber">${freeSlots} Libres</span>
+                </div>
+            `;
+            infoDiv.style.background = 'rgba(249, 115, 22, 0.08)';
+            infoDiv.style.border = '1px solid rgba(249, 115, 22, 0.3)';
+        } else {
+            dateBorderColor = '#10b981';
+            badgeHtml = `
+                <div style="display:flex; align-items:center; justify-content:space-between; color:#15803d; font-weight:700; font-size:0.82rem;">
+                    <span><i class="fa-solid fa-circle-check text-green"></i> 🟢 DÍA DISPONIBLE: Agenda 100% libre (${freeSlots} cupos disponibles).</span>
+                    <span class="badge-tag green">${freeSlots} Libres</span>
+                </div>
+            `;
+            infoDiv.style.background = 'rgba(16, 185, 129, 0.08)';
+            infoDiv.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+        }
+
+        infoDiv.innerHTML = badgeHtml;
+
+        // Selección activa en azul + borde según disponibilidad
+        if (dateInput) {
+            dateInput.style.border = `2px solid ${dateBorderColor}`;
+            dateInput.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.25)';
+            dateInput.style.fontWeight = '700';
+        }
+
     } catch (err) {
         console.error("Error checking conflict:", err);
-        infoDiv.innerHTML = '<span style="color:var(--text-red);">Error al verificar disponibilidad</span>';
+        infoDiv.innerHTML = '<span style="color:var(--text-red);">Error al verificar disponibilidad con Módulo de Citas</span>';
         infoDiv.style.background = 'rgba(239, 68, 68, 0.05)';
         infoDiv.style.border = '1px solid rgba(239, 68, 68, 0.2)';
     }
@@ -8049,6 +8187,9 @@ function renderSessionsPlanner() {
 
     container.innerHTML = html;
 
+    // Validate chronology and initial min limits
+    validateSessionsChronology(container, 1);
+
     // Attach listeners and check conflict immediately
     for (let i = 1; i <= sessionsCount; i++) {
         window.updateAccordionHeaderSummary(i);
@@ -8065,17 +8206,24 @@ function renderSessionsPlanner() {
             }
 
             dateInput.onchange = async () => {
+                validateSessionsChronology(container, i);
                 const infoDiv = document.getElementById(`conflict-info-${i}`);
                 if (infoDiv) {
                     infoDiv.style.display = dateInput.value ? 'block' : 'none';
                 }
-                await updateConflictInfoForSession(dateInput.value, i);
+                if (dateInput.value) {
+                    await updateConflictInfoForSession(dateInput.value, i);
+                }
                 window.updateAccordionHeaderSummary(i);
             };
         }
         
         if (timeSelect) {
             timeSelect.onchange = () => {
+                const dateInp = container.querySelector(`.session-date-input[data-session="${i}"]`);
+                if (dateInp && dateInp.value) {
+                    updateConflictInfoForSession(dateInp.value, i);
+                }
                 window.updateAccordionHeaderSummary(i);
             };
         }
