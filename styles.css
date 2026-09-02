@@ -279,11 +279,15 @@ h4 { font-size: 1rem; }
 }
 
 .nav-item.active {
-    background: linear-gradient(90deg, rgba(2, 132, 199, 0.14) 0%, rgba(37, 99, 235, 0.04) 100%);
-    color: var(--primary-cyan);
-    border-left: 4px solid var(--primary-cyan);
-    font-weight: 700;
-    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.08);
+    background: linear-gradient(135deg, #0284c7 0%, #1d4ed8 100%) !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    box-shadow: 0 6px 20px rgba(2, 132, 199, 0.35) !important;
+    border-left: none !important;
+}
+
+.nav-item.active i {
+    color: #ffffff !important;
 }
 
 .sidebar-footer {
@@ -856,15 +860,19 @@ h4 { font-size: 1rem; }
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
-    color: #ffffff;
-    box-shadow: 0 4px 15px rgba(2, 132, 199, 0.3);
+    background: linear-gradient(135deg, #0284c7 0%, #1d4ed8 100%) !important;
+    color: #ffffff !important;
+    border: none !important;
+    font-weight: 700 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 6px 20px rgba(2, 132, 199, 0.35) !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 22px rgba(2, 132, 199, 0.45);
-    filter: brightness(1.05);
+    transform: translateY(-2px) !important;
+    box-shadow: 0 10px 28px rgba(2, 132, 199, 0.5) !important;
+    filter: brightness(1.08) !important;
 }
 
 .btn-secondary {
@@ -1438,19 +1446,29 @@ body.dark-theme .timeline-item.timeline-item-attended {
 .modal-dialog.modal-sm { width: 420px; }
 
 .modal-header {
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    padding: 18px 24px !important;
+    background: linear-gradient(135deg, #02142e 0%, #062347 100%) !important;
+    color: #ffffff !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.modal-header h2, .modal-header h3, .modal-header h4 {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    margin: 0 !important;
 }
 
 .modal-close {
     background: none;
     border: none;
-    color: var(--text-muted);
+    color: rgba(255, 255, 255, 0.8) !important;
     font-size: 1.5rem;
     cursor: pointer;
+    transition: color 0.2s ease !important;
+}
+
+.modal-close:hover {
+    color: #ffffff !important;
 }
 
 .modal-body { padding: 20px; }
