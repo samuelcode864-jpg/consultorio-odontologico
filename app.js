@@ -1729,22 +1729,20 @@ async function renderOdontogramView() {
         const patients = await SupabaseDataService.getPatients();
         const patient = patients.find(p => p.id === activeId);
         if (patient) {
-            // Si estamos editando un presupuesto existente, cargamos sus datos/firma. Si es un NUEVO presupuesto, iniciamos limpios.
+            // Si estamos editando un presupuesto existente, cargamos sus datos/firma. Si es un NUEVO presupuesto, iniciamos 100% limpios desde cero.
             if (activeEditingBudgetId) {
                 window.odontogram.setData(patient.odontogramData || {});
                 if (patient.metadata && patient.metadata.patientSignature && window.patientSigPad) {
                     window.patientSigPad.loadFromDataURL(patient.metadata.patientSignature);
                 }
             } else {
-                // Nuevo presupuesto -> Odontograma y firma del paciente deben iniciar 100% LIMPIOS
-                if (window.odontogram && currentBudgetItems.length === 0) {
+                // Nuevo presupuesto -> Odontograma, firmas y lista de servicios deben iniciar 100% LIMPIOS desde cero al cambiar o elegir paciente
+                currentBudgetItems = [];
+                if (window.odontogram) {
                     window.odontogram.setData({});
                 }
                 if (window.patientSigPad) {
                     window.patientSigPad.clear();
-                }
-                if (patient.metadata && patient.metadata.draftBudget && currentBudgetItems.length === 0) {
-                    restoreDraftBudgetUI(patient.metadata.draftBudget);
                 }
             }
 
