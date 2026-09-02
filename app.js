@@ -6096,11 +6096,35 @@ function initGlobalEvents() {
         const fullname = `${firstname} ${lastname}`.trim();
         const birthdate = getVal('p-birthdate');
         const phone = getVal('p-mobile-phone');
+        const address = getVal('p-address');
+        const type = getVal('p-type') || 'Adulto';
+        const age = parseInt(getVal('p-age')) || 0;
 
-        if (!id || !firstname || !lastname || !birthdate || !phone) {
-            Swal.fire({ icon: 'warning', title: 'Campos requeridos', text: 'Por favor complete los campos obligatorios del Paso 1 (*)' });
+        if (!id || !firstname || !lastname || !birthdate || !phone || !address) {
+            Swal.fire({ 
+                icon: 'warning', 
+                title: 'Campos Requeridos Incompletos', 
+                text: 'Por favor complete todos los campos obligatorios del Paso 1 (Cédula, Nombres, Apellidos, Fecha de Nacimiento, WhatsApp y Dirección) para continuar.' 
+            });
             if (typeof window.setPatientStepperStep === 'function') window.setPatientStepperStep(1);
             return false;
+        }
+
+        if (type === 'Infantil' || (age > 0 && age < 18)) {
+            const repName = getVal('p-rep-name');
+            const repId = getVal('p-rep-id');
+            const repPhone = getVal('p-rep-phone');
+            const repRelation = getVal('p-rep-relation');
+
+            if (!repName || !repId || !repPhone || !repRelation) {
+                Swal.fire({ 
+                    icon: 'warning', 
+                    title: 'Representante Obligatorio', 
+                    text: 'El paciente es menor de edad. Por favor complete los datos del representante legal en el Paso 1 (Nombre, Cédula, Teléfono y Parentesco).' 
+                });
+                if (typeof window.setPatientStepperStep === 'function') window.setPatientStepperStep(1);
+                return false;
+            }
         }
 
         const allergies = Array.from(document.querySelectorAll('input[name="p-allergies"]:checked')).map(cb => cb.value);
@@ -6109,10 +6133,7 @@ function initGlobalEvents() {
         const emergencyContact = getVal('p-emergency');
 
         // Extract all detailed metadata fields
-        const type = getVal('p-type') || 'Adulto';
-        const age = parseInt(getVal('p-age')) || 0;
         const gender = getVal('p-gender') || 'Femenino';
-        const address = getVal('p-address');
         const mobilePhone = getVal('p-mobile-phone');
         const localPhone = getVal('p-local-phone');
         const workPhone = getVal('p-work-phone');
