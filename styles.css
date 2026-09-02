@@ -1514,16 +1514,20 @@ select, .form-select, select.form-control {
 .login-logo-container {
     width: 100% !important;
     text-align: center !important;
-    margin-bottom: 5px !important;
+    margin-bottom: 20px !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
 }
 
 .login-logo-img {
-    max-width: 280px !important;
-    width: 100% !important;
+    max-width: 175px !important;
+    max-height: 55px !important;
+    width: auto !important;
     height: auto !important;
-    margin-top: -35px !important;
-    margin-bottom: -35px !important;
-    filter: drop-shadow(0 4px 10px rgba(0, 180, 255, 0.25)) !important;
+    object-fit: contain !important;
+    margin: 0 auto !important;
+    filter: drop-shadow(0 2px 8px rgba(0, 180, 255, 0.2)) !important;
 }
 
 .login-form-new {

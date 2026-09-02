@@ -3908,21 +3908,32 @@ window.deleteAppointment = async function(apptId) {
         return;
     }
 
+    const appointments = await SupabaseDataService.getAppointments();
+    const appt = appointments.find(a => String(a.id) === String(apptId));
+
     Swal.fire({
-        title: '¿Eliminar cita?',
-        text: 'Se removerá de la agenda del consultorio.',
+        title: '¿Mover Cita a la Papelera?',
+        text: `La cita de ${appt ? appt.patientName : apptId} se enviará a la Papelera de Reciclaje. Podrá restaurarla en Ajustes.`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
         cancelButtonColor: '#64748b',
-        confirmButtonText: 'Sí, eliminar',
+        confirmButtonText: 'Sí, mover a la papelera',
         cancelButtonText: 'Cancelar'
     }).then(async (result) => {
         if (result.isConfirmed) {
+            if (appt) {
+                if (window.moveToTrash) {
+                    await window.moveToTrash('appointments', appt, `Cita: ${appt.patientName} (${appt.treatment || 'Consulta'})`);
+                }
+                if (window.logUserAction) {
+                    await window.logUserAction(`Eliminó Cita de Agenda`, `Agenda / Citas`, `Cita de ${appt.patientName} - ${appt.treatment} (${appt.date || ''} ${appt.time || ''})`);
+                }
+            }
             await SupabaseDataService.deleteAppointment(apptId);
             await renderDashboard();
             await renderAgendaView();
-            Swal.fire({ icon: 'success', title: 'Cita eliminada', timer: 1800, showConfirmButton: false });
+            Swal.fire({ icon: 'success', title: 'Cita movida a la papelera', text: 'Se ha registrado la acción en el historial de auditoría.', timer: 2000, showConfirmButton: false });
         }
     });
 };
@@ -12789,6 +12800,10 @@ window.restoreFromTrash = async function(category, trashId) {
         if (category === 'patients') {
             await SupabaseDataService.savePatient(original);
             if (typeof renderPatientsTable === 'function') await renderPatientsTable();
+        } else if (category === 'appointments' || category === 'citas') {
+            await SupabaseDataService.saveAppointment(original);
+            if (typeof renderAgendaView === 'function') await renderAgendaView();
+            if (typeof renderDashboard === 'function') await renderDashboard();
         } else if (category === 'invoices' || category === 'budgets') {
             await SupabaseDataService.saveInvoice(original);
             if (typeof renderBudgetTable === 'function') await renderBudgetTable();
