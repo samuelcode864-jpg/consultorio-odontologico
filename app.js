@@ -249,25 +249,12 @@ async function autoLoadDoctorSignatureInBudget(targetDoctorName = null) {
             doctorUser = users.find(u => u.id === currentUser.id || u.fullname === currentUser.fullname) || currentUser;
         }
         if (!doctorUser && users.length > 0) {
-            doctorUser = users.find(u => u.role && (u.role.toLowerCase().includes('odont') || u.role.toLowerCase().includes('médic') || u.role.toLowerCase().includes('especialista')));
+            doctorUser = users.find(u => u.role && !u.role.toLowerCase().includes('admin') && !u.role.toLowerCase().includes('asistente'));
         }
         
-        let sig = doctorUser && ((doctorUser.doctorProfile && doctorUser.doctorProfile.signature) || (doctorUser.doctor_profile && doctorUser.doctor_profile.signature));
-        
-        if (!sig && currentUser) {
-            sig = (currentUser.doctorProfile && currentUser.doctorProfile.signature) || (currentUser.doctor_profile && currentUser.doctor_profile.signature);
-        }
-
-        if (!sig && users.length > 0) {
-            const anyDoc = users.find(u => (u.doctorProfile && u.doctorProfile.signature) || (u.doctor_profile && u.doctor_profile.signature));
-            if (anyDoc) {
-                sig = (anyDoc.doctorProfile && anyDoc.doctorProfile.signature) || (anyDoc.doctor_profile && anyDoc.doctor_profile.signature);
-            }
-        }
-        
+        const sig = doctorUser && ((doctorUser.doctorProfile && doctorUser.doctorProfile.signature) || (doctorUser.doctor_profile && doctorUser.doctor_profile.signature));
         if (sig && window.doctorSigPad) {
             window.doctorSigPad.loadFromDataURL(sig);
-            window.doctorSigPad._preloadedSignature = sig;
         }
     } catch(e) {
         console.error("Error auto loading doctor signature from cloud:", e);
@@ -7011,10 +6998,8 @@ function initGlobalEvents() {
                 const consentText = document.getElementById('consent-text').value;
 
                 let docSig = null;
-                if (window.doctorSigPad && !window.doctorSigPad.isEmpty() && window.doctorSigPad.hasUserDrawnManually) {
+                if (window.doctorSigPad && !window.doctorSigPad.isEmpty()) {
                     docSig = window.doctorSigPad.toDataURL();
-                } else if (window.doctorSigPad && window.doctorSigPad._preloadedSignature) {
-                    docSig = window.doctorSigPad._preloadedSignature;
                 } else {
                     const currentUser = getCurrentUser();
                     docSig = currentUser ? ((currentUser.doctorProfile && currentUser.doctorProfile.signature) || (currentUser.doctor_profile && currentUser.doctor_profile.signature)) : null;
@@ -10424,10 +10409,7 @@ async function renderBillingView() {
         // Generate invoice ID
         const invoiceId = 'FAC-' + Date.now().toString().slice(-6);
 
-        let docSig = (window.doctorSigPad && !window.doctorSigPad.isEmpty() && window.doctorSigPad.hasUserDrawnManually) ? window.doctorSigPad.toDataURL() : '';
-        if (!docSig && window.doctorSigPad && window.doctorSigPad._preloadedSignature) {
-            docSig = window.doctorSigPad._preloadedSignature;
-        }
+        let docSig = (window.doctorSigPad && !window.doctorSigPad.isEmpty()) ? window.doctorSigPad.toDataURL() : '';
         if (!docSig) {
             const u = getCurrentUser();
             if (u) docSig = (u.doctorProfile && u.doctorProfile.signature) || (u.doctor_profile && u.doctor_profile.signature) || '';
@@ -11701,7 +11683,7 @@ async function refreshStationeryLivePreview() {
 function toDataURL(url) {
     return new Promise((resolve) => {
         try {
-            if (!url) return resolve('');
+            if (!url || typeof url !== 'string' || !url.trim() || url === window.location.href) return resolve('');
             if (url.startsWith('data:')) return resolve(url);
             
             const xhr = new XMLHttpRequest();

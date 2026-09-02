@@ -2788,37 +2788,6 @@ html, body {
     }
 }
 
-/* Responsive Table Container & Touch Optimization */
-.table-container,
-.table-responsive {
-    overflow-x: auto !important;
-    max-width: 100% !important;
-    -webkit-overflow-scrolling: touch !important;
-}
-
-@media (max-width: 480px) {
-    body {
-        overflow-x: hidden !important;
-    }
-    .odontogram-quadrant {
-        padding: 6px 4px !important;
-        gap: 8px !important;
-        overflow-x: auto !important;
-        -webkit-overflow-scrolling: touch !important;
-    }
-    .tooth-row {
-        gap: 1px !important;
-    }
-    .tooth-row .tooth-box {
-        min-width: 22px !important;
-        max-width: 36px !important;
-        touch-action: manipulation !important;
-    }
-    .tooth-face {
-        touch-action: manipulation !important;
-    }
-}
-
 /* Floating Autocomplete Search Results Styles */
 .search-result-item {
     padding: 10px 15px !important;

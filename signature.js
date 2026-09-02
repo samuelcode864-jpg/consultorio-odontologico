@@ -10,7 +10,6 @@ class SignaturePad {
         this.ctx = this.canvas.getContext('2d');
         this.isDrawing = false;
         this.hasDrawn = false;
-        this.hasUserDrawnManually = false;
         this.lastX = 0;
         this.lastY = 0;
 
@@ -30,17 +29,14 @@ class SignaturePad {
             const rect = this.canvas.getBoundingClientRect();
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            const scaleX = this.canvas.width / (rect.width || 1);
-            const scaleY = this.canvas.height / (rect.height || 1);
             return {
-                x: (clientX - rect.left) * scaleX,
-                y: (clientY - rect.top) * scaleY
+                x: clientX - rect.left,
+                y: clientY - rect.top
             };
         };
 
         const startDraw = (e) => {
             this.isDrawing = true;
-            this.hasUserDrawnManually = true;
             const pos = getPos(e);
             this.lastX = pos.x;
             this.lastY = pos.y;
@@ -57,7 +53,6 @@ class SignaturePad {
             this.ctx.stroke();
 
             this.hasDrawn = true;
-            this.hasUserDrawnManually = true;
             this.lastX = pos.x;
             this.lastY = pos.y;
         };
@@ -84,7 +79,6 @@ class SignaturePad {
     clear() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.hasDrawn = false;
-        this.hasUserDrawnManually = false;
         this.ctx.strokeStyle = '#000000';
         this.ctx.lineWidth = 2.5;
         this.ctx.lineCap = 'round';
@@ -103,7 +97,6 @@ class SignaturePad {
             const y = (this.canvas.height - h) / 2;
             this.ctx.drawImage(img, x, y, w, h);
             this.hasDrawn = true;
-            this.hasUserDrawnManually = false; // Loaded from profile, not manual scratch
         };
         img.src = dataUrl;
     }

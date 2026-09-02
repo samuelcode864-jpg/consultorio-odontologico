@@ -331,10 +331,9 @@ class SupabaseDataService {
                 if (data) {
                     const realPatients = data.filter(p => {
                         if (!p.id) return false;
-                        const idStr = String(p.id).toUpperCase();
-                        if (idStr.startsWith('SYS-') || idStr.startsWith('PRE-') || idStr.startsWith('FAC-') || idStr.startsWith('INV-') || idStr.startsWith('BILL-') || idStr.includes('COTIZACION') || idStr.includes('PRESUPUESTO')) return false;
-                        const od = p.odontogram_data || {};
-                        if (od._is_system_config || od._is_invoice || od._is_bill || p.fullname?.startsWith('Presupuesto:')) return false;
+                        const idStr = String(p.id);
+                        if (idStr.startsWith('SYS-') || idStr.startsWith('PRE-') || idStr.startsWith('FAC-') || idStr.startsWith('INV-') || idStr.startsWith('BILL-')) return false;
+                        if (p.odontogram_data && (p.odontogram_data._is_system_config || p.odontogram_data._is_invoice || p.odontogram_data._is_bill)) return false;
                         return true;
                     });
 
@@ -1308,21 +1307,4 @@ class SupabaseDataService {
 }
 
 window.SupabaseDataService = SupabaseDataService;
-
-// Auto-sync offline changes when Internet connection is restored
-if (typeof window !== 'undefined') {
-    window.addEventListener('online', async () => {
-        console.log('🌐 Internet connection restored. Syncing pending offline data to Supabase Cloud...');
-        try {
-            if (window.SupabaseDataService && window.SupabaseDataService.syncLocalTrashAndAuditToCloud) {
-                await window.SupabaseDataService.syncLocalTrashAndAuditToCloud();
-                if (typeof renderPatientsTable === 'function') await renderPatientsTable();
-                if (typeof renderEHRView === 'function') await renderEHRView();
-                if (typeof renderAgendaView === 'function') await renderAgendaView();
-            }
-        } catch(e) {
-            console.warn('Auto re-sync warning:', e);
-        }
-    });
-}
 
