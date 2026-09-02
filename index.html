@@ -320,13 +320,21 @@
                     <div class="grid-2-col">
                         <!-- Agenda del Día -->
                         <div class="card">
-                            <div class="card-header" style="flex-direction: column; align-items: flex-start; gap: 8px;">
-                                <h3><i class="fa-solid fa-calendar-day"></i> Agenda de Citas</h3>
+                            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <h3 style="margin: 0;"><i class="fa-solid fa-calendar-day"></i> Agenda de Citas</h3>
+                                    <span class="badge-tag blue" id="dashboard-agenda-counter" style="font-size: 0.76rem; font-weight: 700; padding: 3px 10px; border-radius: 12px;">0 Citas</span>
+                                </div>
                                 <button class="btn btn-sm btn-outline" id="btn-add-appointment" style="width: auto;">+ Agregar Cita</button>
                             </div>
-                            <div class="card-body">
-                                <div class="timeline" id="dashboard-agenda-list">
+                            <div class="card-body" style="padding: 16px;">
+                                <div class="timeline" id="dashboard-agenda-list" style="max-height: 460px; overflow-y: auto; padding-right: 6px;">
                                     <!-- Populated dynamically -->
+                                </div>
+                                <div style="border-top: 1px solid var(--border-color); padding-top: 12px; margin-top: 12px; text-align: center;">
+                                    <a href="#agenda" onclick="const navBtn = document.querySelector('.nav-item[data-tab=agenda]'); if (navBtn) navBtn.click(); return false;" style="color: var(--primary-cyan); font-weight: 700; font-size: 0.85rem; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                                        Ver agenda completa de citas <i class="fa-solid fa-arrow-right"></i>
+                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -3639,13 +3647,13 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=211"></script>
-    <script src="supabaseClient.js?v=211"></script>
-    <script src="odontogram.js?v=211"></script>
-    <script src="signature.js?v=211"></script>
-    <script src="whatsapp.js?v=211"></script>
-    <script src="kardex.js?v=211"></script>
-    <script src="app.js?v=211"></script>
-    <script src="tutorial.js?v=211"></script>
+    <script src="seededData.js?v=212"></script>
+    <script src="supabaseClient.js?v=212"></script>
+    <script src="odontogram.js?v=212"></script>
+    <script src="signature.js?v=212"></script>
+    <script src="whatsapp.js?v=212"></script>
+    <script src="kardex.js?v=212"></script>
+    <script src="app.js?v=212"></script>
+    <script src="tutorial.js?v=212"></script>
 </body>
 </html>

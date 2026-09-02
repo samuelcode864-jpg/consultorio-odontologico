@@ -3842,66 +3842,101 @@ async function renderDashboard() {
         const currentUser = getCurrentUser();
         const isAssistant = currentUser && currentUser.role.toLowerCase().includes('asistente');
 
-        appointments.forEach(app => {
-            const isTomorrowAppt = app.isTomorrow === true || app.date === 'tomorrow';
-            
-            const isAttended = (app.status === 'Completada' || app.status === 'Atendida');
+        const todayISO = new Date().toISOString().split('T')[0];
+        let todayCount = 0;
 
-            let whatsappBtnHtml = '';
-            if (!isAttended) {
-                whatsappBtnHtml = `
-                    <button class="btn btn-xs btn-success btn-appt-reminder" style="background-color: #22c55e !important; color: white !important; border: none !important; padding: 4px 8px; border-radius: 6px;" onclick="sendWhatsAppReminderForAppt('${app.id}')" title="Notificar por WhatsApp">
-                        <i class="fa-brands fa-whatsapp" style="font-size: 0.95rem;"></i>
+        // Sort appointments: Today's pending/scheduled first, then future, then completed
+        const sortedAppointments = [...appointments].sort((a, b) => {
+            const aIsToday = (a.date === 'today' || a.date === todayISO);
+            const bIsToday = (b.date === 'today' || b.date === todayISO);
+            const aAttended = (a.status === 'Completada' || a.status === 'Atendida');
+            const bAttended = (b.status === 'Completada' || b.status === 'Atendida');
+
+            if (aIsToday && !bIsToday) return -1;
+            if (!aIsToday && bIsToday) return 1;
+            if (!aAttended && bAttended) return -1;
+            if (aAttended && !bAttended) return 1;
+            return 0;
+        });
+
+        sortedAppointments.forEach(app => {
+            const isTodayAppt = (app.date === 'today' || app.date === todayISO);
+            if (isTodayAppt) todayCount++;
+        });
+
+        const counterBadge = document.getElementById('dashboard-agenda-counter');
+        if (counterBadge) {
+            counterBadge.innerHTML = `<i class="fa-solid fa-calendar-check"></i> ${todayCount} hoy (${appointments.length} total)`;
+        }
+
+        if (sortedAppointments.length === 0) {
+            agendaList.innerHTML = `
+                <div style="text-align: center; color: var(--text-muted); padding: 35px 20px;">
+                    <i class="fa-solid fa-calendar-check" style="font-size: 2.4rem; color: #cbd5e1; margin-bottom: 10px; display: block;"></i>
+                    <strong style="font-size: 0.95rem; color: var(--text-main); display: block;">No hay citas agendadas</strong>
+                    <small style="color: var(--text-muted);">Haga clic en "+ Agregar Cita" para agendar a un paciente.</small>
+                </div>
+            `;
+        } else {
+            sortedAppointments.forEach(app => {
+                const isTomorrowAppt = app.isTomorrow === true || app.date === 'tomorrow';
+                const isAttended = (app.status === 'Completada' || app.status === 'Atendida');
+
+                let whatsappBtnHtml = '';
+                if (!isAttended) {
+                    whatsappBtnHtml = `
+                        <button class="btn btn-xs btn-success btn-appt-reminder" style="background-color: #22c55e !important; color: white !important; border: none !important; padding: 4px 8px; border-radius: 6px;" onclick="sendWhatsAppReminderForAppt('${app.id}')" title="Notificar por WhatsApp">
+                            <i class="fa-brands fa-whatsapp" style="font-size: 0.95rem;"></i>
+                        </button>
+                    `;
+                }
+
+                const abonoBtn = isAttended ? '' : `
+                    <button class="btn btn-xs btn-outline" style="border-color: #10b981; color: #059669; font-weight: 600;" onclick="window.openPaymentModalForAppointment('${app.patientId}', '${app.patientName}', '${app.treatment}')" title="Registrar Abono Anticipado">
+                        <i class="fa-solid fa-hand-holding-dollar"></i> <span class="btn-text-full">Abonar</span>
                     </button>
                 `;
-            }
 
-            const abonoBtn = isAttended ? '' : `
-                <button class="btn btn-xs btn-outline" style="border-color: #10b981; color: #059669; font-weight: 600;" onclick="window.openPaymentModalForAppointment('${app.patientId}', '${app.patientName}', '${app.treatment}')" title="Registrar Abono Anticipado">
-                    <i class="fa-solid fa-hand-holding-dollar"></i> <span class="btn-text-full">Abonar</span>
-                </button>
-            `;
+                const editApptBtn = `<button class="btn btn-xs btn-outline btn-appt-edit" style="border-color: #0891b2; color: #0891b2;" onclick="window.editAppointment('${app.id}')" title="Editar Cita"><i class="fa-solid fa-pen-to-square"></i> <span class="btn-text-full">Editar</span></button>`;
+                const deleteApptBtn = isAssistant ? '' : `<button class="btn btn-xs btn-outline text-red" onclick="deleteAppointment('${app.id}')" title="Eliminar Cita"><i class="fa-solid fa-trash"></i></button>`;
 
-            const editApptBtn = `<button class="btn btn-xs btn-outline btn-appt-edit" style="border-color: #0891b2; color: #0891b2;" onclick="window.editAppointment('${app.id}')" title="Editar Cita"><i class="fa-solid fa-pen-to-square"></i> <span class="btn-text-full">Editar</span></button>`;
+                let actionAttendOrViewHtml = '';
+                let statusBadgeHtml = `<span class="badge-tag blue">${app.status || 'Programada'}</span>`;
+                let itemClass = 'timeline-item';
 
-            const deleteApptBtn = isAssistant ? '' : `<button class="btn btn-xs btn-outline text-red" onclick="deleteAppointment('${app.id}')" title="Eliminar Cita"><i class="fa-solid fa-trash"></i></button>`;
+                if (isAttended) {
+                    itemClass = 'timeline-item timeline-item-attended';
+                    statusBadgeHtml = `<span class="badge-tag green" style="background: rgba(16, 185, 129, 0.15); color: #059669; font-weight: 700;"><i class="fa-solid fa-circle-check"></i> Atendida</span>`;
+                    actionAttendOrViewHtml = `<button class="btn btn-xs btn-outline" style="border-color: #10b981; color: #059669; font-weight: 600;" onclick="window.viewAttendedSessionForPatient('${app.patientId}')" title="Ver Evolución Clínica"><i class="fa-solid fa-file-medical"></i> <span class="btn-text-full">Ver Evolución</span></button>`;
+                } else if (!isAssistant && (app.status === 'Programada' || app.status === 'En Espera' || !app.status)) {
+                    actionAttendOrViewHtml = `<button class="btn btn-xs btn-primary btn-appt-attend" style="background-color: var(--primary-cyan) !important; color: white !important; border: none !important;" onclick="window.atenderAppointmentFromAgenda('${app.id}')" title="Atender esta cita ahora"><i class="fa-solid fa-user-doctor"></i> Atender</button>`;
+                }
 
-            let actionAttendOrViewHtml = '';
-            let statusBadgeHtml = `<span class="badge-tag blue">${app.status || 'Programada'}</span>`;
-            let itemClass = 'timeline-item';
-
-            if (isAttended) {
-                itemClass = 'timeline-item timeline-item-attended';
-                statusBadgeHtml = `<span class="badge-tag green" style="background: rgba(16, 185, 129, 0.15); color: #059669; font-weight: 700;"><i class="fa-solid fa-circle-check"></i> Atendida</span>`;
-                actionAttendOrViewHtml = `<button class="btn btn-xs btn-outline" style="border-color: #10b981; color: #059669; font-weight: 600;" onclick="window.viewAttendedSessionForPatient('${app.patientId}')" title="Ver Evolución Clínica"><i class="fa-solid fa-file-medical"></i> <span class="btn-text-full">Ver Evolución</span></button>`;
-            } else if (!isAssistant && (app.status === 'Programada' || app.status === 'En Espera' || !app.status)) {
-                actionAttendOrViewHtml = `<button class="btn btn-xs btn-primary btn-appt-attend" style="background-color: var(--primary-cyan) !important; color: white !important; border: none !important;" onclick="window.atenderAppointmentFromAgenda('${app.id}')" title="Atender esta cita ahora"><i class="fa-solid fa-user-doctor"></i> Atender</button>`;
-            }
-
-            const div = document.createElement('div');
-            div.className = itemClass;
-            div.style.marginBottom = '12px';
-            div.innerHTML = `
-                <div class="timeline-meta">
-                    <div class="timeline-time-status" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                        ${formatApptDateTag(app.date, isTomorrowAppt)}
-                        <span class="timeline-time"><i class="fa-solid fa-clock text-cyan"></i> ${app.time}</span>
-                        ${statusBadgeHtml}
+                const div = document.createElement('div');
+                div.className = itemClass;
+                div.style.marginBottom = '12px';
+                div.innerHTML = `
+                    <div class="timeline-meta">
+                        <div class="timeline-time-status" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            ${formatApptDateTag(app.date, isTomorrowAppt)}
+                            <span class="timeline-time"><i class="fa-solid fa-clock text-cyan"></i> ${app.time}</span>
+                            ${statusBadgeHtml}
+                        </div>
+                        <div class="timeline-actions">
+                            ${whatsappBtnHtml}
+                            ${abonoBtn}
+                            ${editApptBtn}
+                            ${actionAttendOrViewHtml}
+                            ${deleteApptBtn}
+                        </div>
                     </div>
-                    <div class="timeline-actions">
-                        ${whatsappBtnHtml}
-                        ${abonoBtn}
-                        ${editApptBtn}
-                        ${actionAttendOrViewHtml}
-                        ${deleteApptBtn}
-                    </div>
-                </div>
-                <div class="timeline-patient-name"><strong>${app.patientName}</strong></div>
-                <div class="timeline-patient-id"><small class="text-muted">C.I: ${app.patientId}</small></div>
-                <div class="timeline-treatment"><small class="text-muted">Procedimiento: ${app.treatment}</small></div>
-            `;
-            agendaList.appendChild(div);
-        });
+                    <div class="timeline-patient-name"><strong>${app.patientName}</strong></div>
+                    <div class="timeline-patient-id"><small class="text-muted">C.I: ${app.patientId}</small></div>
+                    <div class="timeline-treatment"><small class="text-muted">Procedimiento: ${app.treatment}</small></div>
+                `;
+                agendaList.appendChild(div);
+            });
+        }
     }
 
     // Dynamic currency symbols for dashboard metrics
