@@ -2936,7 +2936,8 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(16, 185, 129, 0.3); padding-bottom: 8px; margin-bottom: 10px;">
                                     <span style="font-weight: 700; color: #059669;"><i class="fa-solid fa-prescription"></i> Récipe Médico & Indicaciones ${rc.id}</span>
                                     <div style="display:flex; gap:6px; align-items:center;">
-                                        <button class="btn btn-xs btn-outline" onclick="window.printSingleRecipePDF('${activePatient.id}', '${rc.id}')"><i class="fa-solid fa-file-pdf text-red"></i> PDF</button>
+                                        <button class="btn btn-xs btn-outline" style="border-color:#22c55e; color:#15803d; font-weight:600;" onclick="window.sendRecipeWhatsApp('${activePatient.id}', '${rc.id}')" title="Enviar Récipe por WhatsApp"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
+                                        <button class="btn btn-xs btn-outline" onclick="window.printSingleRecipePDF('${activePatient.id}', '${rc.id}')" title="Imprimir PDF"><i class="fa-solid fa-file-pdf text-red"></i> PDF</button>
                                         <small class="text-muted"><i class="fa-regular fa-calendar"></i> ${rc.date}</small>
                                     </div>
                                 </div>
@@ -5930,6 +5931,14 @@ function initGlobalEvents() {
 
     const btnSaveRecipeFinal = document.getElementById('btn-save-recipe-final');
     if (btnSaveRecipeFinal) btnSaveRecipeFinal.onclick = () => window.saveRecipeAndIndicationsFinal();
+
+    const btnSendRecipeWaModal = document.getElementById('btn-send-recipe-whatsapp-modal');
+    if (btnSendRecipeWaModal) {
+        btnSendRecipeWaModal.onclick = () => {
+            const activeId = getActivePatientId();
+            if (activeId) window.sendRecipeWhatsApp(activeId);
+        };
+    }
 
     const btnPrintRecipePdf = document.getElementById('btn-print-recipe-pdf');
     if (btnPrintRecipePdf) {
@@ -12116,4 +12125,65 @@ window.printSingleRecipePDF = async function(patientId, recipeId = null) {
         </html>
     `);
     printWin.document.close();
+};
+
+window.sendRecipeWhatsApp = async function(patientId, recipeId = null) {
+    const patients = await SupabaseDataService.getPatients();
+    const patient = patients.find(pt => pt.id === patientId);
+    if (!patient || !patient.phone) {
+        Swal.fire({ icon: 'warning', title: 'Sin WhatsApp', text: 'El paciente no tiene un número de teléfono / WhatsApp registrado.' });
+        return;
+    }
+
+    const meta = patient.metadata || {};
+    const recipes = meta.recipes || [];
+    let recipe = recipeId ? recipes.find(r => r.id === recipeId) : recipes[0];
+
+    if (!recipe) {
+        const treatmentLinked = document.getElementById('recipe-treatment-select') ? document.getElementById('recipe-treatment-select').value : 'General';
+        const medicines = [];
+        document.querySelectorAll('#recipe-medicines-tbody tr').forEach(tr => {
+            const med = tr.querySelector('.recipe-med-name') ? tr.querySelector('.recipe-med-name').value.trim() : '';
+            const dose = tr.querySelector('.recipe-med-dose') ? tr.querySelector('.recipe-med-dose').value.trim() : '';
+            const freq = tr.querySelector('.recipe-med-freq') ? tr.querySelector('.recipe-med-freq').value.trim() : '';
+            if (med) medicines.push({ med, dose, freq });
+        });
+        const notes = document.getElementById('recipe-general-notes') ? document.getElementById('recipe-general-notes').value.trim() : '';
+        const indications = document.getElementById('recipe-clinical-indications') ? document.getElementById('recipe-clinical-indications').value.trim() : '';
+
+        recipe = {
+            id: 'REC-' + Date.now().toString().slice(-6),
+            date: new Date().toISOString().split('T')[0],
+            treatmentLinked,
+            medicines,
+            notes,
+            indications
+        };
+    }
+
+    let msg = `💊 *PRESCRIPCIÓN MÉDICA Y RÉCIPE ODONTOLÓGICO*\n`;
+    msg += `🏥 *Consultorio Odontológico Integral*\n\n`;
+    msg += `👤 *Paciente:* ${patient.fullname} (${patient.id})\n`;
+    msg += `📅 *Fecha:* ${recipe.date}\n`;
+    msg += `🦷 *Tratamiento:* ${recipe.treatmentLinked || 'General'}\n\n`;
+
+    if (recipe.medicines && recipe.medicines.length > 0) {
+        msg += `📝 *MEDICAMENTOS PRESCRITOS:*\n`;
+        recipe.medicines.forEach((m, i) => {
+            msg += `${i + 1}. *${m.med}*\n   • Dosis: ${m.dose}\n   • Frecuencia: ${m.freq}\n`;
+        });
+        msg += `\n`;
+    }
+
+    if (recipe.notes) {
+        msg += `📌 *Observaciones de la receta:*\n${recipe.notes}\n\n`;
+    }
+
+    if (recipe.indications) {
+        msg += `📋 *INDICACIONES Y RECOMENDACIONES CLÍNICAS:*\n${recipe.indications}\n\n`;
+    }
+
+    msg += `✨ _Cualquier duda o síntoma inusual, por favor comuníquese de inmediato con el consultorio._`;
+
+    WhatsAppService.sendToPatient(patient.phone, msg);
 };
