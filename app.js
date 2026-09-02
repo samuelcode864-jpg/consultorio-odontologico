@@ -5965,7 +5965,7 @@ function initGlobalEvents() {
     window.openBudgetForNewPatient = async function(patientId) {
         setActivePatientId(patientId);
 
-        // Check if an existing budget already exists for this patient
+        // Check if an existing budget invoice already exists for this patient
         const invoices = await SupabaseDataService.getInvoices();
         const existingBudget = invoices.find(inv => String(inv.patientId) === String(patientId));
 
@@ -5985,30 +5985,30 @@ function initGlobalEvents() {
         if (listContainer) listContainer.classList.add('hidden');
         if (editorContainer) editorContainer.classList.remove('hidden');
 
-        await renderOdontogramView();
+        const patients = await SupabaseDataService.getPatients();
+        const patient = patients.find(p => String(p.id) === String(patientId));
 
-        // Extract items from patient metadata sessionsPlan ONLY if currentBudgetItems is empty
-        if (currentBudgetItems.length === 0) {
-            const patients = await SupabaseDataService.getPatients();
-            const patient = patients.find(p => String(p.id) === String(patientId));
-            if (patient && patient.metadata) {
-                const extracted = [];
-                if (patient.metadata.sessionsPlan && Array.isArray(patient.metadata.sessionsPlan)) {
-                    patient.metadata.sessionsPlan.forEach(s => {
-                        if (s.services && Array.isArray(s.services)) {
-                            s.services.forEach(srv => {
-                                if (srv && srv.name) extracted.push(srv);
-                            });
-                        }
+        // Extract items from sessionsPlan if configured in patient steps
+        const extracted = [];
+        if (patient && patient.metadata && patient.metadata.sessionsPlan && Array.isArray(patient.metadata.sessionsPlan)) {
+            patient.metadata.sessionsPlan.forEach(s => {
+                if (s.services && Array.isArray(s.services)) {
+                    s.services.forEach(srv => {
+                        if (srv && srv.name) extracted.push(srv);
                     });
                 }
-                if (extracted.length > 0) {
-                    currentBudgetItems = deduplicateBudgetItems(extracted);
-                }
-            }
-        } else {
-            currentBudgetItems = deduplicateBudgetItems(currentBudgetItems);
+            });
         }
+
+        if (extracted.length > 0) {
+            currentBudgetItems = deduplicateBudgetItems(extracted);
+            if (patient && patient.metadata) {
+                patient.metadata.draftBudget = { items: currentBudgetItems };
+                await SupabaseDataService.savePatient(patient);
+            }
+        }
+
+        await renderOdontogramView();
 
         const notesEl = document.getElementById('budget-notes');
         if (notesEl) notesEl.value = '';
