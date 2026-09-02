@@ -11479,12 +11479,21 @@ async function refreshStationeryLivePreview() {
     const container = document.getElementById('stationery-live-paper');
     if (!container) return;
 
-    const logoSrc = document.getElementById('stat-logo-preview-img').src || '';
-    const headerText = document.getElementById('stat-header-text').value;
-    const footerText = document.getElementById('stat-footer-text').value;
+    try {
+        const logoImgEl = document.getElementById('stat-logo-preview-img');
+        const headerTextEl = document.getElementById('stat-header-text');
+        const footerTextEl = document.getElementById('stat-footer-text');
 
-    const busData = getClinicBusData({ header_text: headerText, logo_url: logoSrc, footer_text: footerText });
-    const logoBase64 = await toDataURL(busData.logoUrl || logoSrc);
+        const rawLogoSrc = (logoImgEl && logoImgEl.getAttribute('src')) ? logoImgEl.getAttribute('src') : '';
+        const logoSrc = (rawLogoSrc && rawLogoSrc !== window.location.href) ? rawLogoSrc : '';
+        const headerText = headerTextEl ? (headerTextEl.value || '') : '';
+        const footerText = footerTextEl ? (footerTextEl.value || '') : '';
+
+        const busData = getClinicBusData({ header_text: headerText, logo_url: logoSrc, footer_text: footerText });
+        let logoBase64 = '';
+        if (busData.logoUrl && busData.logoUrl !== window.location.href) {
+            logoBase64 = busData.logoUrl.startsWith('data:') ? busData.logoUrl : await toDataURL(busData.logoUrl);
+        }
 
     let docHtml = '';
 
@@ -11677,13 +11686,18 @@ async function refreshStationeryLivePreview() {
         `;
     }
 
-    container.innerHTML = docHtml;
+        container.innerHTML = docHtml;
+    } catch(err) {
+        console.error("Error refreshing stationery preview:", err);
+    }
 }
 
 function toDataURL(url) {
     return new Promise((resolve) => {
         try {
-            if (!url || typeof url !== 'string' || !url.trim() || url === window.location.href) return resolve('');
+            if (!url || typeof url !== 'string' || !url.trim() || url === window.location.href || url.includes(window.location.host) && !url.match(/\.(png|jpg|jpeg|svg|webp|gif)$/i)) {
+                return resolve('');
+            }
             if (url.startsWith('data:')) return resolve(url);
             
             const xhr = new XMLHttpRequest();
