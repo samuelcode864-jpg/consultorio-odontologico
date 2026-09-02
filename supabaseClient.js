@@ -327,9 +327,10 @@ class SupabaseDataService {
                 if (data) {
                     const realPatients = data.filter(p => {
                         if (!p.id) return false;
-                        const idStr = String(p.id);
-                        if (idStr.startsWith('SYS-') || idStr.startsWith('PRE-') || idStr.startsWith('FAC-') || idStr.startsWith('INV-') || idStr.startsWith('BILL-')) return false;
-                        if (p.odontogram_data && (p.odontogram_data._is_system_config || p.odontogram_data._is_invoice || p.odontogram_data._is_bill)) return false;
+                        const idStr = String(p.id).toUpperCase();
+                        if (idStr.startsWith('SYS-') || idStr.startsWith('PRE-') || idStr.startsWith('FAC-') || idStr.startsWith('INV-') || idStr.startsWith('BILL-') || idStr.includes('COTIZACION') || idStr.includes('PRESUPUESTO')) return false;
+                        const od = p.odontogram_data || {};
+                        if (od._is_system_config || od._is_invoice || od._is_bill || p.fullname?.startsWith('Presupuesto:')) return false;
                         return true;
                     });
 
@@ -431,11 +432,13 @@ class SupabaseDataService {
                 let { error: err } = await supabaseClient.from('patients').upsert(payload);
                 if (err) {
                     console.error('Supabase savePatient Cloud Error:', err.message);
+                    throw new Error(`Supabase Error: ${err.message}`);
                 } else {
                     console.log('✅ Patient synced to Supabase Cloud:', patientObj.fullname);
                 }
             } catch (err) {
                 console.error('Supabase savePatient Exception:', err);
+                throw err;
             }
         }
     }

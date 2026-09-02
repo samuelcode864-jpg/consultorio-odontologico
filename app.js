@@ -5194,18 +5194,24 @@ function initGlobalEvents() {
                 splitPayments
             };
 
-            // Deduct materials from stock
+            // Check if sessionNum already exists to replace or append
+            const existingIdx = (patient.sessions || []).findIndex(s => s.sessionNum === sessionNum);
+            const isNewSession = existingIdx < 0;
+
+            // Deduct materials from stock only if recording a new session (prevents double deductions on edit)
             const inventory = await SupabaseDataService.getInventory();
             for (const m of materials) {
                 const item = inventory.find(inv => inv.code === m.code);
                 if (item) {
                     const portionsPerUnit = parsePortions(item.unit);
-                    const qtyToDeduct = portionsPerUnit ? (m.qty / portionsPerUnit) : m.qty;
-                    const newStock = Math.max(0, item.currentStock - qtyToDeduct);
-                    item.currentStock = newStock;
-                    
-                    // Update stock locally and in cloud
-                    await SupabaseDataService.saveInventoryItem(item);
+                    if (isNewSession) {
+                        const qtyToDeduct = portionsPerUnit ? (m.qty / portionsPerUnit) : m.qty;
+                        const newStock = Math.max(0, item.currentStock - qtyToDeduct);
+                        item.currentStock = newStock;
+                        
+                        // Update stock locally and in cloud
+                        await SupabaseDataService.saveInventoryItem(item);
+                    }
                     
                     sessionObj.materials.push({
                         code: m.code,
@@ -5216,8 +5222,6 @@ function initGlobalEvents() {
                 }
             }
 
-            // Check if sessionNum already exists to replace or append
-            const existingIdx = (patient.sessions || []).findIndex(s => s.sessionNum === sessionNum);
             if (existingIdx >= 0) {
                 patient.sessions[existingIdx] = sessionObj;
             } else {
@@ -5625,7 +5629,7 @@ function initGlobalEvents() {
 
             closeModal('modal-service');
             await renderPricingTable();
-            Swal.fire({ icon: 'success', title: '¡Servicio Agregado!', text: 'Registrado en la nube de Supabase.', timer: 2000, showConfirmButton: false });
+            Swal.fire({ icon: 'success', title: '¡Servicio Agregado!', text: 'Registrado exitosamente en la base de datos.', timer: 2000, showConfirmButton: false });
         };
     }
 
@@ -6465,7 +6469,7 @@ function initGlobalEvents() {
 
             closeModal('modal-user');
             await renderUsersTable();
-            Swal.fire({ icon: 'success', title: '¡Usuario Registrado!', text: `Se creó la cuenta para ${fullname} en la nube de Supabase`, timer: 2000, showConfirmButton: false });
+            Swal.fire({ icon: 'success', title: '¡Usuario Registrado!', text: `Se creó la cuenta para ${fullname} exitosamente en la base de datos.`, timer: 2000, showConfirmButton: false });
         };
     }
 
@@ -7766,9 +7770,9 @@ function initGlobalEvents() {
                 }
 
                 await SupabaseDataService.savePatient(p);
-                closeModal('modal-note');
+                closeModal('note-modal');
                 await renderEHRView();
-                Swal.fire({ icon: 'success', title: '¡Evolución Registrada!', text: 'Guardada en la nube de Supabase.', timer: 2000, showConfirmButton: false });
+                Swal.fire({ icon: 'success', title: '¡Evolución Registrada!', text: 'Guardada exitosamente en la base de datos.', timer: 2000, showConfirmButton: false });
             }
         };
     }
@@ -13291,7 +13295,7 @@ window.restoreFromTrash = async function(category, trashId) {
         if (category === 'patients') {
             await SupabaseDataService.savePatient(original);
             if (typeof renderPatientsTable === 'function') await renderPatientsTable();
-        } else if (category === 'appointments' || category === 'citas') {
+        } else if (category === 'appointments' || category === 'citas' || category === 'agenda' || category === 'sessions') {
             await SupabaseDataService.saveAppointment(original);
             if (typeof renderAgendaView === 'function') await renderAgendaView();
             if (typeof renderDashboard === 'function') await renderDashboard();
