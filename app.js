@@ -3571,36 +3571,46 @@ async function exportEHRToPDF() {
         </div>
     ` : '';
 
-    // Capture or render Odontograms for PDF
-    let initialOdHtml = '';
-    let currentOdHtml = '';
+    // Render Odontograms dynamically in a mounted off-screen container for 100% computed styles fidelity
+    const odTempContainer = document.createElement('div');
+    odTempContainer.style.position = 'absolute';
+    odTempContainer.style.left = '-9999px';
+    odTempContainer.style.top = '0';
+    odTempContainer.style.width = '680px';
+    document.body.appendChild(odTempContainer);
 
-    const initialViewEl = document.getElementById('ehr-od-initial-view');
-    const currentViewEl = document.getElementById('ehr-od-current-view');
+    const initDiv = document.createElement('div');
+    initDiv.style.setProperty('--tooth-face-bg', '#ffffff');
+    initDiv.style.setProperty('--tooth-face-stroke', '#334155');
+    initDiv.style.setProperty('--bg-card', '#ffffff');
+    initDiv.style.setProperty('--border-color', '#cbd5e1');
+    initDiv.style.setProperty('--primary-cyan', '#0284c7');
+    odTempContainer.appendChild(initDiv);
 
-    if (initialViewEl && initialViewEl.children.length > 0) {
-        initialOdHtml = initialViewEl.innerHTML;
-    } else {
-        const tempDiv1 = document.createElement('div');
-        new OdontogramEngine(tempDiv1, {
-            isPediatric: patient.metadata ? patient.metadata.isPediatric : false,
-            initialData: (patient.metadata && patient.metadata.initialOdontogram) || patient.odontogramData || {},
-            readOnly: true
-        });
-        initialOdHtml = tempDiv1.innerHTML;
-    }
+    new OdontogramEngine(initDiv, {
+        isPediatric: patient.metadata ? patient.metadata.isPediatric : false,
+        initialData: (patient.metadata && patient.metadata.initialOdontogram) || patient.odontogramData || {},
+        readOnly: true
+    });
 
-    if (currentViewEl && currentViewEl.children.length > 0) {
-        currentOdHtml = currentViewEl.innerHTML;
-    } else {
-        const tempDiv2 = document.createElement('div');
-        new OdontogramEngine(tempDiv2, {
-            isPediatric: patient.metadata ? patient.metadata.isPediatric : false,
-            initialData: patient.odontogramData || {},
-            readOnly: true
-        });
-        currentOdHtml = tempDiv2.innerHTML;
-    }
+    const currDiv = document.createElement('div');
+    currDiv.style.setProperty('--tooth-face-bg', '#ffffff');
+    currDiv.style.setProperty('--tooth-face-stroke', '#334155');
+    currDiv.style.setProperty('--bg-card', '#ffffff');
+    currDiv.style.setProperty('--border-color', '#cbd5e1');
+    currDiv.style.setProperty('--primary-cyan', '#0284c7');
+    odTempContainer.appendChild(currDiv);
+
+    new OdontogramEngine(currDiv, {
+        isPediatric: patient.metadata ? patient.metadata.isPediatric : false,
+        initialData: patient.odontogramData || {},
+        readOnly: true
+    });
+
+    const initialOdHtml = initDiv.innerHTML;
+    const currentOdHtml = currDiv.innerHTML;
+
+    try { document.body.removeChild(odTempContainer); } catch(e) {}
 
     // Interconsultations and Recipes HTML compilation
     const ics = (patient.metadata && patient.metadata.interconsultations) || [];
@@ -3655,7 +3665,7 @@ async function exportEHRToPDF() {
         ${headerHtml}
 
         <!-- PATIENT DATA CARD -->
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
             <h3 style="font-size: 1.05rem; color: #0f172a; margin: 0 0 10px 0; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">
                 👤 Datos de Filiación del Paciente
             </h3>
@@ -3672,11 +3682,11 @@ async function exportEHRToPDF() {
         </div>
 
         <!-- MEDICAL HEAD (ALERTAS CLINICAS Y SALUD) -->
-        <div style="background: #fff1f2; border: 1px solid #fecdd3; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
-            <h3 style="font-size: 1rem; color: #be123c; margin: 0 0 8px 0;">
+        <div style="background: #fff1f2; border: 1px solid #fecdd3; border-radius: 8px; padding: 12px 15px; margin-bottom: 15px;">
+            <h3 style="font-size: 1rem; color: #be123c; margin: 0 0 6px 0;">
                 🩺 Ficha Médica de Cabecera & Alergias
             </h3>
-            <div style="font-size: 0.84rem; line-height: 1.6;">
+            <div style="font-size: 0.84rem; line-height: 1.5;">
                 <div><strong style="color: #dc2626;">Alergias Conocidas:</strong> ${allergiesText}</div>
                 <div><strong style="color: #d97706;">Enfermedades Sistémicas:</strong> ${systemicText}</div>
                 <div><strong>Medicación Prescrita:</strong> ${medText}</div>
@@ -3684,27 +3694,27 @@ async function exportEHRToPDF() {
             </div>
         </div>
 
-        <!-- CLINICAL ODONTOGRAMS (INITIAL & CURRENT) -->
-        <div style="margin-bottom: 20px;">
-            <h3 style="font-size: 1.05rem; color: #0f172a; border-bottom: 2px solid #0284c7; padding-bottom: 4px; margin-bottom: 12px;">
-                🦷 Odontodiagramas Clínicos (Diagnóstico Inicial & Evolución)
+        <!-- CLINICAL ODONTOGRAMS (SEGUIDAMENTE DE LA ANAMNESIS) -->
+        <div style="margin-bottom: 20px; --tooth-face-bg: #ffffff; --tooth-face-stroke: #334155; --bg-card: #ffffff; --border-color: #cbd5e1; --primary-cyan: #0284c7;">
+            <h3 style="font-size: 1.05rem; color: #0f172a; border-bottom: 2px solid #0284c7; padding-bottom: 4px; margin-bottom: 10px;">
+                🦷 Odontodiagrama Inicial (Diagnóstico)
             </h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; background: #ffffff;">
-                    <h4 style="margin: 0 0 8px 0; font-size: 0.85rem; color: #0369a1; text-align: center;">Odontograma Inicial (Diagnóstico)</h4>
-                    <div>${initialOdHtml}</div>
-                </div>
-                <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; background: #ffffff;">
-                    <h4 style="margin: 0 0 8px 0; font-size: 0.85rem; color: #059669; text-align: center;">Odontograma Actualizado (Evolución)</h4>
-                    <div>${currentOdHtml}</div>
-                </div>
+            <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; background: #ffffff; margin-bottom: 15px;">
+                ${initialOdHtml}
+            </div>
+
+            <h3 style="font-size: 1.05rem; color: #0f172a; border-bottom: 2px solid #059669; padding-bottom: 4px; margin-bottom: 10px;">
+                🦷 Odontodiagrama Actualizado (Evolución)
+            </h3>
+            <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; background: #ffffff;">
+                ${currentOdHtml}
             </div>
         </div>
 
-        <!-- INTERCONSULTATIONS & SPECIAL STUDIES & RECIPES -->
+        <!-- INTERCONSULTATIONS & SPECIAL STUDIES & RECIPES (SEGUIDAMENTE) -->
         <div style="margin-bottom: 20px;">
-            <h3 style="font-size: 1.05rem; color: #0f172a; border-bottom: 2px solid #0d9488; padding-bottom: 4px; margin-bottom: 12px;">
-                🩺 Interconsultas, Estudios Especiales y Prescripciones Médicas
+            <h3 style="font-size: 1.05rem; color: #0f172a; border-bottom: 2px solid #0d9488; padding-bottom: 4px; margin-bottom: 10px;">
+                🩺 Historial de Interconsultas, Estudios Especiales y Prescripciones Médicas
             </h3>
             ${interconsultationsHtml}
             ${recipesHtml}
@@ -11704,7 +11714,7 @@ async function generatePDFFromElement(element, filename) {
                             image: { type: 'jpeg', quality: 0.98 },
                             html2canvas: { scale: 2, useCORS: true, letterRendering: true, backgroundColor: '#ffffff', logging: false, width: 720 },
                             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                            pagebreak: { mode: ['css', 'legacy'] }
                         };
                         await window.html2pdf().set(opt).from(element).save();
                     } else {
