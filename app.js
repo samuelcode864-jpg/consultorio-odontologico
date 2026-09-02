@@ -7965,7 +7965,7 @@ function initPatientStepperWizard() {
         }
         const btnSaveAndBudget = document.getElementById('btn-patient-save-and-budget');
         if (btnSaveAndBudget) {
-            if (step >= 3 || window.editingPatientId) {
+            if (step <= 3) {
                 btnSaveAndBudget.classList.remove('hidden');
             } else {
                 btnSaveAndBudget.classList.add('hidden');
