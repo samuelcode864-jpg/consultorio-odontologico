@@ -12327,6 +12327,50 @@ async function renderPublicSessionReceiptView() {
 // ==========================================
 // INTERCONSULTA, RÉCIPES E INDICACIONES CLÍNICAS
 // ==========================================
+window.selectedInterconsultaStudyKey = null;
+
+window.selectInterconsultaStudy = function(studyKey, cardEl) {
+    window.selectedInterconsultaStudyKey = studyKey;
+
+    document.querySelectorAll('.study-accordion-card').forEach(card => {
+        card.style.borderColor = 'var(--border-color)';
+        card.style.background = 'var(--bg-card)';
+        
+        const radioIcon = card.querySelector('.study-radio-icon');
+        if (radioIcon) {
+            radioIcon.className = 'fa-solid fa-circle-dot study-radio-icon text-muted';
+        }
+        
+        const badge = card.querySelector('.study-badge');
+        if (badge) {
+            badge.className = 'badge-tag gray study-badge';
+            badge.innerText = 'Haga clic para seleccionar';
+        }
+
+        const pane = card.querySelector('.study-details-pane');
+        if (pane) pane.classList.add('hidden');
+    });
+
+    if (cardEl) {
+        cardEl.style.borderColor = '#10b981';
+        cardEl.style.background = 'rgba(16, 185, 129, 0.04)';
+
+        const radioIcon = cardEl.querySelector('.study-radio-icon');
+        if (radioIcon) {
+            radioIcon.className = 'fa-solid fa-circle-check study-radio-icon text-green';
+        }
+
+        const badge = cardEl.querySelector('.study-badge');
+        if (badge) {
+            badge.className = 'badge-tag green study-badge';
+            badge.innerText = '✓ Seleccionado';
+        }
+
+        const pane = cardEl.querySelector('.study-details-pane');
+        if (pane) pane.classList.remove('hidden');
+    }
+};
+
 window.openInterconsultationModal = function() {
     const activeId = getActivePatientId();
     if (!activeId) {
@@ -12334,10 +12378,59 @@ window.openInterconsultationModal = function() {
         return;
     }
 
-    document.querySelectorAll('.interconsulta-check').forEach(cb => cb.checked = false);
-    document.querySelectorAll('.interconsulta-note').forEach(input => input.value = '');
+    window.selectedInterconsultaStudyKey = null;
+    document.querySelectorAll('.study-note-input').forEach(input => input.value = '');
     const notesEl = document.getElementById('interconsultation-notes');
     if (notesEl) notesEl.value = '';
+
+    // Auto-select first study by default
+    const firstCard = document.querySelector('.study-accordion-card');
+    if (firstCard) {
+        const studyKey = firstCard.dataset.studyKey;
+        window.selectInterconsultaStudy(studyKey, firstCard);
+    }
+
+    // Bind Create Recipe button from Interconsultation modal
+    const btnCreateRecipe = document.getElementById('btn-interconsultation-create-recipe');
+    if (btnCreateRecipe) {
+        btnCreateRecipe.onclick = async () => {
+            if (!window.selectedInterconsultaStudyKey) {
+                Swal.fire({ icon: 'warning', title: 'Seleccione un Estudio', text: 'Por favor haga clic en un estudio del acordeón para seleccionarlo.' });
+                return;
+            }
+
+            const activeId = getActivePatientId();
+            if (!activeId) return;
+
+            // Open recipe modal
+            await window.openRecipeModal(null, '');
+
+            // Ensure the selected study is added to the select dropdown and selected
+            const select = document.getElementById('recipe-treatment-select');
+            if (select) {
+                const studyOptVal = `Estudio Especial: ${window.selectedInterconsultaStudyKey}`;
+                let existingOpt = Array.from(select.options).find(o => o.value === studyOptVal);
+                if (!existingOpt) {
+                    const opt = document.createElement('option');
+                    opt.value = studyOptVal;
+                    opt.innerText = studyOptVal;
+                    select.appendChild(opt);
+                }
+                select.value = studyOptVal;
+            }
+
+            // Tailor notes and clinical indications for the study
+            const notesInput = document.getElementById('recipe-general-notes');
+            const indInput = document.getElementById('recipe-clinical-indications');
+
+            if (notesInput) {
+                notesInput.value = `Orden de examen para laboratorio / laboratorio de imágenes: Realizar ${window.selectedInterconsultaStudyKey}.`;
+            }
+            if (indInput) {
+                indInput.value = `1. Acudir en ayunas (mínimo 8 horas de ayuno) para la toma de muestra de ${window.selectedInterconsultaStudyKey}.\n2. Evitar consumo de medicamentos anticoagulantes o aspirinas 24 horas antes del examen salvo indicación médica opuesta.\n3. Presentar esta orden e indicaciones al momento de realizar la prueba.`;
+            }
+        };
+    }
 
     openModal('modal-interconsultation');
 };
@@ -12416,7 +12509,7 @@ window.openRecipeModal = async function(sessionNum = null, sessionTitle = '') {
     window.addRecipeRow('Ibuprofeno 400mg', '1 tableta c/8h', 'Por 3 días (si hay dolor)');
 
     const notesEl = document.getElementById('recipe-general-notes');
-    if (notesEl) notesEl.value = 'Tomar los medicamentos indicados estrictamente después de las comidas.';
+    if (notesEl) notesEl.value = 'Tomar los medicamentos indicados strictly después de las comidas.';
 
     const indEl = document.getElementById('recipe-clinical-indications');
     if (indEl) indEl.value = '1. Reposo relativo durante las primeras 48 horas.\n2. Aplicar hielo local en la zona externa por lapsos de 15 minutos.\n3. Dieta blanda y fría. Evitar exponerse al sol o realizar esfuerzos físicos.';
@@ -12432,23 +12525,16 @@ window.saveInterconsultationFull = async function() {
         return;
     }
 
-    const selectedStudies = [];
-    document.querySelectorAll('.interconsulta-check:checked').forEach(cb => {
-        const studyName = cb.value;
-        const noteInput = document.querySelector(`.interconsulta-note[data-study="${studyName}"]`);
-        const note = noteInput ? noteInput.value.trim() : '';
-        selectedStudies.push({
-            name: studyName,
-            note: note
-        });
-    });
-
-    const notes = document.getElementById('interconsultation-notes') ? document.getElementById('interconsultation-notes').value.trim() : '';
-
-    if (selectedStudies.length === 0 && !notes) {
-        Swal.fire({ icon: 'warning', title: 'Interconsulta Vacía', text: 'Seleccione al menos un estudio o escriba las observaciones de la interconsulta.' });
+    if (!window.selectedInterconsultaStudyKey) {
+        Swal.fire({ icon: 'warning', title: 'Seleccione un Estudio', text: 'Por favor seleccione un estudio especial del acordeón.' });
         return;
     }
+
+    const selectedCard = document.querySelector(`.study-accordion-card[data-study-key="${window.selectedInterconsultaStudyKey}"]`);
+    const noteInput = selectedCard ? selectedCard.querySelector('.study-note-input') : null;
+    const studyNote = noteInput ? noteInput.value.trim() : '';
+
+    const notes = document.getElementById('interconsultation-notes') ? document.getElementById('interconsultation-notes').value.trim() : '';
 
     const patients = await SupabaseDataService.getPatients();
     const p = patients.find(pt => pt.id === activeId);
@@ -12459,7 +12545,8 @@ window.saveInterconsultationFull = async function() {
         const record = {
             id: 'IC-' + Date.now().toString().slice(-6),
             date: new Date().toISOString().split('T')[0],
-            studies: selectedStudies,
+            studyName: window.selectedInterconsultaStudyKey,
+            studies: [{ name: window.selectedInterconsultaStudyKey, note: studyNote }],
             notes: notes
         };
 
@@ -12474,7 +12561,7 @@ window.saveInterconsultationFull = async function() {
         Swal.fire({
             icon: 'success',
             title: '¡Interconsulta Guardada!',
-            text: 'La solicitud de interconsulta ha sido registrada en el expediente.',
+            text: `Solicitud de ${window.selectedInterconsultaStudyKey} registrada en el expediente.`,
             timer: 1800,
             showConfirmButton: false
         });

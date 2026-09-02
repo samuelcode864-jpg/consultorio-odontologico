@@ -2850,133 +2850,137 @@
         <div class="modal-dialog" style="max-width: 800px; width: 95%;">
             <div class="modal-header" style="background: var(--bg-main); border-bottom: 1px solid var(--border-color);">
                 <h3 style="margin: 0; color: var(--text-main); font-weight: 700; display: flex; align-items: center; gap: 8px;">
-                    <i class="fa-solid fa-user-doctor text-cyan"></i> Interconsulta y Solicitud de Estudios Especiales
+                    <i class="fa-solid fa-user-doctor text-cyan"></i> Solicitud de Interconsulta y Estudio Especial
                 </h3>
                 <button class="modal-close" data-close="modal-interconsultation">&times;</button>
             </div>
             <div class="modal-body" style="padding: 20px;">
-                <p class="text-muted" style="font-size: 0.88rem; margin-top: 0; margin-bottom: 15px;">
-                    Marque los exámenes o estudios especiales requeridos para el paciente en este proceso de interconsulta:
-                </p>
+                <div style="background: rgba(8, 145, 178, 0.06); border-left: 4px solid var(--primary-cyan); padding: 10px 14px; border-radius: 6px; margin-bottom: 15px; font-size: 0.85rem; color: var(--text-main);">
+                    <strong>Instrucción:</strong> Seleccione <strong>un (1) estudio especial</strong> de la lista en acordeón para configurar su solicitud, récipe e indicaciones de forma individual.
+                </div>
 
-                <!-- Acordeón de Estudios Especiales -->
-                <div class="interconsulta-accordion" style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- Acordeón de Selección Única de Estudios Especiales -->
+                <div class="interconsulta-accordion-group" style="display: flex; flex-direction: column; gap: 10px;">
                     
-                    <!-- 1. Hematología -->
-                    <div class="card p-0" style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
-                        <label style="padding: 12px 15px; background: rgba(0,0,0,0.02); display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-weight: 700; margin: 0;">
+                    <!-- 1. Hematología Completa -->
+                    <div class="study-accordion-card" data-study-key="Hematología Completa" onclick="window.selectInterconsultaStudy('Hematología Completa', this)" style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
+                        <div style="padding: 12px 15px; background: var(--bg-card); display: flex; align-items: center; justify-content: space-between; font-weight: 700;">
                             <span style="display: flex; align-items: center; gap: 10px;">
-                                <input type="checkbox" class="interconsulta-check" value="Hematología Completa">
+                                <i class="fa-solid fa-circle-dot study-radio-icon text-muted"></i>
                                 <i class="fa-solid fa-vial text-red"></i> 1. Hematología Completa
                             </span>
-                            <span class="text-muted" style="font-size: 0.78rem;">Ver detalles</span>
-                        </label>
-                        <div class="p-15" style="padding: 12px 15px; border-top: 1px solid var(--border-color); background: #ffffff;">
-                            <input type="text" class="form-control interconsulta-note" data-study="Hematología Completa" placeholder="Especificaciones adicionales (ej: Fórmula blanca, plaquetas...)" style="font-size: 0.85rem;">
+                            <span class="badge-tag gray study-badge">Haga clic para seleccionar</span>
+                        </div>
+                        <div class="study-details-pane hidden" style="padding: 12px 15px; border-top: 1px solid var(--border-color); background: #ffffff;">
+                            <label style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:4px;">Especificaciones clínicas del estudio:</label>
+                            <input type="text" class="form-control study-note-input" placeholder="ej: Con conteo de plaquetas y fórmula blanca..." style="font-size: 0.85rem;">
                         </div>
                     </div>
 
-                    <!-- 2. PT y PTT -->
-                    <div class="card p-0" style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
-                        <label style="padding: 12px 15px; background: rgba(0,0,0,0.02); display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-weight: 700; margin: 0;">
+                    <!-- 2. Tiempos de Coagulación (PT y PTT) -->
+                    <div class="study-accordion-card" data-study-key="Tiempos de Coagulación (PT y PTT)" onclick="window.selectInterconsultaStudy('Tiempos de Coagulación (PT y PTT)', this)" style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
+                        <div style="padding: 12px 15px; background: var(--bg-card); display: flex; align-items: center; justify-content: space-between; font-weight: 700;">
                             <span style="display: flex; align-items: center; gap: 10px;">
-                                <input type="checkbox" class="interconsulta-check" value="Tiempos de Coagulación (PT y PTT)">
+                                <i class="fa-solid fa-circle-dot study-radio-icon text-muted"></i>
                                 <i class="fa-solid fa-clock text-amber"></i> 2. Tiempos de Coagulación (PT y PTT)
                             </span>
-                            <span class="text-muted" style="font-size: 0.78rem;">Ver detalles</span>
-                        </label>
-                        <div class="p-15" style="padding: 12px 15px; border-top: 1px solid var(--border-color); background: #ffffff;">
-                            <input type="text" class="form-control interconsulta-note" data-study="Tiempos de Coagulación (PT y PTT)" placeholder="Especificaciones (ej: Evaluación quirúrgica previa...)" style="font-size: 0.85rem;">
+                            <span class="badge-tag gray study-badge">Haga clic para seleccionar</span>
+                        </div>
+                        <div class="study-details-pane hidden" style="padding: 12px 15px; border-top: 1px solid var(--border-color); background: #ffffff;">
+                            <label style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:4px;">Especificaciones clínicas del estudio:</label>
+                            <input type="text" class="form-control study-note-input" placeholder="ej: Evaluación hemostática previa a cirugía bucal..." style="font-size: 0.85rem;">
                         </div>
                     </div>
 
-                    <!-- 3. VDRL -->
-                    <div class="card p-0" style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
-                        <label style="padding: 12px 15px; background: rgba(0,0,0,0.02); display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-weight: 700; margin: 0;">
+                    <!-- 3. VDRL / Serología -->
+                    <div class="study-accordion-card" data-study-key="VDRL / Serología" onclick="window.selectInterconsultaStudy('VDRL / Serología', this)" style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
+                        <div style="padding: 12px 15px; background: var(--bg-card); display: flex; align-items: center; justify-content: space-between; font-weight: 700;">
                             <span style="display: flex; align-items: center; gap: 10px;">
-                                <input type="checkbox" class="interconsulta-check" value="VDRL / Serología">
-                                <i class="fa-solid fa-microscope text-purple"></i> 3. VDRL / Serología
+                                <i class="fa-solid fa-circle-dot study-radio-icon text-muted"></i>
+                                <i class="fa-solid fa-microscope text-purple"></i> 3. VDRL / Serología Pre-Quirúrgica
                             </span>
-                            <span class="text-muted" style="font-size: 0.78rem;">Ver detalles</span>
-                        </label>
-                        <div class="p-15" style="padding: 12px 15px; border-top: 1px solid var(--border-color); background: #ffffff;">
-                            <input type="text" class="form-control interconsulta-note" data-study="VDRL / Serología" placeholder="Especificaciones adicionales..." style="font-size: 0.85rem;">
+                            <span class="badge-tag gray study-badge">Haga clic para seleccionar</span>
+                        </div>
+                        <div class="study-details-pane hidden" style="padding: 12px 15px; border-top: 1px solid var(--border-color); background: #ffffff;">
+                            <label style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:4px;">Especificaciones clínicas del estudio:</label>
+                            <input type="text" class="form-control study-note-input" placeholder="ej: Descarte serológico de rutina..." style="font-size: 0.85rem;">
                         </div>
                     </div>
 
-                    <!-- 4. Panorámica -->
-                    <div class="card p-0" style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
-                        <label style="padding: 12px 15px; background: rgba(0,0,0,0.02); display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-weight: 700; margin: 0;">
+                    <!-- 4. Radiografía Panorámica -->
+                    <div class="study-accordion-card" data-study-key="Radiografía Panorámica" onclick="window.selectInterconsultaStudy('Radiografía Panorámica', this)" style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
+                        <div style="padding: 12px 15px; background: var(--bg-card); display: flex; align-items: center; justify-content: space-between; font-weight: 700;">
                             <span style="display: flex; align-items: center; gap: 10px;">
-                                <input type="checkbox" class="interconsulta-check" value="Radiografía Panorámica">
+                                <i class="fa-solid fa-circle-dot study-radio-icon text-muted"></i>
                                 <i class="fa-solid fa-x-ray text-cyan"></i> 4. Radiografía Panorámica Ortopantomografía
                             </span>
-                            <span class="text-muted" style="font-size: 0.78rem;">Ver detalles</span>
-                        </label>
-                        <div class="p-15" style="padding: 12px 15px; border-top: 1px solid var(--border-color); background: #ffffff;">
-                            <input type="text" class="form-control interconsulta-note" data-study="Radiografía Panorámica" placeholder="Especificaciones (ej: Evaluación de terceros molares / arcadas)..." style="font-size: 0.85rem;">
+                            <span class="badge-tag gray study-badge">Haga clic para seleccionar</span>
+                        </div>
+                        <div class="study-details-pane hidden" style="padding: 12px 15px; border-top: 1px solid var(--border-color); background: #ffffff;">
+                            <label style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:4px;">Especificaciones clínicas del estudio:</label>
+                            <input type="text" class="form-control study-note-input" placeholder="ej: Evaluación de terceros molares retenidos..." style="font-size: 0.85rem;">
                         </div>
                     </div>
 
                     <!-- 5. RX Periapical -->
-                    <div class="card p-0" style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
-                        <label style="padding: 12px 15px; background: rgba(0,0,0,0.02); display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-weight: 700; margin: 0;">
+                    <div class="study-accordion-card" data-study-key="RX Periapical" onclick="window.selectInterconsultaStudy('RX Periapical', this)" style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
+                        <div style="padding: 12px 15px; background: var(--bg-card); display: flex; align-items: center; justify-content: space-between; font-weight: 700;">
                             <span style="display: flex; align-items: center; gap: 10px;">
-                                <input type="checkbox" class="interconsulta-check" value="RX Periapical">
+                                <i class="fa-solid fa-circle-dot study-radio-icon text-muted"></i>
                                 <i class="fa-solid fa-tooth text-green"></i> 5. Radiografía Periapical (Localizada)
                             </span>
-                            <span class="text-muted" style="font-size: 0.78rem;">Ver detalles</span>
-                        </label>
-                        <div class="p-15" style="padding: 12px 15px; border-top: 1px solid var(--border-color); background: #ffffff;">
-                            <input type="text" class="form-control interconsulta-note" data-study="RX Periapical" placeholder="Indique la pieza dental (ej: Pieza 16 / 21)..." style="font-size: 0.85rem;">
+                            <span class="badge-tag gray study-badge">Haga clic para seleccionar</span>
+                        </div>
+                        <div class="study-details-pane hidden" style="padding: 12px 15px; border-top: 1px solid var(--border-color); background: #ffffff;">
+                            <label style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:4px;">Especificaciones clínicas del estudio:</label>
+                            <input type="text" class="form-control study-note-input" placeholder="ej: Indique la pieza dental (ej: Pieza 16 / 21)..." style="font-size: 0.85rem;">
                         </div>
                     </div>
 
-                    <!-- 6. RX Coronal -->
-                    <div class="card p-0" style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
-                        <label style="padding: 12px 15px; background: rgba(0,0,0,0.02); display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-weight: 700; margin: 0;">
+                    <!-- 6. Tomografía Cone Beam 3D -->
+                    <div class="study-accordion-card" data-study-key="Tomografía Cone Beam 3D" onclick="window.selectInterconsultaStudy('Tomografía Cone Beam 3D', this)" style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
+                        <div style="padding: 12px 15px; background: var(--bg-card); display: flex; align-items: center; justify-content: space-between; font-weight: 700;">
                             <span style="display: flex; align-items: center; gap: 10px;">
-                                <input type="checkbox" class="interconsulta-check" value="RX Coronal">
-                                <i class="fa-solid fa-file-image text-cyan"></i> 6. Radiografía Coronal / Bite-Wing
+                                <i class="fa-solid fa-circle-dot study-radio-icon text-muted"></i>
+                                <i class="fa-solid fa-cube text-purple"></i> 6. Tomografía Computarizada Cone Beam 3D
                             </span>
-                            <span class="text-muted" style="font-size: 0.78rem;">Ver detalles</span>
-                        </label>
-                        <div class="p-15" style="padding: 12px 15px; border-top: 1px solid var(--border-color); background: #ffffff;">
-                            <input type="text" class="form-control interconsulta-note" data-study="RX Coronal" placeholder="Especificaciones (ej: Detección de caries interproximales)..." style="font-size: 0.85rem;">
+                            <span class="badge-tag gray study-badge">Haga clic para seleccionar</span>
+                        </div>
+                        <div class="study-details-pane hidden" style="padding: 12px 15px; border-top: 1px solid var(--border-color); background: #ffffff;">
+                            <label style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:4px;">Especificaciones clínicas del estudio:</label>
+                            <input type="text" class="form-control study-note-input" placeholder="ej: Evaluación de disponibilidad ósea para implante..." style="font-size: 0.85rem;">
                         </div>
                     </div>
 
-                    <!-- 7. Tomografía -->
-                    <div class="card p-0" style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
-                        <label style="padding: 12px 15px; background: rgba(0,0,0,0.02); display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-weight: 700; margin: 0;">
+                    <!-- 7. Perfil 20 / Química Sanguínea -->
+                    <div class="study-accordion-card" data-study-key="Perfil 20 / Química Sanguínea" onclick="window.selectInterconsultaStudy('Perfil 20 / Química Sanguínea', this)" style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
+                        <div style="padding: 12px 15px; background: var(--bg-card); display: flex; align-items: center; justify-content: space-between; font-weight: 700;">
                             <span style="display: flex; align-items: center; gap: 10px;">
-                                <input type="checkbox" class="interconsulta-check" value="Tomografía Cone Beam 3D">
-                                <i class="fa-solid fa-cube text-purple"></i> 7. Tomografía Computarizada Cone Beam 3D
+                                <i class="fa-solid fa-circle-dot study-radio-icon text-muted"></i>
+                                <i class="fa-solid fa-flask text-amber"></i> 7. Perfil 20 / Química Sanguínea completa
                             </span>
-                            <span class="text-muted" style="font-size: 0.78rem;">Ver detalles</span>
-                        </label>
-                        <div class="p-15" style="padding: 12px 15px; border-top: 1px solid var(--border-color); background: #ffffff;">
-                            <input type="text" class="form-control interconsulta-note" data-study="Tomografía Cone Beam 3D" placeholder="Especificaciones (ej: Maxilar superior / Implante pieza 36)..." style="font-size: 0.85rem;">
+                            <span class="badge-tag gray study-badge">Haga clic para seleccionar</span>
+                        </div>
+                        <div class="study-details-pane hidden" style="padding: 12px 15px; border-top: 1px solid var(--border-color); background: #ffffff;">
+                            <label style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:4px;">Especificaciones clínicas del estudio:</label>
+                            <input type="text" class="form-control study-note-input" placeholder="ej: Glucemia en ayunas, urea, creatinina..." style="font-size: 0.85rem;">
                         </div>
                     </div>
 
                 </div>
 
                 <!-- Observaciones de Interconsulta -->
-                <div class="form-group style='margin-top: 15px;'">
+                <div class="form-group" style="margin-top: 15px;">
                     <label style="font-weight: 700; font-size: 0.85rem; margin-top: 15px; display: block;">Motivo de Interconsulta / Observaciones del Especialista:</label>
-                    <textarea id="interconsultation-notes" class="form-control" rows="2" placeholder="Escriba las observaciones clínicas, indicación diagnóstica o motivo de la interconsulta..."></textarea>
+                    <textarea id="interconsultation-notes" class="form-control" rows="2" placeholder="Escriba las observaciones clínicas o motivo específico de la interconsulta..."></textarea>
                 </div>
             </div>
 
-            <!-- Footer con Botones de Crear Récipe y Crear Indicaciones -->
+            <!-- Footer con Botones -->
             <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                 <div style="display: flex; gap: 8px;">
                     <button type="button" class="btn btn-success" id="btn-interconsultation-create-recipe" style="background: #10b981 !important; color: white !important; font-weight: 700; border: none; display: flex; align-items: center; gap: 6px;">
-                        <i class="fa-solid fa-pills"></i> Crear Récipe
-                    </button>
-                    <button type="button" class="btn btn-primary" id="btn-interconsultation-create-indications" style="background: #0284c7 !important; color: white !important; font-weight: 700; border: none; display: flex; align-items: center; gap: 6px;">
-                        <i class="fa-solid fa-list-check"></i> Crear Indicaciones
+                        <i class="fa-solid fa-pills"></i> Crear Récipe e Indicaciones
                     </button>
                 </div>
                 <div style="display: flex; gap: 8px;">
@@ -3582,13 +3586,13 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=195"></script>
-    <script src="supabaseClient.js?v=195"></script>
-    <script src="odontogram.js?v=195"></script>
-    <script src="signature.js?v=195"></script>
-    <script src="whatsapp.js?v=195"></script>
-    <script src="kardex.js?v=195"></script>
-    <script src="app.js?v=195"></script>
-    <script src="tutorial.js?v=195"></script>
+    <script src="seededData.js?v=196"></script>
+    <script src="supabaseClient.js?v=196"></script>
+    <script src="odontogram.js?v=196"></script>
+    <script src="signature.js?v=196"></script>
+    <script src="whatsapp.js?v=196"></script>
+    <script src="kardex.js?v=196"></script>
+    <script src="app.js?v=196"></script>
+    <script src="tutorial.js?v=196"></script>
 </body>
 </html>
