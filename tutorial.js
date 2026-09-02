@@ -83,12 +83,24 @@
         }
 
         checkAutoStart() {
-            const user = (typeof getCurrentUser === "function") ? getCurrentUser() : null;
-            const userKey = user ? (user.id || user.email || "user") : "default";
-            const storageKey = "dental_tutorial_viewed_" + userKey;
-            if (!localStorage.getItem(storageKey)) {
-                this.start(0);
+            if (localStorage.getItem("dental_tutorial_viewed") === "true") {
+                return;
             }
+
+            const user = (typeof getCurrentUser === "function") ? getCurrentUser() : null;
+            const userKey = user ? (user.id || user.email || user.username || "user") : "default";
+            
+            if (localStorage.getItem("dental_tutorial_viewed_" + userKey) === "true") {
+                return;
+            }
+
+            if (user && user.metadata && user.metadata.tutorialViewed === true) {
+                localStorage.setItem("dental_tutorial_viewed", "true");
+                localStorage.setItem("dental_tutorial_viewed_" + userKey, "true");
+                return;
+            }
+
+            this.start(0);
         }
 
         createDOM() {
@@ -142,9 +154,17 @@
             window.removeEventListener("resize", this.resizeHandler);
             window.removeEventListener("scroll", this.resizeHandler, true);
             if (markCompleted) {
+                localStorage.setItem("dental_tutorial_viewed", "true");
                 const user = (typeof getCurrentUser === "function") ? getCurrentUser() : null;
-                const userKey = user ? (user.id || user.email || "user") : "default";
-                localStorage.setItem("dental_tutorial_viewed_" + userKey, "true");
+                if (user) {
+                    const userKey = user.id || user.email || user.username || "user";
+                    localStorage.setItem("dental_tutorial_viewed_" + userKey, "true");
+                    if (!user.metadata) user.metadata = {};
+                    user.metadata.tutorialViewed = true;
+                    if (typeof SupabaseDataService !== "undefined" && SupabaseDataService.saveUser) {
+                        SupabaseDataService.saveUser(user);
+                    }
+                }
             }
             if (typeof switchTab === "function") switchTab("dashboard");
         }
