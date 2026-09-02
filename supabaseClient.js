@@ -27,50 +27,72 @@ class SupabaseDataService {
     // ==========================================
     // 1. SYSTEM USERS & DOCTOR PROFILES / SIGNATURES
     // ==========================================
-    static async getUsers() {
+    static _usersPromise = null;
+    static _usersCacheTime = 0;
+
+    static async getUsers(forceRefresh = false) {
+        const local = JSON.parse(localStorage.getItem('dental_users')) || (typeof INITIAL_USERS !== 'undefined' ? INITIAL_USERS : []);
+        
         if (!this.isCloudConnected()) {
-            return JSON.parse(localStorage.getItem('dental_users')) || (typeof INITIAL_USERS !== 'undefined' ? INITIAL_USERS : []);
+            return local;
         }
-        try {
-            const { data, error } = await supabaseClient.from('users').select('*');
-            if (error) throw error;
-            if (data && data.length > 0) {
-                const mapped = data.map(u => {
-                    let docProfile = u.doctor_profile || {};
-                    let licenseStr = u.license || '';
 
-                    // Unpack JSON encoded license if present
-                    if (licenseStr && licenseStr.startsWith('{')) {
-                        try {
-                            const parsedLicense = JSON.parse(licenseStr);
-                            licenseStr = parsedLicense.license || parsedLicense.licenseNumber || '';
-                            if (parsedLicense.doctorProfile) {
-                                docProfile = { ...parsedLicense.doctorProfile, ...docProfile };
-                            }
-                        } catch (e) { /* use raw string */ }
-                    }
+        const now = Date.now();
+        if (!forceRefresh && this._usersCacheTime && (now - this._usersCacheTime < 4000)) {
+            return local;
+        }
 
-                    return {
-                        id: u.id,
-                        fullname: u.fullname,
-                        email: u.email,
-                        password: u.password,
-                        role: u.role,
-                        license: licenseStr,
-                        status: u.status || 'Activo',
-                        createdAt: u.created_at ? u.created_at.split('T')[0] : '2026-01-10',
-                        doctorProfile: docProfile,
-                        doctor_profile: docProfile
-                    };
-                });
-                localStorage.setItem('dental_users', JSON.stringify(mapped));
-                return mapped;
+        if (this._usersPromise && !forceRefresh) {
+            return local;
+        }
+
+        this._usersPromise = (async () => {
+            try {
+                const { data, error } = await supabaseClient.from('users').select('*');
+                if (error) throw error;
+                if (data && data.length > 0) {
+                    const mapped = data.map(u => {
+                        let docProfile = u.doctor_profile || {};
+                        let licenseStr = u.license || '';
+
+                        if (licenseStr && licenseStr.startsWith('{')) {
+                            try {
+                                const parsedLicense = JSON.parse(licenseStr);
+                                licenseStr = parsedLicense.license || parsedLicense.licenseNumber || '';
+                                if (parsedLicense.doctorProfile) {
+                                    docProfile = { ...parsedLicense.doctorProfile, ...docProfile };
+                                }
+                            } catch (e) { }
+                        }
+
+                        return {
+                            id: u.id,
+                            fullname: u.fullname,
+                            email: u.email,
+                            password: u.password,
+                            role: u.role,
+                            license: licenseStr,
+                            status: u.status || 'Activo',
+                            createdAt: u.created_at ? u.created_at.split('T')[0] : '2026-01-10',
+                            doctorProfile: docProfile,
+                            doctor_profile: docProfile
+                        };
+                    });
+                    localStorage.setItem('dental_users', JSON.stringify(mapped));
+                    this._usersCacheTime = Date.now();
+                    return mapped;
+                }
+                return local;
+            } catch (err) {
+                console.error('Supabase getUsers Error:', err);
+                return local;
+            } finally {
+                this._usersPromise = null;
             }
-            return JSON.parse(localStorage.getItem('dental_users')) || (typeof INITIAL_USERS !== 'undefined' ? INITIAL_USERS : []);
-        } catch (err) {
-            console.error('Supabase getUsers Error:', err);
-            return JSON.parse(localStorage.getItem('dental_users')) || (typeof INITIAL_USERS !== 'undefined' ? INITIAL_USERS : []);
-        }
+        })();
+
+        if (forceRefresh) return await this._usersPromise;
+        return local;
     }
 
     static async saveUser(userObj) {
@@ -136,12 +158,27 @@ class SupabaseDataService {
     // ==========================================
     // 2. BAREMO SERVICES
     // ==========================================
-    static async getBaremo() {
-        let baremoList = null;
+    static _baremoPromise = null;
+    static _baremoCacheTime = 0;
 
-        if (this.isCloudConnected()) {
+    static async getBaremo(forceRefresh = false) {
+        const local = JSON.parse(localStorage.getItem('dental_baremo')) || (typeof INITIAL_BAREMO !== 'undefined' ? INITIAL_BAREMO : []);
+        if (!this.isCloudConnected()) {
+            return local;
+        }
+
+        const now = Date.now();
+        if (!forceRefresh && this._baremoCacheTime && (now - this._baremoCacheTime < 4000)) {
+            return local;
+        }
+
+        if (this._baremoPromise && !forceRefresh) {
+            return local;
+        }
+
+        this._baremoPromise = (async () => {
             try {
-                // 1. Try dedicated baremo_services table first
+                let baremoList = null;
                 const { data, error } = await supabaseClient.from('baremo_services').select('*');
                 if (!error && data && data.length > 0) {
                     baremoList = data.map(d => ({
@@ -154,38 +191,27 @@ class SupabaseDataService {
                         hygienistBonus: parseFloat(d.hygienist_bonus || 0)
                     }));
                 } else {
-                    // 2. Check SYS-BAREMO-CONFIG row in patients table (100% fail-safe JSONB cloud storage)
                     const { data: pData } = await supabaseClient.from('patients').select('*').eq('id', 'SYS-BAREMO-CONFIG');
                     if (pData && pData.length > 0 && pData[0].odontogram_data && pData[0].odontogram_data._is_baremo_config) {
                         baremoList = pData[0].odontogram_data._baremo || [];
                     }
                 }
+                if (baremoList !== null) {
+                    localStorage.setItem('dental_baremo', JSON.stringify(baremoList));
+                    this._baremoCacheTime = Date.now();
+                    return baremoList;
+                }
+                return local;
             } catch (err) {
                 console.error('Supabase getBaremo Error:', err);
+                return local;
+            } finally {
+                this._baremoPromise = null;
             }
-        }
+        })();
 
-        // If cloud returned a valid list (even empty if user intentionally deleted all items), use it!
-        if (baremoList !== null) {
-            localStorage.setItem('dental_baremo', JSON.stringify(baremoList));
-            return baremoList;
-        }
-
-        // Fallback to local storage if offline or not fetched yet
-        const local = localStorage.getItem('dental_baremo');
-        if (local !== null) {
-            return JSON.parse(local);
-        }
-
-        // Only seed INITIAL_BAREMO if system has never been initialized
-        const seeded = (typeof INITIAL_BAREMO !== 'undefined' ? INITIAL_BAREMO : []);
-        localStorage.setItem('dental_baremo', JSON.stringify(seeded));
-        if (this.isCloudConnected() && seeded.length > 0) {
-            for (const srv of seeded) {
-                await this.saveBaremoService(srv);
-            }
-        }
-        return seeded;
+        if (forceRefresh) return await this._baremoPromise;
+        return local;
     }
 
     static async saveBaremoService(srvObj) {
@@ -531,33 +557,55 @@ class SupabaseDataService {
     // ==========================================
     // 5. KARDEX INVENTORY
     // ==========================================
-    static async getInventory() {
+    static _inventoryPromise = null;
+    static _inventoryCacheTime = 0;
+
+    static async getInventory(forceRefresh = false) {
+        const local = JSON.parse(localStorage.getItem('dental_kardex')) || JSON.parse(localStorage.getItem('dental_inventory')) || (typeof INITIAL_INVENTORY !== 'undefined' ? INITIAL_INVENTORY : []);
         if (!this.isCloudConnected()) {
-            return JSON.parse(localStorage.getItem('dental_kardex')) || JSON.parse(localStorage.getItem('dental_inventory')) || (typeof INITIAL_INVENTORY !== 'undefined' ? INITIAL_INVENTORY : []);
+            return local;
         }
-        try {
-            const { data, error } = await supabaseClient.from('kardex_inventory').select('*');
-            if (error) throw error;
-            if (data) {
-                const mapped = data.map(i => ({
-                    code: i.code,
-                    name: i.name,
-                    category: i.category,
-                    currentStock: i.current_stock,
-                    minStock: i.min_stock,
-                    unit: i.unit,
-                    expiryDate: i.expiry_date
-                }));
-                localStorage.setItem('dental_kardex', JSON.stringify(mapped));
-                localStorage.setItem('dental_inventory', JSON.stringify(mapped));
-                if (window.kardex) window.kardex.items = mapped;
-                return mapped;
+
+        const now = Date.now();
+        if (!forceRefresh && this._inventoryCacheTime && (now - this._inventoryCacheTime < 4000)) {
+            return local;
+        }
+
+        if (this._inventoryPromise && !forceRefresh) {
+            return local;
+        }
+
+        this._inventoryPromise = (async () => {
+            try {
+                const { data, error } = await supabaseClient.from('kardex_inventory').select('*');
+                if (error) throw error;
+                if (data) {
+                    const mapped = data.map(i => ({
+                        code: i.code,
+                        name: i.name,
+                        category: i.category,
+                        currentStock: i.current_stock,
+                        minStock: i.min_stock,
+                        unit: i.unit,
+                        expiryDate: i.expiry_date
+                    }));
+                    localStorage.setItem('dental_kardex', JSON.stringify(mapped));
+                    localStorage.setItem('dental_inventory', JSON.stringify(mapped));
+                    if (window.kardex) window.kardex.items = mapped;
+                    this._inventoryCacheTime = Date.now();
+                    return mapped;
+                }
+                return local;
+            } catch (err) {
+                console.error('Supabase getInventory Error:', err);
+                return local;
+            } finally {
+                this._inventoryPromise = null;
             }
-            return [];
-        } catch (err) {
-            console.error('Supabase getInventory Error:', err);
-            return JSON.parse(localStorage.getItem('dental_kardex')) || JSON.parse(localStorage.getItem('dental_inventory')) || (typeof INITIAL_INVENTORY !== 'undefined' ? INITIAL_INVENTORY : []);
-        }
+        })();
+
+        if (forceRefresh) return await this._inventoryPromise;
+        return local;
     }
 
     static async saveInventoryItem(itemObj) {
@@ -606,12 +654,27 @@ class SupabaseDataService {
     // ==========================================
     // 6. INVOICES & PRESUPUESTOS (BUDGETS)
     // ==========================================
-    static async getInvoices() {
-        let cloudInvoices = [];
+    static _invoicesPromise = null;
+    static _invoicesCacheTime = 0;
 
-        if (this.isCloudConnected()) {
+    static async getInvoices(forceRefresh = false) {
+        const local = JSON.parse(localStorage.getItem('dental_invoices')) || [];
+        if (!this.isCloudConnected()) {
+            return local;
+        }
+
+        const now = Date.now();
+        if (!forceRefresh && this._invoicesCacheTime && (now - this._invoicesCacheTime < 4000)) {
+            return local;
+        }
+
+        if (this._invoicesPromise && !forceRefresh) {
+            return local;
+        }
+
+        this._invoicesPromise = (async () => {
+            let cloudInvoices = [];
             try {
-                // 1. Check for invoices/budgets stored in patients table with JSONB
                 const { data: pData } = await supabaseClient.from('patients').select('*');
                 if (pData && pData.length > 0) {
                     const budgetRows = pData.filter(p => {
@@ -633,13 +696,14 @@ class SupabaseDataService {
                             totalRef: parseFloat(od.totalRef || 0),
                             totalBcv: parseFloat(od.totalBcv || 0),
                             status: od.status || row.status || 'Emitida',
+                            doctorSignature: od.doctorSignature || '',
+                            patientSignature: od.patientSignature || '',
                             footerText: od.footerText || '',
                             metadata: od.metadata || {}
                         });
                     });
                 }
 
-                // 2. Also check if dedicated invoices table exists
                 const { data: invData, error: invErr } = await supabaseClient.from('invoices').select('*');
                 if (!invErr && invData && invData.length > 0) {
                     invData.forEach(i => {
@@ -655,6 +719,8 @@ class SupabaseDataService {
                                 totalRef: parseFloat(i.total_ref || 0),
                                 totalBcv: parseFloat(i.total_bcv || 0),
                                 status: i.status || 'Emitida',
+                                doctorSignature: i.doctor_signature || i.doctorSignature || '',
+                                patientSignature: i.patient_signature || i.patientSignature || '',
                                 footerText: i.footer_text,
                                 metadata: i.metadata || {}
                             });
@@ -664,14 +730,18 @@ class SupabaseDataService {
             } catch (err) {
                 console.warn('Supabase getInvoices sync warn:', err);
             }
-        }
 
-        if (cloudInvoices.length > 0) {
-            localStorage.setItem('dental_invoices', JSON.stringify(cloudInvoices));
-            return cloudInvoices;
-        }
+            if (cloudInvoices.length > 0) {
+                localStorage.setItem('dental_invoices', JSON.stringify(cloudInvoices));
+                this._invoicesCacheTime = Date.now();
+                return cloudInvoices;
+            }
 
-        return JSON.parse(localStorage.getItem('dental_invoices')) || [];
+            return local;
+        })();
+
+        if (forceRefresh) return await this._invoicesPromise;
+        return local;
     }
 
     static async saveInvoice(invoiceObj) {
