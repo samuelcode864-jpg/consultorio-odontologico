@@ -1712,18 +1712,27 @@ async function renderOdontogramView() {
         const patients = await SupabaseDataService.getPatients();
         const patient = patients.find(p => p.id === activeId);
         if (patient) {
-            window.odontogram.setData(patient.odontogramData || {});
-            
-            // Restablecer el borrador del presupuesto activo si existe
-            if (patient.metadata && patient.metadata.draftBudget) {
-                restoreDraftBudgetUI(patient.metadata.draftBudget);
+            // Si estamos editando un presupuesto existente, cargamos sus datos/firma. Si es un NUEVO presupuesto, iniciamos limpios.
+            if (activeEditingBudgetId) {
+                window.odontogram.setData(patient.odontogramData || {});
+                if (patient.metadata && patient.metadata.patientSignature && window.patientSigPad) {
+                    window.patientSigPad.loadFromDataURL(patient.metadata.patientSignature);
+                }
+            } else {
+                // Nuevo presupuesto -> Odontograma y firma del paciente deben iniciar 100% LIMPIOS
+                if (window.odontogram && currentBudgetItems.length === 0) {
+                    window.odontogram.setData({});
+                }
+                if (window.patientSigPad) {
+                    window.patientSigPad.clear();
+                }
+                if (patient.metadata && patient.metadata.draftBudget && currentBudgetItems.length === 0) {
+                    restoreDraftBudgetUI(patient.metadata.draftBudget);
+                }
             }
 
-            // Auto-cargar firma del Odontólogo y Paciente guardada en el perfil/expediente
+            // Auto-cargar firma del Odontólogo asignado
             await autoLoadDoctorSignatureInBudget(patient.assignedDoctor);
-            if (patient.metadata && patient.metadata.patientSignature && window.patientSigPad) {
-                window.patientSigPad.loadFromDataURL(patient.metadata.patientSignature);
-            }
 
             // Sincronizar datos del expediente (Seccion 2)
             document.getElementById('info-patient-name').innerText = patient.fullname || 'Paciente';
@@ -2432,8 +2441,12 @@ function calculateAge(birthdateStr) {
 }
 
 window.selectPatientForOdontogram = function(patientId) {
-    setActivePatientId(patientId);
-    document.querySelector('.nav-item[data-tab="odontogram"]').click();
+    if (window.openBudgetForNewPatient) {
+        window.openBudgetForNewPatient(patientId);
+    } else {
+        setActivePatientId(patientId);
+        document.querySelector('.nav-item[data-tab="odontogram"]').click();
+    }
 };
 
 window.openEHRForPatient = function(patientId) {
@@ -6300,15 +6313,16 @@ function initGlobalEvents() {
     window.openBudgetForNewPatient = async function(patientId) {
         setActivePatientId(patientId);
 
-        // Check if an existing budget invoice already exists for this patient
+        // Solo reabrir un presupuesto existente si su estado es 'Borrador' (Draft)
         const invoices = await SupabaseDataService.getInvoices();
-        const existingBudget = invoices.find(inv => String(inv.patientId) === String(patientId));
+        const existingDraftBudget = invoices.find(inv => String(inv.patientId) === String(patientId) && (inv.status === 'Borrador' || inv.status === 'Draft'));
 
-        if (existingBudget && window.loadBudgetIntoEditor) {
-            await window.loadBudgetIntoEditor(existingBudget.id);
+        if (existingDraftBudget && window.loadBudgetIntoEditor) {
+            await window.loadBudgetIntoEditor(existingDraftBudget.id);
             return;
         }
 
+        // Forzar la creación de un NUEVO presupuesto 100% limpio
         activeEditingBudgetId = null;
         currentBudgetItems = [];
 
@@ -6320,27 +6334,15 @@ function initGlobalEvents() {
         if (listContainer) listContainer.classList.add('hidden');
         if (editorContainer) editorContainer.classList.remove('hidden');
 
+        // Limpiar odontograma y firma del paciente para el nuevo documento
+        if (window.odontogram) window.odontogram.setData({});
+        if (window.patientSigPad) window.patientSigPad.clear();
+
         const patients = await SupabaseDataService.getPatients();
         const patient = patients.find(p => String(p.id) === String(patientId));
-
-        // Extract items from sessionsPlan if configured in patient steps
-        const extracted = [];
-        if (patient && patient.metadata && patient.metadata.sessionsPlan && Array.isArray(patient.metadata.sessionsPlan)) {
-            patient.metadata.sessionsPlan.forEach(s => {
-                if (s.services && Array.isArray(s.services)) {
-                    s.services.forEach(srv => {
-                        if (srv && srv.name) extracted.push(srv);
-                    });
-                }
-            });
-        }
-
-        if (extracted.length > 0) {
-            currentBudgetItems = deduplicateBudgetItems(extracted);
-            if (patient && patient.metadata) {
-                patient.metadata.draftBudget = { items: currentBudgetItems };
-                await SupabaseDataService.savePatient(patient);
-            }
+        if (window.doctorSigPad) {
+            window.doctorSigPad.clear();
+            await autoLoadDoctorSignatureInBudget(patient ? patient.assignedDoctor : null);
         }
 
         await renderOdontogramView();
