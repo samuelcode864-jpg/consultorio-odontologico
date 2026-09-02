@@ -414,11 +414,13 @@ function deduplicateBudgetItems(items) {
     return items.filter(item => {
         if (!item) return false;
         const tooth = extractToothNumber(item);
-        const code = (item.serviceCode || item.code || '').trim();
+        const code = (item.serviceCode || item.code || '').trim().toLowerCase();
         const rawName = (item.name || '').trim();
         const cleanName = rawName
             .replace(/^Pza\s*\d+\s*\([^\)]+\):\s*/i, '')
             .replace(/^(Endodoncia|Retratamiento de Endodoncia):\s*/i, '')
+            .replace(/\s*\(Pieza\s*\d+\)/i, '')
+            .replace(/\s*\(Pza\.?\s*\d+\)/i, '')
             .trim()
             .toLowerCase();
         
@@ -430,9 +432,14 @@ function deduplicateBudgetItems(items) {
 }
 
 function restoreDraftBudgetUI(draft) {
-    if (!draft) return;
+    if (!draft) {
+        currentBudgetItems = [];
+        return;
+    }
     if (draft.items && Array.isArray(draft.items) && draft.items.length > 0) {
         currentBudgetItems = deduplicateBudgetItems(draft.items);
+    } else {
+        currentBudgetItems = [];
     }
     const discInput = document.getElementById('budget-discount-input');
     if (discInput && draft.discountPct !== undefined) discInput.value = draft.discountPct;
@@ -1548,16 +1555,21 @@ window.loadBudgetIntoEditor = async function(budgetId) {
     // Load active patient ID
     setActivePatientId(budget.patientId);
 
-    // Load treatments
-    currentBudgetItems = (budget.items || []).map((item, idx) => ({
-        key: 'proc-' + idx + '-' + Date.now(),
+    // Clear memory FIRST before loading to prevent duplicate stacking
+    currentBudgetItems = [];
+
+    // Load treatments cleanly with deduplication
+    const rawItems = (budget.items || []).map((item, idx) => ({
+        key: item.key || `proc-${idx}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
         tooth: extractToothNumber(item),
         face: item.face || 'Gnl',
-        serviceCode: item.code || '',
+        serviceCode: item.code || item.serviceCode || '',
         name: item.name,
         price: item.price,
         specialist: item.specialist || 'Dr. Carlos Mendoza'
     }));
+
+    currentBudgetItems = deduplicateBudgetItems(rawItems);
 
     await renderOdontogramView();
 
@@ -4943,21 +4955,20 @@ function initGlobalEvents() {
             const defaultDoc = doctors[0] ? doctors[0].fullname : 'Dr. Alejandro Silva';
 
             const toothNum = parseInt(toothVal);
-            let itemKey = 'custom-' + Date.now();
+            let itemKey = `custom-${toothVal}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
             let faceVal = 'Gnl';
 
             if (!isNaN(toothNum) && toothNum > 0) {
-                itemKey = `${toothNum}-center`;
                 faceVal = 'center';
                 
                 // Color center face (Oclusal) as Lesión (patology) on odontogram
                 if (window.odontogram) {
-                    window.odontogram.toothData[itemKey] = 'patology';
+                    window.odontogram.toothData[`${toothNum}-center`] = 'patology';
                     window.odontogram.render();
                 }
             }
 
-            currentBudgetItems.push({
+            const newCustomItem = {
                 key: itemKey,
                 tooth: toothVal,
                 face: faceVal,
@@ -4965,7 +4976,10 @@ function initGlobalEvents() {
                 name: nameVal,
                 price: priceVal,
                 specialist: defaultDoc
-            });
+            };
+
+            currentBudgetItems.push(newCustomItem);
+            currentBudgetItems = deduplicateBudgetItems(currentBudgetItems);
 
             await autoSaveActivePatientOdontogram();
             renderBudgetTable();
@@ -6391,104 +6405,113 @@ function initGlobalEvents() {
     const approveBudgetBtn = document.getElementById('btn-approve-budget');
     if (approveBudgetBtn) {
         approveBudgetBtn.onclick = async () => {
-            const activeId = getActivePatientId();
-            if (!activeId) {
-                Swal.fire({ icon: 'info', title: 'Seleccione un paciente', text: 'Por favor active un paciente antes de aprobar el presupuesto.' });
-                return;
-            }
-            const patients = await SupabaseDataService.getPatients();
-            const patient = patients.find(p => p.id === activeId);
-            if (!patient) return;
-
-            if (currentBudgetItems.length === 0) {
-                Swal.fire({ icon: 'warning', title: 'Presupuesto vacío', text: 'Agregue al menos un tratamiento al presupuesto.' });
-                return;
-            }
-
-            // Deduct materials from Kardex
-            currentBudgetItems.forEach(item => {
-                if (item.serviceCode) {
-                    window.kardex.deductForTreatment(item.serviceCode);
-                }
-            });
-
-            // Calculate totals
-            const rate = getExchangeRate();
-            let subtotalUSD = 0;
-            currentBudgetItems.forEach(item => {
-                subtotalUSD += item.price;
-            });
-            const discountPct = parseFloat(document.getElementById('budget-discount-input').value) || 0;
-            const discountAmountUSD = subtotalUSD * (discountPct / 100);
-            const totalUSD = subtotalUSD - discountAmountUSD;
-            const totalVES = (totalUSD * rate).toFixed(2);
-            const discountVES = (discountAmountUSD * rate).toFixed(2);
-
-            const paymentModeSelect = document.getElementById('payment-mode-select');
-            const paymentModeText = paymentModeSelect.options[paymentModeSelect.selectedIndex].text;
-            const paymentMethodSelect = document.getElementById('budget-payment-method');
-            let paymentMethod = paymentMethodSelect ? paymentMethodSelect.value : 'pagomovil';
-            let paymentMethodLabel = paymentMethodSelect ? paymentMethodSelect.options[paymentMethodSelect.selectedIndex].text : 'Pago Móvil';
-            if (paymentMethod === 'split') {
-                const pmAmt = parseFloat(document.getElementById('budget-split-pagomovil').value) || 0;
-                const cashAmt = parseFloat(document.getElementById('budget-split-cash').value) || 0;
-                const zelleAmt = parseFloat(document.getElementById('budget-split-zelle').value) || 0;
-                const binanceAmt = parseFloat(document.getElementById('budget-split-binance').value) || 0;
-
-                const parts = [];
-                if (pmAmt > 0) parts.push(`Pago Móvil: $${pmAmt.toFixed(2)}`);
-                if (cashAmt > 0) parts.push(`Efectivo: $${cashAmt.toFixed(2)}`);
-                if (zelleAmt > 0) parts.push(`Zelle: $${zelleAmt.toFixed(2)}`);
-                if (binanceAmt > 0) parts.push(`Binance: $${binanceAmt.toFixed(2)}`);
-
-                paymentMethod = `Mixto (${parts.join(', ') || 'Sin distribución'})`;
-                paymentMethodLabel = paymentMethod;
-            }
-            
-            const notes = document.getElementById('budget-notes').value;
-            const consentText = document.getElementById('consent-text').value;
-
-            let docSig = null;
-            if (window.doctorSigPad && !window.doctorSigPad.isEmpty()) {
-                docSig = window.doctorSigPad.toDataURL();
-            } else {
-                const currentUser = getCurrentUser();
-                docSig = currentUser ? ((currentUser.doctorProfile && currentUser.doctorProfile.signature) || (currentUser.doctor_profile && currentUser.doctor_profile.signature)) : null;
-            }
-
-            let patSig = null;
-            if (window.patientSigPad && !window.patientSigPad.isEmpty()) {
-                patSig = window.patientSigPad.toDataURL();
-            } else if (patient && patient.metadata && patient.metadata.patientSignature) {
-                patSig = patient.metadata.patientSignature;
-            }
-
-            // Generate or load budget invoice record ID
-            const invoiceId = activeEditingBudgetId || `PRE-${Date.now().toString().slice(-6)}`;
-            const invoiceObj = {
-                id: invoiceId,
-                patientId: patient.id,
-                invoiceDate: new Date().toISOString().split('T')[0],
-                paymentMethod: paymentMethod,
-                paymentTerms: paymentModeText,
-                currency: 'REF',
-                items: currentBudgetItems.map(item => ({
-                    code: item.serviceCode,
-                    name: item.name,
-                    tooth: extractToothNumber(item),
-                    face: item.face || 'Gnl',
-                    price: item.price,
-                    specialist: item.specialist || ''
-                })),
-                totalRef: totalUSD,
-                totalBcv: parseFloat(totalVES),
-                status: 'Aprobado',
-                doctorSignature: docSig,
-                patientSignature: patSig,
-                footerText: `Descuento global del ${discountPct}% aplicado. Ahorro: $${discountAmountUSD.toFixed(2)}.`
-            };
+            if (window.isSavingBudget) return;
+            window.isSavingBudget = true;
+            approveBudgetBtn.disabled = true;
+            const origHtml = approveBudgetBtn.innerHTML;
+            approveBudgetBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
 
             try {
+                // Deduplicate current budget items FIRST
+                currentBudgetItems = deduplicateBudgetItems(currentBudgetItems);
+
+                const activeId = getActivePatientId();
+                if (!activeId) {
+                    Swal.fire({ icon: 'info', title: 'Seleccione un paciente', text: 'Por favor active un paciente antes de aprobar el presupuesto.' });
+                    return;
+                }
+                const patients = await SupabaseDataService.getPatients();
+                const patient = patients.find(p => p.id === activeId);
+                if (!patient) return;
+
+                if (currentBudgetItems.length === 0) {
+                    Swal.fire({ icon: 'warning', title: 'Presupuesto vacío', text: 'Agregue al menos un tratamiento al presupuesto.' });
+                    return;
+                }
+
+                // Deduct materials from Kardex
+                currentBudgetItems.forEach(item => {
+                    if (item.serviceCode) {
+                        window.kardex.deductForTreatment(item.serviceCode);
+                    }
+                });
+
+                // Calculate totals
+                const rate = getExchangeRate();
+                let subtotalUSD = 0;
+                currentBudgetItems.forEach(item => {
+                    subtotalUSD += item.price;
+                });
+                const discountPct = parseFloat(document.getElementById('budget-discount-input').value) || 0;
+                const discountAmountUSD = subtotalUSD * (discountPct / 100);
+                const totalUSD = subtotalUSD - discountAmountUSD;
+                const totalVES = (totalUSD * rate).toFixed(2);
+                const discountVES = (discountAmountUSD * rate).toFixed(2);
+
+                const paymentModeSelect = document.getElementById('payment-mode-select');
+                const paymentModeText = paymentModeSelect.options[paymentModeSelect.selectedIndex].text;
+                const paymentMethodSelect = document.getElementById('budget-payment-method');
+                let paymentMethod = paymentMethodSelect ? paymentMethodSelect.value : 'pagomovil';
+                let paymentMethodLabel = paymentMethodSelect ? paymentMethodSelect.options[paymentMethodSelect.selectedIndex].text : 'Pago Móvil';
+                if (paymentMethod === 'split') {
+                    const pmAmt = parseFloat(document.getElementById('budget-split-pagomovil').value) || 0;
+                    const cashAmt = parseFloat(document.getElementById('budget-split-cash').value) || 0;
+                    const zelleAmt = parseFloat(document.getElementById('budget-split-zelle').value) || 0;
+                    const binanceAmt = parseFloat(document.getElementById('budget-split-binance').value) || 0;
+
+                    const parts = [];
+                    if (pmAmt > 0) parts.push(`Pago Móvil: $${pmAmt.toFixed(2)}`);
+                    if (cashAmt > 0) parts.push(`Efectivo: $${cashAmt.toFixed(2)}`);
+                    if (zelleAmt > 0) parts.push(`Zelle: $${zelleAmt.toFixed(2)}`);
+                    if (binanceAmt > 0) parts.push(`Binance: $${binanceAmt.toFixed(2)}`);
+
+                    paymentMethod = `Mixto (${parts.join(', ') || 'Sin distribución'})`;
+                    paymentMethodLabel = paymentMethod;
+                }
+                
+                const notes = document.getElementById('budget-notes').value;
+                const consentText = document.getElementById('consent-text').value;
+
+                let docSig = null;
+                if (window.doctorSigPad && !window.doctorSigPad.isEmpty()) {
+                    docSig = window.doctorSigPad.toDataURL();
+                } else {
+                    const currentUser = getCurrentUser();
+                    docSig = currentUser ? ((currentUser.doctorProfile && currentUser.doctorProfile.signature) || (currentUser.doctor_profile && currentUser.doctor_profile.signature)) : null;
+                }
+
+                let patSig = null;
+                if (window.patientSigPad && !window.patientSigPad.isEmpty()) {
+                    patSig = window.patientSigPad.toDataURL();
+                } else if (patient && patient.metadata && patient.metadata.patientSignature) {
+                    patSig = patient.metadata.patientSignature;
+                }
+
+                // Generate or load budget invoice record ID
+                const invoiceId = activeEditingBudgetId || `PRE-${Date.now().toString().slice(-6)}`;
+                const invoiceObj = {
+                    id: invoiceId,
+                    patientId: patient.id,
+                    invoiceDate: new Date().toISOString().split('T')[0],
+                    paymentMethod: paymentMethod,
+                    paymentTerms: paymentModeText,
+                    currency: 'REF',
+                    items: currentBudgetItems.map(item => ({
+                        code: item.serviceCode,
+                        name: item.name,
+                        tooth: extractToothNumber(item),
+                        face: item.face || 'Gnl',
+                        price: item.price,
+                        specialist: item.specialist || ''
+                    })),
+                    totalRef: totalUSD,
+                    totalBcv: parseFloat(totalVES),
+                    status: 'Aprobado',
+                    doctorSignature: docSig,
+                    patientSignature: patSig,
+                    footerText: `Descuento global del ${discountPct}% aplicado. Ahorro: $${discountAmountUSD.toFixed(2)}.`
+                };
+
                 // Save Invoice
                 await SupabaseDataService.saveInvoice(invoiceObj);
 
@@ -6496,7 +6519,7 @@ function initGlobalEvents() {
                 if (!patient.metadata) patient.metadata = {};
                 if (patSig) patient.metadata.patientSignature = patSig;
                 if (docSig) patient.metadata.doctorSignature = docSig;
-                patient.metadata.treatments = currentBudgetItems.map((item, idx) => ({
+                patient.metadata.treatments = deduplicateBudgetItems(currentBudgetItems).map((item, idx) => ({
                     id: 'trt-' + (idx + 1),
                     serviceCode: item.serviceCode || '',
                     name: item.name,
@@ -6572,6 +6595,10 @@ function initGlobalEvents() {
             } catch (err) {
                 console.error("Error al aprobar presupuesto:", err);
                 Swal.fire({ icon: 'error', title: 'Error de Guardado', text: 'No se pudo guardar la aprobación en la base de datos.' });
+            } finally {
+                window.isSavingBudget = false;
+                approveBudgetBtn.disabled = false;
+                approveBudgetBtn.innerHTML = origHtml;
             }
         };
     }
