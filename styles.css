@@ -1545,7 +1545,10 @@ select, .form-select, select.form-control {
 /* ==========================================
    AUTHENTICATION & LOGIN SCREEN (SPLIT SCREEN REPLICA)
    ========================================== */
-.login-overlay {
+/* ==========================================
+   EXECUTIVE SPLIT-SCREEN LOGIN STYLES
+   ========================================== */
+.login-overlay-split {
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
@@ -1553,70 +1556,176 @@ select, .form-select, select.form-control {
     bottom: 0 !important;
     width: 100vw !important;
     height: 100vh !important;
-    background: 
-        radial-gradient(circle at 18% 18%, rgba(2, 132, 199, 0.28), transparent 45%),
-        radial-gradient(circle at 82% 82%, rgba(124, 58, 237, 0.22), transparent 45%),
-        radial-gradient(circle at 50% 40%, rgba(37, 99, 235, 0.15), transparent 50%),
-        #030712 !important;
-    z-index: 999999 !important;
     display: flex !important;
-    align-items: center;
+    z-index: 999999 !important;
+    background: #090d16 !important;
+    overflow: hidden !important;
+}
+
+/* Left Hero Side */
+.login-hero-side {
+    flex: 1.25;
+    position: relative;
+    background: linear-gradient(135deg, #02142e 0%, #062347 50%, #030e21 100%);
+    display: flex;
+    flex-direction: column;
     justify-content: center;
-    overflow-y: auto;
-    padding: 20px;
+    padding: 60px 80px;
+    overflow: hidden;
+    color: #ffffff;
     box-sizing: border-box;
 }
 
-.login-card-glass {
+.login-hero-side::before {
+    content: '';
+    position: absolute;
+    top: -20%;
+    left: -20%;
+    width: 140%;
+    height: 140%;
+    background: 
+        radial-gradient(circle at 25% 25%, rgba(2, 132, 199, 0.28), transparent 45%),
+        radial-gradient(circle at 75% 75%, rgba(124, 58, 237, 0.22), transparent 45%),
+        radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.15), transparent 50%);
+    pointer-events: none;
+}
+
+.login-hero-content {
+    position: relative;
+    z-index: 2;
+    max-width: 620px;
+}
+
+.login-hero-logo {
+    max-height: 65px;
+    width: auto;
+    object-fit: contain;
+    margin-bottom: 40px;
+    filter: drop-shadow(0 6px 20px rgba(0, 180, 255, 0.4));
+}
+
+.login-hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(2, 132, 199, 0.18);
+    border: 1px solid rgba(2, 132, 199, 0.35);
+    color: #38bdf8;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-bottom: 20px;
+}
+
+.login-hero-text h1 {
+    font-size: 2.6rem;
+    font-weight: 800;
+    line-height: 1.18;
+    margin-bottom: 16px;
+    color: #ffffff;
+    letter-spacing: -0.03em;
+}
+
+.login-hero-text p {
+    font-size: 1.05rem;
+    color: #94a3b8;
+    line-height: 1.6;
+    margin-bottom: 35px;
+}
+
+.login-hero-features {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 40px;
+}
+
+.hero-feature-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 14px 20px;
+    border-radius: 14px;
+    backdrop-filter: blur(10px);
+    transition: all 0.25s ease;
+}
+
+.hero-feature-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(2, 132, 199, 0.3);
+    transform: translateX(6px);
+}
+
+.hero-feature-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.06);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
+
+.hero-feature-item strong {
+    display: block;
+    font-size: 0.95rem;
+    color: #f8fafc;
+}
+
+.hero-feature-item small {
+    display: block;
+    font-size: 0.78rem;
+    color: #94a3b8;
+}
+
+.login-hero-footer {
+    color: #64748b;
+    font-size: 0.8rem;
+}
+
+/* Right Form Side */
+.login-form-side {
+    flex: 0.75;
+    min-width: 420px;
+    background: #0b1324;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    position: relative;
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    box-sizing: border-box;
+}
+
+.login-form-card {
     width: 100%;
-    max-width: 420px;
-    background: rgba(15, 23, 42, 0.68) !important;
-    backdrop-filter: blur(24px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
-    border: 1px solid rgba(255, 255, 255, 0.14) !important;
-    border-radius: 28px !important;
-    padding: 45px 36px !important;
-    box-sizing: border-box !important;
-    box-shadow: 
-        0 35px 80px -15px rgba(0, 0, 0, 0.65),
-        inset 0 1px 0 rgba(255, 255, 255, 0.18),
-        0 0 45px rgba(2, 132, 199, 0.18) !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    transition: transform 0.3s ease, box-shadow 0.3s ease !important;
+    max-width: 380px;
 }
 
-.login-card-glass:hover {
-    box-shadow: 
-        0 40px 90px -15px rgba(0, 0, 0, 0.75),
-        inset 0 1px 0 rgba(255, 255, 255, 0.25),
-        0 0 55px rgba(2, 132, 199, 0.25) !important;
+.login-form-header {
+    margin-bottom: 30px;
 }
 
-.login-logo-container {
-    width: 100% !important;
-    text-align: center !important;
-    margin-bottom: 26px !important;
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
+.login-mobile-logo {
+    display: none;
 }
 
-.login-logo-img {
-    max-width: 190px !important;
-    max-height: 65px !important;
-    width: auto !important;
-    height: auto !important;
-    object-fit: contain !important;
-    margin: 0 auto !important;
-    filter: drop-shadow(0 4px 20px rgba(0, 188, 255, 0.4)) !important;
+.login-form-header h2 {
+    font-size: 1.9rem;
+    font-weight: 800;
+    color: #ffffff;
+    margin-bottom: 6px;
+    letter-spacing: -0.02em;
 }
 
-.login-form-new {
-    width: 100% !important;
-    display: flex !important;
-    flex-direction: column !important;
+.login-form-header .subtitle {
+    font-size: 0.88rem;
+    color: #94a3b8;
 }
 
 .form-group-new {
@@ -1687,13 +1796,16 @@ select, .form-select, select.form-control {
     border-radius: 14px !important;
     font-size: 1.02rem !important;
     font-weight: 800 !important;
-    letter-spacing: 2px !important;
+    letter-spacing: 1.5px !important;
     text-transform: uppercase !important;
     cursor: pointer !important;
     width: 100% !important;
     box-sizing: border-box !important;
     box-shadow: 0 8px 25px rgba(2, 132, 199, 0.4) !important;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
 .login-btn-new:hover {
@@ -1705,6 +1817,39 @@ select, .form-select, select.form-control {
 .login-btn-new:active {
     transform: translateY(-1px) scale(0.99) !important;
     box-shadow: 0 6px 18px rgba(2, 132, 199, 0.35) !important;
+}
+
+.login-form-footer {
+    margin-top: 30px;
+    text-align: center;
+}
+
+.security-tag {
+    font-size: 0.78rem;
+    color: #64748b;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Responsive Split Layout */
+@media (max-width: 992px) {
+    .login-overlay-split {
+        flex-direction: column;
+        overflow-y: auto;
+    }
+    .login-hero-side {
+        display: none;
+    }
+    .login-form-side {
+        flex: 1;
+        width: 100%;
+        min-width: 100%;
+        padding: 40px 20px;
+    }
+    .login-mobile-logo {
+        display: block;
+    }
 }
 
 

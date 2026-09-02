@@ -18,7 +18,7 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=213">
+    <link rel="stylesheet" href="styles.css?v=214">
 
     <!-- Anti-Flash Instant Auth & Tab Guard -->
     <script>
@@ -90,36 +90,89 @@
 </head>
 <body class="light-theme">
 
-    <!-- FULLSCREEN LOGIN OVERLAY (EXACT REPLICA OF THE SPECIFIED IMAGE) -->
-    <div id="login-screen" class="login-overlay">
-        <div class="login-card-glass">
-            <div class="login-logo-container">
-                <img src="jjj.png" alt="Rodrigo Navas Logo" class="login-logo-img">
+    <!-- FULLSCREEN SPLIT-SCREEN EXECUTIVE LOGIN -->
+    <div id="login-screen" class="login-overlay-split">
+        <!-- Left Side: Visual Hero Showcase -->
+        <div class="login-hero-side">
+            <div class="login-hero-content">
+                <div class="login-hero-brand">
+                    <img src="jjj.png" alt="Rodrigo Navas Logo" class="login-hero-logo">
+                </div>
+                <div class="login-hero-text">
+                    <span class="login-hero-badge"><i class="fa-solid fa-shield-halved"></i> SOFTWARE CLÍNICO ODONTOLÓGICO</span>
+                    <h1>Gestión Clínica Inteligente de Alto Nivel</h1>
+                    <p>Expedientes digitales, odontogramas interactivos, agenda de citas y finanzas integradas en una sola plataforma ejecutiva.</p>
+                </div>
+                <div class="login-hero-features">
+                    <div class="hero-feature-item">
+                        <div class="hero-feature-icon"><i class="fa-solid fa-tooth text-cyan"></i></div>
+                        <div>
+                            <strong>Odontograma 360°</strong>
+                            <small>Mapeo dental dinámico e historial evolutivo</small>
+                        </div>
+                    </div>
+                    <div class="hero-feature-item">
+                        <div class="hero-feature-icon"><i class="fa-solid fa-file-invoice-dollar text-green"></i></div>
+                        <div>
+                            <strong>Presupuestos & Facturación</strong>
+                            <small>Cálculos BCV y documentos en PDF</small>
+                        </div>
+                    </div>
+                    <div class="hero-feature-item">
+                        <div class="hero-feature-icon"><i class="fa-solid fa-calendar-check text-purple"></i></div>
+                        <div>
+                            <strong>Agenda de Citas & WhatsApp</strong>
+                            <small>Recordatorios y notificaciones automáticas</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="login-hero-footer">
+                    <small>© 2026 DentalCare Pro Executive • Todos los derechos reservados</small>
+                </div>
             </div>
-            
-            <form id="form-login" class="login-form-new">
-                <div class="form-group-new">
-                    <label class="form-label-new">Email</label>
-                    <div class="input-icon-wrapper">
-                        <i class="fa-regular fa-envelope input-icon"></i>
-                        <input type="email" id="login-email" required value="admin@dentalcare.com" placeholder="Email" class="form-input-new">
+        </div>
+
+        <!-- Right Side: Form Container -->
+        <div class="login-form-side">
+            <div class="login-form-card">
+                <div class="login-form-header">
+                    <div class="login-mobile-logo">
+                        <img src="jjj.png" alt="Logo" style="max-height: 48px; margin-bottom: 15px;">
                     </div>
+                    <h2>Iniciar Sesión</h2>
+                    <p class="subtitle">Ingrese sus credenciales para acceder al sistema</p>
                 </div>
-                
-                <div class="form-group-new" style="margin-top: 18px;">
-                    <label class="form-label-new">Password</label>
-                    <div class="input-icon-wrapper">
-                        <i class="fa-solid fa-lock input-icon"></i>
-                        <input type="password" id="login-password" required value="123456" placeholder="Password" class="form-input-new">
+
+                <form id="form-login" class="login-form-new">
+                    <div class="form-group-new">
+                        <label class="form-label-new">Correo Electrónico</label>
+                        <div class="input-icon-wrapper">
+                            <i class="fa-regular fa-envelope input-icon"></i>
+                            <input type="email" id="login-email" required value="admin@dentalcare.com" placeholder="ejemplo@consultorio.com" class="form-input-new">
+                        </div>
                     </div>
+                    
+                    <div class="form-group-new" style="margin-top: 20px;">
+                        <label class="form-label-new">Contraseña</label>
+                        <div class="input-icon-wrapper">
+                            <i class="fa-solid fa-lock input-icon"></i>
+                            <input type="password" id="login-password" required value="123456" placeholder="••••••••" class="form-input-new">
+                        </div>
+                    </div>
+                    
+                    <div id="login-error-msg" class="text-red hidden" style="font-size: 0.85rem; margin-top: 15px; text-align: center; color: #ef4444; font-weight: 600; background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.2);">
+                        <i class="fa-solid fa-circle-exclamation"></i> Correo o contraseña incorrectos.
+                    </div>
+                    
+                    <button type="submit" class="login-btn-new" style="margin-top: 28px;">
+                        ACCEDER AL SISTEMA <i class="fa-solid fa-arrow-right" style="margin-left: 6px;"></i>
+                    </button>
+                </form>
+
+                <div class="login-form-footer">
+                    <span class="security-tag"><i class="fa-solid fa-lock text-cyan"></i> Conexión Segura SSL • Acceso Restringido</span>
                 </div>
-                
-                <div id="login-error-msg" class="text-red hidden" style="font-size: 0.85rem; margin-top: 15px; text-align: center; color: #ff6b6b; font-weight: 500;">
-                    <i class="fa-solid fa-circle-exclamation"></i> Correo o contraseña incorrectos.
-                </div>
-                
-                <button type="submit" class="login-btn-new" style="margin-top: 25px;">LOGIN</button>
-            </form>
+            </div>
         </div>
     </div>
 
@@ -3647,13 +3700,13 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=213"></script>
-    <script src="supabaseClient.js?v=213"></script>
-    <script src="odontogram.js?v=213"></script>
-    <script src="signature.js?v=213"></script>
-    <script src="whatsapp.js?v=213"></script>
-    <script src="kardex.js?v=213"></script>
-    <script src="app.js?v=213"></script>
-    <script src="tutorial.js?v=213"></script>
+    <script src="seededData.js?v=214"></script>
+    <script src="supabaseClient.js?v=214"></script>
+    <script src="odontogram.js?v=214"></script>
+    <script src="signature.js?v=214"></script>
+    <script src="whatsapp.js?v=214"></script>
+    <script src="kardex.js?v=214"></script>
+    <script src="app.js?v=214"></script>
+    <script src="tutorial.js?v=214"></script>
 </body>
 </html>
