@@ -3643,6 +3643,35 @@ window.deleteClinicalNote = async function(noteId) {
     });
 };
 
+function formatApptDateTag(dateStr, isTomorrow = false) {
+    if (!dateStr) return '';
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    const tomorrowObj = new Date();
+    tomorrowObj.setDate(tomorrowObj.getDate() + 1);
+    const tomorrowStr = tomorrowObj.toLocaleDateString('en-CA');
+
+    if (dateStr === todayStr || dateStr === 'today' || dateStr === 'today-appt') {
+        return `<span style="display:inline-flex; align-items:center; gap:4px; font-weight:700; color:#0d9488; background:rgba(13,148,136,0.12); padding:2px 8px; border-radius:6px; font-size:0.78rem;"><i class="fa-solid fa-calendar-day"></i> Hoy</span>`;
+    }
+    if (dateStr === tomorrowStr || dateStr === 'tomorrow' || isTomorrow) {
+        return `<span style="display:inline-flex; align-items:center; gap:4px; font-weight:700; color:#d97706; background:rgba(217,119,6,0.12); padding:2px 8px; border-radius:6px; font-size:0.78rem;"><i class="fa-solid fa-calendar-week"></i> Mañana</span>`;
+    }
+
+    try {
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+            const year = parts[0];
+            const month = parseInt(parts[1]) - 1;
+            const day = parseInt(parts[2]);
+            const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+            const formatted = `${day} ${monthNames[month] || parts[1]} ${year}`;
+            return `<span style="display:inline-flex; align-items:center; gap:4px; font-weight:700; color:#0284c7; background:rgba(2,132,199,0.1); padding:2px 8px; border-radius:6px; font-size:0.78rem;"><i class="fa-solid fa-calendar-days"></i> ${formatted}</span>`;
+        }
+    } catch(e) {}
+
+    return `<span style="display:inline-flex; align-items:center; gap:4px; font-weight:600; color:#64748b; font-size:0.78rem;"><i class="fa-solid fa-calendar"></i> ${dateStr}</span>`;
+}
+
 // ==========================================
 // DASHBOARD & METRICS VIEW WITH APPOINTMENT DELETE
 // ==========================================
@@ -3695,7 +3724,8 @@ async function renderDashboard() {
             div.style.marginBottom = '12px';
             div.innerHTML = `
                 <div class="timeline-meta">
-                    <div class="timeline-time-status">
+                    <div class="timeline-time-status" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        ${formatApptDateTag(app.date, isTomorrowAppt)}
                         <span class="timeline-time"><i class="fa-solid fa-clock text-cyan"></i> ${app.time}</span>
                         ${statusBadgeHtml}
                     </div>
@@ -3999,7 +4029,8 @@ async function renderAgendaView(filter = 'pending', searchQuery = '') {
         div.style.marginBottom = '12px';
         div.innerHTML = `
             <div class="timeline-meta">
-                <div class="timeline-time-status">
+                <div class="timeline-time-status" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    ${formatApptDateTag(app.date, isTomorrowAppt)}
                     <span class="timeline-time"><i class="fa-solid fa-clock text-cyan"></i> ${app.time}</span>
                     ${statusBadgeHtml}
                 </div>
