@@ -164,13 +164,11 @@ function applyClinicBrandingUI(config) {
     const sideLogoContainer = document.getElementById('sidebar-brand-logo-container');
     const sideName = document.getElementById('sidebar-brand-name');
     if (sideLogoContainer) {
-        if (logoUrl) {
-            sideLogoContainer.innerHTML = `<img src="${logoUrl}" alt="Logo" class="clinic-logo-sidebar">`;
-        } else {
-            sideLogoContainer.innerHTML = `<i class="fa-solid fa-tooth"></i>`;
-        }
+        sideLogoContainer.innerHTML = `<div class="brand-monogram-badge">RN</div>`;
     }
-    if (sideName && busName) sideName.textContent = busName;
+    if (sideName) {
+        sideName.innerHTML = `Dr. Rodrigo Navas <small style="display: block; font-size: 0.65rem; color: var(--primary-cyan); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px;">Odontología Especializada</small>`;
+    }
 
     // 2. Mobile Top Header Brand Logo (Prominent, High-Resolution, No Superfluous User Text)
     const mobBrandContainer = document.getElementById('mobile-header-brand-container');
