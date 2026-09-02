@@ -9797,6 +9797,8 @@ function buildMedicalDocumentHTML(opts) {
         paymentTerms = 'Contado / Pago inmediato al momento de la consulta.',
         bankingDetails = 'Banco Banesco - Cuenta Corriente | N°: 0134-0000-00-0000000000<br>A nombre de: Consultorio Odontológico<br>Pago Móvil: C.I. 12.345.678 / Tlf: 0412-5550192',
         observations = 'El paciente presenta evolución favorable. Se recomienda mantener tratamiento y esquema preventivo indicado, evitar esfuerzos intensos durante las próximas 48 horas y acudir a control preventivo en 30 días.',
+        consentText = 'Por medio de la presente, el paciente declara haber recibido explicación clara y detallada acerca de los procedimientos diagnosticados y realizados en esta consulta, aceptando de manera voluntaria la atención prestada y expresando su conformidad con los cobros administrativos y honorarios detallados en este documento.',
+        footerNote = ''
     } = opts;
 
     // Double-check & resolve Doctor Signature fallback
