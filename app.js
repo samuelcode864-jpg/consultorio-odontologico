@@ -3571,6 +3571,79 @@ async function exportEHRToPDF() {
         </div>
     ` : '';
 
+    // Capture or render Odontograms for PDF
+    let initialOdHtml = '';
+    let currentOdHtml = '';
+
+    const initialViewEl = document.getElementById('ehr-od-initial-view');
+    const currentViewEl = document.getElementById('ehr-od-current-view');
+
+    if (initialViewEl && initialViewEl.children.length > 0) {
+        initialOdHtml = initialViewEl.innerHTML;
+    } else {
+        const tempDiv1 = document.createElement('div');
+        new OdontogramEngine(tempDiv1, {
+            isPediatric: patient.metadata ? patient.metadata.isPediatric : false,
+            initialData: (patient.metadata && patient.metadata.initialOdontogram) || patient.odontogramData || {},
+            readOnly: true
+        });
+        initialOdHtml = tempDiv1.innerHTML;
+    }
+
+    if (currentViewEl && currentViewEl.children.length > 0) {
+        currentOdHtml = currentViewEl.innerHTML;
+    } else {
+        const tempDiv2 = document.createElement('div');
+        new OdontogramEngine(tempDiv2, {
+            isPediatric: patient.metadata ? patient.metadata.isPediatric : false,
+            initialData: patient.odontogramData || {},
+            readOnly: true
+        });
+        currentOdHtml = tempDiv2.innerHTML;
+    }
+
+    // Interconsultations and Recipes HTML compilation
+    const ics = (patient.metadata && patient.metadata.interconsultations) || [];
+    let interconsultationsHtml = '';
+    if (ics.length > 0) {
+        ics.forEach(ic => {
+            let stName = ic.studyName || (ic.studies && ic.studies.length > 0 ? ic.studies[0].name : 'Estudio Especial');
+            let stNote = ic.studies && ic.studies.length > 0 ? ic.studies[0].note : '';
+            interconsultationsHtml += `
+                <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; padding:10px; margin-bottom:8px; font-size:0.82rem;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <strong style="color:#0d9488;">📄 Interconsulta: ${stName} (${ic.id || 'IC'})</strong>
+                        <span style="color:#64748b; font-size:0.75rem;">${ic.date}</span>
+                    </div>
+                    ${stNote ? `<div style="color:#334155; margin-bottom:4px;"><strong>Especificaciones:</strong> ${stNote}</div>` : ''}
+                    ${ic.notes ? `<div style="color:#475569;"><strong>Observaciones Clínicas:</strong> ${ic.notes}</div>` : ''}
+                </div>
+            `;
+        });
+    } else {
+        interconsultationsHtml = `<p style="font-size:0.82rem; color:#64748b; font-style:italic; margin:4px 0;">Sin solicitudes de interconsulta registradas.</p>`;
+    }
+
+    const rcs = (patient.metadata && patient.metadata.recipes) || [];
+    let recipesHtml = '';
+    if (rcs.length > 0) {
+        recipesHtml = '<h4 style="margin:10px 0 6px 0; font-size:0.88rem; color:#059669;">📋 Prescripciones Médicas e Indicaciones Emitidas:</h4>';
+        rcs.forEach(rc => {
+            let medsStr = rc.medicines ? rc.medicines.map(m => `• <strong>${m.med}</strong>: ${m.dose} (${m.freq})`).join('<br>') : 'Sin fármacos prescritos';
+            recipesHtml += `
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px; margin-bottom:8px; font-size:0.82rem;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <strong style="color:#059669;">💊 Récipe #${rc.id}</strong>
+                        <span style="color:#64748b; font-size:0.75rem;">${rc.date}</span>
+                    </div>
+                    <div style="margin-bottom:4px;"><strong>Tratamiento Vinculado:</strong> ${rc.treatmentLinked || 'General'}</div>
+                    <div style="margin-bottom:4px;">${medsStr}</div>
+                    ${rc.indications ? `<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:4px; padding:6px; font-size:0.78rem; margin-top:4px; white-space:pre-line;"><strong>Indicaciones:</strong><br>${rc.indications}</div>` : ''}
+                </div>
+            `;
+        });
+    }
+
     const container = document.createElement('div');
     container.style.padding = '30px';
     container.style.fontFamily = "'Inter', Arial, sans-serif";
@@ -3609,6 +3682,32 @@ async function exportEHRToPDF() {
                 <div><strong>Medicación Prescrita:</strong> ${medText}</div>
                 <div><strong>Contacto de Emergencia:</strong> ${patient.emergencyContact || 'Sin registrar'}</div>
             </div>
+        </div>
+
+        <!-- CLINICAL ODONTOGRAMS (INITIAL & CURRENT) -->
+        <div style="margin-bottom: 20px;">
+            <h3 style="font-size: 1.05rem; color: #0f172a; border-bottom: 2px solid #0284c7; padding-bottom: 4px; margin-bottom: 12px;">
+                🦷 Odontodiagramas Clínicos (Diagnóstico Inicial & Evolución)
+            </h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; background: #ffffff;">
+                    <h4 style="margin: 0 0 8px 0; font-size: 0.85rem; color: #0369a1; text-align: center;">Odontograma Inicial (Diagnóstico)</h4>
+                    <div>${initialOdHtml}</div>
+                </div>
+                <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; background: #ffffff;">
+                    <h4 style="margin: 0 0 8px 0; font-size: 0.85rem; color: #059669; text-align: center;">Odontograma Actualizado (Evolución)</h4>
+                    <div>${currentOdHtml}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- INTERCONSULTATIONS & SPECIAL STUDIES & RECIPES -->
+        <div style="margin-bottom: 20px;">
+            <h3 style="font-size: 1.05rem; color: #0f172a; border-bottom: 2px solid #0d9488; padding-bottom: 4px; margin-bottom: 12px;">
+                🩺 Interconsultas, Estudios Especiales y Prescripciones Médicas
+            </h3>
+            ${interconsultationsHtml}
+            ${recipesHtml}
         </div>
 
         <!-- CLINICAL EVOLUTIONS -->

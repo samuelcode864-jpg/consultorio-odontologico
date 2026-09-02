@@ -900,12 +900,15 @@
                                             <p id="ehr-patient-subinfo" class="text-muted">Cédula, Edad, Teléfono</p>
                                         </div>
                                     </div>
-                                    <div style="display: flex; gap: 8px;">
+                                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                                         <button class="btn btn-outline btn-sm" id="btn-edit-clinical-wizard">
                                             <i class="fa-solid fa-file-medical text-cyan"></i> Completar/Editar Historia
                                         </button>
                                         <button class="btn btn-primary btn-sm" id="btn-open-interconsultation" style="background: #0d9488 !important; border: none !important; color: #ffffff !important; font-weight: 700; display: flex; align-items: center; gap: 6px;">
-                                            <i class="fa-solid fa-user-doctor"></i> Interconsulta
+                                            <i class="fa-solid fa-user-doctor"></i> + Nueva Interconsulta
+                                        </button>
+                                        <button class="btn btn-success btn-sm" id="btn-open-global-recipe" onclick="window.openRecipeModal()" style="background: #10b981 !important; border: none !important; color: #ffffff !important; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                                            <i class="fa-solid fa-pills"></i> + Crear Récipe e Indicaciones
                                         </button>
                                     </div>
                                 </div>
@@ -982,19 +985,9 @@
 
                                     <!-- SUBTAB INTERCONSULTA & RÉCIPES -->
                                     <div id="subtab-interconsultation" class="subtab-content">
-                                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 10px; margin-bottom:15px;">
-                                            <div>
-                                                <h3 style="margin:0;"><i class="fa-solid fa-user-doctor text-cyan"></i> Interconsultas, Récipes e Indicaciones</h3>
-                                                <p class="text-muted" style="font-size:0.85rem; margin:2px 0 0 0;">Historial de estudios especiales solicitados, prescripciones médicas e indicaciones del paciente.</p>
-                                            </div>
-                                            <div style="display:flex; gap:8px;">
-                                                <button class="btn btn-primary btn-sm" id="btn-subtab-open-interconsultation" style="background: #0d9488 !important; border: none !important;">
-                                                    <i class="fa-solid fa-plus"></i> Nueva Interconsulta
-                                                </button>
-                                                <button class="btn btn-success btn-sm" id="btn-subtab-open-recipe" style="background: #10b981 !important; border: none !important;">
-                                                    <i class="fa-solid fa-pills"></i> Crear Récipe / Indicaciones
-                                                </button>
-                                            </div>
+                                        <div style="margin-bottom:15px;">
+                                            <h3 style="margin:0;"><i class="fa-solid fa-user-doctor text-cyan"></i> Historial de Interconsultas, Estudios y Récipes</h3>
+                                            <p class="text-muted" style="font-size:0.85rem; margin:2px 0 0 0;">Registro detallado de solicitudes de estudios especiales, interconsultas médicas y prescripciones emitidas.</p>
                                         </div>
 
                                         <div id="ehr-interconsultations-list" style="display: flex; flex-direction: column; gap: 15px;">
@@ -3586,13 +3579,13 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=197"></script>
-    <script src="supabaseClient.js?v=197"></script>
-    <script src="odontogram.js?v=197"></script>
-    <script src="signature.js?v=197"></script>
-    <script src="whatsapp.js?v=197"></script>
-    <script src="kardex.js?v=197"></script>
-    <script src="app.js?v=197"></script>
-    <script src="tutorial.js?v=197"></script>
+    <script src="seededData.js?v=198"></script>
+    <script src="supabaseClient.js?v=198"></script>
+    <script src="odontogram.js?v=198"></script>
+    <script src="signature.js?v=198"></script>
+    <script src="whatsapp.js?v=198"></script>
+    <script src="kardex.js?v=198"></script>
+    <script src="app.js?v=198"></script>
+    <script src="tutorial.js?v=198"></script>
 </body>
 </html>
