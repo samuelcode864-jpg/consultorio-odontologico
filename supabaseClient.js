@@ -912,6 +912,98 @@ class SupabaseDataService {
             }
         }
     }
+
+    // ==========================================
+    // 9. AUDIT LOGS & RECYCLE BIN PERSISTENCE
+    // ==========================================
+    static async saveAuditLog(logEntry) {
+        if (!this.isCloudConnected()) return;
+        try {
+            await supabaseClient.from('audit_logs').insert({
+                id: logEntry.id,
+                created_at: logEntry.timestamp,
+                user_name: logEntry.userName,
+                user_role: logEntry.userRole,
+                action: logEntry.action,
+                module: logEntry.module,
+                details: logEntry.details
+            });
+        } catch(e) {
+            /* Fallback to localStorage gracefully if table does not exist yet */
+        }
+    }
+
+    static async getAuditLogs() {
+        if (!this.isCloudConnected()) {
+            return JSON.parse(localStorage.getItem('dental_audit_logs')) || [];
+        }
+        try {
+            const { data, error } = await supabaseClient.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(2000);
+            if (error || !data) throw error;
+            return data.map(d => ({
+                id: d.id,
+                timestamp: d.created_at,
+                formattedDate: new Date(d.created_at).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                userName: d.user_name,
+                userRole: d.user_role,
+                action: d.action,
+                module: d.module,
+                details: d.details
+            }));
+        } catch(e) {
+            return JSON.parse(localStorage.getItem('dental_audit_logs')) || [];
+        }
+    }
+
+    static async saveTrashItem(trashItem) {
+        if (!this.isCloudConnected()) return;
+        try {
+            await supabaseClient.from('recycle_bin').insert({
+                id: trashItem.trashId,
+                category: trashItem.category,
+                deleted_at: new Date().toISOString(),
+                deleted_by: trashItem.deletedBy,
+                name: trashItem.name,
+                original_data: trashItem.originalData
+            });
+        } catch(e) {}
+    }
+
+    static async getTrashItems(category) {
+        if (!this.isCloudConnected()) {
+            const trash = JSON.parse(localStorage.getItem('dental_trash_bin')) || {};
+            return trash[category] || [];
+        }
+        try {
+            const { data, error } = await supabaseClient.from('recycle_bin').select('*').eq('category', category).order('deleted_at', { ascending: false });
+            if (error || !data) throw error;
+            return data.map(d => ({
+                trashId: d.id,
+                category: d.category,
+                deletedAt: new Date(d.deleted_at).toLocaleString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                deletedBy: d.deleted_by,
+                name: d.name,
+                originalData: d.original_data
+            }));
+        } catch(e) {
+            const trash = JSON.parse(localStorage.getItem('dental_trash_bin')) || {};
+            return trash[category] || [];
+        }
+    }
+
+    static async deleteTrashItem(trashId) {
+        if (!this.isCloudConnected()) return;
+        try {
+            await supabaseClient.from('recycle_bin').delete().eq('id', trashId);
+        } catch(e) {}
+    }
+
+    static async emptyTrashCloud() {
+        if (!this.isCloudConnected()) return;
+        try {
+            await supabaseClient.from('recycle_bin').delete().neq('id', 'keep-alive');
+        } catch(e) {}
+    }
 }
 
 window.SupabaseDataService = SupabaseDataService;
