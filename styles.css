@@ -1553,7 +1553,11 @@ select, .form-select, select.form-control {
     bottom: 0 !important;
     width: 100vw !important;
     height: 100vh !important;
-    background: radial-gradient(circle at 50% 30%, #005a9c 0%, #002247 60%, #000a18 100%) !important;
+    background: 
+        radial-gradient(circle at 18% 18%, rgba(2, 132, 199, 0.28), transparent 45%),
+        radial-gradient(circle at 82% 82%, rgba(124, 58, 237, 0.22), transparent 45%),
+        radial-gradient(circle at 50% 40%, rgba(37, 99, 235, 0.15), transparent 50%),
+        #030712 !important;
     z-index: 999999 !important;
     display: flex !important;
     align-items: center;
@@ -1565,37 +1569,48 @@ select, .form-select, select.form-control {
 
 .login-card-glass {
     width: 100%;
-    max-width: 400px;
-    background: rgba(0, 26, 51, 0.45) !important;
-    backdrop-filter: blur(16px) saturate(120%) !important;
-    -webkit-backdrop-filter: blur(16px) saturate(120%) !important;
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    border-radius: 24px !important;
-    padding: 35px 30px !important;
+    max-width: 420px;
+    background: rgba(15, 23, 42, 0.68) !important;
+    backdrop-filter: blur(24px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    border-radius: 28px !important;
+    padding: 45px 36px !important;
     box-sizing: border-box !important;
-    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4) !important;
+    box-shadow: 
+        0 35px 80px -15px rgba(0, 0, 0, 0.65),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18),
+        0 0 45px rgba(2, 132, 199, 0.18) !important;
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
+    transition: transform 0.3s ease, box-shadow 0.3s ease !important;
+}
+
+.login-card-glass:hover {
+    box-shadow: 
+        0 40px 90px -15px rgba(0, 0, 0, 0.75),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25),
+        0 0 55px rgba(2, 132, 199, 0.25) !important;
 }
 
 .login-logo-container {
     width: 100% !important;
     text-align: center !important;
-    margin-bottom: 20px !important;
+    margin-bottom: 26px !important;
     display: flex !important;
     justify-content: center !important;
     align-items: center !important;
 }
 
 .login-logo-img {
-    max-width: 175px !important;
-    max-height: 55px !important;
+    max-width: 190px !important;
+    max-height: 65px !important;
     width: auto !important;
     height: auto !important;
     object-fit: contain !important;
     margin: 0 auto !important;
-    filter: drop-shadow(0 2px 8px rgba(0, 180, 255, 0.2)) !important;
+    filter: drop-shadow(0 4px 20px rgba(0, 188, 255, 0.4)) !important;
 }
 
 .login-form-new {
@@ -1611,12 +1626,12 @@ select, .form-select, select.form-control {
 }
 
 .form-label-new {
-    color: rgba(255, 255, 255, 0.9) !important;
+    color: rgba(255, 255, 255, 0.95) !important;
     font-size: 0.88rem !important;
-    font-weight: 600 !important;
+    font-weight: 700 !important;
     margin-bottom: 8px !important;
     text-align: left !important;
-    letter-spacing: 0.5px !important;
+    letter-spacing: 0.6px !important;
 }
 
 .input-icon-wrapper {
@@ -1626,68 +1641,70 @@ select, .form-select, select.form-control {
 
 .input-icon {
     position: absolute !important;
-    left: 15px !important;
+    left: 16px !important;
     top: 50% !important;
     transform: translateY(-50%) !important;
-    color: rgba(255, 255, 255, 0.4) !important;
-    font-size: 1rem !important;
+    color: rgba(255, 255, 255, 0.45) !important;
+    font-size: 1.05rem !important;
     pointer-events: none !important;
-    transition: color 0.2s !important;
+    transition: color 0.25s ease, transform 0.25s ease !important;
 }
 
 .form-input-new {
-    background: rgba(255, 255, 255, 0.04) !important;
-    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
     color: #ffffff !important;
-    padding: 12px 16px 12px 42px !important; /* Extra padding left for the icon */
-    border-radius: 10px !important;
-    font-size: 0.95rem !important;
+    padding: 14px 18px 14px 46px !important;
+    border-radius: 14px !important;
+    font-size: 0.98rem !important;
     outline: none !important;
-    transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
     width: 100% !important;
     box-sizing: border-box !important;
     font-family: inherit !important;
 }
 
 .form-input-new::placeholder {
-    color: rgba(255, 255, 255, 0.25) !important;
+    color: rgba(255, 255, 255, 0.3) !important;
 }
 
 .form-input-new:focus {
-    background: rgba(255, 255, 255, 0.08) !important;
-    border-color: #00bcff !important;
-    box-shadow: 0 0 12px rgba(0, 188, 255, 0.3) !important;
+    background: rgba(255, 255, 255, 0.09) !important;
+    border-color: #0284c7 !important;
+    box-shadow: 0 0 20px rgba(2, 132, 199, 0.35), 0 0 0 3px rgba(2, 132, 199, 0.2) !important;
 }
 
-/* Update icon color when input is focused */
 .input-icon-wrapper:focus-within .input-icon {
-    color: #00bcff !important;
+    color: #38bdf8 !important;
+    transform: translateY(-50%) scale(1.1) !important;
 }
 
 .login-btn-new {
-    background: linear-gradient(135deg, #0082e6 0%, #0056b3 100%) !important;
+    background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%) !important;
     border: none !important;
     color: #ffffff !important;
-    padding: 14px !important;
-    border-radius: 10px !important;
-    font-size: 1.05rem !important;
-    font-weight: 700 !important;
-    letter-spacing: 1.5px !important;
+    padding: 16px !important;
+    border-radius: 14px !important;
+    font-size: 1.02rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 2px !important;
     text-transform: uppercase !important;
     cursor: pointer !important;
     width: 100% !important;
     box-sizing: border-box !important;
-    box-shadow: 0 4px 15px rgba(0, 130, 230, 0.2) !important;
-    transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s !important;
+    box-shadow: 0 8px 25px rgba(2, 132, 199, 0.4) !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 .login-btn-new:hover {
-    transform: translateY(-2px) !important;
-    box-shadow: 0 6px 20px rgba(0, 130, 230, 0.4) !important;
+    transform: translateY(-3px) scale(1.01) !important;
+    box-shadow: 0 12px 35px rgba(2, 132, 199, 0.55) !important;
+    filter: brightness(1.08) !important;
 }
 
 .login-btn-new:active {
-    transform: translateY(0) !important;
+    transform: translateY(-1px) scale(0.99) !important;
+    box-shadow: 0 6px 18px rgba(2, 132, 199, 0.35) !important;
 }
 
 
