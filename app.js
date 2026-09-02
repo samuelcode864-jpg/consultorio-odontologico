@@ -10907,11 +10907,6 @@ async function renderStationeryView() {
         recipeFooterTextarea.oninput = () => refreshStationeryLivePreview();
     }
 
-    const webhookInput = document.getElementById('setting-calendar-webhook');
-    if (webhookInput) {
-        webhookInput.value = localStorage.getItem('dental_google_calendar_webhook') || '';
-    }
-
     const previewImg = document.getElementById('stat-logo-preview-img');
     const previewContainer = document.getElementById('stat-logo-preview-img-container');
     if (config.logoUrl) {
@@ -10954,10 +10949,7 @@ async function renderStationeryView() {
         const headerText = headerTextarea.value.trim();
         const footerText = footerTextarea.value.trim();
         const recipeFooterText = recipeFooterTextarea ? recipeFooterTextarea.value.trim() : '';
-        const logoUrl = previewImg.src || '';
-
-        const webhookVal = document.getElementById('setting-calendar-webhook') ? document.getElementById('setting-calendar-webhook').value.trim() : '';
-        localStorage.setItem('dental_google_calendar_webhook', webhookVal);
+        const logoUrl = previewImg ? (previewImg.src || '') : '';
 
         await SupabaseDataService.saveStationeryConfig({
             id: 'default',
