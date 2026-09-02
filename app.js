@@ -4104,8 +4104,8 @@ async function renderAgendaView(filter = 'pending', searchQuery = '') {
     if (elAttended) elAttended.textContent = countAttended;
     if (elAll) elAll.textContent = countAll;
 
-    // Apply Filter
-    let appointments = [...allAppointments];
+    // Apply Filter (Excluding unapproved budget session appointments until budget is approved)
+    let appointments = allAppointments.filter(a => a.status !== 'Pendiente Aprobación' && a.status !== 'Pendiente Aprobación Presupuesto');
     const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
 
     if (filter === 'pending') {
@@ -6790,6 +6790,10 @@ function initGlobalEvents() {
             if (sessionsData && sessionsData.length > 0) {
                 let appointmentsScheduledCount = 0;
                 const existingAppts = await SupabaseDataService.getAppointments();
+                const invoices = await SupabaseDataService.getInvoices();
+                const isBudgetApproved = invoices.some(inv => String(inv.patientId) === String(id) && inv.status === 'Aprobado');
+                
+                const targetStatus = isBudgetApproved ? 'Programada' : 'Pendiente Aprobación';
                 
                 for (const session of sessionsData) {
                     if (session.date) {
@@ -6810,7 +6814,7 @@ function initGlobalEvents() {
                             date: session.date,
                             time: session.time || "09:00 AM",
                             treatment: treatmentTitle,
-                            status: existingAppt ? existingAppt.status : "Programada",
+                            status: existingAppt ? (existingAppt.status === 'Pendiente Aprobación' && isBudgetApproved ? 'Programada' : existingAppt.status) : targetStatus,
                             isTomorrow: false
                         };
                         await SupabaseDataService.saveAppointment(appt);
@@ -6842,7 +6846,7 @@ function initGlobalEvents() {
                 Swal.fire({
                     icon: 'success',
                     title: '¡Paciente Guardado!',
-                    text: `${fullname} ha sido guardado exitosamente en la nube de Supabase.`,
+                    text: `${fullname} ha sido guardado exitosamente en la base de datos.`,
                     timer: 2000,
                     showConfirmButton: false
                 });
@@ -6852,7 +6856,7 @@ function initGlobalEvents() {
             console.error("Error al guardar paciente:", err);
             Swal.fire({
                 icon: 'error',
-                title: 'Error de Servidor / Supabase',
+                title: 'Error de Servidor / Base de Datos',
                 text: `No se pudo guardar el paciente. Detalle: ${err.message || err}`
             });
             return false;
@@ -7100,6 +7104,53 @@ function initGlobalEvents() {
                     delete patient.metadata.draftBudget;
                 }
                 await SupabaseDataService.savePatient(patient);
+
+                // Auto-schedule and activate appointments for approved budget sessions
+                try {
+                    const allAppts = await SupabaseDataService.getAppointments();
+                    const patientAppts = allAppts.filter(a => String(a.patientId) === String(patient.id));
+
+                    // Activate any pending budget appointments to 'Programada'
+                    for (const appt of patientAppts) {
+                        if (appt.status === 'Pendiente Aprobación' || appt.status === 'Pendiente Aprobación Presupuesto') {
+                            appt.status = 'Programada';
+                            await SupabaseDataService.saveAppointment(appt);
+                        }
+                    }
+
+                    // Create appointments for sessions in metadata.sessionsPlan if not yet created
+                    const sessionsPlan = (patient.metadata && patient.metadata.sessionsPlan) || [];
+                    if (sessionsPlan && sessionsPlan.length > 0) {
+                        for (const session of sessionsPlan) {
+                            if (session.date) {
+                                const servicesText = session.services && session.services.length > 0
+                                    ? session.services.map(s => `Pza ${s.tooth || 'Gnl'}: ${s.name}`).join(', ')
+                                    : 'Tratamiento Planificado';
+                                
+                                const treatmentTitle = `Sesión ${session.sessionNumber}: ${servicesText}`;
+                                const safeId = String(patient.id).replace(/[^a-zA-Z0-9]/g, '_');
+                                const apptId = `appt-${safeId}-session-${session.sessionNumber}`;
+                                
+                                const existingAppt = patientAppts.find(a => a.id === apptId || (a.treatment && a.treatment.startsWith(`Sesión ${session.sessionNumber}:`)));
+                                
+                                const apptObj = {
+                                    id: existingAppt ? existingAppt.id : apptId,
+                                    patientId: patient.id,
+                                    patientName: patient.fullname,
+                                    date: session.date,
+                                    time: session.time || "09:00 AM",
+                                    treatment: treatmentTitle,
+                                    status: "Programada",
+                                    isTomorrow: false
+                                };
+                                await SupabaseDataService.saveAppointment(apptObj);
+                            }
+                        }
+                    }
+                    await renderAgendaView();
+                } catch(e) {
+                    console.error("Error auto-scheduling appointments for approved budget:", e);
+                }
 
                 // Reset editor state to zero
                 currentBudgetItems = [];
