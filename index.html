@@ -1719,6 +1719,14 @@
                                 <i class="fa-solid fa-palette"></i>
                                 <span>Apariencia y Tema</span>
                             </button>
+                            <button class="settings-nav-btn" data-pane="trash" id="btn-pane-trash">
+                                <i class="fa-solid fa-trash-arrow-up text-amber"></i>
+                                <span>Papelera de Reciclaje</span>
+                            </button>
+                            <button class="settings-nav-btn" data-pane="audit" id="btn-pane-audit">
+                                <i class="fa-solid fa-clock-rotate-left text-cyan"></i>
+                                <span>Historial de Acciones</span>
+                            </button>
                         </div>
 
                         <!-- Panel de Contenido -->
@@ -1890,6 +1898,94 @@
                                     <button type="button" class="btn btn-primary" id="btn-theme-toggle-settings" style="display: flex; align-items: center; gap: 8px; font-weight: 600;">
                                         <i class="fa-solid fa-moon" id="theme-icon-settings"></i> <span id="theme-btn-text-settings">Cambiar a Modo Oscuro</span>
                                     </button>
+                                </div>
+                            </div>
+
+                            <!-- PANE 4: Papelera de Reciclaje -->
+                            <div class="settings-pane" id="pane-trash">
+                                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:15px;">
+                                    <h3 style="margin:0; color:var(--text-heading); font-weight:700;">
+                                        <i class="fa-solid fa-trash-arrow-up text-amber"></i> Papelera de Reciclaje
+                                    </h3>
+                                    <button type="button" class="btn btn-sm btn-outline text-red" onclick="window.emptyTrash()">
+                                        <i class="fa-solid fa-dumpster"></i> Vaciar Papelera Definitivamente
+                                    </button>
+                                </div>
+                                <p class="text-muted" style="font-size:0.85rem; margin-bottom:15px;">Los elementos eliminados se resguardan aquí temporalmente para evitar pérdidas accidentales. Puede restaurarlos o eliminarlos de forma permanente.</p>
+                                
+                                <div class="subtabs mb-15">
+                                    <button class="subtab-btn active" data-trash-cat="patients" onclick="window.switchTrashCategory('patients')"><i class="fa-solid fa-users"></i> Pacientes</button>
+                                    <button class="subtab-btn" data-trash-cat="invoices" onclick="window.switchTrashCategory('invoices')"><i class="fa-solid fa-file-invoice-dollar"></i> Presupuestos / Facturas</button>
+                                    <button class="subtab-btn" data-trash-cat="pricing" onclick="window.switchTrashCategory('pricing')"><i class="fa-solid fa-tags"></i> Baremo de Servicios</button>
+                                    <button class="subtab-btn" data-trash-cat="inventory" onclick="window.switchTrashCategory('inventory')"><i class="fa-solid fa-boxes-stacked"></i> Insumos de Inventario</button>
+                                </div>
+
+                                <div class="table-responsive">
+                                    <table class="data-table" style="width:100%;">
+                                        <thead>
+                                            <tr>
+                                                <th>Ítem / Registro Eliminado</th>
+                                                <th>Fecha de Eliminación</th>
+                                                <th>Eliminado Por</th>
+                                                <th style="text-align:center;">Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="trash-table-tbody">
+                                            <!-- Dynamic trash items loaded via app.js -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- PANE 5: Historial de Acciones (Auditoría) -->
+                            <div class="settings-pane" id="pane-audit">
+                                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:15px;">
+                                    <h3 style="margin:0; color:var(--text-heading); font-weight:700;">
+                                        <i class="fa-solid fa-clock-rotate-left text-cyan"></i> Historial de Acciones (Auditoría de Seguridad)
+                                    </h3>
+                                    <span class="badge-tag blue" style="font-size:0.75rem; font-weight:700;"><i class="fa-solid fa-lock"></i> Inalterable - Solo Lectura Admin</span>
+                                </div>
+
+                                <div id="audit-admin-restriction-msg" class="hidden card p-15 text-center text-red" style="background:rgba(239,68,68,0.05); border:1px solid rgba(239,68,68,0.2);">
+                                    <i class="fa-solid fa-shield-halved" style="font-size:1.8rem; margin-bottom:6px;"></i>
+                                    <div><strong>Acceso Restringido</strong></div>
+                                    <small>El historial de auditoría solo puede ser consultado por usuarios con rol Administrador.</small>
+                                </div>
+
+                                <div id="audit-logs-main-content">
+                                    <p class="text-muted" style="font-size:0.85rem; margin-bottom:15px;">Registro cronológico e inalterable de todas las actividades, modificaciones y operaciones ejecutadas por los usuarios en la plataforma.</p>
+
+                                    <div class="flex-row gap-10 mb-15" style="flex-wrap:wrap;">
+                                        <input type="text" id="audit-search-input" class="form-input flex-1" placeholder="🔍 Buscar por usuario, acción o detalle..." style="min-width:200px; height:38px;">
+                                        <select id="audit-module-filter" class="form-control" style="width:180px; height:38px;">
+                                            <option value="">Todos los Módulos</option>
+                                            <option value="Pacientes">Pacientes</option>
+                                            <option value="Presupuestos">Presupuestos</option>
+                                            <option value="Facturación">Facturación</option>
+                                            <option value="Inventario">Inventario</option>
+                                            <option value="Baremo">Baremo / Servicios</option>
+                                            <option value="Usuarios">Usuarios</option>
+                                            <option value="Ajustes">Ajustes</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="table-responsive" style="max-height: 520px; overflow-y: auto;">
+                                        <table class="data-table" style="width:100%; font-size:0.82rem;">
+                                            <thead>
+                                                <tr>
+                                                    <th>Fecha / Hora</th>
+                                                    <th>Usuario</th>
+                                                    <th>Rol</th>
+                                                    <th>Módulo</th>
+                                                    <th>Acción Realizada</th>
+                                                    <th>Detalles</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="audit-logs-table-tbody">
+                                                <!-- Dynamic audit logs loaded via app.js -->
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -3483,13 +3579,13 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=177"></script>
-    <script src="supabaseClient.js?v=177"></script>
-    <script src="odontogram.js?v=177"></script>
-    <script src="signature.js?v=177"></script>
-    <script src="whatsapp.js?v=177"></script>
-    <script src="kardex.js?v=177"></script>
-    <script src="app.js?v=177"></script>
-    <script src="tutorial.js?v=177"></script>
+    <script src="seededData.js?v=178"></script>
+    <script src="supabaseClient.js?v=178"></script>
+    <script src="odontogram.js?v=178"></script>
+    <script src="signature.js?v=178"></script>
+    <script src="whatsapp.js?v=178"></script>
+    <script src="kardex.js?v=178"></script>
+    <script src="app.js?v=178"></script>
+    <script src="tutorial.js?v=178"></script>
 </body>
 </html>

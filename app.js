@@ -2373,28 +2373,33 @@ async function renderPatientsTable(filter = 'all', searchQuery = '') {
 window.deletePatient = async function(patientId) {
     const user = getCurrentUser();
     if (user && user.role.toLowerCase().includes('asistente')) {
-        Swal.fire({ icon: 'warning', title: 'Acción denegada', text: 'Solo el Odontólogo Principal tiene permisos para eliminar expedientes de pacientes.' });
+        Swal.fire({ icon: 'warning', title: 'Acción denegada', text: 'Solo el Odontólogo o Administrador puede eliminar expedientes.' });
         return;
     }
 
+    const patients = await SupabaseDataService.getPatients();
+    const patient = patients.find(p => p.id === patientId);
+
     Swal.fire({
-        title: '¿Eliminar paciente?',
-        text: 'Se eliminará permanentemente su expediente e historial clínico de la base de datos.',
+        title: '¿Mover a la Papelera?',
+        text: `El expediente de ${patient ? patient.fullname : patientId} se enviará a la Papelera de Reciclaje. Podrá restaurarlo en Ajustes.`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
         cancelButtonColor: '#64748b',
-        confirmButtonText: 'Sí, eliminar',
+        confirmButtonText: 'Sí, mover a la papelera',
         cancelButtonText: 'Cancelar'
     }).then(async (result) => {
         if (result.isConfirmed) {
+            if (window.moveToTrash && patient) {
+                await window.moveToTrash('patients', patient, patient.fullname);
+            }
             await SupabaseDataService.deletePatient(patientId);
             if (getActivePatientId() === patientId) {
                 setActivePatientId(null);
             }
             await renderPatientsTable();
-            await renderEHRView();
-            Swal.fire({ icon: 'success', title: 'Paciente eliminado', timer: 1800, showConfirmButton: false });
+            Swal.fire({ icon: 'success', title: 'Paciente movido a la papelera', text: 'Puede restaurarlo en Ajustes > Papelera de Reciclaje.', timer: 2000, showConfirmButton: false });
         }
     });
 };
@@ -4467,21 +4472,27 @@ window.deleteInventoryItem = async function(code) {
         return;
     }
 
+    const items = await SupabaseDataService.getInventory();
+    const item = items.find(i => i.code === code || i.id === code);
+
     Swal.fire({
-        title: '¿Eliminar insumo?',
-        text: 'Se removerá de la lista del inventario Kardex.',
+        title: '¿Mover insumo a la Papelera?',
+        text: `El insumo ${item ? item.name : code} se moverá a la Papelera de Reciclaje. Podrá restaurarlo desde Ajustes.`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
         cancelButtonColor: '#64748b',
-        confirmButtonText: 'Sí, eliminar',
+        confirmButtonText: 'Sí, mover a papelera',
         cancelButtonText: 'Cancelar'
     }).then(async (result) => {
         if (result.isConfirmed) {
+            if (window.moveToTrash && item) {
+                await window.moveToTrash('inventory', item, item.name);
+            }
             await SupabaseDataService.deleteInventoryItem(code);
             await renderInventoryTable();
             await renderDashboard();
-            Swal.fire({ icon: 'success', title: 'Insumo eliminado', timer: 1800, showConfirmButton: false });
+            Swal.fire({ icon: 'success', title: 'Insumo movido a la papelera', text: 'Puede restaurarlo en Ajustes > Papelera de Reciclaje.', timer: 1800, showConfirmButton: false });
         }
     });
 };
@@ -4620,20 +4631,26 @@ window.deletePricingService = async function(code) {
         return;
     }
 
+    const services = await SupabaseDataService.getPricing();
+    const service = services.find(s => s.code === code || s.id === code);
+
     Swal.fire({
-        title: '¿Eliminar servicio?',
-        text: 'Se removerá del Baremo de Precios oficial.',
+        title: '¿Mover servicio a la Papelera?',
+        text: `El servicio ${service ? service.name : code} se moverá a la Papelera de Reciclaje. Podrá restaurarlo desde Ajustes.`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
         cancelButtonColor: '#64748b',
-        confirmButtonText: 'Sí, eliminar',
+        confirmButtonText: 'Sí, mover a papelera',
         cancelButtonText: 'Cancelar'
     }).then(async (result) => {
         if (result.isConfirmed) {
+            if (window.moveToTrash && service) {
+                await window.moveToTrash('pricing', service, service.name);
+            }
             await SupabaseDataService.deleteBaremoService(code);
             await renderPricingTable();
-            Swal.fire({ icon: 'success', title: 'Servicio eliminado', timer: 1800, showConfirmButton: false });
+            Swal.fire({ icon: 'success', title: 'Servicio movido a la papelera', text: 'Puede restaurarlo en Ajustes > Papelera de Reciclaje.', timer: 1800, showConfirmButton: false });
         }
     });
 };
@@ -7811,6 +7828,15 @@ async function renderSettingsView() {
     } else {
         if (docSigSection) docSigSection.classList.add('hidden');
     }
+
+    // Render Trash & Audit panes upon opening Settings
+    if (window.renderTrashPane) window.renderTrashPane();
+    if (window.renderAuditLogsPane) window.renderAuditLogsPane();
+
+    const auditSearch = document.getElementById('audit-search-input');
+    const auditModuleFilter = document.getElementById('audit-module-filter');
+    if (auditSearch) auditSearch.oninput = () => window.renderAuditLogsPane();
+    if (auditModuleFilter) auditModuleFilter.onchange = () => window.renderAuditLogsPane();
 }
 
 function validateSessionsChronology(container, changedSessionNum = 1) {
@@ -12473,4 +12499,265 @@ window.sendRecipeWhatsApp = async function(patientId, recipeId = null) {
     msg += `✨ _Cualquier duda o síntoma inusual, por favor comuníquese de inmediato con el consultorio._`;
 
     WhatsAppService.sendToPatient(patient.phone, msg);
+};
+
+// ==========================================================================
+// AUDIT LOG & RECYCLE BIN (PAPELERA Y AUDITORÍA) ENGINE
+// ==========================================================================
+
+window.logUserAction = async function(action, module, details = '') {
+    try {
+        const u = (typeof getCurrentUser === 'function' ? getCurrentUser() : null) || { fullname: 'Sistema', role: 'Administrador' };
+        const logEntry = {
+            id: 'LOG-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+            timestamp: new Date().toISOString(),
+            formattedDate: new Date().toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            userName: u.fullname || u.username || 'Usuario',
+            userRole: (u.role || 'Admin').toUpperCase(),
+            action: action,
+            module: module,
+            details: details
+        };
+
+        let logs = JSON.parse(localStorage.getItem('dental_audit_logs') || '[]');
+        logs.unshift(logEntry);
+        if (logs.length > 5000) logs = logs.slice(0, 5000);
+        localStorage.setItem('dental_audit_logs', JSON.stringify(logs));
+
+        if (typeof SupabaseDataService !== 'undefined' && SupabaseDataService.saveAuditLog) {
+            await SupabaseDataService.saveAuditLog(logEntry);
+        }
+    } catch(e) {
+        console.error("Error logging user action:", e);
+    }
+};
+
+window.moveToTrash = async function(category, item, nameStr) {
+    try {
+        const u = (typeof getCurrentUser === 'function' ? getCurrentUser() : null) || { fullname: 'Usuario' };
+        let trash = JSON.parse(localStorage.getItem('dental_trash_bin') || '{}');
+        if (!trash[category]) trash[category] = [];
+
+        const trashItem = {
+            trashId: 'TRASH-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+            category: category,
+            deletedAt: new Date().toLocaleString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+            deletedBy: u.fullname || u.username || 'Usuario',
+            name: nameStr || item.name || item.fullname || item.id || 'Registro',
+            originalData: item
+        };
+
+        trash[category].unshift(trashItem);
+        localStorage.setItem('dental_trash_bin', JSON.stringify(trash));
+
+        if (window.logUserAction) {
+            window.logUserAction(`Movió a la Papelera`, category, `Registro: ${nameStr || item.id}`);
+        }
+    } catch(e) {
+        console.error("Error moving to trash:", e);
+    }
+};
+
+let currentTrashCategory = 'patients';
+
+window.switchTrashCategory = function(cat) {
+    currentTrashCategory = cat;
+    document.querySelectorAll('#pane-trash .subtab-btn').forEach(btn => {
+        if (btn.dataset.trashCat === cat) btn.classList.add('active');
+        else btn.classList.remove('active');
+    });
+    window.renderTrashPane();
+};
+
+window.renderTrashPane = function() {
+    const tbody = document.getElementById('trash-table-tbody');
+    if (!tbody) return;
+
+    let trash = JSON.parse(localStorage.getItem('dental_trash_bin') || '{}');
+    let list = trash[currentTrashCategory] || [];
+
+    if (list.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="4" style="text-align:center; padding:30px; color:var(--text-muted);">
+                    <i class="fa-solid fa-trash-can" style="font-size:2rem; margin-bottom:8px; opacity:0.3; display:block;"></i>
+                    La papelera de esta categoría está vacía.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    let html = '';
+    list.forEach(t => {
+        html += `
+            <tr>
+                <td><strong>${t.name}</strong> <small style="color:var(--text-muted); display:block;">ID: ${t.originalData ? (t.originalData.id || '') : ''}</small></td>
+                <td><small>${t.deletedAt}</small></td>
+                <td><span class="badge-tag blue" style="font-size:0.75rem;">${t.deletedBy}</span></td>
+                <td style="text-align:center;">
+                    <div style="display:flex; gap:6px; justify-content:center;">
+                        <button type="button" class="btn btn-xs btn-success" onclick="window.restoreFromTrash('${currentTrashCategory}', '${t.trashId}')" style="background:#10b981; color:white; border:none; padding:4px 8px; border-radius:4px; font-weight:600; cursor:pointer;">
+                            <i class="fa-solid fa-rotate-left"></i> Restaurar
+                        </button>
+                        <button type="button" class="btn btn-xs btn-danger" onclick="window.purgeFromTrash('${currentTrashCategory}', '${t.trashId}')" style="background:#ef4444; color:white; border:none; padding:4px 8px; border-radius:4px; font-weight:600; cursor:pointer;">
+                            <i class="fa-solid fa-trash-can"></i> Purgar
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+    tbody.innerHTML = html;
+};
+
+window.restoreFromTrash = async function(category, trashId) {
+    let trash = JSON.parse(localStorage.getItem('dental_trash_bin') || '{}');
+    if (!trash[category]) return;
+
+    const idx = trash[category].findIndex(t => t.trashId === trashId);
+    if (idx < 0) return;
+
+    const trashItem = trash[category][idx];
+    const original = trashItem.originalData;
+
+    try {
+        if (category === 'patients') {
+            await SupabaseDataService.savePatient(original);
+            if (typeof renderPatientsTable === 'function') renderPatientsTable();
+        } else if (category === 'invoices' || category === 'budgets') {
+            await SupabaseDataService.saveInvoice(original);
+            if (typeof renderBudgetTable === 'function') renderBudgetTable();
+        } else if (category === 'pricing') {
+            const list = await SupabaseDataService.getPricing();
+            list.push(original);
+            await SupabaseDataService.savePricing(list);
+            if (typeof renderPricingTable === 'function') renderPricingTable();
+        } else if (category === 'inventory') {
+            const items = await SupabaseDataService.getInventory();
+            items.push(original);
+            await SupabaseDataService.saveInventory(items);
+            if (typeof renderInventoryTable === 'function') renderInventoryTable();
+        }
+
+        trash[category].splice(idx, 1);
+        localStorage.setItem('dental_trash_bin', JSON.stringify(trash));
+
+        if (window.logUserAction) {
+            window.logUserAction(`Restauró de Papelera`, category, `Registro: ${trashItem.name}`);
+        }
+
+        Swal.fire({ icon: 'success', title: 'Registro Restaurado', text: `Se devolvió "${trashItem.name}" a su módulo original.`, timer: 1800, showConfirmButton: false });
+        window.renderTrashPane();
+    } catch(err) {
+        console.error(err);
+        Swal.fire({ icon: 'error', title: 'Error al restaurar', text: 'No se pudo restaurar el registro.' });
+    }
+};
+
+window.purgeFromTrash = async function(category, trashId) {
+    const res = await Swal.fire({
+        title: '¿Eliminar Definitivamente?',
+        text: 'Esta acción purgará de forma permanente el elemento sin posibilidad de recuperación.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, eliminar definitivamente',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#ef4444'
+    });
+
+    if (res.isConfirmed) {
+        let trash = JSON.parse(localStorage.getItem('dental_trash_bin') || '{}');
+        if (trash[category]) {
+            const item = trash[category].find(t => t.trashId === trashId);
+            trash[category] = trash[category].filter(t => t.trashId !== trashId);
+            localStorage.setItem('dental_trash_bin', JSON.stringify(trash));
+            
+            if (window.logUserAction && item) {
+                window.logUserAction(`Eliminó Definitivamente de Papelera`, category, `Registro: ${item.name}`);
+            }
+        }
+        Swal.fire({ icon: 'success', title: 'Eliminado permanentemente', timer: 1500, showConfirmButton: false });
+        window.renderTrashPane();
+    }
+};
+
+window.emptyTrash = async function() {
+    const res = await Swal.fire({
+        title: '¿Vaciar Toda la Papelera?',
+        text: 'Se eliminarán para siempre todos los elementos almacenados en la papelera de reciclaje.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, vaciar papelera',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#ef4444'
+    });
+
+    if (res.isConfirmed) {
+        localStorage.setItem('dental_trash_bin', JSON.stringify({}));
+        if (window.logUserAction) {
+            window.logUserAction(`Vacío la Papelera de Reciclaje`, 'Ajustes', `Vaciado completo`);
+        }
+        Swal.fire({ icon: 'success', title: 'Papelera vaciada por completo', timer: 1500, showConfirmButton: false });
+        window.renderTrashPane();
+    }
+};
+
+window.renderAuditLogsPane = function() {
+    const u = (typeof getCurrentUser === 'function' ? getCurrentUser() : null);
+    const r = (u ? u.role || '' : '').toLowerCase();
+    const isAdmin = r.includes('admin') || r.includes('super');
+
+    const restrictionMsg = document.getElementById('audit-admin-restriction-msg');
+    const mainContent = document.getElementById('audit-logs-main-content');
+
+    if (!isAdmin) {
+        if (restrictionMsg) restrictionMsg.classList.remove('hidden');
+        if (mainContent) mainContent.classList.add('hidden');
+        return;
+    } else {
+        if (restrictionMsg) restrictionMsg.classList.add('hidden');
+        if (mainContent) mainContent.classList.remove('hidden');
+    }
+
+    const tbody = document.getElementById('audit-logs-table-tbody');
+    if (!tbody) return;
+
+    let logs = JSON.parse(localStorage.getItem('dental_audit_logs') || '[]');
+    const searchVal = (document.getElementById('audit-search-input') ? document.getElementById('audit-search-input').value.toLowerCase().trim() : '');
+    const moduleVal = (document.getElementById('audit-module-filter') ? document.getElementById('audit-module-filter').value : '');
+
+    if (searchVal) {
+        logs = logs.filter(l => (l.userName || '').toLowerCase().includes(searchVal) || (l.action || '').toLowerCase().includes(searchVal) || (l.details || '').toLowerCase().includes(searchVal));
+    }
+    if (moduleVal) {
+        logs = logs.filter(l => (l.module || '').toLowerCase() === moduleVal.toLowerCase());
+    }
+
+    if (logs.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">
+                    <i class="fa-solid fa-list-check" style="font-size:2rem; margin-bottom:8px; opacity:0.3; display:block;"></i>
+                    No hay registros de auditoría que coincidan con la búsqueda.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    let html = '';
+    logs.forEach(l => {
+        html += `
+            <tr style="border-bottom:1px solid var(--border-color);">
+                <td style="white-space:nowrap;"><small>${l.formattedDate || l.timestamp}</small></td>
+                <td><strong>${l.userName}</strong></td>
+                <td><span class="badge-tag ${l.userRole.includes('ADMIN') ? 'green' : 'blue'}" style="font-size:0.72rem;">${l.userRole}</span></td>
+                <td><span class="badge-tag gray" style="font-size:0.72rem;">${l.module}</span></td>
+                <td><strong style="color:var(--text-heading);">${l.action}</strong></td>
+                <td><small style="color:var(--text-muted);">${l.details || '-'}</small></td>
+            </tr>
+        `;
+    });
+    tbody.innerHTML = html;
 };
