@@ -904,7 +904,9 @@
                                         <button class="btn btn-outline btn-sm" id="btn-edit-clinical-wizard">
                                             <i class="fa-solid fa-file-medical text-cyan"></i> Completar/Editar Historia
                                         </button>
-                                        <button class="btn btn-primary btn-sm" id="btn-add-clinical-note">+ Nueva Evolución</button>
+                                        <button class="btn btn-primary btn-sm" id="btn-open-interconsultation" style="background: #0d9488 !important; border: none !important; color: #ffffff !important; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                                            <i class="fa-solid fa-user-doctor"></i> Interconsulta
+                                        </button>
                                     </div>
                                 </div>
 
@@ -914,8 +916,9 @@
                                         <button class="subtab-btn active" data-subtab="summary">Resumen</button>
                                         <button class="subtab-btn" data-subtab="anamnesis">Anamnesis</button>
                                         <button class="subtab-btn" data-subtab="odontogram-comp">Odontodiagrama</button>
-                                        <button class="subtab-btn" data-subtab="sessions">Tratamientos & Sesiones</button>
-                                        <button class="subtab-btn" data-subtab="gallery"><i class="fa-solid fa-camera"></i> Fotografías & Rayos X</button>
+                                        <button class="subtab-btn" data-subtab="sessions">Tratamientos</button>
+                                        <button class="subtab-btn" data-subtab="interconsultation"><i class="fa-solid fa-user-doctor text-cyan"></i> Interconsulta</button>
+                                        <button class="subtab-btn" data-subtab="gallery"><i class="fa-solid fa-camera"></i> Fotografías</button>
                                         <button class="subtab-btn" data-subtab="payments-tab">Pagos</button>
                                     </div>
 
@@ -977,7 +980,29 @@
                                         </div>
                                     </div>
 
-                                    <!-- SUBTAB 5: Galería de Fotos Clínicas & Rayos X -->
+                                    <!-- SUBTAB INTERCONSULTA & RÉCIPES -->
+                                    <div id="subtab-interconsultation" class="subtab-content">
+                                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 10px; margin-bottom:15px;">
+                                            <div>
+                                                <h3 style="margin:0;"><i class="fa-solid fa-user-doctor text-cyan"></i> Interconsultas, Récipes e Indicaciones</h3>
+                                                <p class="text-muted" style="font-size:0.85rem; margin:2px 0 0 0;">Historial de estudios especiales solicitados, prescripciones médicas e indicaciones del paciente.</p>
+                                            </div>
+                                            <div style="display:flex; gap:8px;">
+                                                <button class="btn btn-primary btn-sm" id="btn-subtab-open-interconsultation" style="background: #0d9488 !important; border: none !important;">
+                                                    <i class="fa-solid fa-plus"></i> Nueva Interconsulta
+                                                </button>
+                                                <button class="btn btn-success btn-sm" id="btn-subtab-open-recipe" style="background: #10b981 !important; border: none !important;">
+                                                    <i class="fa-solid fa-pills"></i> Crear Récipe / Indicaciones
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div id="ehr-interconsultations-list" style="display: flex; flex-direction: column; gap: 15px;">
+                                            <!-- Populated dynamically -->
+                                        </div>
+                                    </div>
+
+                                    <!-- SUBTAB 5: Galería de Fotos Clínicas -->
                                     <div id="subtab-gallery" class="subtab-content">
                                         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 10px; margin-bottom:15px;">
                                             <div>
@@ -2718,6 +2743,241 @@
         </div>
     </div>
 
+    <!-- MODAL: INTERCONSULTA Y SOLICITUD DE ESTUDIOS ESPECIALES -->
+    <div class="modal-overlay hidden" id="modal-interconsultation">
+        <div class="modal-dialog" style="max-width: 800px; width: 95%;">
+            <div class="modal-header" style="background: var(--bg-main); border-bottom: 1px solid var(--border-color);">
+                <h3 style="margin: 0; color: var(--text-main); font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-user-doctor text-cyan"></i> Interconsulta y Solicitud de Estudios Especiales
+                </h3>
+                <button class="modal-close" data-close="modal-interconsultation">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <p class="text-muted" style="font-size: 0.88rem; margin-top: 0; margin-bottom: 15px;">
+                    Marque los exámenes o estudios especiales requeridos para el paciente en este proceso de interconsulta:
+                </p>
+
+                <!-- Acordeón de Estudios Especiales -->
+                <div class="interconsulta-accordion" style="display: flex; flex-direction: column; gap: 10px;">
+                    
+                    <!-- 1. Hematología -->
+                    <div class="card p-0" style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
+                        <label style="padding: 12px 15px; background: rgba(0,0,0,0.02); display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-weight: 700; margin: 0;">
+                            <span style="display: flex; align-items: center; gap: 10px;">
+                                <input type="checkbox" class="interconsulta-check" value="Hematología Completa">
+                                <i class="fa-solid fa-vial text-red"></i> 1. Hematología Completa
+                            </span>
+                            <span class="text-muted" style="font-size: 0.78rem;">Ver detalles</span>
+                        </label>
+                        <div class="p-15" style="padding: 12px 15px; border-top: 1px solid var(--border-color); background: #ffffff;">
+                            <input type="text" class="form-control interconsulta-note" data-study="Hematología Completa" placeholder="Especificaciones adicionales (ej: Fórmula blanca, plaquetas...)" style="font-size: 0.85rem;">
+                        </div>
+                    </div>
+
+                    <!-- 2. PT y PTT -->
+                    <div class="card p-0" style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
+                        <label style="padding: 12px 15px; background: rgba(0,0,0,0.02); display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-weight: 700; margin: 0;">
+                            <span style="display: flex; align-items: center; gap: 10px;">
+                                <input type="checkbox" class="interconsulta-check" value="Tiempos de Coagulación (PT y PTT)">
+                                <i class="fa-solid fa-clock text-amber"></i> 2. Tiempos de Coagulación (PT y PTT)
+                            </span>
+                            <span class="text-muted" style="font-size: 0.78rem;">Ver detalles</span>
+                        </label>
+                        <div class="p-15" style="padding: 12px 15px; border-top: 1px solid var(--border-color); background: #ffffff;">
+                            <input type="text" class="form-control interconsulta-note" data-study="Tiempos de Coagulación (PT y PTT)" placeholder="Especificaciones (ej: Evaluación quirúrgica previa...)" style="font-size: 0.85rem;">
+                        </div>
+                    </div>
+
+                    <!-- 3. VDRL -->
+                    <div class="card p-0" style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
+                        <label style="padding: 12px 15px; background: rgba(0,0,0,0.02); display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-weight: 700; margin: 0;">
+                            <span style="display: flex; align-items: center; gap: 10px;">
+                                <input type="checkbox" class="interconsulta-check" value="VDRL / Serología">
+                                <i class="fa-solid fa-microscope text-purple"></i> 3. VDRL / Serología
+                            </span>
+                            <span class="text-muted" style="font-size: 0.78rem;">Ver detalles</span>
+                        </label>
+                        <div class="p-15" style="padding: 12px 15px; border-top: 1px solid var(--border-color); background: #ffffff;">
+                            <input type="text" class="form-control interconsulta-note" data-study="VDRL / Serología" placeholder="Especificaciones adicionales..." style="font-size: 0.85rem;">
+                        </div>
+                    </div>
+
+                    <!-- 4. Panorámica -->
+                    <div class="card p-0" style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
+                        <label style="padding: 12px 15px; background: rgba(0,0,0,0.02); display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-weight: 700; margin: 0;">
+                            <span style="display: flex; align-items: center; gap: 10px;">
+                                <input type="checkbox" class="interconsulta-check" value="Radiografía Panorámica">
+                                <i class="fa-solid fa-x-ray text-cyan"></i> 4. Radiografía Panorámica Ortopantomografía
+                            </span>
+                            <span class="text-muted" style="font-size: 0.78rem;">Ver detalles</span>
+                        </label>
+                        <div class="p-15" style="padding: 12px 15px; border-top: 1px solid var(--border-color); background: #ffffff;">
+                            <input type="text" class="form-control interconsulta-note" data-study="Radiografía Panorámica" placeholder="Especificaciones (ej: Evaluación de terceros molares / arcadas)..." style="font-size: 0.85rem;">
+                        </div>
+                    </div>
+
+                    <!-- 5. RX Periapical -->
+                    <div class="card p-0" style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
+                        <label style="padding: 12px 15px; background: rgba(0,0,0,0.02); display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-weight: 700; margin: 0;">
+                            <span style="display: flex; align-items: center; gap: 10px;">
+                                <input type="checkbox" class="interconsulta-check" value="RX Periapical">
+                                <i class="fa-solid fa-tooth text-green"></i> 5. Radiografía Periapical (Localizada)
+                            </span>
+                            <span class="text-muted" style="font-size: 0.78rem;">Ver detalles</span>
+                        </label>
+                        <div class="p-15" style="padding: 12px 15px; border-top: 1px solid var(--border-color); background: #ffffff;">
+                            <input type="text" class="form-control interconsulta-note" data-study="RX Periapical" placeholder="Indique la pieza dental (ej: Pieza 16 / 21)..." style="font-size: 0.85rem;">
+                        </div>
+                    </div>
+
+                    <!-- 6. RX Coronal -->
+                    <div class="card p-0" style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
+                        <label style="padding: 12px 15px; background: rgba(0,0,0,0.02); display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-weight: 700; margin: 0;">
+                            <span style="display: flex; align-items: center; gap: 10px;">
+                                <input type="checkbox" class="interconsulta-check" value="RX Coronal">
+                                <i class="fa-solid fa-file-image text-cyan"></i> 6. Radiografía Coronal / Bite-Wing
+                            </span>
+                            <span class="text-muted" style="font-size: 0.78rem;">Ver detalles</span>
+                        </label>
+                        <div class="p-15" style="padding: 12px 15px; border-top: 1px solid var(--border-color); background: #ffffff;">
+                            <input type="text" class="form-control interconsulta-note" data-study="RX Coronal" placeholder="Especificaciones (ej: Detección de caries interproximales)..." style="font-size: 0.85rem;">
+                        </div>
+                    </div>
+
+                    <!-- 7. Tomografía -->
+                    <div class="card p-0" style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
+                        <label style="padding: 12px 15px; background: rgba(0,0,0,0.02); display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-weight: 700; margin: 0;">
+                            <span style="display: flex; align-items: center; gap: 10px;">
+                                <input type="checkbox" class="interconsulta-check" value="Tomografía Cone Beam 3D">
+                                <i class="fa-solid fa-cube text-purple"></i> 7. Tomografía Computarizada Cone Beam 3D
+                            </span>
+                            <span class="text-muted" style="font-size: 0.78rem;">Ver detalles</span>
+                        </label>
+                        <div class="p-15" style="padding: 12px 15px; border-top: 1px solid var(--border-color); background: #ffffff;">
+                            <input type="text" class="form-control interconsulta-note" data-study="Tomografía Cone Beam 3D" placeholder="Especificaciones (ej: Maxilar superior / Implante pieza 36)..." style="font-size: 0.85rem;">
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Observaciones de Interconsulta -->
+                <div class="form-group style='margin-top: 15px;'">
+                    <label style="font-weight: 700; font-size: 0.85rem; margin-top: 15px; display: block;">Motivo de Interconsulta / Observaciones del Especialista:</label>
+                    <textarea id="interconsultation-notes" class="form-control" rows="2" placeholder="Escriba las observaciones clínicas, indicación diagnóstica o motivo de la interconsulta..."></textarea>
+                </div>
+            </div>
+
+            <!-- Footer con Botones de Crear Récipe y Crear Indicaciones -->
+            <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" class="btn btn-success" id="btn-interconsultation-create-recipe" style="background: #10b981 !important; color: white !important; font-weight: 700; border: none; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-pills"></i> Crear Récipe
+                    </button>
+                    <button type="button" class="btn btn-primary" id="btn-interconsultation-create-indications" style="background: #0284c7 !important; color: white !important; font-weight: 700; border: none; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-list-check"></i> Crear Indicaciones
+                    </button>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" class="btn btn-primary" id="btn-save-interconsultation-full" style="background: #0d9488 !important; border: none !important; font-weight: 700;">
+                        <i class="fa-solid fa-floppy-disk"></i> Guardar Interconsulta
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CONFECCIONADOR DE RÉCIPES E INDICACIONES MÉDICAS -->
+    <div class="modal-overlay hidden" id="modal-recipe-and-indications">
+        <div class="modal-dialog" style="max-width: 850px; width: 95%;">
+            <div class="modal-header" style="background: var(--bg-main); border-bottom: 1px solid var(--border-color);">
+                <h3 style="margin: 0; color: var(--text-main); font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-prescription text-cyan"></i> Confeccionador de Récipe Médico e Indicaciones
+                </h3>
+                <button class="modal-close" data-close="modal-recipe-and-indications">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                
+                <!-- Selector de Tratamiento / Sesión a Vincular -->
+                <div class="form-group mb-15" style="background: rgba(13, 148, 136, 0.04); border: 1px solid rgba(13, 148, 136, 0.2); padding: 12px 15px; border-radius: 8px;">
+                    <label style="font-weight: 700; color: #0d9488; display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                        <i class="fa-solid fa-link"></i> Seleccionar Tratamiento o Sesión a Vincular *:
+                    </label>
+                    <select id="recipe-treatment-select" class="form-control" style="width: 100%; font-weight: 600; font-size: 0.88rem;">
+                        <option value="General">General / Consulta Externa</option>
+                    </select>
+                </div>
+
+                <!-- Subtabs interna Récipe vs Indicaciones -->
+                <div class="subtabs" style="margin-bottom: 15px;">
+                    <button type="button" class="subtab-btn active" id="btn-recipe-tab-mode" onclick="window.switchRecipeModalTab('recipe')"><i class="fa-solid fa-pills"></i> Récipe Médico (Prescripción)</button>
+                    <button type="button" class="subtab-btn" id="btn-indications-tab-mode" onclick="window.switchRecipeModalTab('indications')"><i class="fa-solid fa-clipboard-list"></i> Indicaciones Clínicas</button>
+                </div>
+
+                <!-- TAB RÉCIPE -->
+                <div id="recipe-modal-pane-recipe">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <label style="font-weight: 700; font-size: 0.85rem;">Medicamentos Prescritos:</label>
+                        <button type="button" class="btn btn-sm btn-outline" onclick="window.addRecipeRow()" style="border-color: #0d9488 !important; color: #0d9488 !important; font-weight: 700;">+ Agregar Medicamento</button>
+                    </div>
+                    <div class="table-container mb-15">
+                        <table class="table table-compact" id="recipe-medicines-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 35%;">Medicamento / Fármaco</th>
+                                    <th style="width: 25%;">Dosis / Presentación</th>
+                                    <th style="width: 25%;">Frecuencia / Duración</th>
+                                    <th style="width: 15%; text-align: center;">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recipe-medicines-tbody">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="form-group">
+                        <label style="font-weight: 700; font-size: 0.85rem;">Observaciones / Instrucciones de la Prescripción:</label>
+                        <textarea id="recipe-general-notes" class="form-control" rows="2" placeholder="Ej: Tomar con abundante agua después de las comidas..."></textarea>
+                    </div>
+                </div>
+
+                <!-- TAB INDICACIONES -->
+                <div id="recipe-modal-pane-indications" class="hidden">
+                    <div class="form-group">
+                        <label style="font-weight: 700; font-size: 0.85rem;">Indicaciones y Recomendaciones al Paciente:</label>
+                        <textarea id="recipe-clinical-indications" class="form-control" rows="6" placeholder="Escriba aquí las indicaciones detalladas para el paciente (ej: Reposo relativo por 48 horas, aplicar frío local, dieta blanda...)" style="line-height: 1.5;"></textarea>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <button type="button" class="btn btn-outline" id="btn-print-recipe-pdf" style="border: 1px solid #0f172a !important; color: #0f172a !important; font-weight: 700;">
+                    <i class="fa-solid fa-file-pdf"></i> Imprimir Récipe / PDF
+                </button>
+                <button type="button" class="btn btn-success" id="btn-save-recipe-final" style="background: #10b981 !important; color: white !important; font-weight: 700; border: none;">
+                    <i class="fa-solid fa-floppy-disk"></i> Guardar Récipe e Indicaciones
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: VISUALIZADOR DE RÉCIPES E INDICACIONES DE SESIÓN -->
+    <div class="modal-overlay hidden" id="modal-view-session-recipes">
+        <div class="modal-dialog" style="max-width: 750px; width: 95%;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-file-prescription text-cyan"></i> Récipes e Indicaciones Registrados</h3>
+                <button class="modal-close" data-close="modal-view-session-recipes">&times;</button>
+            </div>
+            <div class="modal-body" id="session-recipes-view-body" style="max-height: 500px; overflow-y: auto;">
+                <!-- Populated dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="btn-create-new-recipe-for-session" style="background: #10b981 !important; border: none !important; font-weight: 700;">
+                    <i class="fa-solid fa-plus"></i> Crear Nuevo Récipe para este Tratamiento
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL: SELECTOR DE TRATAMIENTO PARA PIEZA DENTAL -->
     <div class="modal-overlay hidden" id="modal-tooth-treatment">
         <div class="modal-dialog modal-sm">
@@ -3205,13 +3465,13 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=169"></script>
-    <script src="supabaseClient.js?v=169"></script>
-    <script src="odontogram.js?v=169"></script>
-    <script src="signature.js?v=169"></script>
-    <script src="whatsapp.js?v=169"></script>
-    <script src="kardex.js?v=169"></script>
-    <script src="app.js?v=169"></script>
-    <script src="tutorial.js?v=169"></script>
+    <script src="seededData.js?v=170"></script>
+    <script src="supabaseClient.js?v=170"></script>
+    <script src="odontogram.js?v=170"></script>
+    <script src="signature.js?v=170"></script>
+    <script src="whatsapp.js?v=170"></script>
+    <script src="kardex.js?v=170"></script>
+    <script src="app.js?v=170"></script>
+    <script src="tutorial.js?v=170"></script>
 </body>
 </html>

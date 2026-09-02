@@ -2754,6 +2754,7 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                         <div class="timeline-meta" style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 6px;">
                             <span><strong style="color:#10b981;"><i class="fa-solid fa-circle-check"></i> Sesión N° ${s.sessionNum}</strong> — <i class="fa-solid fa-clock"></i> ${s.datetime}</span>
                             <div style="display: flex; gap: 4px; align-items: center;">
+                                <button class="btn btn-xs btn-outline" style="border-color:#10b981; color:#10b981; font-weight:600;" onclick="window.openRecipesModalForSession('${activePatient.id}', ${s.sessionNum}, '${s.procedure}')" title="Ver / Crear Récipe e Indicaciones"><i class="fa-solid fa-pills"></i> Récipes</button>
                                 <button class="btn btn-xs btn-outline" style="color: #15803d; border-color: #22c55e;" onclick="sendSessionReceiptWhatsApp('${activePatient.id}', ${s.sessionNum})" title="Enviar Recibo por WhatsApp"><i class="fa-brands fa-whatsapp"></i> Recibo</button>
                                 <button class="btn btn-xs btn-outline" onclick="downloadSessionReceiptPDFById('${activePatient.id}', ${s.sessionNum})" title="Descargar Recibo en PDF"><i class="fa-solid fa-file-pdf text-blue"></i> PDF</button>
                                 <span class="badge-tag green">✓ Realizada</span>
@@ -2782,6 +2783,7 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                         <div class="timeline-meta" style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 6px;">
                             <span><strong style="color:#f59e0b;"><i class="fa-solid fa-hourglass-half"></i> Sesión N° ${sNum}</strong> — <span class="badge-tag amber">⏳ Pendiente</span></span>
                             <div style="display: flex; gap: 6px; align-items: center;">
+                                <button class="btn btn-xs btn-outline" style="border-color:#10b981; color:#10b981; font-weight:600;" onclick="window.openRecipesModalForSession('${activePatient.id}', ${sNum}, '${defaultProcName}')" title="Ver / Crear Récipe e Indicaciones"><i class="fa-solid fa-pills"></i> Récipes</button>
                                 <button class="btn btn-xs btn-outline" style="border-color:var(--primary-cyan); color:var(--primary-cyan);" onclick="window.openAppointmentModalForPatient('${activePatient.id}', ${sNum}, '${defaultProcName}')" title="Agendar esta sesión en la Agenda">
                                     <i class="fa-solid fa-calendar-plus"></i> Agendar
                                 </button>
@@ -2894,6 +2896,61 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                 });
             } else {
                 payTbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted" style="padding:20px;">Sin registro de pagos o saldos pendientes. Haga clic en "+ Registrar Pago / Abono" arriba.</td></tr>`;
+            }
+
+            // 5. Interconsultas, Récipes e Indicaciones Tab
+            const interconsultationsContainer = document.getElementById('ehr-interconsultations-list');
+            if (interconsultationsContainer) {
+                const ics = (meta.interconsultations) || [];
+                const rcs = (meta.recipes) || [];
+
+                if (ics.length === 0 && rcs.length === 0) {
+                    interconsultationsContainer.innerHTML = `
+                        <div style="text-align: center; color: var(--text-muted); padding: 30px; border: 1px dashed var(--border-color); border-radius: 8px; background: var(--bg-card);">
+                            <i class="fa-solid fa-user-doctor" style="font-size: 2rem; margin-bottom: 10px; display: block; color: var(--primary-cyan);"></i>
+                            Sin interconsultas, estudios ni récipes registrados para este paciente.
+                        </div>
+                    `;
+                } else {
+                    let html = '';
+                    ics.forEach(ic => {
+                        let studiesHtml = ic.studies ? ic.studies.map(s => `<li><strong>${s.name}</strong> ${s.note ? `<em style="color:var(--text-muted);">(${s.note})</em>` : ''}</li>`).join('') : '';
+                        html += `
+                            <div class="card p-15 mb-10" style="border: 1px solid var(--border-color); border-radius: 8px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 10px;">
+                                    <span style="font-weight: 700; color: #0d9488;"><i class="fa-solid fa-file-medical"></i> Interconsulta ${ic.id}</span>
+                                    <small class="text-muted"><i class="fa-regular fa-calendar"></i> ${ic.date}</small>
+                                </div>
+                                <div style="font-size: 0.88rem;">
+                                    ${studiesHtml ? `<div><strong>Estudios Solicitados:</strong><ul style="margin: 5px 0; padding-left: 20px;">${studiesHtml}</ul></div>` : ''}
+                                    ${ic.notes ? `<div style="margin-top: 6px;"><strong>Observaciones del Especialista:</strong> ${ic.notes}</div>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    rcs.forEach(rc => {
+                        let medsHtml = rc.medicines ? rc.medicines.map(m => `<li><strong>${m.med}</strong> — ${m.dose} (${m.freq})</li>`).join('') : '';
+                        html += `
+                            <div class="card p-15 mb-10" style="border: 1px solid rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.02); border-radius: 8px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(16, 185, 129, 0.3); padding-bottom: 8px; margin-bottom: 10px;">
+                                    <span style="font-weight: 700; color: #059669;"><i class="fa-solid fa-prescription"></i> Récipe Médico & Indicaciones ${rc.id}</span>
+                                    <div style="display:flex; gap:6px; align-items:center;">
+                                        <button class="btn btn-xs btn-outline" onclick="window.printSingleRecipePDF('${activePatient.id}', '${rc.id}')"><i class="fa-solid fa-file-pdf text-red"></i> PDF</button>
+                                        <small class="text-muted"><i class="fa-regular fa-calendar"></i> ${rc.date}</small>
+                                    </div>
+                                </div>
+                                <div style="font-size: 0.88rem;">
+                                    <div><strong>Tratamiento Vinculado:</strong> ${rc.treatmentLinked || 'General'}</div>
+                                    ${medsHtml ? `<div style="margin-top: 6px;"><strong>Medicamentos Prescritos:</strong><ul style="margin: 4px 0; padding-left: 20px;">${medsHtml}</ul></div>` : ''}
+                                    ${rc.notes ? `<div style="margin-top: 4px;"><strong>Notas:</strong> ${rc.notes}</div>` : ''}
+                                    ${rc.indications ? `<div style="margin-top: 6px; background: #ffffff; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color);"><strong>Indicaciones Clínicas:</strong><br>${rc.indications.replace(/\n/g, '<br>')}</div>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    interconsultationsContainer.innerHTML = html;
+                }
             }
 
             // 6. Galería de Fotos Clínicas & Rayos X
@@ -5848,8 +5905,41 @@ function initGlobalEvents() {
         };
     }
 
-    const btnNewUM = document.getElementById('btn-new-user-modal');
-    if (btnNewUM) btnNewUM.onclick = () => openModal('modal-user');
+    const btnOpenInterconsultation = document.getElementById('btn-open-interconsultation');
+    if (btnOpenInterconsultation) btnOpenInterconsultation.onclick = () => window.openInterconsultationModal();
+
+    const btnSubtabInterconsultation = document.getElementById('btn-subtab-open-interconsultation');
+    if (btnSubtabInterconsultation) btnSubtabInterconsultation.onclick = () => window.openInterconsultationModal();
+
+    const btnSubtabRecipe = document.getElementById('btn-subtab-open-recipe');
+    if (btnSubtabRecipe) btnSubtabRecipe.onclick = () => window.openRecipeModal();
+
+    const btnCreateRecipeFromIc = document.getElementById('btn-interconsultation-create-recipe');
+    if (btnCreateRecipeFromIc) btnCreateRecipeFromIc.onclick = () => {
+        window.openRecipeModal();
+    };
+
+    const btnCreateIndFromIc = document.getElementById('btn-interconsultation-create-indications');
+    if (btnCreateIndFromIc) btnCreateIndFromIc.onclick = () => {
+        window.openRecipeModal();
+        window.switchRecipeModalTab('indications');
+    };
+
+    const btnSaveIcFull = document.getElementById('btn-save-interconsultation-full');
+    if (btnSaveIcFull) btnSaveIcFull.onclick = () => window.saveInterconsultationFull();
+
+    const btnSaveRecipeFinal = document.getElementById('btn-save-recipe-final');
+    if (btnSaveRecipeFinal) btnSaveRecipeFinal.onclick = () => window.saveRecipeAndIndicationsFinal();
+
+    const btnPrintRecipePdf = document.getElementById('btn-print-recipe-pdf');
+    if (btnPrintRecipePdf) {
+        btnPrintRecipePdf.onclick = async () => {
+            const activeId = getActivePatientId();
+            const patients = await SupabaseDataService.getPatients();
+            const p = patients.find(pt => pt.id === activeId);
+            if (p) window.printSingleRecipePDF(p.id);
+        };
+    }
 
     document.querySelectorAll('[data-close]').forEach(btn => {
         btn.onclick = () => closeModal(btn.dataset.close);
@@ -11683,3 +11773,347 @@ async function renderPublicSessionReceiptView() {
         publicContent.innerHTML = `<div class="text-center text-red" style="padding:40px;"><i class="fa-solid fa-circle-xmark" style="font-size:2rem;"></i><br><br>Error al recuperar el recibo del servidor.</div>`;
     }
 }
+
+// ==========================================
+// INTERCONSULTA, RÉCIPES E INDICACIONES CLÍNICAS
+// ==========================================
+window.openInterconsultationModal = function() {
+    const activeId = getActivePatientId();
+    if (!activeId) {
+        Swal.fire({ icon: 'warning', title: 'Seleccione Paciente', text: 'Por favor seleccione un paciente de la lista para abrir la interconsulta.' });
+        return;
+    }
+
+    document.querySelectorAll('.interconsulta-check').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.interconsulta-note').forEach(input => input.value = '');
+    const notesEl = document.getElementById('interconsultation-notes');
+    if (notesEl) notesEl.value = '';
+
+    openModal('modal-interconsultation');
+};
+
+window.switchRecipeModalTab = function(mode) {
+    const btnRecipe = document.getElementById('btn-recipe-tab-mode');
+    const btnIndications = document.getElementById('btn-indications-tab-mode');
+    const paneRecipe = document.getElementById('recipe-modal-pane-recipe');
+    const paneIndications = document.getElementById('recipe-modal-pane-indications');
+
+    if (mode === 'recipe') {
+        if (btnRecipe) btnRecipe.classList.add('active');
+        if (btnIndications) btnIndications.classList.remove('active');
+        if (paneRecipe) paneRecipe.classList.remove('hidden');
+        if (paneIndications) paneIndications.classList.add('hidden');
+    } else {
+        if (btnIndications) btnIndications.classList.add('active');
+        if (btnRecipe) btnRecipe.classList.remove('active');
+        if (paneIndications) paneIndications.classList.remove('hidden');
+        if (paneRecipe) paneRecipe.classList.add('hidden');
+    }
+};
+
+window.addRecipeRow = function(med = '', dose = '', freq = '') {
+    const tbody = document.getElementById('recipe-medicines-tbody');
+    if (!tbody) return;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td><input type="text" class="form-input recipe-med-name" value="${med}" placeholder="ej: Amoxicilina 500mg" style="width:100%; font-size:0.85rem;"></td>
+        <td><input type="text" class="form-input recipe-med-dose" value="${dose}" placeholder="ej: 1 cápsula cada 8 horas" style="width:100%; font-size:0.85rem;"></td>
+        <td><input type="text" class="form-input recipe-med-freq" value="${freq}" placeholder="ej: Por 7 días" style="width:100%; font-size:0.85rem;"></td>
+        <td style="text-align:center;"><button type="button" class="btn btn-xs btn-outline text-red" onclick="this.closest('tr').remove()"><i class="fa-solid fa-trash"></i></button></td>
+    `;
+    tbody.appendChild(tr);
+};
+
+window.openRecipeModal = async function(sessionNum = null, sessionTitle = '') {
+    const activeId = getActivePatientId();
+    if (!activeId) {
+        Swal.fire({ icon: 'warning', title: 'Seleccione Paciente', text: 'Por favor seleccione un paciente.' });
+        return;
+    }
+
+    const select = document.getElementById('recipe-treatment-select');
+    if (select) {
+        select.innerHTML = '<option value="General">General / Consulta Externa</option>';
+        const patients = await SupabaseDataService.getPatients();
+        const p = patients.find(pt => pt.id === activeId);
+        if (p) {
+            const meta = p.metadata || {};
+            const trts = meta.treatments || [];
+            trts.forEach((t, i) => {
+                const opt = document.createElement('option');
+                opt.value = `Sesión #${i + 1}: ${t.name || 'Procedimiento'} (${t.tooth || 'Gnl'})`;
+                opt.innerText = opt.value;
+                select.appendChild(opt);
+            });
+            if (p.sessions && p.sessions.length > 0) {
+                p.sessions.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = `Sesión Realizada #${s.sessionNum}: ${s.procedure}`;
+                    opt.innerText = opt.value;
+                    select.appendChild(opt);
+                });
+            }
+        }
+        if (sessionNum && sessionTitle) {
+            const matchingOpt = Array.from(select.options).find(o => o.value.includes(`Sesión #${sessionNum}`) || o.value.includes(sessionTitle));
+            if (matchingOpt) select.value = matchingOpt.value;
+        }
+    }
+
+    const tbody = document.getElementById('recipe-medicines-tbody');
+    if (tbody) tbody.innerHTML = '';
+    window.addRecipeRow('Amoxicilina 500mg', '1 cápsula c/8h', 'Por 7 días');
+    window.addRecipeRow('Ibuprofeno 400mg', '1 tableta c/8h', 'Por 3 días (si hay dolor)');
+
+    const notesEl = document.getElementById('recipe-general-notes');
+    if (notesEl) notesEl.value = 'Tomar los medicamentos indicados estrictamente después de las comidas.';
+
+    const indEl = document.getElementById('recipe-clinical-indications');
+    if (indEl) indEl.value = '1. Reposo relativo durante las primeras 48 horas.\n2. Aplicar hielo local en la zona externa por lapsos de 15 minutos.\n3. Dieta blanda y fría. Evitar exponerse al sol o realizar esfuerzos físicos.';
+
+    window.switchRecipeModalTab('recipe');
+    openModal('modal-recipe-and-indications');
+};
+
+window.saveInterconsultationFull = async function() {
+    const activeId = getActivePatientId();
+    if (!activeId) {
+        Swal.fire({ icon: 'warning', text: 'Seleccione un paciente' });
+        return;
+    }
+
+    const selectedStudies = [];
+    document.querySelectorAll('.interconsulta-check:checked').forEach(cb => {
+        const studyName = cb.value;
+        const noteInput = document.querySelector(`.interconsulta-note[data-study="${studyName}"]`);
+        const note = noteInput ? noteInput.value.trim() : '';
+        selectedStudies.push({
+            name: studyName,
+            note: note
+        });
+    });
+
+    const notes = document.getElementById('interconsultation-notes') ? document.getElementById('interconsultation-notes').value.trim() : '';
+
+    if (selectedStudies.length === 0 && !notes) {
+        Swal.fire({ icon: 'warning', title: 'Interconsulta Vacía', text: 'Seleccione al menos un estudio o escriba las observaciones de la interconsulta.' });
+        return;
+    }
+
+    const patients = await SupabaseDataService.getPatients();
+    const p = patients.find(pt => pt.id === activeId);
+    if (p) {
+        if (!p.metadata) p.metadata = {};
+        if (!p.metadata.interconsultations) p.metadata.interconsultations = [];
+
+        const record = {
+            id: 'IC-' + Date.now().toString().slice(-6),
+            date: new Date().toISOString().split('T')[0],
+            studies: selectedStudies,
+            notes: notes
+        };
+
+        p.metadata.interconsultations.unshift(record);
+        await SupabaseDataService.savePatient(p);
+
+        closeModal('modal-interconsultation');
+        await renderEHRView();
+
+        Swal.fire({
+            icon: 'success',
+            title: '¡Interconsulta Guardada!',
+            text: 'La solicitud de interconsulta ha sido registrada en el expediente.',
+            timer: 1800,
+            showConfirmButton: false
+        });
+    }
+};
+
+window.saveRecipeAndIndicationsFinal = async function() {
+    const activeId = getActivePatientId();
+    if (!activeId) {
+        Swal.fire({ icon: 'warning', text: 'Seleccione un paciente' });
+        return;
+    }
+
+    const treatmentLinked = document.getElementById('recipe-treatment-select') ? document.getElementById('recipe-treatment-select').value : 'General';
+    const medicines = [];
+    document.querySelectorAll('#recipe-medicines-tbody tr').forEach(tr => {
+        const med = tr.querySelector('.recipe-med-name') ? tr.querySelector('.recipe-med-name').value.trim() : '';
+        const dose = tr.querySelector('.recipe-med-dose') ? tr.querySelector('.recipe-med-dose').value.trim() : '';
+        const freq = tr.querySelector('.recipe-med-freq') ? tr.querySelector('.recipe-med-freq').value.trim() : '';
+        if (med) {
+            medicines.push({ med, dose, freq });
+        }
+    });
+
+    const notes = document.getElementById('recipe-general-notes') ? document.getElementById('recipe-general-notes').value.trim() : '';
+    const indications = document.getElementById('recipe-clinical-indications') ? document.getElementById('recipe-clinical-indications').value.trim() : '';
+
+    const patients = await SupabaseDataService.getPatients();
+    const p = patients.find(pt => pt.id === activeId);
+    if (p) {
+        if (!p.metadata) p.metadata = {};
+        if (!p.metadata.recipes) p.metadata.recipes = [];
+
+        const recipeRecord = {
+            id: 'REC-' + Date.now().toString().slice(-6),
+            date: new Date().toISOString().split('T')[0],
+            treatmentLinked,
+            medicines,
+            notes,
+            indications
+        };
+
+        p.metadata.recipes.unshift(recipeRecord);
+        await SupabaseDataService.savePatient(p);
+
+        closeModal('modal-recipe-and-indications');
+        if (document.getElementById('modal-interconsultation')) closeModal('modal-interconsultation');
+        await renderEHRView();
+
+        Swal.fire({
+            icon: 'success',
+            title: '¡Récipe e Indicaciones Guardados!',
+            text: 'El récipe fue vinculado y registrado exitosamente.',
+            timer: 1800,
+            showConfirmButton: false
+        });
+    }
+};
+
+window.openRecipesModalForSession = async function(patientId, sessionNum, sessionTitle) {
+    const patients = await SupabaseDataService.getPatients();
+    const p = patients.find(pt => pt.id === patientId);
+    if (!p) return;
+
+    const recipes = (p.metadata && p.metadata.recipes) || [];
+    const sessionRecipes = recipes.filter(r => (r.treatmentLinked && r.treatmentLinked.includes(`Sesión #${sessionNum}`)) || (sessionTitle && r.treatmentLinked.includes(sessionTitle)));
+
+    const body = document.getElementById('session-recipes-view-body');
+    if (!body) return;
+
+    if (sessionRecipes.length === 0) {
+        window.openRecipeModal(sessionNum, sessionTitle);
+        return;
+    }
+
+    let html = '';
+    sessionRecipes.forEach(r => {
+        let medsHtml = r.medicines ? r.medicines.map(m => `<li><strong>${m.med}</strong>: ${m.dose} (${m.freq})</li>`).join('') : '';
+        html += `
+            <div style="background:var(--bg-main); border:1px solid var(--border-color); border-radius:8px; padding:15px; margin-bottom:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:8px; margin-bottom:10px;">
+                    <span style="font-weight:700; color:#0d9488;"><i class="fa-solid fa-prescription"></i> ${r.id} (${r.date})</span>
+                    <button class="btn btn-xs btn-outline" onclick="window.printSingleRecipePDF('${patientId}', '${r.id}')"><i class="fa-solid fa-file-pdf text-red"></i> Imprimir PDF</button>
+                </div>
+                <div style="font-size:0.85rem; color:var(--text-main);">
+                    <div><strong>Tratamiento Vinculado:</strong> ${r.treatmentLinked}</div>
+                    ${medsHtml ? `<div style="margin-top:6px;"><strong>Medicamentos Prescritos:</strong><ul style="margin:4px 0; padding-left:20px;">${medsHtml}</ul></div>` : ''}
+                    ${r.notes ? `<div style="margin-top:4px;"><strong>Notas:</strong> ${r.notes}</div>` : ''}
+                    ${r.indications ? `<div style="margin-top:6px; background:rgba(2,132,199,0.05); padding:8px; border-radius:6px; border:1px solid rgba(2,132,199,0.2);"><strong>Indicaciones Clínicas:</strong><br>${r.indications.replace(/\n/g, '<br>')}</div>` : ''}
+                </div>
+            </div>
+        `;
+    });
+
+    body.innerHTML = html;
+
+    const btnNew = document.getElementById('btn-create-new-recipe-for-session');
+    if (btnNew) {
+        btnNew.onclick = () => {
+            closeModal('modal-view-session-recipes');
+            window.openRecipeModal(sessionNum, sessionTitle);
+        };
+    }
+
+    openModal('modal-view-session-recipes');
+};
+
+window.printSingleRecipePDF = async function(patientId, recipeId = null) {
+    const patients = await SupabaseDataService.getPatients();
+    const p = patients.find(pt => pt.id === patientId);
+    if (!p) return;
+
+    const meta = p.metadata || {};
+    const recipes = meta.recipes || [];
+    const recipe = recipeId ? recipes.find(r => r.id === recipeId) : recipes[0];
+
+    const currentDocName = getCurrentUser() ? getCurrentUser().fullname : 'Dr. Odontólogo';
+
+    let medsList = recipe && recipe.medicines ? recipe.medicines.map(m => `
+        <tr style="border-bottom:1px solid #e2e8f0;">
+            <td style="padding:10px; font-weight:700; color:#0f172a;">${m.med}</td>
+            <td style="padding:10px; color:#334155;">${m.dose}</td>
+            <td style="padding:10px; color:#475569;">${m.freq}</td>
+        </tr>
+    `).join('') : '<tr><td colspan="3" style="padding:10px; text-align:center;">Sin medicamentos prescritos</td></tr>';
+
+    const printWin = window.open('', '_blank');
+    if (!printWin) return;
+
+    printWin.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Récipe Médico - ${p.fullname}</title>
+            <style>
+                body { font-family: 'Segoe UI', Arial, sans-serif; padding: 30px; color: #1e293b; }
+                .header { text-align: center; border-bottom: 2px solid #0d9488; padding-bottom: 15px; margin-bottom: 20px; }
+                .header h2 { margin: 0; color: #0d9488; text-transform: uppercase; font-size: 20px; }
+                .header p { margin: 4px 0 0 0; font-size: 13px; color: #64748b; }
+                .patient-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 18px; margin-bottom: 20px; font-size: 14px; }
+                table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+                th { background: #f1f5f9; text-align: left; padding: 8px 10px; font-size: 12px; color: #475569; text-transform: uppercase; }
+                .section-title { color: #0d9488; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; font-size: 15px; margin-top: 25px; margin-bottom: 10px; font-weight: 700; }
+                .footer { margin-top: 50px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 15px; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h2>PRESCRIPCIÓN MÉDICA Y RÉCIPE ODONTOLÓGICO</h2>
+                <p>CONSULTORIO ODONTOLÓGICO INTEGRAL • Odontología General y Especializada</p>
+            </div>
+            <div class="patient-box">
+                <strong>Paciente:</strong> ${p.fullname} &nbsp;&nbsp;|&nbsp;&nbsp; 
+                <strong>C.I.:</strong> ${p.id} &nbsp;&nbsp;|&nbsp;&nbsp; 
+                <strong>Fecha:</strong> ${recipe ? recipe.date : new Date().toISOString().split('T')[0]}<br>
+                <span style="font-size: 12px; color: #64748b;">Tratamiento Vinculado: ${recipe ? recipe.treatmentLinked : 'General'}</span>
+            </div>
+
+            <div class="section-title">Rx - MEDICAMENTOS PRESCRITOS</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:40%;">Fármaco / Presentación</th>
+                        <th style="width:30%;">Dosis</th>
+                        <th style="width:30%;">Frecuencia / Duración</th>
+                    </tr>
+                </thead>
+                <tbody>${medsList}</tbody>
+            </table>
+
+            ${recipe && recipe.notes ? `<div style="margin-bottom:15px; font-size:13px;"><strong>Instrucciones de la Prescripción:</strong> ${recipe.notes}</div>` : ''}
+
+            ${recipe && recipe.indications ? `
+                <div class="section-title">INDICACIONES Y RECOMENDACIONES CLÍNICAS</div>
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:12px; font-size:13px; white-space:pre-line;">
+                    ${recipe.indications}
+                </div>
+            ` : ''}
+
+            <div style="margin-top: 60px; display: flex; justify-content: space-around; text-align: center;">
+                <div style="border-top: 1px solid #000; width: 200px; padding-top: 5px; font-size: 12px;">
+                    <strong>Firma y Sello del Odontólogo</strong><br>${currentDocName}
+                </div>
+            </div>
+
+            <div class="footer">
+                Documento Clínico Oficial de Prescripción Médica para el Paciente.
+            </div>
+            <script>window.onload = function() { window.print(); };</script>
+        </body>
+        </html>
+    `);
+    printWin.document.close();
+};
