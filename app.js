@@ -9602,9 +9602,33 @@ function buildMedicalDocumentHTML(opts) {
         paymentTerms = 'Contado / Pago inmediato al momento de la consulta.',
         bankingDetails = 'Banco Banesco - Cuenta Corriente | N°: 0134-0000-00-0000000000<br>A nombre de: Consultorio Odontológico<br>Pago Móvil: C.I. 12.345.678 / Tlf: 0412-5550192',
         observations = 'El paciente presenta evolución favorable. Se recomienda mantener tratamiento y esquema preventivo indicado, evitar esfuerzos intensos durante las próximas 48 horas y acudir a control preventivo en 30 días.',
-        consentText = 'Por medio de la presente, el paciente declara haber recibido explicación clara y detallada acerca de los procedimientos diagnosticados y realizados en esta consulta, aceptando de manera voluntaria la atención prestada y expresando su conformidad con los cobros administrativos y honorarios detallados en este documento.',
-        footerNote = ''
     } = opts;
+
+    // Double-check & resolve Doctor Signature fallback
+    if (!doctorSig && window.doctorSigPad && !window.doctorSigPad.isEmpty()) {
+        doctorSig = window.doctorSigPad.toDataURL();
+    }
+    if (!doctorSig) {
+        const u = getCurrentUser();
+        if (u) {
+            doctorSig = (u.doctorProfile && u.doctorProfile.signature) || (u.doctor_profile && u.doctor_profile.signature) || '';
+        }
+    }
+
+    // Double-check & resolve Patient Signature fallback
+    if (!patientSig && window.patientSigPad && !window.patientSigPad.isEmpty()) {
+        patientSig = window.patientSigPad.toDataURL();
+    }
+    if (!patientSig) {
+        const activeId = (typeof getActivePatientId === 'function') ? getActivePatientId() : null;
+        if (activeId) {
+            let localPts = JSON.parse(localStorage.getItem('dental_patients') || '[]');
+            const pt = localPts.find(p => String(p.id) === String(activeId) || p.fullname === patientName);
+            if (pt && pt.metadata && pt.metadata.patientSignature) {
+                patientSig = pt.metadata.patientSignature;
+            }
+        }
+    }
 
     let rowsHtml = '';
     if (items && items.length > 0) {
@@ -10190,6 +10214,16 @@ async function renderBillingView() {
         // Generate invoice ID
         const invoiceId = 'FAC-' + Date.now().toString().slice(-6);
 
+        let docSig = (window.doctorSigPad && !window.doctorSigPad.isEmpty()) ? window.doctorSigPad.toDataURL() : '';
+        if (!docSig) {
+            const u = getCurrentUser();
+            if (u) docSig = (u.doctorProfile && u.doctorProfile.signature) || (u.doctor_profile && u.doctor_profile.signature) || '';
+        }
+        let patSig = (window.patientSigPad && !window.patientSigPad.isEmpty()) ? window.patientSigPad.toDataURL() : '';
+        if (!patSig && activePatient && activePatient.metadata && activePatient.metadata.patientSignature) {
+            patSig = activePatient.metadata.patientSignature;
+        }
+
         // Save invoice obj
         const invoiceObj = {
             id: invoiceId,
@@ -10202,6 +10236,8 @@ async function renderBillingView() {
             totalRef: totalRef,
             totalBcv: totalBcv,
             status: 'Emitida',
+            doctorSignature: docSig,
+            patientSignature: patSig,
             footerText: footerNote
         };
 
@@ -10420,10 +10456,20 @@ async function generateInvoicePreviewHTML(invoice, patient, assistant) {
     const totalUSD = invoice.totalRef || 0;
     const totalVES = `Bs. ${(totalUSD * rate).toFixed(2)}`;
 
-    let docSig = '';
-    const u = getCurrentUser();
-    if (u) {
-        docSig = (u.doctorProfile && u.doctorProfile.signature) || (u.doctor_profile && u.doctor_profile.signature) || '';
+    let docSig = invoice.doctorSignature || '';
+    if (!docSig && window.doctorSigPad && !window.doctorSigPad.isEmpty()) {
+        docSig = window.doctorSigPad.toDataURL();
+    }
+    if (!docSig) {
+        const u = getCurrentUser();
+        if (u) {
+            docSig = (u.doctorProfile && u.doctorProfile.signature) || (u.doctor_profile && u.doctor_profile.signature) || '';
+        }
+    }
+
+    let patSig = invoice.patientSignature || (patient && patient.metadata && patient.metadata.patientSignature) || '';
+    if (!patSig && window.patientSigPad && !window.patientSigPad.isEmpty()) {
+        patSig = window.patientSigPad.toDataURL();
     }
 
     const docHtml = buildMedicalDocumentHTML({
@@ -10446,7 +10492,7 @@ async function generateInvoicePreviewHTML(invoice, patient, assistant) {
         patientName: (patient && patient.fullname) || 'Paciente',
         patientId: (patient && patient.id) || 'V-00000000',
         patientPhone: (patient && patient.phone) || '+58 414-0000000',
-        patientSig: '',
+        patientSig: patSig,
         
         items: items,
         subtotalUSD: isBs ? totalUSD * rate : totalUSD,
