@@ -4093,6 +4093,78 @@ window.openAppointmentModalForPatient = async function(patientId, sessionNum, tr
     }
 };
 
+window.populateSessionNumberSelect = function(patient, targetSessionNum = null) {
+    const sNumSelect = document.getElementById('s-num');
+    if (!sNumSelect || !patient) return;
+
+    sNumSelect.innerHTML = '';
+    const completedSessionNums = new Set((patient.sessions || []).map(s => parseInt(s.sessionNum)));
+
+    const meta = patient.metadata || {};
+    const treatments = meta.treatments || [];
+    const totalSessions = Math.max(treatments.length, 4, (patient.sessions || []).length);
+
+    const pendingGroup = document.createElement('optgroup');
+    pendingGroup.label = '⏳ Sesiones Pendientes por Realizar';
+
+    const completedGroup = document.createElement('optgroup');
+    completedGroup.label = '✓ Sesiones Ya Completadas';
+
+    let defaultSelectedVal = null;
+
+    for (let i = 1; i <= totalSessions + 1; i++) {
+        const isDone = completedSessionNums.has(i);
+        const trt = treatments.find(t => parseInt(t.sessionNum) === i) || treatments[i - 1];
+        const trtName = trt ? trt.name : (i <= totalSessions ? `Tratamiento Sesión #${i}` : `Sesión Extra #${i}`);
+
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.dataset.procedure = trtName;
+
+        if (isDone) {
+            const sessionData = (patient.sessions || []).find(s => parseInt(s.sessionNum) === i);
+            const dateStr = sessionData ? (sessionData.datetime ? sessionData.datetime.split(' ')[0] : sessionData.date) : '';
+            opt.innerText = `Sesión #${i}: ${trtName} (✓ Completada ${dateStr})`;
+            completedGroup.appendChild(opt);
+        } else {
+            opt.innerText = `Sesión #${i}: ${trtName} (⏳ Pendiente)`;
+            pendingGroup.appendChild(opt);
+            if (!defaultSelectedVal) {
+                defaultSelectedVal = i;
+            }
+        }
+    }
+
+    if (pendingGroup.children.length > 0) {
+        sNumSelect.appendChild(pendingGroup);
+    }
+    if (completedGroup.children.length > 0) {
+        sNumSelect.appendChild(completedGroup);
+    }
+
+    // Set selected value
+    if (targetSessionNum && !isNaN(parseInt(targetSessionNum))) {
+        sNumSelect.value = targetSessionNum;
+    } else if (defaultSelectedVal) {
+        sNumSelect.value = defaultSelectedVal;
+    }
+
+    // Sync procedure field on change
+    sNumSelect.onchange = () => {
+        const selOpt = sNumSelect.options[sNumSelect.selectedIndex];
+        if (selOpt && selOpt.dataset.procedure) {
+            const procInput = document.getElementById('s-procedure');
+            if (procInput) {
+                procInput.value = selOpt.dataset.procedure;
+            }
+        }
+        const trtSelect = document.getElementById('s-planned-treatment-select');
+        if (trtSelect) {
+            trtSelect.value = sNumSelect.value;
+        }
+    };
+};
+
 window.openSessionModalForPatient = async function(patientId, sessionNum, procedureName) {
     try {
         setActivePatientId(patientId);
@@ -4103,11 +4175,11 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
             return;
         }
 
-        const numInput = document.getElementById('s-num');
-        if (numInput) numInput.value = sessionNum;
+        populateSessionNumberSelect(patient, sessionNum);
         
         document.getElementById('s-datetime').value = new Date().toISOString().slice(0, 16);
-        document.getElementById('s-procedure').value = procedureName || `Sesión N° ${sessionNum}`;
+        const initialProc = procedureName || (document.getElementById('s-num').options[document.getElementById('s-num').selectedIndex] ? document.getElementById('s-num').options[document.getElementById('s-num').selectedIndex].dataset.procedure : '');
+        document.getElementById('s-procedure').value = initialProc || `Sesión N° ${sessionNum || 1}`;
         document.getElementById('s-next-notes').value = '';
 
         // Populate planned treatments selector
@@ -4208,11 +4280,12 @@ window.atenderAppointmentFromAgenda = async (apptId) => {
         window.activeAttendingAppointmentId = apptId;
         setActivePatientId(patient.id);
 
-        // Pre-fill session modal
+        // Pre-fill session modal with dynamic dropdown
         const completed = patient.sessions ? patient.sessions.length : 0;
-        document.getElementById('s-num').value = completed + 1;
+        populateSessionNumberSelect(patient, completed + 1);
         document.getElementById('s-datetime').value = new Date().toISOString().slice(0, 16);
-        document.getElementById('s-procedure').value = app.treatment || '';
+        const selOpt = document.getElementById('s-num').options[document.getElementById('s-num').selectedIndex];
+        document.getElementById('s-procedure').value = app.treatment || (selOpt ? selOpt.dataset.procedure : '') || '';
         document.getElementById('s-next-notes').value = '';
 
         // Load inventory materials
@@ -4995,6 +5068,7 @@ function initGlobalEvents() {
                     const appt = appts.find(a => a.id === window.activeAttendingAppointmentId);
                     if (appt) {
                         appt.status = 'Completada';
+                        appt.treatment = `Sesión #${sessionNum}: ${procedure.substring(0, 45)}`;
                         await SupabaseDataService.saveAppointment(appt);
                         apptUpdated = true;
                     }
