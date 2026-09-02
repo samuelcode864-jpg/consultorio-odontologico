@@ -2145,6 +2145,57 @@ html, body {
         display: none !important;
     }
 
+    /* Budget Action Buttons 2x2 Grid Layout for Mobile */
+    .budget-action-buttons-container {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 10px !important;
+        width: 100% !important;
+        margin-top: 15px !important;
+    }
+
+    .budget-action-buttons-container #btn-bill-budget-direct {
+        grid-column: 1 / 2 !important;
+        grid-row: 1 !important;
+        width: 100% !important;
+        justify-content: center !important;
+        font-size: 0.84rem !important;
+        padding: 10px 4px !important;
+        margin: 0 !important;
+    }
+
+    .budget-action-buttons-container #btn-close-financial-direct {
+        grid-column: 2 / 3 !important;
+        grid-row: 1 !important;
+        width: 100% !important;
+        justify-content: center !important;
+        font-size: 0.84rem !important;
+        padding: 10px 4px !important;
+        margin: 0 !important;
+    }
+
+    .budget-action-buttons-container #btn-update-budget-edits {
+        grid-column: 1 / 2 !important;
+        grid-row: 2 !important;
+        width: 100% !important;
+        justify-content: center !important;
+        font-size: 0.80rem !important;
+        padding: 10px 4px !important;
+        margin: 0 !important;
+        white-space: nowrap !important;
+    }
+
+    .budget-action-buttons-container #btn-approve-budget {
+        grid-column: 2 / 3 !important;
+        grid-row: 2 !important;
+        width: 100% !important;
+        justify-content: center !important;
+        font-size: 0.80rem !important;
+        padding: 10px 4px !important;
+        margin: 0 !important;
+        white-space: nowrap !important;
+    }
+
     /* Patient Modal Footer 2x2 Grid Layout for Mobile */
     .patient-modal-footer {
         display: grid !important;
