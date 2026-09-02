@@ -1528,10 +1528,10 @@ window.finalizeBudgetDirect = async function(budgetId) {
         }
 
         // 3. Refresh views
-        await renderOdontogramHistoryTable();
-        await renderPatientsTable();
-        await renderEHRView();
-        await renderDashboard();
+        if (typeof renderOdontogramView === 'function') await renderOdontogramView();
+        if (typeof renderPatientsTable === 'function') await renderPatientsTable();
+        if (typeof renderEHRView === 'function') await renderEHRView();
+        if (typeof renderDashboard === 'function') await renderDashboard();
         if (typeof renderFinanceView === 'function') await renderFinanceView();
 
         Swal.fire({
