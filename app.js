@@ -9800,29 +9800,37 @@ function buildMedicalDocumentHTML(opts) {
     } = opts;
 
     // Double-check & resolve Doctor Signature fallback
-    if (!doctorSig && window.doctorSigPad && !window.doctorSigPad.isEmpty()) {
-        doctorSig = window.doctorSigPad.toDataURL();
-    }
-    if (!doctorSig) {
-        const u = getCurrentUser();
-        if (u) {
-            doctorSig = (u.doctorProfile && u.doctorProfile.signature) || (u.doctor_profile && u.doctor_profile.signature) || '';
+    try {
+        if (!doctorSig && window.doctorSigPad && typeof window.doctorSigPad.isEmpty === 'function' && !window.doctorSigPad.isEmpty()) {
+            doctorSig = window.doctorSigPad.toDataURL();
         }
+        if (!doctorSig) {
+            const u = getCurrentUser();
+            if (u) {
+                doctorSig = (u.doctorProfile && u.doctorProfile.signature) || (u.doctor_profile && u.doctor_profile.signature) || '';
+            }
+        }
+    } catch(e) {
+        console.warn("Doctor sig resolve fallback warning:", e);
     }
 
     // Double-check & resolve Patient Signature fallback
-    if (!patientSig && window.patientSigPad && !window.patientSigPad.isEmpty()) {
-        patientSig = window.patientSigPad.toDataURL();
-    }
-    if (!patientSig) {
-        const activeId = (typeof getActivePatientId === 'function') ? getActivePatientId() : null;
-        if (activeId) {
-            let localPts = JSON.parse(localStorage.getItem('dental_patients') || '[]');
-            const pt = localPts.find(p => String(p.id) === String(activeId) || p.fullname === patientName);
-            if (pt && pt.metadata && pt.metadata.patientSignature) {
-                patientSig = pt.metadata.patientSignature;
+    try {
+        if (!patientSig && window.patientSigPad && typeof window.patientSigPad.isEmpty === 'function' && !window.patientSigPad.isEmpty()) {
+            patientSig = window.patientSigPad.toDataURL();
+        }
+        if (!patientSig) {
+            const activeId = (typeof getActivePatientId === 'function') ? getActivePatientId() : null;
+            if (activeId) {
+                let localPts = JSON.parse(localStorage.getItem('dental_patients') || '[]');
+                const pt = localPts.find(p => String(p.id) === String(activeId) || p.fullname === patientName);
+                if (pt && pt.metadata && pt.metadata.patientSignature) {
+                    patientSig = pt.metadata.patientSignature;
+                }
             }
         }
+    } catch(e) {
+        console.warn("Patient sig resolve fallback warning:", e);
     }
 
     let rowsHtml = '';
@@ -11460,17 +11468,28 @@ async function renderStationeryView() {
             if (!previewEl) return;
 
             const printClone = previewEl.cloneNode(true);
+            printClone.style.position = 'fixed';
+            printClone.style.left = '-9999px';
+            printClone.style.top = '0';
+            printClone.style.width = '780px';
             printClone.style.height = 'auto';
             printClone.style.maxHeight = 'none';
             printClone.style.overflow = 'visible';
             printClone.style.border = 'none';
             printClone.style.boxShadow = 'none';
-            printClone.style.padding = '0';
+            printClone.style.padding = '20px';
             printClone.style.background = '#ffffff';
+            document.body.appendChild(printClone);
 
-            const templateName = (currentPreviewTemplate || 'documento').toUpperCase();
-            const filename = `Papeleria_${templateName}.pdf`;
-            await generatePDFFromElement(printClone, filename);
+            try {
+                const templateName = (currentPreviewTemplate || 'documento').toUpperCase();
+                const filename = `Papeleria_${templateName}.pdf`;
+                await generatePDFFromElement(printClone, filename);
+            } finally {
+                if (document.body.contains(printClone)) {
+                    document.body.removeChild(printClone);
+                }
+            }
         };
     }
 }
