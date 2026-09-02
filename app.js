@@ -7793,9 +7793,23 @@ function renderSessionsPlanner() {
     window.currentPlannerBudgetItems = budgetItems;
 
     if (budgetItems.length === 0) {
-        container.innerHTML = '<div style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 12px; border: 1px dashed var(--border-color); border-radius:6px; background:var(--bg-main);"><i class="fa-solid fa-triangle-exclamation text-amber"></i> No hay tratamientos cargados en el presupuesto activo para distribuir en las sesiones.<br><small style="margin-top:6px; display:block; color:var(--text-muted);">Agregue tratamientos en el Presupuesto / Odontodiagrama o ingrese el Tratamiento Propuesto en este formulario.</small></div>';
+        window.step4HasBudgetItems = false;
+        container.innerHTML = `
+            <div style="color: var(--text-muted); font-size: 0.88rem; text-align: center; padding: 20px; border: 1px dashed var(--border-color); border-radius:8px; background:var(--bg-main); display:flex; flex-direction:column; align-items:center; gap:10px;">
+                <div><i class="fa-solid fa-triangle-exclamation text-amber" style="font-size:1.5rem;"></i></div>
+                <div style="font-weight:600; color:var(--text-main);">No hay tratamientos cargados en el presupuesto para este paciente.</div>
+                <small style="color:var(--text-muted); max-width:450px;">Como el paciente aún no cuenta con una propuesta económica ni tratamientos asignados, puede crear un presupuesto ahora.</small>
+                <button type="button" class="btn btn-success mt-5" onclick="window.savePatientRecord(true)" style="background: #10b981 !important; color: white !important; font-weight: 700; border: none; display: flex; align-items: center; gap: 6px; padding: 8px 18px; border-radius: 6px; cursor: pointer;">
+                    <i class="fa-solid fa-file-invoice-dollar"></i> Crear Presupuesto
+                </button>
+            </div>
+        `;
+        if (window.updatePatientStep4FooterButtons) window.updatePatientStep4FooterButtons();
         return;
     }
+
+    window.step4HasBudgetItems = true;
+    if (window.updatePatientStep4FooterButtons) window.updatePatientStep4FooterButtons();
 
     // Preserve current selections, dates and times before redrawing
     const prevData = {};
@@ -8040,16 +8054,27 @@ function initPatientStepperWizard() {
                 btnSave.classList.add('hidden');
             }
         }
-        const btnSaveAndBudget = document.getElementById('btn-patient-save-and-budget');
-        if (btnSaveAndBudget) {
-            if (step <= 3) {
+        window.updatePatientStep4FooterButtons = function() {
+            const btnSaveAndBudget = document.getElementById('btn-patient-save-and-budget');
+            if (!btnSaveAndBudget) return;
+
+            if (currentStep <= 3) {
                 btnSaveAndBudget.classList.remove('hidden');
-            } else {
-                btnSaveAndBudget.classList.add('hidden');
+                btnSaveAndBudget.innerHTML = '<i class="fa-solid fa-file-invoice-dollar"></i> Nuevo Presupuesto';
+            } else if (currentStep === 4) {
+                if (window.step4HasBudgetItems === false) {
+                    btnSaveAndBudget.classList.remove('hidden');
+                    btnSaveAndBudget.innerHTML = '<i class="fa-solid fa-file-invoice-dollar"></i> Crear Presupuesto';
+                } else {
+                    btnSaveAndBudget.classList.add('hidden');
+                }
             }
-        }
+        };
+
         if (step === 4) {
             renderSessionsPlanner();
+        } else {
+            window.updatePatientStep4FooterButtons();
         }
     }
 
