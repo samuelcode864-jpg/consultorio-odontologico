@@ -143,6 +143,37 @@ class WhatsAppService {
         return msg;
     }
 
+    static generateRecipeMessage(patient, recipe, recipeUrl) {
+        const clinica = this.getClinicName();
+
+        let msg = `💊 *${clinica} - PRESCRIPCIÓN MÉDICA Y RÉCIPE ODONTOLÓGICO*\n\n`;
+        msg += `Estimado(a) *${patient.fullname}*,\n`;
+        msg += `A continuación le adjuntamos los detalles de su Récipe Médico e Indicaciones Clínicas:\n\n`;
+        msg += `📅 *Fecha:* ${recipe.date}\n`;
+        msg += `🦷 *Tratamiento Vinculado:* ${recipe.treatmentLinked || 'General'}\n\n`;
+
+        if (recipe.medicines && recipe.medicines.length > 0) {
+            msg += `📝 *MEDICAMENTOS PRESCRITOS:*\n`;
+            recipe.medicines.forEach((m, i) => {
+                msg += `${i + 1}. *${m.med}*\n   • Dosis: ${m.dose}\n   • Frecuencia: ${m.freq}\n`;
+            });
+            msg += `\n`;
+        }
+
+        if (recipe.notes) {
+            msg += `📌 *Observaciones de la Receta:*\n${recipe.notes}\n\n`;
+        }
+
+        if (recipe.indications) {
+            msg += `📋 *INDICACIONES Y RECOMENDACIONES CLÍNICAS:*\n${recipe.indications}\n\n`;
+        }
+
+        msg += `📄 *Ver y Descargar su Récipe Completo en PDF:* ${recipeUrl}\n\n`;
+        msg += `✨ _Ante cualquier duda o síntoma inusual, por favor comuníquese de inmediato con el consultorio._`;
+
+        return msg;
+    }
+
     static sendToPatient(phone, message) {
         if (!phone) return;
         const cleanPhone = phone.replace(/[^0-9]/g, '');

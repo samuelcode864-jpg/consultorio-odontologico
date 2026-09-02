@@ -91,7 +91,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (getCurrentUser()) {
         const savedTab = localStorage.getItem('dental_active_tab') || 'dashboard';
         const urlParams = new URLSearchParams(window.location.search);
-        const isPublic = (urlParams.get('view') === 'budget' || urlParams.get('view') === 'receipt') && urlParams.get('patientId');
+        const isPublic = (urlParams.get('view') === 'budget' || urlParams.get('view') === 'receipt' || urlParams.get('view') === 'recipe') && urlParams.get('patientId');
 
         if (!isPublic) {
             await window.navigateToTab(savedTab);
@@ -592,6 +592,7 @@ function checkAuthSession() {
     const urlParams = new URLSearchParams(window.location.search);
     const isPublicBudget = urlParams.get('view') === 'budget' && urlParams.get('patientId');
     const isPublicReceipt = urlParams.get('view') === 'receipt' && urlParams.get('patientId');
+    const isPublicRecipe = urlParams.get('view') === 'recipe' && urlParams.get('patientId');
     const loginOverlay = document.getElementById('login-screen');
 
     if (isPublicBudget) {
@@ -607,6 +608,14 @@ function checkAuthSession() {
         document.documentElement.classList.remove('no-auth-session');
         if (loginOverlay) loginOverlay.classList.add('hidden');
         renderPublicSessionReceiptView();
+        return;
+    }
+
+    if (isPublicRecipe) {
+        document.documentElement.classList.add('has-auth-session');
+        document.documentElement.classList.remove('no-auth-session');
+        if (loginOverlay) loginOverlay.classList.add('hidden');
+        renderPublicRecipeView();
         return;
     }
 
@@ -12324,6 +12333,169 @@ async function renderPublicSessionReceiptView() {
     }
 }
 
+async function renderPublicRecipeView() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const patientId = urlParams.get('patientId');
+    const recipeId = urlParams.get('recipeId');
+
+    const publicScreen = document.getElementById('public-session-screen');
+    const publicContent = document.getElementById('public-session-content');
+
+    if (!publicScreen || !publicContent) return;
+
+    publicScreen.classList.remove('hidden');
+    publicContent.innerHTML = '<div style="padding:40px; text-align:center;"><i class="fa-solid fa-arrows-rotate fa-spin" style="font-size:2rem; color:var(--primary-cyan);"></i><br><br>Cargando prescripción médica y récipe...</div>';
+
+    try {
+        const patients = await SupabaseDataService.getPatients();
+        const patient = patients.find(p => p.id === patientId);
+        if (!patient) {
+            publicContent.innerHTML = '<div class="text-center text-red" style="padding:40px;"><i class="fa-solid fa-circle-xmark" style="font-size:2rem;"></i><br><br>No se encontró el expediente del paciente.</div>';
+            return;
+        }
+
+        const meta = patient.metadata || {};
+        const recipes = meta.recipes || [];
+        const recipe = recipeId ? recipes.find(r => r.id === recipeId) : recipes[0];
+
+        if (!recipe) {
+            publicContent.innerHTML = '<div class="text-center text-red" style="padding:40px;"><i class="fa-solid fa-circle-xmark" style="font-size:2rem;"></i><br><br>No se encontró la prescripción médica solicitada.</div>';
+            return;
+        }
+
+        const stationery = await SupabaseDataService.getStationeryConfig();
+        const currentUser = getCurrentUser();
+        
+        let logoImgHtml = '';
+        if (stationery && (stationery.logo_url || stationery.logoUrl)) {
+            const logo = stationery.logo_url || stationery.logoUrl;
+            // LOGO MUCHO MÁS GRANDE (EL DOBLE DE TAMAÑO)
+            logoImgHtml = `<img src="${logo}" style="max-height: 140px; max-width: 320px; object-fit: contain; margin-bottom: 15px;" alt="Logo Clínica"><br>`;
+        }
+
+        // Resolviendo Firma del Médico (Doctor Signature)
+        let docSignature = '';
+        if (currentUser && currentUser.doctorProfile && currentUser.doctorProfile.signature) {
+            docSignature = currentUser.doctorProfile.signature;
+        } else if (currentUser && currentUser.doctor_profile && currentUser.doctor_profile.signature) {
+            docSignature = currentUser.doctor_profile.signature;
+        } else if (stationery && (stationery.doctorSignature || stationery.doctor_signature)) {
+            docSignature = stationery.doctorSignature || stationery.doctor_signature;
+        } else if (patient.metadata && patient.metadata.doctorSignature) {
+            docSignature = patient.metadata.doctorSignature;
+        }
+
+        const docName = currentUser ? currentUser.fullname : 'Dr. Odontólogo Especialista';
+
+        let medsList = recipe.medicines ? recipe.medicines.map((m, i) => `
+            <tr style="border-bottom:1px solid #e2e8f0;">
+                <td style="padding:10px; font-weight:700; color:#0f172a;">${i + 1}. ${m.med}</td>
+                <td style="padding:10px; color:#334155;">${m.dose}</td>
+                <td style="padding:10px; color:#475569;">${m.freq}</td>
+            </tr>
+        `).join('') : '<tr><td colspan="3" style="padding:10px; text-align:center;">Sin medicamentos prescritos</td></tr>';
+
+        const html = `
+            <div id="public-recipe-printable-doc" style="font-family: inherit; color: #0f172a; line-height: 1.5;">
+                <!-- HEADER CON LOGO AL DOBLE DE TAMAÑO -->
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0d9488; padding-bottom: 20px; margin-bottom: 20px;">
+                    <div>
+                        ${logoImgHtml}
+                        <h2 style="margin: 0; font-size: 1.3rem; color: #0d9488;">PRESCRIPCIÓN MÉDICA Y RÉCIPE ODONTOLÓGICO</h2>
+                        <p style="margin: 4px 0 0 0; font-size: 0.82rem; color: #475569; white-space: pre-line;">${stationery.headerText || stationery.header_text || 'Clínica Odontológica Especializada'}</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <span class="badge-tag green" style="font-size: 0.85rem; padding: 4px 10px; border-radius: 6px;">DOCUMENTO OFICIAL</span>
+                        <div style="font-size: 0.82rem; color: #64748b; margin-top: 6px;">
+                            <strong>Cód:</strong> ${recipe.id}<br>
+                            <strong>Fecha:</strong> ${recipe.date}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DATOS DEL PACIENTE -->
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 18px; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.88rem;">
+                    <div>
+                        <span style="font-size: 0.72rem; color: #64748b; font-weight: 800; text-transform: uppercase;">Paciente:</span>
+                        <strong style="display: block; font-size: 1.05rem; color: #0f172a;">${patient.fullname}</strong>
+                        <span style="color: #475569;">Cédula / ID: <strong>${patient.id}</strong></span>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="font-size: 0.72rem; color: #64748b; font-weight: 800; text-transform: uppercase;">Tratamiento Vinculado:</span>
+                        <strong style="display: block; color: #0d9488;">${recipe.treatmentLinked || 'General'}</strong>
+                    </div>
+                </div>
+
+                <!-- TABLA DE MEDICAMENTOS -->
+                <div style="margin-bottom: 20px;">
+                    <h4 style="margin: 0 0 8px 0; color: #0d9488; font-size: 0.95rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
+                        <i class="fa-solid fa-prescription"></i> Rx - Medicamentos Prescritos
+                    </h4>
+                    <table style="width:100%; border-collapse:collapse; margin-top:6px; font-size:0.88rem;">
+                        <thead>
+                            <tr style="background:#f1f5f9; text-align:left; font-size:0.75rem; color:#475569; text-transform:uppercase;">
+                                <th style="padding:8px 10px;">Fármaco / Presentación</th>
+                                <th style="padding:8px 10px;">Dosis</th>
+                                <th style="padding:8px 10px;">Frecuencia / Duración</th>
+                            </tr>
+                        </thead>
+                        <tbody>${medsList}</tbody>
+                    </table>
+                </div>
+
+                <!-- NOTAS Y OBS -->
+                ${recipe.notes ? `
+                    <div style="margin-bottom: 20px; font-size: 0.88rem;">
+                        <strong style="color:#0f172a;">Observaciones de la Prescripción:</strong>
+                        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:10px; margin-top:4px;">${recipe.notes}</div>
+                    </div>
+                ` : ''}
+
+                <!-- INDICACIONES CLÍNICAS -->
+                ${recipe.indications ? `
+                    <div style="margin-bottom: 20px;">
+                        <h4 style="margin: 0 0 8px 0; color: #0284c7; font-size: 0.95rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
+                            <i class="fa-solid fa-list-check"></i> Indicaciones y Recomendaciones Clínicas
+                        </h4>
+                        <div style="background:#f0f9ff; border:1px solid rgba(2,132,199,0.3); border-radius:6px; padding:12px; font-size:0.88rem; white-space:pre-line;">
+                            ${recipe.indications}
+                        </div>
+                    </div>
+                ` : ''}
+
+                <!-- FIRMA Y SELLO DEL ODONTÓLOGO (CON FIRMA CARGADA EN CONFIGURACIONES) -->
+                <div style="margin-top: 45px; display: flex; justify-content: flex-end; padding-right: 20px;">
+                    <div style="width: 250px; text-align: center;">
+                        ${docSignature ? `<img src="${docSignature}" style="max-height: 80px; max-width: 220px; object-fit: contain; margin-bottom: 4px;" alt="Firma Odontólogo"><br>` : ''}
+                        <div style="border-top: 1px solid #334155; padding-top: 5px; font-size: 0.85rem; font-weight: 700; color: #1e293b;">
+                            Dr(a). ${docName}
+                        </div>
+                        <div style="font-size: 0.75rem; color: #64748b;">Firma y Sello del Odontólogo</div>
+                    </div>
+                </div>
+
+                <!-- FOOTER -->
+                <div style="border-top: 1px dashed #cbd5e1; margin-top: 30px; padding-top: 12px; text-align: center; font-size: 0.75rem; color: #64748b; font-style: italic;">
+                    ${stationery.recipeFooterText || stationery.footerText || 'Documento Clínico Oficial de Prescripción Médica para el Paciente.'}
+                </div>
+            </div>
+        `;
+
+        publicContent.innerHTML = html;
+
+        document.getElementById('btn-public-session-print').onclick = () => window.print();
+        document.getElementById('btn-public-session-download-pdf').onclick = async () => {
+            const clone = publicContent.cloneNode(true);
+            const filename = `Recipe_Medico_${patient.fullname.replace(/\s+/g, '_')}.pdf`;
+            await generatePDFFromElement(clone, filename);
+        };
+
+    } catch(err) {
+        console.error("Error loading public recipe view:", err);
+        publicContent.innerHTML = `<div class="text-center text-red" style="padding:40px;"><i class="fa-solid fa-circle-xmark" style="font-size:2rem;"></i><br><br>Error al recuperar el récipe del servidor.</div>`;
+    }
+}
+
 // ==========================================
 // INTERCONSULTA, RÉCIPES E INDICACIONES CLÍNICAS
 // ==========================================
@@ -12682,10 +12854,23 @@ window.printSingleRecipePDF = async function(patientId, recipeId = null) {
 
     const config = await SupabaseDataService.getStationeryConfig();
     const headerText = config.headerText || 'Clínica Odontológica Especializada';
-    const logoUrl = config.logoUrl || '';
+    const logoUrl = config.logoUrl || config.logo_url || '';
     const recipeFooter = config.recipeFooterText || config.footerText || 'Documento Clínico Oficial de Prescripción Médica para el Paciente.';
 
-    const currentDocName = getCurrentUser() ? getCurrentUser().fullname : 'Dr. Odontólogo';
+    const currentUser = getCurrentUser();
+    const currentDocName = currentUser ? currentUser.fullname : 'Dr. Odontólogo Especialista';
+
+    // Doctor signature resolution
+    let docSignature = '';
+    if (currentUser && currentUser.doctorProfile && currentUser.doctorProfile.signature) {
+        docSignature = currentUser.doctorProfile.signature;
+    } else if (currentUser && currentUser.doctor_profile && currentUser.doctor_profile.signature) {
+        docSignature = currentUser.doctor_profile.signature;
+    } else if (config && (config.doctorSignature || config.doctor_signature)) {
+        docSignature = config.doctorSignature || config.doctor_signature;
+    } else if (p.metadata && p.metadata.doctorSignature) {
+        docSignature = p.metadata.doctorSignature;
+    }
 
     let medsList = recipe && recipe.medicines ? recipe.medicines.map(m => `
         <tr style="border-bottom:1px solid #e2e8f0;">
@@ -12717,7 +12902,7 @@ window.printSingleRecipePDF = async function(patientId, recipeId = null) {
         </head>
         <body>
             <div class="header">
-                ${logoUrl ? `<img src="${logoUrl}" style="max-height:60px; margin-bottom:8px;"><br>` : ''}
+                ${logoUrl ? `<img src="${logoUrl}" style="max-height:120px; max-width:280px; object-fit:contain; margin-bottom:12px;"><br>` : ''}
                 <h2>PRESCRIPCIÓN MÉDICA Y RÉCIPE ODONTOLÓGICO</h2>
                 <p>${formatHeaderText(headerText)}</p>
             </div>
@@ -12749,9 +12934,13 @@ window.printSingleRecipePDF = async function(patientId, recipeId = null) {
                 </div>
             ` : ''}
 
-            <div style="margin-top: 60px; display: flex; justify-content: space-around; text-align: center;">
-                <div style="border-top: 1px solid #000; width: 200px; padding-top: 5px; font-size: 12px;">
-                    <strong>Firma y Sello del Odontólogo</strong><br>${currentDocName}
+            <div style="margin-top: 50px; display: flex; justify-content: flex-end; padding-right: 30px;">
+                <div style="width: 250px; text-align: center;">
+                    ${docSignature ? `<img src="${docSignature}" style="max-height: 80px; max-width: 220px; object-fit: contain; margin-bottom: 4px;" alt="Firma Odontólogo"><br>` : ''}
+                    <div style="border-top: 1px solid #334155; padding-top: 5px; font-size: 12px; font-weight: 700; color: #1e293b;">
+                        Dr(a). ${currentDocName}
+                    </div>
+                    <div style="font-size: 11px; color: #64748b;">Firma y Sello del Odontólogo</div>
                 </div>
             </div>
 
@@ -12799,30 +12988,8 @@ window.sendRecipeWhatsApp = async function(patientId, recipeId = null) {
         };
     }
 
-    let msg = `💊 *PRESCRIPCIÓN MÉDICA Y RÉCIPE ODONTOLÓGICO*\n`;
-    msg += `🏥 *Consultorio Odontológico Integral*\n\n`;
-    msg += `👤 *Paciente:* ${patient.fullname} (${patient.id})\n`;
-    msg += `📅 *Fecha:* ${recipe.date}\n`;
-    msg += `🦷 *Tratamiento:* ${recipe.treatmentLinked || 'General'}\n\n`;
-
-    if (recipe.medicines && recipe.medicines.length > 0) {
-        msg += `📝 *MEDICAMENTOS PRESCRITOS:*\n`;
-        recipe.medicines.forEach((m, i) => {
-            msg += `${i + 1}. *${m.med}*\n   • Dosis: ${m.dose}\n   • Frecuencia: ${m.freq}\n`;
-        });
-        msg += `\n`;
-    }
-
-    if (recipe.notes) {
-        msg += `📌 *Observaciones de la receta:*\n${recipe.notes}\n\n`;
-    }
-
-    if (recipe.indications) {
-        msg += `📋 *INDICACIONES Y RECOMENDACIONES CLÍNICAS:*\n${recipe.indications}\n\n`;
-    }
-
-    msg += `✨ _Cualquier duda o síntoma inusual, por favor comuníquese de inmediato con el consultorio._`;
-
+    const recipeUrl = `${window.location.origin}/?patientId=${patient.id}&view=recipe&recipeId=${recipe.id}`;
+    const msg = WhatsAppService.generateRecipeMessage(patient, recipe, recipeUrl);
     WhatsAppService.sendToPatient(patient.phone, msg);
 };
 
