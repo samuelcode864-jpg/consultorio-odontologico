@@ -10901,6 +10901,12 @@ async function renderStationeryView() {
     headerTextarea.value = config.headerText || '';
     footerTextarea.value = config.footerText || '';
 
+    const recipeFooterTextarea = document.getElementById('stat-recipe-footer-text');
+    if (recipeFooterTextarea) {
+        recipeFooterTextarea.value = config.recipeFooterText || '';
+        recipeFooterTextarea.oninput = () => refreshStationeryLivePreview();
+    }
+
     const webhookInput = document.getElementById('setting-calendar-webhook');
     if (webhookInput) {
         webhookInput.value = localStorage.getItem('dental_google_calendar_webhook') || '';
@@ -10947,6 +10953,7 @@ async function renderStationeryView() {
     document.getElementById('btn-save-stationery-config').onclick = async () => {
         const headerText = headerTextarea.value.trim();
         const footerText = footerTextarea.value.trim();
+        const recipeFooterText = recipeFooterTextarea ? recipeFooterTextarea.value.trim() : '';
         const logoUrl = previewImg.src || '';
 
         const webhookVal = document.getElementById('setting-calendar-webhook') ? document.getElementById('setting-calendar-webhook').value.trim() : '';
@@ -10956,18 +10963,20 @@ async function renderStationeryView() {
             id: 'default',
             headerText,
             footerText,
+            recipeFooterText,
             logoUrl
         });
 
         applyClinicBrandingUI({
             headerText,
             footerText,
+            recipeFooterText,
             logoUrl
         });
 
         renderBudgetTable();
 
-        Swal.fire({ icon: 'success', title: 'Configuración guardada', text: 'Se actualizaron el logo, nombre clínico y membretes en el sistema.', timer: 2000, showConfirmButton: false });
+        Swal.fire({ icon: 'success', title: 'Configuración guardada', text: 'Se actualizaron el logo, membretes y récipes e indicaciones en el sistema.', timer: 2000, showConfirmButton: false });
     };
 
     const templateBtns = document.querySelectorAll('#view-stationery .subtab-btn');
@@ -11154,6 +11163,72 @@ async function refreshStationeryLivePreview() {
             consentText: 'Por medio de la presente, el paciente declara conformidad total con la sesión atendida y el monto cancelado en la fecha.',
             footerNote: footerText || busData.footer
         });
+    } else if (currentPreviewTemplate === 'recipe') {
+        const recipeFooter = (document.getElementById('stat-recipe-footer-text') ? document.getElementById('stat-recipe-footer-text').value : '') || footerText || 'Documento Clínico Oficial de Prescripción Médica y Recomendaciones para el Paciente.';
+
+        docHtml = `
+            <div style="font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; color: #1e293b; background: #ffffff; border-radius: 6px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #0d9488; padding-bottom: 12px; margin-bottom: 15px;">
+                    <div>
+                        ${logoBase64 ? `<img src="${logoBase64}" style="max-height: 50px; margin-bottom: 6px; display:block;">` : ''}
+                        <h2 style="margin: 0; color: #0d9488; font-size: 1.1rem; text-transform: uppercase;">${busData.name || 'DENTALCARE PRO'}</h2>
+                        <p style="margin: 3px 0 0 0; font-size: 0.78rem; color: #64748b; white-space: pre-line;">${headerText || 'Clínica Odontológica Especializada'}</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <span class="badge-tag green" style="font-size: 0.8rem; padding: 3px 10px; border-radius: 6px;">RÉCIPE E INDICACIONES</span>
+                        <div style="font-size: 0.78rem; color: #64748b; margin-top: 4px;">Fecha: 20 de Octubre de 2026</div>
+                    </div>
+                </div>
+
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 14px; margin-bottom: 15px; font-size: 0.82rem; display: flex; justify-content: space-between;">
+                    <div><strong>Paciente:</strong> Carlos Eduardo Mendoza &nbsp;&nbsp;|&nbsp;&nbsp; <strong>C.I.:</strong> V-18.452.910</div>
+                    <div><strong>Tratamiento:</strong> Sesión #1 (Pieza 16)</div>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <h4 style="margin: 0 0 8px 0; color: #0d9488; font-size: 0.88rem; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px;">
+                        <i class="fa-solid fa-prescription"></i> Rx - MEDICAMENTOS PRESCRITOS
+                    </h4>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
+                        <thead>
+                            <tr style="background: #f1f5f9; text-align: left; font-size: 0.75rem; color: #475569;">
+                                <th style="padding: 6px;">Fármaco / Presentación</th>
+                                <th style="padding: 6px;">Dosis</th>
+                                <th style="padding: 6px;">Duración</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                                <td style="padding: 6px; font-weight: 700;">Amoxicilina 500mg</td>
+                                <td style="padding: 6px;">1 cápsula cada 8 horas</td>
+                                <td style="padding: 6px;">Por 7 días</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                                <td style="padding: 6px; font-weight: 700;">Ibuprofeno 400mg</td>
+                                <td style="padding: 6px;">1 tableta cada 8 horas</td>
+                                <td style="padding: 6px;">Por 3 días (si hay dolor)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p style="margin: 8px 0 0 0; font-size: 0.78rem; color: #475569;"><strong>Notas:</strong> Tomar con abundante agua después de las comidas principales.</p>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <h4 style="margin: 0 0 8px 0; color: #0284c7; font-size: 0.88rem; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px;">
+                        <i class="fa-solid fa-list-check"></i> INDICACIONES Y RECOMENDACIONES CLÍNICAS
+                    </h4>
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; font-size: 0.8rem; color: #334155; line-height: 1.4;">
+                        1. Reposo relativo durante las primeras 48 horas tras el procedimiento.<br>
+                        2. Aplicar frío local en la zona externa por lapsos de 15 minutos.<br>
+                        3. Dieta blanda y fría. Evitar exponerse al sol o realizar esfuerzos físicos intensos.
+                    </div>
+                </div>
+
+                <div style="border-top: 1px dashed #cbd5e1; padding-top: 10px; text-align: center; font-size: 0.75rem; color: #64748b;">
+                    ${recipeFooter}
+                </div>
+            </div>
+        `;
     }
 
     container.innerHTML = docHtml;
@@ -12241,6 +12316,11 @@ window.printSingleRecipePDF = async function(patientId, recipeId = null) {
     const recipes = meta.recipes || [];
     const recipe = recipeId ? recipes.find(r => r.id === recipeId) : recipes[0];
 
+    const config = await SupabaseDataService.getStationeryConfig();
+    const headerText = config.headerText || 'Clínica Odontológica Especializada';
+    const logoUrl = config.logoUrl || '';
+    const recipeFooter = config.recipeFooterText || config.footerText || 'Documento Clínico Oficial de Prescripción Médica para el Paciente.';
+
     const currentDocName = getCurrentUser() ? getCurrentUser().fullname : 'Dr. Odontólogo';
 
     let medsList = recipe && recipe.medicines ? recipe.medicines.map(m => `
@@ -12263,7 +12343,7 @@ window.printSingleRecipePDF = async function(patientId, recipeId = null) {
                 body { font-family: 'Segoe UI', Arial, sans-serif; padding: 30px; color: #1e293b; }
                 .header { text-align: center; border-bottom: 2px solid #0d9488; padding-bottom: 15px; margin-bottom: 20px; }
                 .header h2 { margin: 0; color: #0d9488; text-transform: uppercase; font-size: 20px; }
-                .header p { margin: 4px 0 0 0; font-size: 13px; color: #64748b; }
+                .header p { margin: 4px 0 0 0; font-size: 13px; color: #64748b; white-space: pre-line; }
                 .patient-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 18px; margin-bottom: 20px; font-size: 14px; }
                 table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
                 th { background: #f1f5f9; text-align: left; padding: 8px 10px; font-size: 12px; color: #475569; text-transform: uppercase; }
@@ -12273,8 +12353,9 @@ window.printSingleRecipePDF = async function(patientId, recipeId = null) {
         </head>
         <body>
             <div class="header">
+                ${logoUrl ? `<img src="${logoUrl}" style="max-height:60px; margin-bottom:8px;"><br>` : ''}
                 <h2>PRESCRIPCIÓN MÉDICA Y RÉCIPE ODONTOLÓGICO</h2>
-                <p>CONSULTORIO ODONTOLÓGICO INTEGRAL • Odontología General y Especializada</p>
+                <p>${headerText}</p>
             </div>
             <div class="patient-box">
                 <strong>Paciente:</strong> ${p.fullname} &nbsp;&nbsp;|&nbsp;&nbsp; 
@@ -12311,7 +12392,7 @@ window.printSingleRecipePDF = async function(patientId, recipeId = null) {
             </div>
 
             <div class="footer">
-                Documento Clínico Oficial de Prescripción Médica para el Paciente.
+                ${recipeFooter}
             </div>
             <script>window.onload = function() { window.print(); };</script>
         </body>
