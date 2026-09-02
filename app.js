@@ -9820,13 +9820,17 @@ function buildMedicalDocumentHTML(opts) {
             patientSig = window.patientSigPad.toDataURL();
         }
         if (!patientSig) {
-            const activeId = (typeof getActivePatientId === 'function') ? getActivePatientId() : null;
-            if (activeId) {
+            const targetId = (typeof getActivePatientId === 'function') ? getActivePatientId() : null;
+            let foundPt = null;
+            if (window.allPatientsCache && Array.isArray(window.allPatientsCache)) {
+                foundPt = window.allPatientsCache.find(p => (targetId && String(p.id) === String(targetId)) || (patientId && String(p.id) === String(patientId)) || (patientName && p.fullname === patientName));
+            }
+            if (!foundPt) {
                 let localPts = JSON.parse(localStorage.getItem('dental_patients') || '[]');
-                const pt = localPts.find(p => String(p.id) === String(activeId) || p.fullname === patientName);
-                if (pt && pt.metadata && pt.metadata.patientSignature) {
-                    patientSig = pt.metadata.patientSignature;
-                }
+                foundPt = localPts.find(p => (targetId && String(p.id) === String(targetId)) || (patientId && String(p.id) === String(patientId)) || (patientName && p.fullname === patientName));
+            }
+            if (foundPt && foundPt.metadata && foundPt.metadata.patientSignature) {
+                patientSig = foundPt.metadata.patientSignature;
             }
         }
     } catch(e) {
@@ -10060,7 +10064,10 @@ async function generateBudgetHTMLContainer() {
             docSig = (u.doctorProfile && u.doctorProfile.signature) || (u.doctor_profile && u.doctor_profile.signature) || '';
         }
     }
-    const patSig = (window.patientSigPad && !window.patientSigPad.isEmpty()) ? window.patientSigPad.toDataURL() : '';
+    let patSig = (window.patientSigPad && !window.patientSigPad.isEmpty()) ? window.patientSigPad.toDataURL() : '';
+    if (!patSig && patient && patient.metadata && patient.metadata.patientSignature) {
+        patSig = patient.metadata.patientSignature;
+    }
 
     const docHtml = buildMedicalDocumentHTML({
         docType: 'presupuesto',
