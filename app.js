@@ -6545,18 +6545,26 @@ function initGlobalEvents() {
                     interval: 'Quincenal'
                 };
 
-                // Save in patient clinical notes
+                // Save or update in patient clinical notes (prevent duplicates for same invoice)
                 if (!patient.clinicalNotes) patient.clinicalNotes = [];
-                patient.clinicalNotes.unshift({
-                    id: 'note-' + Date.now(),
+                const existingNoteIdx = patient.clinicalNotes.findIndex(n => n.content && n.content.includes(`(${invoiceObj.id})`));
+                const noteObj = {
+                    id: existingNoteIdx >= 0 ? patient.clinicalNotes[existingNoteIdx].id : 'note-' + Date.now(),
                     datetime: new Date().toISOString().slice(0, 16).replace('T', ' '),
                     content: `Presupuesto Aprobado y Certificado (${invoiceObj.id}). Subtotal: $${subtotalUSD.toFixed(2)}, Descuento: ${discountPct}% (-$${discountAmountUSD.toFixed(2)}), Total: $${totalUSD.toFixed(2)}. Método de pago: ${paymentMethodLabel}. Consentimiento: ${consentText}. Observaciones: ${notes}`,
                     paymentUSD: 0
-                });
+                };
+                if (existingNoteIdx >= 0) {
+                    patient.clinicalNotes[existingNoteIdx] = noteObj;
+                } else {
+                    patient.clinicalNotes.unshift(noteObj);
+                }
 
-                // Save in patient payments history
+                // Save or update in patient payments history (prevent duplicates for same invoice)
                 if (!patient.payments) patient.payments = [];
-                patient.payments.unshift({
+                const existingPayIdx = patient.payments.findIndex(p => p.concept && p.concept.includes(invoiceObj.id));
+                const payObj = {
+                    id: existingPayIdx >= 0 ? (patient.payments[existingPayIdx].id || 'pay-' + Date.now()) : 'pay-' + Date.now(),
                     date: invoiceObj.invoiceDate,
                     concept: `Presupuesto Aprobado ${invoiceObj.id}`,
                     totalUSD: totalUSD,
@@ -6564,7 +6572,12 @@ function initGlobalEvents() {
                     balanceUSD: 0,
                     status: 'Pagado',
                     method: paymentMethod
-                });
+                };
+                if (existingPayIdx >= 0) {
+                    patient.payments[existingPayIdx] = payObj;
+                } else {
+                    patient.payments.unshift(payObj);
+                }
 
                 if (patient.metadata) {
                     delete patient.metadata.draftBudget;
