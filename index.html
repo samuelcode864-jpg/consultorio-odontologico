@@ -1635,31 +1635,91 @@
                             </div>
                         </div>
 
-                        <!-- Live Preview and Document Templates -->
+                        <!-- Plantillas de Documentos de Papelería -->
                         <div class="card flex-column">
-                            <div class="card-header border-bottom" style="flex-wrap: wrap; gap: 10px; align-items: center;">
-                                <h3><i class="fa-solid fa-eye text-green"></i> Previsualización en Tiempo Real</h3>
-                                <div class="subtabs" style="margin-left: auto; display: flex; flex-wrap: wrap; gap: 6px;">
-                                    <button class="subtab-btn active" data-preview-template="factura">Factura</button>
-                                    <button class="subtab-btn" data-preview-template="cotizacion">Cotización</button>
-                                    <button class="subtab-btn" data-preview-template="recibo">Recibo</button>
-                                    <button class="subtab-btn" data-preview-template="recipe"><i class="fa-solid fa-prescription text-cyan"></i> Récipe / Indicaciones</button>
-                                </div>
+                            <div class="card-header border-bottom">
+                                <h3><i class="fa-solid fa-file-invoice text-primary"></i> Plantillas de Documentos de Papelería</h3>
                             </div>
                             <div class="card-body flex-column gap-15">
-                                <div class="flex-row gap-10" style="flex-wrap: wrap;">
-                                    <button class="btn btn-sm btn-success flex-1" id="btn-print-preview-stationery" style="min-width: 140px;">
-                                        <i class="fa-solid fa-print"></i> Imprimir Documento
-                                    </button>
-                                    <button class="btn btn-sm btn-primary flex-1" id="btn-pdf-preview-stationery" style="min-width: 140px;">
-                                        <i class="fa-solid fa-file-pdf"></i> Descargar PDF
-                                    </button>
-                                </div>
+                                <p style="font-size: 0.88rem; color: var(--text-muted); margin: 0;">
+                                    Generador directo de documentos. Seleccione el modelo para imprimir o descargar en PDF usando su membrete y logo configurados:
+                                </p>
 
-                                <!-- Previsualizador en vivo con maqueta de hoja A4 responsiva -->
-                                <div id="stationery-live-paper-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; border: 1px solid #cbd5e1; background: #64748b; padding: 12px 8px;">
-                                    <div id="stationery-live-paper" style="background: white; color: #1e293b; border-radius: 6px; padding: 20px; font-size: 0.85rem; box-shadow: 0 10px 25px rgba(0,0,0,0.2); min-width: 280px; max-width: 780px; min-height: 500px; margin: 0 auto; box-sizing: border-box; overflow: hidden;">
-                                        <!-- Dynamic content based on selected template and fields -->
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 15px;">
+                                    <!-- Factura Digital -->
+                                    <div style="background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; display: flex; flex-direction: column; gap: 10px;">
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <i class="fa-solid fa-file-invoice-dollar text-primary" style="font-size: 1.5rem;"></i>
+                                            <div>
+                                                <strong style="display: block; font-size: 0.95rem; color: var(--text-main);">Factura Digital</strong>
+                                                <span style="font-size: 0.78rem; color: var(--text-muted);">Modelo oficial con desglose de servicios</span>
+                                            </div>
+                                        </div>
+                                        <div style="display: flex; gap: 8px; margin-top: auto;">
+                                            <button class="btn btn-sm btn-outline flex-1" onclick="handleStationeryAction('factura', 'print')">
+                                                <i class="fa-solid fa-print"></i> Imprimir
+                                            </button>
+                                            <button class="btn btn-sm btn-primary flex-1" onclick="handleStationeryAction('factura', 'pdf')">
+                                                <i class="fa-solid fa-file-pdf"></i> Descargar PDF
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Cotización / Presupuesto -->
+                                    <div style="background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; display: flex; flex-direction: column; gap: 10px;">
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <i class="fa-solid fa-calculator text-cyan" style="font-size: 1.5rem;"></i>
+                                            <div>
+                                                <strong style="display: block; font-size: 0.95rem; color: var(--text-main);">Cotización / Presupuesto</strong>
+                                                <span style="font-size: 0.78rem; color: var(--text-muted);">Formato de propuesta económica</span>
+                                            </div>
+                                        </div>
+                                        <div style="display: flex; gap: 8px; margin-top: auto;">
+                                            <button class="btn btn-sm btn-outline flex-1" onclick="handleStationeryAction('cotizacion', 'print')">
+                                                <i class="fa-solid fa-print"></i> Imprimir
+                                            </button>
+                                            <button class="btn btn-sm btn-primary flex-1" onclick="handleStationeryAction('cotizacion', 'pdf')">
+                                                <i class="fa-solid fa-file-pdf"></i> Descargar PDF
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Recibo de Atención -->
+                                    <div style="background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; display: flex; flex-direction: column; gap: 10px;">
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <i class="fa-solid fa-receipt text-green" style="font-size: 1.5rem;"></i>
+                                            <div>
+                                                <strong style="display: block; font-size: 0.95rem; color: var(--text-main);">Recibo de Atención</strong>
+                                                <span style="font-size: 0.78rem; color: var(--text-muted);">Comprobante de abono o consulta</span>
+                                            </div>
+                                        </div>
+                                        <div style="display: flex; gap: 8px; margin-top: auto;">
+                                            <button class="btn btn-sm btn-outline flex-1" onclick="handleStationeryAction('recibo', 'print')">
+                                                <i class="fa-solid fa-print"></i> Imprimir
+                                            </button>
+                                            <button class="btn btn-sm btn-primary flex-1" onclick="handleStationeryAction('recibo', 'pdf')">
+                                                <i class="fa-solid fa-file-pdf"></i> Descargar PDF
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Récipe e Indicaciones -->
+                                    <div style="background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; display: flex; flex-direction: column; gap: 10px;">
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <i class="fa-solid fa-prescription text-teal" style="font-size: 1.5rem;"></i>
+                                            <div>
+                                                <strong style="display: block; font-size: 0.95rem; color: var(--text-main);">Récipe e Indicaciones</strong>
+                                                <span style="font-size: 0.78rem; color: var(--text-muted);">Prescripción médica y recomendaciones</span>
+                                            </div>
+                                        </div>
+                                        <div style="display: flex; gap: 8px; margin-top: auto;">
+                                            <button class="btn btn-sm btn-outline flex-1" onclick="handleStationeryAction('recipe', 'print')">
+                                                <i class="fa-solid fa-print"></i> Imprimir
+                                            </button>
+                                            <button class="btn btn-sm btn-primary flex-1" onclick="handleStationeryAction('recipe', 'pdf')">
+                                                <i class="fa-solid fa-file-pdf"></i> Descargar PDF
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -3579,13 +3639,13 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=206"></script>
-    <script src="supabaseClient.js?v=206"></script>
-    <script src="odontogram.js?v=206"></script>
-    <script src="signature.js?v=206"></script>
-    <script src="whatsapp.js?v=206"></script>
-    <script src="kardex.js?v=206"></script>
-    <script src="app.js?v=206"></script>
-    <script src="tutorial.js?v=206"></script>
+    <script src="seededData.js?v=207"></script>
+    <script src="supabaseClient.js?v=207"></script>
+    <script src="odontogram.js?v=207"></script>
+    <script src="signature.js?v=207"></script>
+    <script src="whatsapp.js?v=207"></script>
+    <script src="kardex.js?v=207"></script>
+    <script src="app.js?v=207"></script>
+    <script src="tutorial.js?v=207"></script>
 </body>
 </html>

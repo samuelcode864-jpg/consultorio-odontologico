@@ -11366,7 +11366,6 @@ async function renderStationeryView() {
     const recipeFooterTextarea = document.getElementById('stat-recipe-footer-text');
     if (recipeFooterTextarea) {
         recipeFooterTextarea.value = config.recipeFooterText || '';
-        recipeFooterTextarea.oninput = () => refreshStationeryLivePreview();
     }
 
     const previewImg = document.getElementById('stat-logo-preview-img');
@@ -11379,11 +11378,6 @@ async function renderStationeryView() {
         previewContainer.classList.add('hidden');
     }
 
-    await refreshStationeryLivePreview();
-
-    headerTextarea.oninput = () => refreshStationeryLivePreview();
-    footerTextarea.oninput = () => refreshStationeryLivePreview();
-
     logoUpload.onchange = (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -11393,7 +11387,6 @@ async function renderStationeryView() {
                 previewImg.src = base64;
                 previewContainer.classList.remove('hidden');
                 config.logoUrl = base64;
-                await refreshStationeryLivePreview();
             };
             reader.readAsDataURL(file);
         }
@@ -11404,7 +11397,6 @@ async function renderStationeryView() {
         previewImg.src = '';
         previewContainer.classList.add('hidden');
         config.logoUrl = '';
-        await refreshStationeryLivePreview();
     };
 
     document.getElementById('btn-save-stationery-config').onclick = async () => {
@@ -11432,81 +11424,17 @@ async function renderStationeryView() {
 
         Swal.fire({ icon: 'success', title: 'Configuración guardada', text: 'Se actualizaron el logo, membretes y récipes e indicaciones en el sistema.', timer: 2000, showConfirmButton: false });
     };
-
-    const templateBtns = document.querySelectorAll('#view-stationery .subtab-btn');
-    templateBtns.forEach(btn => {
-        btn.onclick = async () => {
-            templateBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            currentPreviewTemplate = btn.dataset.previewTemplate;
-            await refreshStationeryLivePreview();
-        };
-    });
-
-    const btnPrintStationery = document.getElementById('btn-print-preview-stationery');
-    if (btnPrintStationery) {
-        btnPrintStationery.onclick = () => {
-            const previewEl = document.getElementById('stationery-live-paper');
-            if (!previewEl) return;
-            const printClone = previewEl.cloneNode(true);
-            printClone.style.height = 'auto';
-            printClone.style.maxHeight = 'none';
-            printClone.style.overflow = 'visible';
-            printClone.style.border = 'none';
-            printClone.style.boxShadow = 'none';
-            document.body.appendChild(printClone);
-            printClone.classList.add('print-section');
-            window.print();
-            document.body.removeChild(printClone);
-        };
-    }
-
-    const btnPdfStationery = document.getElementById('btn-pdf-preview-stationery');
-    if (btnPdfStationery) {
-        btnPdfStationery.onclick = async () => {
-            const previewEl = document.getElementById('stationery-live-paper');
-            if (!previewEl) return;
-
-            const printClone = previewEl.cloneNode(true);
-            printClone.style.position = 'fixed';
-            printClone.style.left = '-9999px';
-            printClone.style.top = '0';
-            printClone.style.width = '780px';
-            printClone.style.height = 'auto';
-            printClone.style.maxHeight = 'none';
-            printClone.style.overflow = 'visible';
-            printClone.style.border = 'none';
-            printClone.style.boxShadow = 'none';
-            printClone.style.padding = '20px';
-            printClone.style.background = '#ffffff';
-            document.body.appendChild(printClone);
-
-            try {
-                const templateName = (currentPreviewTemplate || 'documento').toUpperCase();
-                const filename = `Papeleria_${templateName}.pdf`;
-                await generatePDFFromElement(printClone, filename);
-            } finally {
-                if (document.body.contains(printClone)) {
-                    document.body.removeChild(printClone);
-                }
-            }
-        };
-    }
 }
 
-async function refreshStationeryLivePreview() {
-    const container = document.getElementById('stationery-live-paper');
-    if (!container) return;
-
+async function handleStationeryAction(templateType, action) {
     try {
-        const logoImgEl = document.getElementById('stat-logo-preview-img');
-        const headerTextEl = document.getElementById('stat-header-text');
-        const footerTextEl = document.getElementById('stat-footer-text');
-
-        const rawLogoSrc = (logoImgEl && logoImgEl.getAttribute('src')) ? logoImgEl.getAttribute('src') : '';
+        const headerText = document.getElementById('stat-header-text') ? document.getElementById('stat-header-text').value : '';
+        const footerText = document.getElementById('stat-footer-text') ? document.getElementById('stat-footer-text').value : '';
+        const recipeFooterText = document.getElementById('stat-recipe-footer-text') ? document.getElementById('stat-recipe-footer-text').value : '';
+        
+        const previewImg = document.getElementById('stat-logo-preview-img');
+        const rawLogoSrc = (previewImg && previewImg.getAttribute('src')) ? previewImg.getAttribute('src') : '';
         const logoSrc = (rawLogoSrc && rawLogoSrc !== window.location.href) ? rawLogoSrc : '';
-        const headerText = headerTextEl ? (headerTextEl.value || '') : '';
-        const footerText = footerTextEl ? (footerTextEl.value || '') : '';
 
         const busData = getClinicBusData({ header_text: headerText, logo_url: logoSrc, footer_text: footerText });
         let logoBase64 = '';
@@ -11514,202 +11442,194 @@ async function refreshStationeryLivePreview() {
             logoBase64 = busData.logoUrl.startsWith('data:') ? busData.logoUrl : await toDataURL(busData.logoUrl);
         }
 
-    let docHtml = '';
+        let docHtml = '';
 
-    if (currentPreviewTemplate === 'factura') {
-        docHtml = buildMedicalDocumentHTML({
-            docType: 'factura',
-            docTitle: 'Factura Digital',
-            emissionDate: '20 de Octubre de 2026',
-            controlNumber: 'FC-2026-00892',
-            paymentMethod: 'Transferencia / PAGO MÓVIL',
-            
-            clinicName: busData.name || 'Consultorio Médico',
-            clinicPhone: busData.phone || '+58 (412) 555-0192',
-            clinicAddress: busData.address || 'Av. Principal de Las Mercedes, Torre Consultorios, Piso 4, Off. 4B, Caracas',
-            logoUrl: logoBase64,
-            
-            doctorName: busData.doctor || 'Dr. Rodrigo Navas',
-            doctorSpecialty: 'Medicina General / Cardiología',
-            doctorPhone: '+58 (414) 123-4567',
-            
-            patientName: 'Carlos Eduardo Mendoza',
-            patientId: 'V-18.452.910',
-            patientPhone: '+58 (416) 987-6543',
-            
-            items: [
-                { name: 'Consulta Médica Especializada', description: 'Evaluación clínica integral y revisión de antecedentes', qty: 1, price: 60.00, total: 60.00 },
-                { name: 'Electrocardiograma de Reposo', description: 'Trazo e informe médico detallado', qty: 1, price: 35.00, total: 35.00 },
-                { name: 'Control y Monitoreo de Presión Arterial', description: 'Toma de tensión y esquema preventivo', qty: 1, price: 15.00, total: 15.00 }
-            ],
-            
-            subtotalUSD: 110.00,
-            discountPct: 0,
-            discountUSD: 0.00,
-            taxUSD: 0.00,
-            totalUSD: 110.00,
-            totalVES: 'Bs. 4.015,00',
-            approvedAmountUSD: 110.00,
-            
-            paymentTerms: 'Contado / Pago inmediato al momento de la consulta.',
-            bankingDetails: busData.bankInfo || 'Banco Banesco - Cuenta Corriente | N°: 0134-0000-00-0000000000<br>A nombre de: Rodrigo Navas<br>Pago Móvil: C.I. 12.345.678 / Tlf: 0412-5550192',
-            observations: 'El paciente presenta evolución favorable. Se recomienda mantener tratamiento farmacológico indicado según informe médico, evitar esfuerzos físicos intensos durante las próximas 48 horas y acudir a control preventivo en 30 días o antes en caso de manifestar cualquier síntoma atípico.',
-            consentText: 'Por medio de la presente, el paciente declara haber recibido explicación clara y detallada acerca de los procedimientos diagnosticados y realizados en esta consulta, aceptando de manera voluntaria la atención prestada y expresando su conformidad con los cobros administrativos y honorarios detallados en este documento.',
-            footerNote: footerText || busData.footer
-        });
-    } else if (currentPreviewTemplate === 'cotizacion') {
-        docHtml = buildMedicalDocumentHTML({
-            docType: 'presupuesto',
-            docTitle: 'Presupuesto Odontológico',
-            emissionDate: '20 de Octubre de 2026',
-            controlNumber: 'PR-2026-00341',
-            paymentMethod: 'Por Sesiones / Efectivo USD',
-            
-            clinicName: busData.name || 'Consultorio Odontológico Especializado',
-            clinicPhone: busData.phone || '+58 (412) 555-0192',
-            clinicAddress: busData.address || 'Av. Principal de Las Mercedes, Torre Consultorios, Piso 4, Caracas',
-            logoUrl: logoBase64,
-            
-            doctorName: busData.doctor || 'Dr. Rodrigo Navas',
-            doctorSpecialty: 'Odontología Estética y Rehabilitación Oral',
-            doctorPhone: '+58 (414) 123-4567',
-            
-            patientName: 'Carlos Eduardo Mendoza',
-            patientId: 'V-18.452.910',
-            patientPhone: '+58 (416) 987-6543',
-            
-            items: [
-                { name: 'Limpieza Ultrasonica + Profilaxis (General)', description: 'Eliminación de cálculo dental y pulido coronario', qty: 1, price: 40.00, total: 40.00 },
-                { name: 'Restauración Resina Estética (Pieza 16 - Oclusal)', description: 'Obturación fotocurada con estratificación anatómica', qty: 1, price: 45.00, total: 45.00 },
-                { name: 'Corona de Zirconio Monolítico (Pieza 24)', description: 'Diseño CAD/CAM de alta resistencia y estética', qty: 1, price: 180.00, total: 180.00 }
-            ],
-            
-            subtotalUSD: 265.00,
-            discountPct: 5,
-            discountUSD: 13.25,
-            taxUSD: 0.00,
-            totalUSD: 251.75,
-            totalVES: 'Bs. 9.188,88',
-            approvedAmountUSD: 251.75,
-            
-            paymentTerms: 'Validez del presupuesto: 15 días continuos. Financiable en 3 cuotas durante el tratamiento.',
-            bankingDetails: busData.bankInfo,
-            observations: 'Plan integral de rehabilitación oral. Se sugiere comenzar con la fase higiénica antes de la cementación de la prótesis definitiva.',
-            consentText: 'Por medio de la presente, el paciente autoriza el plan de tratamiento propuesto y acepta las condiciones económicas y clínicas estipuladas.',
-            footerNote: footerText || busData.footer
-        });
-    } else if (currentPreviewTemplate === 'recibo') {
-        docHtml = buildMedicalDocumentHTML({
-            docType: 'recibo',
-            docTitle: 'Recibo de Atención Clínica',
-            emissionDate: '20 de Octubre de 2026',
-            controlNumber: 'REC-2026-00215',
-            paymentMethod: 'Transferencia / PAGO MÓVIL',
-            
-            clinicName: busData.name || 'Consultorio Odontológico',
-            clinicPhone: busData.phone || '+58 (412) 555-0192',
-            clinicAddress: busData.address || 'Av. Principal de Las Mercedes, Torre Consultorios, Piso 4, Caracas',
-            logoUrl: logoBase64,
-            
-            doctorName: busData.doctor || 'Dr. Rodrigo Navas',
-            doctorSpecialty: 'Odontología General / Periodoncia',
-            doctorPhone: '+58 (414) 123-4567',
-            
-            patientName: 'Carlos Eduardo Mendoza',
-            patientId: 'V-18.452.910',
-            patientPhone: '+58 (416) 987-6543',
-            
-            items: [
-                { name: 'Sesión Clínica #1: Limpieza Ultrasonica + Profilaxis', description: 'Tratamiento completado y conforme en la consulta', qty: 1, price: 40.00, total: 40.00 }
-            ],
-            
-            subtotalUSD: 40.00,
-            discountPct: 0,
-            discountUSD: 0.00,
-            taxUSD: 0.00,
-            totalUSD: 40.00,
-            totalVES: 'Bs. 1.460,00',
-            approvedAmountUSD: 40.00,
-            
-            paymentTerms: 'Abono / Pago acreditado en sesión clínica. Comprobante legal de cancelación.',
-            bankingDetails: busData.bankInfo,
-            observations: 'Paciente atendido satisfactoriamente. Se indican enjuagues con clorhexidina 0.12% por 7 días.',
-            consentText: 'Por medio de la presente, el paciente declara conformidad total con la sesión atendida y el monto cancelado en la fecha.',
-            footerNote: footerText || busData.footer
-        });
-    } else if (currentPreviewTemplate === 'recipe') {
-        const recipeFooter = (document.getElementById('stat-recipe-footer-text') ? document.getElementById('stat-recipe-footer-text').value : '') || footerText || 'Documento Clínico Oficial de Prescripción Médica y Recomendaciones para el Paciente.';
-
-        docHtml = `
-            <div style="font-family: 'Segoe UI', Arial, sans-serif; padding: 18px; color: #1e293b; background: #ffffff; border-radius: 6px;">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom: 2px solid #0d9488; padding-bottom: 10px; margin-bottom: 12px; gap: 15px;">
-                    <div style="flex: 1; min-width: 0;">
-                        ${logoBase64 ? `<img src="${logoBase64}" style="max-height: 45px; margin-bottom: 4px; display:block;">` : ''}
-                        <h2 style="margin: 0; color: #0d9488; font-size: 1.05rem; text-transform: uppercase; font-weight: 800;">${busData.name || 'DENTALCARE PRO'}</h2>
-                        <p style="margin: 3px 0 0 0; font-size: 0.76rem; color: #64748b; white-space: pre-line; line-height: 1.25;">${formatHeaderText(headerText) || 'Clínica Odontológica Especializada'}</p>
+        if (templateType === 'factura') {
+            docHtml = buildMedicalDocumentHTML({
+                docType: 'factura',
+                docTitle: 'Factura Digital',
+                emissionDate: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }),
+                controlNumber: 'FC-2026-00892',
+                paymentMethod: 'Transferencia / PAGO MÓVIL',
+                clinicName: busData.name || 'Consultorio Médico',
+                clinicPhone: busData.phone || '+58 (412) 555-0192',
+                clinicAddress: busData.address || 'Av. Principal de Las Mercedes, Torre Consultorios, Piso 4, Off. 4B, Caracas',
+                logoUrl: logoBase64,
+                doctorName: busData.doctor || 'Dr. Rodrigo Navas',
+                doctorSpecialty: 'Odontología General / Rehabilitación Oral',
+                doctorPhone: '+58 (414) 123-4567',
+                patientName: 'Carlos Eduardo Mendoza',
+                patientId: 'V-18.452.910',
+                patientPhone: '+58 (416) 987-6543',
+                items: [
+                    { name: 'Consulta Médica Especializada', description: 'Evaluación clínica integral y revisión de antecedentes', qty: 1, price: 60.00, total: 60.00 },
+                    { name: 'Limpieza Ultrasónica + Profilaxis', description: 'Eliminación de cálculo dental y pulido coronario', qty: 1, price: 40.00, total: 40.00 }
+                ],
+                subtotalUSD: 100.00,
+                discountPct: 0,
+                discountUSD: 0.00,
+                taxUSD: 0.00,
+                totalUSD: 100.00,
+                totalVES: 'Bs. 3.650,00',
+                paymentTerms: 'Contado / Pago inmediato al momento de la consulta.',
+                bankingDetails: busData.bankInfo,
+                observations: 'Paciente presenta evolución favorable. Se recomienda control preventivo cada 6 meses.',
+                footerNote: footerText || busData.footer
+            });
+        } else if (templateType === 'cotizacion') {
+            docHtml = buildMedicalDocumentHTML({
+                docType: 'presupuesto',
+                docTitle: 'Presupuesto Odontológico',
+                emissionDate: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }),
+                controlNumber: 'PR-2026-00341',
+                paymentMethod: 'Por Sesiones / Efectivo USD',
+                clinicName: busData.name || 'Consultorio Odontológico Especializado',
+                clinicPhone: busData.phone || '+58 (412) 555-0192',
+                clinicAddress: busData.address || 'Av. Principal de Las Mercedes, Torre Consultorios, Piso 4, Caracas',
+                logoUrl: logoBase64,
+                doctorName: busData.doctor || 'Dr. Rodrigo Navas',
+                doctorSpecialty: 'Odontología Estética y Prótesis',
+                doctorPhone: '+58 (414) 123-4567',
+                patientName: 'Carlos Eduardo Mendoza',
+                patientId: 'V-18.452.910',
+                patientPhone: '+58 (416) 987-6543',
+                items: [
+                    { name: 'Limpieza Ultrasónica + Profilaxis (General)', description: 'Eliminación de cálculo dental', qty: 1, price: 40.00, total: 40.00 },
+                    { name: 'Restauración Resina Estética (Pieza 16)', description: 'Obturación fotocurada anatómica', qty: 1, price: 45.00, total: 45.00 },
+                    { name: 'Corona de Zirconio Monolítico (Pieza 24)', description: 'CAD/CAM de alta estética', qty: 1, price: 180.00, total: 180.00 }
+                ],
+                subtotalUSD: 265.00,
+                discountPct: 5,
+                discountUSD: 13.25,
+                taxUSD: 0.00,
+                totalUSD: 251.75,
+                totalVES: 'Bs. 9.188,88',
+                paymentTerms: 'Validez del presupuesto: 15 días continuos.',
+                bankingDetails: busData.bankInfo,
+                observations: 'Plan integral de rehabilitación oral.',
+                footerNote: footerText || busData.footer
+            });
+        } else if (templateType === 'recibo') {
+            docHtml = buildMedicalDocumentHTML({
+                docType: 'recibo',
+                docTitle: 'Recibo de Atención Clínica',
+                emissionDate: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }),
+                controlNumber: 'REC-2026-00215',
+                paymentMethod: 'Transferencia / PAGO MÓVIL',
+                clinicName: busData.name || 'Consultorio Odontológico',
+                clinicPhone: busData.phone || '+58 (412) 555-0192',
+                clinicAddress: busData.address || 'Av. Principal de Las Mercedes, Torre Consultorios, Piso 4, Caracas',
+                logoUrl: logoBase64,
+                doctorName: busData.doctor || 'Dr. Rodrigo Navas',
+                doctorSpecialty: 'Odontología General',
+                doctorPhone: '+58 (414) 123-4567',
+                patientName: 'Carlos Eduardo Mendoza',
+                patientId: 'V-18.452.910',
+                patientPhone: '+58 (416) 987-6543',
+                items: [
+                    { name: 'Sesión Clínica #1: Limpieza Ultrasónica + Profilaxis', description: 'Tratamiento completado y conforme', qty: 1, price: 40.00, total: 40.00 }
+                ],
+                subtotalUSD: 40.00,
+                discountPct: 0,
+                discountUSD: 0.00,
+                taxUSD: 0.00,
+                totalUSD: 40.00,
+                totalVES: 'Bs. 1.460,00',
+                paymentTerms: 'Abono en consulta. Comprobante de cancelación.',
+                bankingDetails: busData.bankInfo,
+                observations: 'Paciente atendido satisfactoriamente.',
+                footerNote: footerText || busData.footer
+            });
+        } else if (templateType === 'recipe') {
+            const footerNote = recipeFooterText || footerText || 'Documento Clínico Oficial de Prescripción Médica y Recomendaciones.';
+            docHtml = `
+                <div style="font-family: 'Segoe UI', Arial, sans-serif; padding: 25px; color: #1e293b; background: #ffffff; width: 720px; max-width: 720px; margin: 0 auto; box-sizing: border-box;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom: 2px solid #0d9488; padding-bottom: 12px; margin-bottom: 15px; gap: 15px;">
+                        <div style="flex: 1;">
+                            ${logoBase64 ? `<img src="${logoBase64}" style="max-height: 50px; margin-bottom: 6px; display:block;">` : ''}
+                            <h2 style="margin: 0; color: #0d9488; font-size: 1.15rem; text-transform: uppercase; font-weight: 800;">${busData.name || 'DENTALCARE PRO'}</h2>
+                            <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: #64748b; white-space: pre-line; line-height: 1.3;">${formatHeaderText(headerText) || 'Clínica Odontológica Especializada'}</p>
+                        </div>
+                        <div style="text-align: right; flex-shrink: 0; min-width: 180px;">
+                            <span style="background: #e6fffa; color: #0d9488; font-size: 0.78rem; font-weight: 700; padding: 5px 12px; border-radius: 6px; display: inline-block;">RÉCIPE E INDICACIONES</span>
+                            <div style="font-size: 0.78rem; color: #64748b; margin-top: 6px;">Fecha: ${new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
+                        </div>
                     </div>
-                    <div style="text-align: right; flex-shrink: 0; min-width: 170px;">
-                        <span class="badge-tag green" style="font-size: 0.74rem; padding: 4px 10px; border-radius: 6px; white-space: nowrap; display: inline-block;">RÉCIPE E INDICACIONES</span>
-                        <div style="font-size: 0.76rem; color: #64748b; margin-top: 4px;">Fecha: 20 de Octubre de 2026</div>
+
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; margin-bottom: 18px; font-size: 0.85rem; display: flex; justify-content: space-between;">
+                        <div><strong>Paciente:</strong> Carlos Eduardo Mendoza &nbsp;&nbsp;|&nbsp;&nbsp; <strong>C.I.:</strong> V-18.452.910</div>
+                        <div><strong>Tratamiento:</strong> Sesión #1 (Pieza 16)</div>
                     </div>
-                </div>
 
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 14px; margin-bottom: 15px; font-size: 0.82rem; display: flex; justify-content: space-between;">
-                    <div><strong>Paciente:</strong> Carlos Eduardo Mendoza &nbsp;&nbsp;|&nbsp;&nbsp; <strong>C.I.:</strong> V-18.452.910</div>
-                    <div><strong>Tratamiento:</strong> Sesión #1 (Pieza 16)</div>
-                </div>
+                    <div style="margin-bottom: 20px;">
+                        <h4 style="margin: 0 0 10px 0; color: #0d9488; font-size: 0.92rem; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">
+                            <i class="fa-solid fa-prescription"></i> Rx - MEDICAMENTOS PRESCRITOS
+                        </h4>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                            <thead>
+                                <tr style="background: #f1f5f9; text-align: left; font-size: 0.78rem; color: #475569;">
+                                    <th style="padding: 8px;">Fármaco / Presentación</th>
+                                    <th style="padding: 8px;">Dosis</th>
+                                    <th style="padding: 8px;">Duración</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style="border-bottom: 1px solid #e2e8f0;">
+                                    <td style="padding: 8px; font-weight: 700;">Amoxicilina 500mg</td>
+                                    <td style="padding: 8px;">1 cápsula cada 8 horas</td>
+                                    <td style="padding: 8px;">Por 7 días</td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid #e2e8f0;">
+                                    <td style="padding: 8px; font-weight: 700;">Ibuprofeno 400mg</td>
+                                    <td style="padding: 8px;">1 tableta cada 8 horas</td>
+                                    <td style="padding: 8px;">Por 3 días (si hay dolor)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <p style="margin: 10px 0 0 0; font-size: 0.8rem; color: #475569;"><strong>Notas:</strong> Tomar con abundante agua después de las comidas principales.</p>
+                    </div>
 
-                <div style="margin-bottom: 15px;">
-                    <h4 style="margin: 0 0 8px 0; color: #0d9488; font-size: 0.88rem; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px;">
-                        <i class="fa-solid fa-prescription"></i> Rx - MEDICAMENTOS PRESCRITOS
-                    </h4>
-                    <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
-                        <thead>
-                            <tr style="background: #f1f5f9; text-align: left; font-size: 0.75rem; color: #475569;">
-                                <th style="padding: 6px;">Fármaco / Presentación</th>
-                                <th style="padding: 6px;">Dosis</th>
-                                <th style="padding: 6px;">Duración</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr style="border-bottom: 1px solid #e2e8f0;">
-                                <td style="padding: 6px; font-weight: 700;">Amoxicilina 500mg</td>
-                                <td style="padding: 6px;">1 cápsula cada 8 horas</td>
-                                <td style="padding: 6px;">Por 7 días</td>
-                            </tr>
-                            <tr style="border-bottom: 1px solid #e2e8f0;">
-                                <td style="padding: 6px; font-weight: 700;">Ibuprofeno 400mg</td>
-                                <td style="padding: 6px;">1 tableta cada 8 horas</td>
-                                <td style="padding: 6px;">Por 3 días (si hay dolor)</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <p style="margin: 8px 0 0 0; font-size: 0.78rem; color: #475569;"><strong>Notas:</strong> Tomar con abundante agua después de las comidas principales.</p>
-                </div>
+                    <div style="margin-bottom: 25px;">
+                        <h4 style="margin: 0 0 10px 0; color: #0284c7; font-size: 0.92rem; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">
+                            <i class="fa-solid fa-list-check"></i> INDICACIONES Y RECOMENDACIONES CLÍNICAS
+                        </h4>
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; font-size: 0.82rem; color: #334155; line-height: 1.5;">
+                            1. Reposo relativo durante las primeras 48 horas tras el procedimiento.<br>
+                            2. Aplicar frío local en la zona externa por lapsos de 15 minutos.<br>
+                            3. Dieta blanda y fría. Evitar exponerse al sol o realizar esfuerzos físicos intensos.
+                        </div>
+                    </div>
 
-                <div style="margin-bottom: 20px;">
-                    <h4 style="margin: 0 0 8px 0; color: #0284c7; font-size: 0.88rem; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px;">
-                        <i class="fa-solid fa-list-check"></i> INDICACIONES Y RECOMENDACIONES CLÍNICAS
-                    </h4>
-                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; font-size: 0.8rem; color: #334155; line-height: 1.4;">
-                        1. Reposo relativo durante las primeras 48 horas tras el procedimiento.<br>
-                        2. Aplicar frío local en la zona externa por lapsos de 15 minutos.<br>
-                        3. Dieta blanda y fría. Evitar exponerse al sol o realizar esfuerzos físicos intensos.
+                    <div style="border-top: 1px dashed #cbd5e1; padding-top: 12px; text-align: center; font-size: 0.78rem; color: #64748b;">
+                        ${footerNote}
                     </div>
                 </div>
+            `;
+        }
 
-                <div style="border-top: 1px dashed #cbd5e1; padding-top: 10px; text-align: center; font-size: 0.75rem; color: #64748b;">
-                    ${recipeFooter}
-                </div>
-            </div>
-        `;
-    }
-
+        const container = document.createElement('div');
         container.innerHTML = docHtml;
+
+        if (action === 'print') {
+            container.classList.add('print-section');
+            container.style.background = '#ffffff';
+            document.body.appendChild(container);
+            window.print();
+            document.body.removeChild(container);
+        } else if (action === 'pdf') {
+            const templateName = (templateType || 'documento').toUpperCase();
+            const filename = `Papeleria_${templateName}.pdf`;
+            await generatePDFFromElement(container, filename);
+            if (document.body.contains(container)) {
+                document.body.removeChild(container);
+            }
+        }
     } catch(err) {
-        console.error("Error refreshing stationery preview:", err);
+        console.error("Error executing stationery action:", err);
+        Swal.fire({ icon: 'error', title: 'Error al procesar documento', text: err.message || 'No se pudo generar el documento.' });
     }
 }
+window.handleStationeryAction = handleStationeryAction;
 
 function toDataURL(url) {
     return new Promise((resolve) => {
