@@ -1311,7 +1311,22 @@ async function renderBudgetListView() {
     if (!tableBody) return;
 
     const invoices = await SupabaseDataService.getInvoices();
-    const budgets = invoices.filter(inv => inv.id && inv.id.startsWith('PRE-'));
+    let budgets = invoices.filter(inv => inv.id && inv.id.startsWith('PRE-'));
+
+    // Ordenar por orden de llegada: El último creado SIEMPRE de primero
+    budgets.sort((a, b) => {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        if (timeA !== timeB) return timeB - timeA;
+
+        const dateA = a.invoiceDate ? new Date(a.invoiceDate).getTime() : 0;
+        const dateB = b.invoiceDate ? new Date(b.invoiceDate).getTime() : 0;
+        if (dateA !== dateB) return dateB - dateA;
+
+        const idNumA = parseInt(String(a.id).replace(/[^0-9]/g, '')) || 0;
+        const idNumB = parseInt(String(b.id).replace(/[^0-9]/g, '')) || 0;
+        return idNumB - idNumA;
+    });
 
     if (searchInput && !searchInput.oninput) {
         searchInput.oninput = () => drawTable();

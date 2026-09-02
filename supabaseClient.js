@@ -612,6 +612,9 @@ class SupabaseDataService {
     }
 
     static async saveInvoice(invoiceObj) {
+        if (!invoiceObj.createdAt) {
+            invoiceObj.createdAt = new Date().toISOString();
+        }
         let localInvs = JSON.parse(localStorage.getItem('dental_invoices')) || [];
         const idx = localInvs.findIndex(i => i.id === invoiceObj.id);
         if (idx >= 0) localInvs[idx] = invoiceObj;
