@@ -9313,6 +9313,24 @@ document.addEventListener('DOMContentLoaded', () => {
 // 8. BILLING, FINANCE & STATIONERY MODULE CONTROLLERS
 // ==========================================================================
 
+function formatHeaderText(raw) {
+    if (!raw) return '';
+    const str = String(raw).trim();
+    if (str.startsWith('{')) {
+        try {
+            const parsed = JSON.parse(str);
+            const parts = [];
+            if (parsed.name) parts.push(parsed.name);
+            if (parsed.doctor) parts.push(parsed.doctor);
+            if (parsed.rif) parts.push(`RIF / C.I.: ${parsed.rif}`);
+            if (parsed.phone) parts.push(`Tlf: ${parsed.phone}`);
+            if (parsed.address) parts.push(parsed.address);
+            if (parts.length > 0) return parts.join('\n');
+        } catch(e) {}
+    }
+    return str;
+}
+
 function getClinicBusData(config) {
     let busData = {
         name: 'Consultorio Odontológico',
@@ -9332,13 +9350,16 @@ function getClinicBusData(config) {
             try {
                 if (typeof raw === 'object') {
                     Object.assign(busData, raw);
-                } else if (raw.startsWith('{')) {
-                    Object.assign(busData, JSON.parse(raw));
+                    if (raw.name) busData.name = raw.name;
+                } else if (typeof raw === 'string' && raw.trim().startsWith('{')) {
+                    const parsed = JSON.parse(raw);
+                    Object.assign(busData, parsed);
+                    if (parsed.name) busData.name = parsed.name;
                 } else {
-                    busData.name = raw;
+                    busData.name = formatHeaderText(raw);
                 }
             } catch(e) {
-                busData.name = raw;
+                busData.name = String(raw);
             }
         }
         if (config.logo_url || config.logoUrl) busData.logoUrl = config.logo_url || config.logoUrl;
@@ -9346,7 +9367,7 @@ function getClinicBusData(config) {
     }
 
     const savedName = localStorage.getItem('dental_clinic_name');
-    if (savedName && savedName.trim()) busData.name = savedName.trim();
+    if (savedName && savedName.trim() && !savedName.trim().startsWith('{')) busData.name = savedName.trim();
     const savedAddr = localStorage.getItem('dental_clinic_address');
     if (savedAddr && savedAddr.trim()) busData.address = savedAddr.trim();
     const savedPhone = localStorage.getItem('dental_clinic_phone');
@@ -9436,8 +9457,8 @@ function buildMedicalDocumentHTML(opts) {
                         </div>
                     `}
                 </div>
-                <div style="text-align: right; min-width: 260px; flex-shrink: 0;">
-                    <h1 style="margin: 0 0 4px 0; font-size: 1.4rem; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; white-space: nowrap;">${docTitle}</h1>
+                <div style="text-align: right; min-width: 200px; flex-shrink: 0;">
+                    <h1 style="margin: 0 0 4px 0; font-size: 1.4rem; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">${docTitle}</h1>
                     <div style="font-size: 0.78rem; color: #475569; display: flex; flex-direction: column; gap: 2px;">
                         <div><span style="color: #64748b;">Fecha de Emisión:</span> <strong style="color: #0f172a;">${emissionDate}</strong></div>
                         <div><span style="color: #64748b;">N° de Control:</span> <strong style="color: #0f172a; letter-spacing: 0.03em;">${controlNumber}</strong></div>
@@ -9446,8 +9467,8 @@ function buildMedicalDocumentHTML(opts) {
                 </div>
             </div>
 
-            <!-- 2. 3-Column Info Cards -->
-            <div style="display: grid; grid-template-columns: 1.15fr 1.15fr 1fr; gap: 10px; margin-bottom: 8px; font-size: 0.76rem;">
+            <!-- 2. 3-Column Info Cards (Responsive Auto-Fit) -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 8px; font-size: 0.76rem;">
                 <!-- Col 1: Consultorio -->
                 <div>
                     <div style="font-size: 0.66rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1px;">CONSULTORIO ODONTOLÓGICO</div>
@@ -9488,8 +9509,8 @@ function buildMedicalDocumentHTML(opts) {
                 </tbody>
             </table>
 
-            <!-- 4. Terms and Totals Split Section -->
-            <div style="display: grid; grid-template-columns: 1.35fr 1fr; gap: 10px; margin-bottom: 8px; align-items: start;">
+            <!-- 4. Terms and Totals Split Section (Responsive Auto-Fit) -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; margin-bottom: 8px; align-items: start;">
                 <!-- Left: Terms & Banking Box -->
                 <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 10px; font-size: 0.75rem; line-height: 1.3;">
                     <strong style="font-size: 0.80rem; color: #0f172a; display: block; margin-bottom: 3px;">Términos y Datos de Pago</strong>

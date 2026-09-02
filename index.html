@@ -1644,9 +1644,9 @@
 
                         <!-- Live Preview and Document Templates -->
                         <div class="card flex-column">
-                            <div class="card-header border-bottom" style="flex-wrap: wrap;">
+                            <div class="card-header border-bottom" style="flex-wrap: wrap; gap: 10px; align-items: center;">
                                 <h3><i class="fa-solid fa-eye text-green"></i> Previsualización en Tiempo Real</h3>
-                                <div class="subtabs" style="margin-left: auto;">
+                                <div class="subtabs" style="margin-left: auto; display: flex; flex-wrap: wrap; gap: 6px;">
                                     <button class="subtab-btn active" data-preview-template="factura">Factura</button>
                                     <button class="subtab-btn" data-preview-template="cotizacion">Cotización</button>
                                     <button class="subtab-btn" data-preview-template="recibo">Recibo</button>
@@ -1654,18 +1654,20 @@
                                 </div>
                             </div>
                             <div class="card-body flex-column gap-15">
-                                <div class="flex-row gap-10">
-                                    <button class="btn btn-sm btn-success flex-1" id="btn-print-preview-stationery">
+                                <div class="flex-row gap-10" style="flex-wrap: wrap;">
+                                    <button class="btn btn-sm btn-success flex-1" id="btn-print-preview-stationery" style="min-width: 140px;">
                                         <i class="fa-solid fa-print"></i> Imprimir Documento
                                     </button>
-                                    <button class="btn btn-sm btn-primary flex-1" id="btn-pdf-preview-stationery">
+                                    <button class="btn btn-sm btn-primary flex-1" id="btn-pdf-preview-stationery" style="min-width: 140px;">
                                         <i class="fa-solid fa-file-pdf"></i> Descargar PDF
                                     </button>
                                 </div>
 
-                                <!-- Previsualizador en vivo -->
-                                <div id="stationery-live-paper" style="background: white; color: #1e293b; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px; font-size: 0.85rem; box-shadow: var(--shadow-soft); overflow-y: auto; max-height: 550px;">
-                                    <!-- Dynamic content based on selected template and fields -->
+                                <!-- Previsualizador en vivo con maqueta de hoja A4 responsiva -->
+                                <div id="stationery-live-paper-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; border: 1px solid #cbd5e1; background: #64748b; padding: 12px 8px;">
+                                    <div id="stationery-live-paper" style="background: white; color: #1e293b; border-radius: 6px; padding: 20px; font-size: 0.85rem; box-shadow: 0 10px 25px rgba(0,0,0,0.2); min-width: 280px; max-width: 780px; margin: 0 auto; box-sizing: border-box; overflow: hidden;">
+                                        <!-- Dynamic content based on selected template and fields -->
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -3481,13 +3483,13 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=175"></script>
-    <script src="supabaseClient.js?v=175"></script>
-    <script src="odontogram.js?v=175"></script>
-    <script src="signature.js?v=175"></script>
-    <script src="whatsapp.js?v=175"></script>
-    <script src="kardex.js?v=175"></script>
-    <script src="app.js?v=175"></script>
-    <script src="tutorial.js?v=175"></script>
+    <script src="seededData.js?v=176"></script>
+    <script src="supabaseClient.js?v=176"></script>
+    <script src="odontogram.js?v=176"></script>
+    <script src="signature.js?v=176"></script>
+    <script src="whatsapp.js?v=176"></script>
+    <script src="kardex.js?v=176"></script>
+    <script src="app.js?v=176"></script>
+    <script src="tutorial.js?v=176"></script>
 </body>
 </html>
