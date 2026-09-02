@@ -16,13 +16,18 @@ window.onerror = function (msg, url, lineNo, columnNo, error) {
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Initialize Persistent State, Branding & Live Exchange Rate API
+    // 1. Instant local storage seed & initial render setup
     initStorage();
-    if (typeof SupabaseDataService !== 'undefined' && SupabaseDataService.syncLocalTrashAndAuditToCloud) {
-        await SupabaseDataService.syncLocalTrashAndAuditToCloud();
-    }
-    await loadClinicBranding();
-    fetchLiveExchangeRate();
+    initTheme();
+
+    // Background unblocked sync
+    setTimeout(() => {
+        if (typeof SupabaseDataService !== 'undefined' && SupabaseDataService.syncLocalTrashAndAuditToCloud) {
+            SupabaseDataService.syncLocalTrashAndAuditToCloud();
+        }
+        loadClinicBranding();
+        fetchLiveExchangeRate();
+    }, 20);
 
     // 2. Initialize Theme (Light Mode Default)
     initTheme();

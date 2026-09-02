@@ -274,62 +274,95 @@ class SupabaseDataService {
     // ==========================================
     // 3. PATIENTS, MEDICAL HISTORIES, EVOLUTIONS & PHOTOS
     // ==========================================
-    static async getPatients() {
+    // Cache & Promise trackers for instant 0ms rendering
+    static _patientsPromise = null;
+    static _patientsCacheTime = 0;
+
+    static async getPatients(forceRefresh = false) {
+        const local = JSON.parse(localStorage.getItem('dental_patients')) || (typeof INITIAL_PATIENTS !== 'undefined' ? INITIAL_PATIENTS : []);
+        
         if (!this.isCloudConnected()) {
-            return JSON.parse(localStorage.getItem('dental_patients')) || (typeof INITIAL_PATIENTS !== 'undefined' ? INITIAL_PATIENTS : []);
+            return local;
         }
-        try {
-            const { data, error } = await supabaseClient.from('patients').select('*');
-            if (error) throw error;
-            if (data) {
-                // Filter out system configuration or invoice/budget records stored in patients table
-                const realPatients = data.filter(p => {
-                    if (!p.id) return false;
-                    const idStr = String(p.id);
-                    if (idStr.startsWith('SYS-') || idStr.startsWith('PRE-') || idStr.startsWith('FAC-') || idStr.startsWith('INV-') || idStr.startsWith('BILL-')) return false;
-                    if (p.odontogram_data && (p.odontogram_data._is_system_config || p.odontogram_data._is_invoice || p.odontogram_data._is_bill)) return false;
-                    return true;
-                });
 
-                const mapped = realPatients.map(p => {
-                    const od = p.odontogram_data || {};
-                    const ext = od._app_extended || {};
+        const now = Date.now();
+        if (!forceRefresh && this._patientsCacheTime && (now - this._patientsCacheTime < 4000)) {
+            return local;
+        }
 
-                    // Extract actual odontogram tooth states by stripping metadata keys
-                    const toothStates = {};
-                    Object.keys(od).forEach(k => {
-                        if (!k.startsWith('_')) toothStates[k] = od[k];
+        if (this._patientsPromise && !forceRefresh) {
+            return local;
+        }
+
+        this._patientsPromise = (async () => {
+            try {
+                const { data, error } = await supabaseClient.from('patients').select('*');
+                if (error) throw error;
+                if (data) {
+                    const realPatients = data.filter(p => {
+                        if (!p.id) return false;
+                        const idStr = String(p.id);
+                        if (idStr.startsWith('SYS-') || idStr.startsWith('PRE-') || idStr.startsWith('FAC-') || idStr.startsWith('INV-') || idStr.startsWith('BILL-')) return false;
+                        if (p.odontogram_data && (p.odontogram_data._is_system_config || p.odontogram_data._is_invoice || p.odontogram_data._is_bill)) return false;
+                        return true;
                     });
 
-                    return {
-                        id: p.id,
-                        fullname: p.fullname,
-                        birthdate: p.birthdate,
-                        phone: p.phone,
-                        email: p.email || '',
-                        occupation: p.occupation || '',
-                        allergies: p.allergies || [],
-                        systemic: p.systemic || [],
-                        medication: p.medication || '',
-                        emergencyContact: p.emergency_contact || '',
-                        status: p.status || 'Activo',
-                        odontogramData: toothStates,
-                        clinicalNotes: p.clinical_notes || ext.clinicalNotes || (p.metadata && p.metadata._fallback_clinical_notes) || [],
-                        sessions: ext.sessions || ext.clinicalNotes || p.clinical_notes || [],
-                        photos: p.photos || ext.photos || (p.metadata && p.metadata._fallback_photos) || [],
-                        payments: p.payments || ext.payments || (p.metadata && p.metadata._fallback_payments) || [],
-                        metadata: p.metadata || ext.metadata || {}
-                    };
-                });
+                    const mapped = realPatients.map(p => {
+                        const od = p.odontogram_data || {};
+                        const ext = od._app_extended || {};
+                        const toothStates = {};
+                        Object.keys(od).forEach(k => {
+                            if (!k.startsWith('_')) toothStates[k] = od[k];
+                        });
 
-                localStorage.setItem('dental_patients', JSON.stringify(mapped));
-                return mapped;
+                        return {
+                            id: p.id,
+                            fullname: p.fullname,
+                            birthdate: p.birthdate,
+                            phone: p.phone,
+                            email: p.email || '',
+                            occupation: p.occupation || '',
+                            allergies: p.allergies || [],
+                            systemic: p.systemic || [],
+                            medication: p.medication || '',
+                            emergencyContact: p.emergency_contact || '',
+                            status: p.status || 'Activo',
+                            odontogramData: toothStates,
+                            clinicalNotes: p.clinical_notes || ext.clinicalNotes || (p.metadata && p.metadata._fallback_clinical_notes) || [],
+                            sessions: ext.sessions || ext.clinicalNotes || p.clinical_notes || [],
+                            photos: p.photos || ext.photos || (p.metadata && p.metadata._fallback_photos) || [],
+                            payments: p.payments || ext.payments || (p.metadata && p.metadata._fallback_payments) || [],
+                            metadata: p.metadata || ext.metadata || {}
+                        };
+                    });
+
+                    localStorage.setItem('dental_patients', JSON.stringify(mapped));
+                    this._patientsCacheTime = Date.now();
+                    return mapped;
+                }
+                return local;
+            } catch (err) {
+                console.error('Supabase getPatients Error:', err);
+                return local;
+            } finally {
+                this._patientsPromise = null;
             }
-            return [];
-        } catch (err) {
-            console.error('Supabase getPatients Error:', err);
-            return JSON.parse(localStorage.getItem('dental_patients')) || (typeof INITIAL_PATIENTS !== 'undefined' ? INITIAL_PATIENTS : []);
+        })();
+
+        if (forceRefresh) {
+            return await this._patientsPromise;
         }
+
+        // Trigger background revalidation of UI components if cloud data changes
+        this._patientsPromise.then(freshData => {
+            if (freshData && freshData.length > 0) {
+                if (typeof renderPatientsTable === 'function') renderPatientsTable();
+                if (typeof renderEHRView === 'function') renderEHRView();
+                if (typeof renderDashboard === 'function') renderDashboard();
+            }
+        });
+
+        return local;
     }
 
     static async savePatient(patientObj) {
@@ -398,32 +431,62 @@ class SupabaseDataService {
     // ==========================================
     // 4. APPOINTMENTS
     // ==========================================
-    static async getAppointments() {
+    static _apptsPromise = null;
+    static _apptsCacheTime = 0;
+
+    static async getAppointments(forceRefresh = false) {
+        const local = JSON.parse(localStorage.getItem('dental_appointments')) || (typeof INITIAL_APPOINTMENTS !== 'undefined' ? INITIAL_APPOINTMENTS : []);
+        
         if (!this.isCloudConnected()) {
-            return JSON.parse(localStorage.getItem('dental_appointments')) || (typeof INITIAL_APPOINTMENTS !== 'undefined' ? INITIAL_APPOINTMENTS : []);
+            return local;
         }
-        try {
-            const { data, error } = await supabaseClient.from('appointments').select('*');
-            if (error) throw error;
-            if (data) {
-                const mapped = data.map(a => ({
-                    id: a.id,
-                    patientId: a.patient_id,
-                    patientName: a.patient_name,
-                    time: a.appointment_time,
-                    treatment: a.treatment,
-                    status: a.status || 'Programada',
-                    isTomorrow: a.is_tomorrow || false,
-                    date: a.appointment_date || (a.is_tomorrow ? 'tomorrow' : 'today')
-                }));
-                localStorage.setItem('dental_appointments', JSON.stringify(mapped));
-                return mapped;
+
+        const now = Date.now();
+        if (!forceRefresh && this._apptsCacheTime && (now - this._apptsCacheTime < 4000)) {
+            return local;
+        }
+
+        if (this._apptsPromise && !forceRefresh) {
+            return local;
+        }
+
+        this._apptsPromise = (async () => {
+            try {
+                const { data, error } = await supabaseClient.from('appointments').select('*');
+                if (error) throw error;
+                if (data) {
+                    const mapped = data.map(a => ({
+                        id: a.id,
+                        patientId: a.patient_id,
+                        patientName: a.patient_name,
+                        time: a.appointment_time,
+                        treatment: a.treatment,
+                        status: a.status || 'Programada',
+                        isTomorrow: a.is_tomorrow || false,
+                        date: a.appointment_date || (a.is_tomorrow ? 'tomorrow' : 'today')
+                    }));
+                    localStorage.setItem('dental_appointments', JSON.stringify(mapped));
+                    this._apptsCacheTime = Date.now();
+                    return mapped;
+                }
+                return local;
+            } catch (err) {
+                console.error('Supabase getAppointments Error:', err);
+                return local;
+            } finally {
+                this._apptsPromise = null;
             }
-            return [];
-        } catch (err) {
-            console.error('Supabase getAppointments Error:', err);
-            return JSON.parse(localStorage.getItem('dental_appointments')) || (typeof INITIAL_APPOINTMENTS !== 'undefined' ? INITIAL_APPOINTMENTS : []);
+        })();
+
+        if (forceRefresh) {
+            return await this._apptsPromise;
         }
+
+        this._apptsPromise.then(fresh => {
+            if (fresh && typeof renderAgendaView === 'function') renderAgendaView();
+        });
+
+        return local;
     }
 
     static async saveAppointment(appointmentObj) {
