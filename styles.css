@@ -286,7 +286,26 @@ h4 { font-size: 1rem; }
     border-left: none !important;
 }
 
-.nav-item.active i {
+.nav-item.active i,
+.nav-item.active strong,
+.nav-item.active span,
+.nav-item.active div,
+.nav-item.active h2,
+.nav-item.active h3,
+.nav-item.active p {
+    color: #ffffff !important;
+}
+
+.nav-item.active small,
+.nav-item.active .text-muted,
+.nav-item.active span.text-muted {
+    color: rgba(255, 255, 255, 0.88) !important;
+}
+
+.nav-item.active:hover,
+.nav-item.active:hover strong,
+.nav-item.active:hover small,
+.nav-item.active:hover i {
     color: #ffffff !important;
 }
 
@@ -2804,26 +2823,35 @@ html, body {
 
 /* Custom Timeline Items styling */
 .timeline-item {
-    background: var(--bg-card) !important;
-    border: 1px solid var(--border-color) !important;
-    border-left: 4px solid var(--primary-cyan) !important;
-    border-radius: var(--radius-sm) !important;
+    background: #ffffff !important;
+    border: 1px solid rgba(226, 232, 240, 0.9) !important;
+    border-left: 4px solid #0284c7 !important;
+    border-radius: 14px !important;
     padding: 14px 18px !important;
     margin-bottom: 12px !important;
+    box-shadow: 0 3px 12px rgba(15, 23, 42, 0.04) !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.timeline-item:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08) !important;
 }
 
 .timeline-item.timeline-item-pending {
     border-left: 4px solid #f59e0b !important;
-    background: rgba(245, 158, 11, 0.05) !important;
-    border-style: dashed !important;
+    background: rgba(245, 158, 11, 0.04) !important;
 }
 
+.timeline-item.timeline-item-attended,
 .timeline-item.timeline-item-completed {
     border-left: 4px solid #10b981 !important;
+    background: rgba(16, 185, 129, 0.03) !important;
 }
 
-.dark-theme .timeline-item.timeline-item-pending {
-    background: rgba(245, 158, 11, 0.1) !important;
+.dark-theme .timeline-item {
+    background: #0f172a !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 .timeline-meta {
@@ -2835,7 +2863,7 @@ html, body {
 
 .timeline-time {
     font-weight: 700 !important;
-    color: var(--text-heading) !important;
+    color: #0f172a !important;
     font-size: 0.88rem !important;
 }
 
@@ -2846,24 +2874,32 @@ html, body {
 }
 
 .timeline-patient-name {
-    font-size: 0.95rem !important;
-    font-weight: 600 !important;
-    color: var(--text-heading) !important;
-    margin-bottom: 2px !important;
+    font-size: 1rem !important;
+    font-weight: 800 !important;
+    color: #0f172a !important;
+    margin-bottom: 3px !important;
     text-align: left !important;
 }
 
-.timeline-patient-id {
+.timeline-patient-name strong {
+    color: #0f172a !important;
+}
+
+.timeline-patient-id,
+.timeline-patient-id small {
     font-size: 0.82rem !important;
-    color: var(--text-muted) !important;
+    color: #475569 !important;
     margin-bottom: 4px !important;
     text-align: left !important;
+    font-weight: 600 !important;
 }
 
-.timeline-treatment {
+.timeline-treatment,
+.timeline-treatment small {
     font-size: 0.82rem !important;
-    color: var(--text-muted) !important;
+    color: #475569 !important;
     text-align: left !important;
+    font-weight: 500 !important;
 }
 
 /* Printing and Document styling */
