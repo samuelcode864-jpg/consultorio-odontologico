@@ -1638,7 +1638,7 @@ window.loadBudgetIntoEditor = async function(budgetId) {
         serviceCode: item.code || item.serviceCode || '',
         name: item.name,
         price: item.price,
-        specialist: item.specialist || 'Dr. Carlos Mendoza'
+        specialist: item.specialist || (patient ? patient.assignedDoctor : null) || 'Dr. Rodrigo Navas'
     }));
 
     currentBudgetItems = deduplicateBudgetItems(rawItems);
@@ -1751,7 +1751,7 @@ async function renderOdontogramView() {
             document.getElementById('info-patient-name').innerText = patient.fullname || 'Paciente';
             document.getElementById('info-patient-cedula').innerText = patient.id || 'V-00000000';
             document.getElementById('info-patient-category').innerText = patient.category || 'Privado';
-            document.getElementById('info-patient-doctor').innerText = patient.assignedDoctor || 'Dr. Carlos Mendoza';
+            document.getElementById('info-patient-doctor').innerText = patient.assignedDoctor || 'Dr. Rodrigo Navas';
 
             const searchInput = document.getElementById('od-patient-search-input');
             if (searchInput && !searchInput.value) {
@@ -1795,7 +1795,7 @@ async function renderOdontogramView() {
         document.getElementById('info-patient-name').innerText = 'Paciente';
         document.getElementById('info-patient-cedula').innerText = 'V-00000000';
         document.getElementById('info-patient-category').innerText = 'Privado';
-        document.getElementById('info-patient-doctor').innerText = 'Dr. Carlos Mendoza';
+        document.getElementById('info-patient-doctor').innerText = 'Dr. Rodrigo Navas';
 
         const searchInput = document.getElementById('od-patient-search-input');
         if (searchInput) searchInput.value = '';
