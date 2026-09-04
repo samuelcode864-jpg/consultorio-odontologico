@@ -6695,6 +6695,7 @@ function initGlobalEvents() {
         const habitOthers = getVal('p-habit-others');
         const habitMouthbreather = getChecked('p-habit-mouthbreather');
         const habitFrequency = getVal('p-habit-frequency');
+        const habitIntensity = getVal('p-habit-intensity');
         // Collect sessions data from step 4
         const sessionsData = [];
         const planSessionsContainer = document.getElementById('plan-sessions-container');
