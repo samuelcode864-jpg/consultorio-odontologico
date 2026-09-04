@@ -1335,8 +1335,165 @@ async function renderPatientSearchResults(query) {
     resultsContainer.style.display = 'block';
 }
 
+async function saveCurrentBudgetAsDraft(patientIdToSave) {
+    if (!patientIdToSave) return;
+    try {
+        const patients = await SupabaseDataService.getPatients();
+        const patient = patients.find(p => String(p.id) === String(patientIdToSave));
+        if (!patient) return;
+
+        const odData = window.odontogram ? window.odontogram.getData() : {};
+        const discInput = document.getElementById('budget-discount-input');
+        const notesInput = document.getElementById('budget-notes');
+        const termsInput = document.getElementById('payment-mode-select');
+        const payMethodSelect = document.getElementById('budget-payment-method');
+        const consentInput = document.getElementById('budget-consent-text');
+
+        const docSig = (window.doctorSigPad && !window.doctorSigPad.isEmpty()) ? window.doctorSigPad.toDataURL() : null;
+        const patSig = (window.patientSigPad && !window.patientSigPad.isEmpty()) ? window.patientSigPad.toDataURL() : (patient.metadata?.patientSignature || null);
+
+        const discountPct = parseFloat(discInput ? discInput.value : 0) || 0;
+        const notes = notesInput ? notesInput.value : '';
+        const paymentMethod = payMethodSelect ? payMethodSelect.value : 'pagomovil';
+        const paymentTerms = termsInput ? termsInput.value : 'Contado';
+        const consentText = consentInput ? (consentInput.value || consentInput.innerText) : '';
+
+        let subtotalUSD = 0;
+        (currentBudgetItems || []).forEach(item => {
+            subtotalUSD += (parseFloat(item.price) || 0);
+        });
+        const discountAmountUSD = subtotalUSD * (discountPct / 100);
+        const totalUSD = Math.max(0, subtotalUSD - discountAmountUSD);
+        const rate = typeof getExchangeRate === 'function' ? getExchangeRate() : 1;
+
+        const budgetId = activeEditingBudgetId || `PRE-${Date.now().toString().slice(-6)}`;
+
+        const budgetObj = {
+            id: budgetId,
+            patientId: patientIdToSave,
+            invoiceDate: new Date().toISOString().split('T')[0],
+            paymentMethod: paymentMethod,
+            paymentTerms: paymentTerms,
+            currency: 'REF',
+            items: (currentBudgetItems || []).map(item => ({
+                tooth: item.tooth,
+                face: item.face || 'Gnl',
+                serviceCode: item.serviceCode || item.code || '',
+                name: item.name,
+                price: parseFloat(item.price) || 0,
+                specialist: item.specialist || patient.assignedDoctor || 'Dr. Rodrigo Navas'
+            })),
+            subtotal: subtotalUSD,
+            discountPct: discountPct,
+            discountUSD: discountAmountUSD,
+            totalRef: totalUSD,
+            totalUSD: totalUSD,
+            totalBcv: totalUSD * rate,
+            status: 'Borrador',
+            footerText: notes,
+            doctorSignature: docSig,
+            patientSignature: patSig,
+            odontogramData: odData,
+            metadata: {
+                consentText: consentText,
+                discountPct: discountPct,
+                doctorSignature: docSig,
+                patientSignature: patSig
+            }
+        };
+
+        await SupabaseDataService.saveInvoice(budgetObj);
+
+        // Also persist in patient metadata
+        patient.odontogramData = odData;
+        if (!patient.metadata) patient.metadata = {};
+        patient.metadata.draftBudget = {
+            id: budgetId,
+            items: currentBudgetItems || [],
+            discountPct: discountPct,
+            notes: notes,
+            terms: paymentTerms,
+            paymentMethod: paymentMethod,
+            consentText: consentText,
+            doctorSignature: docSig,
+            patientSignature: patSig
+        };
+        if (patSig) patient.metadata.patientSignature = patSig;
+        await SupabaseDataService.savePatient(patient);
+    } catch(err) {
+        console.error("Error saving budget draft:", err);
+    }
+}
+
 window.selectPatientAndLoadApprovedBudget = async function(patientId) {
-    // Asegurar cambio inmediato al contenedor editor del Odontograma
+    const currentActiveId = getActivePatientId();
+
+    // Check if there are unsaved budget items for the currently active patient before switching
+    if (currentActiveId && String(currentActiveId) !== String(patientId) && currentBudgetItems && currentBudgetItems.length > 0) {
+        const patients = await SupabaseDataService.getPatients();
+        const prevPatient = patients.find(p => String(p.id) === String(currentActiveId));
+        const prevPatientName = prevPatient ? prevPatient.fullname : `Paciente (${currentActiveId})`;
+
+        // Check if the current budget is already an approved budget
+        const invoices = await SupabaseDataService.getInvoices();
+        const existingInvoice = activeEditingBudgetId ? invoices.find(inv => String(inv.id) === String(activeEditingBudgetId)) : null;
+        const isAlreadyApproved = existingInvoice && (String(existingInvoice.status).toLowerCase() === 'aprobado' || String(existingInvoice.status).toLowerCase() === 'approved' || String(existingInvoice.status).toLowerCase() === 'completada' || String(existingInvoice.status).toLowerCase() === 'finalizado');
+
+        if (!isAlreadyApproved || !activeEditingBudgetId) {
+            const result = await Swal.fire({
+                title: `<i class="fa-solid fa-triangle-exclamation text-amber" style="color: #f59e0b; margin-right: 8px;"></i> Presupuesto no guardado`,
+                html: `
+                    <div style="text-align: left; font-size: 0.95rem; line-height: 1.5; color: var(--text-main, #334155);">
+                        <div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; padding: 10px 14px; border-radius: 6px; margin-bottom: 12px;">
+                            Estás trabajando en un presupuesto para <strong>${prevPatientName}</strong> con <strong>${currentBudgetItems.length}</strong> servicio(s) que aún no ha sido formalmente guardado.
+                        </div>
+                        <p style="margin: 0; color: var(--text-muted, #64748b);">¿Deseas guardar este presupuesto como borrador antes de cambiar de paciente?</p>
+                    </div>
+                `,
+                icon: 'warning',
+                showCancelButton: true,
+                showDenyButton: true,
+                confirmButtonText: '<i class="fa-solid fa-floppy-disk"></i> Guardar como Borrador',
+                denyButtonText: '<i class="fa-solid fa-trash-can"></i> Descartar y Cambiar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#0d9488',
+                denyButtonColor: '#e11d48',
+                cancelButtonColor: '#64748b',
+                focusCancel: true
+            });
+
+            if (result.isDismissed) {
+                // Cancel: keep current patient and restore UI
+                const searchInput = document.getElementById('od-patient-search-input');
+                if (searchInput && prevPatient) {
+                    searchInput.value = prevPatient.fullname;
+                }
+                const selectDropdown = document.getElementById('od-patient-select');
+                if (selectDropdown) {
+                    selectDropdown.value = currentActiveId;
+                }
+                return;
+            }
+
+            if (result.isConfirmed) {
+                // Save as draft
+                await saveCurrentBudgetAsDraft(currentActiveId);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Guardado como Borrador',
+                    text: `El presupuesto de ${prevPatientName} se guardó exitosamente.`,
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+            } else if (result.isDenied) {
+                // Discard unsaved changes
+                currentBudgetItems = [];
+                activeEditingBudgetId = null;
+            }
+        }
+    }
+
+    // Ensure subview is editor
     localStorage.setItem('dental_odontogram_subview', 'editor');
     document.documentElement.setAttribute('data-odontogram-subview', 'editor');
     const listContainer = document.getElementById('odontogram-list-container');
@@ -7448,30 +7605,7 @@ function initGlobalEvents() {
     const btnNewBudget = document.getElementById('btn-new-budget');
     if (btnNewBudget) {
         btnNewBudget.onclick = async () => {
-            activeEditingBudgetId = null;
-            setActivePatientId(null);
-            currentBudgetItems = [];
-            localStorage.removeItem('dental_anonymous_odontogram_data');
-            localStorage.removeItem('dental_anonymous_draft_budget');
-            if (window.odontogram) window.odontogram.setData({});
-            
-            const listContainer = document.getElementById('odontogram-list-container');
-            const editorContainer = document.getElementById('odontogram-editor-container');
-            if (listContainer) listContainer.classList.add('hidden');
-            if (editorContainer) editorContainer.classList.remove('hidden');
-
-            await renderOdontogramView();
-            
-            document.getElementById('budget-notes').value = '';
-            document.getElementById('budget-discount-input').value = '0';
-            
-            if (window.doctorSigPad) {
-                window.doctorSigPad.clear();
-                autoLoadDoctorSignatureInBudget();
-            }
-            if (window.patientSigPad) window.patientSigPad.clear();
-            
-            renderBudgetTable();
+            await window.selectPatientAndLoadApprovedBudget(null);
         };
     }
 
