@@ -1838,6 +1838,8 @@ async function renderOdontogramView() {
                     const patient = patients.find(p => String(p.id) === String(activeId));
                     if (patient && patient.metadata) {
                         delete patient.metadata.draftBudget;
+                        delete patient.metadata.sessionsPlan;
+                        delete patient.metadata.initialTreatmentPlan;
                         patient.odontogramData = {};
                         await SupabaseDataService.savePatient(patient);
                     }
@@ -6650,13 +6652,13 @@ function initGlobalEvents() {
         const habitOthers = getVal('p-habit-others');
         const habitMouthbreather = getChecked('p-habit-mouthbreather');
         const habitFrequency = getVal('p-habit-frequency');
-        const habitIntensity = getVal('p-habit-intensity');
-
         // Collect sessions data from step 4
         const sessionsData = [];
         const planSessionsContainer = document.getElementById('plan-sessions-container');
         const bItems = window.currentPlannerBudgetItems || (currentBudgetItems && currentBudgetItems.length > 0 ? currentBudgetItems : (window.currentBudgetItems || []));
-        if (planSessionsContainer && bItems.length > 0) {
+        const step4WasRendered = planSessionsContainer && planSessionsContainer.querySelectorAll('.session-date-input').length > 0;
+
+        if (step4WasRendered && bItems.length > 0) {
             const sessionBlocks = planSessionsContainer.querySelectorAll('.session-date-input');
             sessionBlocks.forEach(input => {
                 const sessionNum = parseInt(input.dataset.session);
@@ -6745,7 +6747,7 @@ function initGlobalEvents() {
                         initTreatmentName: getVal('p-init-treatment-name'),
                         initTreatmentSessions: getVal('p-init-treatment-sessions'),
                         initTreatmentInterval: getVal('p-init-treatment-interval'),
-                        sessionsPlan: (sessionsData && sessionsData.length > 0) ? sessionsData : (existing.metadata && existing.metadata.sessionsPlan)
+                        sessionsPlan: step4WasRendered ? sessionsData : ((existing.metadata && existing.metadata.sessionsPlan) || [])
                     }
                 };
             } else {
@@ -8457,36 +8459,37 @@ function renderSessionsPlanner() {
 
     let budgetItems = [];
     const p = window.currentEditingPatientObj;
+    const activePatientId = getActivePatientId();
 
-    // Isolate budget items strictly per patient
-    if (p) {
-        if (p.metadata?.sessionsPlan && Array.isArray(p.metadata.sessionsPlan)) {
-            p.metadata.sessionsPlan.forEach(s => {
-                if (s.services && Array.isArray(s.services)) {
-                    s.services.forEach(srv => {
-                        if (srv && srv.name && !budgetItems.some(e => e.name === srv.name && e.tooth === srv.tooth)) {
-                            budgetItems.push(srv);
-                        }
-                    });
-                }
-            });
+    // 1. Prioridad Absoluta: Si estamos en el módulo de presupuesto con un paciente activo
+    if (p && String(p.id) === String(activePatientId)) {
+        if (Array.isArray(currentBudgetItems) && currentBudgetItems.length > 0) {
+            budgetItems = currentBudgetItems.map(item => ({ ...item }));
+        } else {
+            // El presupuesto en curso está vacío o fue limpiado
+            budgetItems = [];
         }
-        if (budgetItems.length === 0 && p.metadata?.initTreatmentName) {
-            budgetItems = [{
-                key: 'init-proc-1',
-                tooth: 'General',
-                face: 'Gnl',
-                name: p.metadata.initTreatmentName,
-                price: 0
-            }];
-        }
-        if (budgetItems.length === 0 && currentBudgetItems && currentBudgetItems.length > 0 && p.id === getActivePatientId()) {
-            budgetItems = currentBudgetItems;
-        }
-    } else {
-        if (currentBudgetItems && currentBudgetItems.length > 0 && !getActivePatientId()) {
-            budgetItems = currentBudgetItems;
-        }
+    } else if (Array.isArray(currentBudgetItems) && currentBudgetItems.length > 0 && !activePatientId) {
+        budgetItems = currentBudgetItems.map(item => ({ ...item }));
+    } else if (p && p.metadata?.sessionsPlan && Array.isArray(p.metadata.sessionsPlan) && p.metadata.sessionsPlan.length > 0) {
+        // 2. Si se abre desde el directorio general de pacientes (no presupuesto activo): leer plan guardado
+        p.metadata.sessionsPlan.forEach(s => {
+            if (s.services && Array.isArray(s.services)) {
+                s.services.forEach(srv => {
+                    if (srv && srv.name && !budgetItems.some(e => e.name === srv.name && (e.tooth === srv.tooth || (!e.tooth && !srv.tooth)))) {
+                        budgetItems.push({ ...srv });
+                    }
+                });
+            }
+        });
+    } else if (p && p.metadata?.initTreatmentName) {
+        budgetItems = [{
+            key: 'init-proc-1',
+            tooth: 'General',
+            face: 'Gnl',
+            name: p.metadata.initTreatmentName,
+            price: 0
+        }];
     }
 
     window.currentPlannerBudgetItems = budgetItems;
@@ -8512,42 +8515,47 @@ function renderSessionsPlanner() {
 
     // Preserve current selections, dates and times before redrawing
     const prevData = {};
-    
-    // First, populate from saved patient sessionsPlan if editing existing patient
-    if (p && p.metadata?.sessionsPlan && Array.isArray(p.metadata.sessionsPlan)) {
-        p.metadata.sessionsPlan.forEach(s => {
-            const sNum = s.sessionNumber;
+    const isAlreadyRendered = container.querySelectorAll('.session-date-input').length > 0;
+
+    if (isAlreadyRendered) {
+        // Captura fiel y directa de lo que el usuario tiene marcado / desmarcado en el DOM
+        for (let i = 1; i <= sessionsCount; i++) {
+            const dateInp = container.querySelector(`.session-date-input[data-session="${i}"]`);
+            const timeSelect = container.querySelector(`.session-time-select[data-session="${i}"]`);
+            const checkedBoxes = container.querySelectorAll(`.session-service-checkbox[data-session="${i}"]:checked`);
             const selIdxs = [];
-            if (s.services && Array.isArray(s.services)) {
-                s.services.forEach(srv => {
-                    const idx = budgetItems.findIndex(b => b.name === srv.name && (b.tooth === srv.tooth || !srv.tooth));
-                    if (idx >= 0) selIdxs.push(idx.toString());
-                });
-            }
-            prevData[sNum] = {
-                date: s.date || '',
-                time: s.time || '09:00 AM',
+            checkedBoxes.forEach(cb => {
+                const idxStr = cb.dataset.itemIdx;
+                if (idxStr !== undefined && idxStr !== null) {
+                    selIdxs.push(idxStr.toString());
+                }
+            });
+            prevData[i] = {
+                date: dateInp ? dateInp.value : '',
+                time: timeSelect ? timeSelect.value : '09:00 AM',
                 selectedIdxs: selIdxs
             };
-        });
-    }
-
-    // Override with any live form input if previously rendered
-    container.querySelectorAll('.session-date-input').forEach(input => {
-        const sNum = input.dataset.session;
-        const timeSelect = container.querySelector(`.session-time-select[data-session="${sNum}"]`);
-        if (!prevData[sNum]) prevData[sNum] = { selectedIdxs: [] };
-        if (input.value) prevData[sNum].date = input.value;
-        if (timeSelect) prevData[sNum].time = timeSelect.value;
-    });
-    container.querySelectorAll('.session-service-checkbox:checked').forEach(cb => {
-        const sNum = cb.dataset.session;
-        const idx = cb.dataset.itemIdx;
-        if (!prevData[sNum]) prevData[sNum] = { selectedIdxs: [] };
-        if (!prevData[sNum].selectedIdxs.includes(idx)) {
-            prevData[sNum].selectedIdxs.push(idx);
         }
-    });
+    } else {
+        // Renderizado inicial: Si el paciente tiene sesiones guardadas que coincidan con budgetItems
+        if (p && p.metadata?.sessionsPlan && Array.isArray(p.metadata.sessionsPlan) && (!currentBudgetItems || currentBudgetItems.length === 0 || String(p.id) !== String(activePatientId))) {
+            p.metadata.sessionsPlan.forEach(s => {
+                const sNum = s.sessionNumber;
+                const selIdxs = [];
+                if (s.services && Array.isArray(s.services)) {
+                    s.services.forEach(srv => {
+                        const idx = budgetItems.findIndex(b => b.name === srv.name && (b.tooth === srv.tooth || !srv.tooth));
+                        if (idx >= 0) selIdxs.push(idx.toString());
+                    });
+                }
+                prevData[sNum] = {
+                    date: s.date || '',
+                    time: s.time || '09:00 AM',
+                    selectedIdxs: selIdxs
+                };
+            });
+        }
+    }
 
     // Record currently expanded accordions before redrawing
     const expandedSessions = new Set();
@@ -9004,6 +9012,8 @@ function initPatientStepperWizard() {
         
         // Clear inputs
         document.getElementById('form-patient').reset();
+        const sessInp = document.getElementById('p-init-treatment-sessions');
+        if (sessInp) sessInp.value = '2';
         const repFieldsDiv = document.getElementById('representative-fields');
         if (repFieldsDiv) repFieldsDiv.classList.add('hidden');
 
@@ -9435,7 +9445,7 @@ function loadPatientDataIntoForm(p) {
     setVal('p-habit-others', p.metadata?.habitOthers || '');
 
     // Step 4: Plan
-    setVal('p-init-treatment-sessions', (p.metadata?.initialTreatmentPlan && p.metadata.initialTreatmentPlan.totalSessions) || p.metadata?.initTreatmentSessions || 4);
+    setVal('p-init-treatment-sessions', (p.metadata?.initialTreatmentPlan && p.metadata.initialTreatmentPlan.totalSessions) || p.metadata?.initTreatmentSessions || 2);
     setVal('p-init-treatment-interval', (p.metadata?.initialTreatmentPlan && p.metadata.initialTreatmentPlan.interval) || p.metadata?.initTreatmentInterval || 'Quincenal');
     setVal('p-init-treatment-name', p.metadata?.initTreatmentName || '');
 
