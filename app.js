@@ -2276,7 +2276,7 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
     }
 
     if (mode === 'clear') {
-        currentBudgetItems = currentBudgetItems.filter(item => item.key !== key && item.key !== `${toothNumber}-absence` && item.key !== `${toothNumber}-extraction` && !item.key.startsWith(`${toothNumber}-endo`));
+        currentBudgetItems = currentBudgetItems.filter(item => String(extractToothNumber(item)) !== String(toothNumber));
         await autoSaveActivePatientOdontogram();
         renderBudgetTable();
         return;
@@ -2372,23 +2372,32 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
 }
 
 function addProcedureToBudget(toothKeyObj, procedure) {
+    const toothNum = toothKeyObj.toothNumber || 'General';
     const itemName = toothKeyObj.mode === 'extraction' 
-        ? `${procedure.name} (Pieza ${toothKeyObj.toothNumber})`
+        ? `${procedure.name} (Pieza ${toothNum})`
         : procedure.name;
 
+    const uniqueItemKey = `${toothNum}-${toothKeyObj.faceId || 'Gnl'}-${procedure.code || 'srv'}-${Date.now()}`;
+
     const newItem = {
-        key: toothKeyObj.key,
-        tooth: toothKeyObj.toothNumber,
-        face: toothKeyObj.faceId,
-        serviceCode: procedure.code,
+        key: uniqueItemKey,
+        tooth: toothNum,
+        face: toothKeyObj.faceId || 'Gnl',
+        serviceCode: procedure.code || '',
         name: itemName,
-        price: procedure.priceUSD,
+        price: procedure.priceUSD !== undefined ? procedure.priceUSD : (procedure.price || 0),
         discount: 0
     };
 
-    const existingIdx = currentBudgetItems.findIndex(i => i.key === toothKeyObj.key);
+    // Check if the exact same procedure already exists for this tooth and face
+    const existingIdx = currentBudgetItems.findIndex(i => 
+        String(extractToothNumber(i)) === String(toothNum) && 
+        i.face === newItem.face && 
+        ((newItem.serviceCode && i.serviceCode === newItem.serviceCode) || i.name.trim().toLowerCase() === itemName.trim().toLowerCase())
+    );
+
     if (existingIdx >= 0) {
-        currentBudgetItems[existingIdx] = newItem;
+        currentBudgetItems[existingIdx] = { ...currentBudgetItems[existingIdx], ...newItem };
     } else {
         currentBudgetItems.push(newItem);
     }
@@ -2572,13 +2581,37 @@ async function renderBudgetTable() {
 
 window.removeBudgetItem = async function(index) {
     const item = currentBudgetItems[index];
-    if (item && item.key) {
-        if (window.odontogram) {
-            delete window.odontogram.toothData[item.key];
+    if (item) {
+        const toothNum = extractToothNumber(item);
+        currentBudgetItems.splice(index, 1);
+
+        if (window.odontogram && toothNum && toothNum !== 'General') {
+            const remainingForTooth = currentBudgetItems.filter(i => String(extractToothNumber(i)) === String(toothNum));
+
+            // Only remove face color from odontogram if no other items remain for that face
+            if (item.face && item.face !== 'Gnl' && item.face !== 'all') {
+                const remainingForFace = remainingForTooth.filter(i => i.face === item.face);
+                if (remainingForFace.length === 0 && window.odontogram.toothData[`${toothNum}-${item.face}`]) {
+                    delete window.odontogram.toothData[`${toothNum}-${item.face}`];
+                }
+            }
+
+            // Only remove endo line if no other endo items remain for this tooth
+            if (item.serviceCode === 'EN-01' || item.serviceCode === 'EN-02' || (item.name && item.name.toLowerCase().includes('endodoncia'))) {
+                const hasOtherEndo = remainingForTooth.some(i => i.serviceCode === 'EN-01' || i.serviceCode === 'EN-02' || (item.name && item.name.toLowerCase().includes('endodoncia')));
+                if (!hasOtherEndo) {
+                    delete window.odontogram.toothData[`${toothNum}-endo`];
+                    delete window.odontogram.toothData[`${toothNum}-endo-status`];
+                }
+            }
+
+            if (item.key && window.odontogram.toothData[item.key]) {
+                delete window.odontogram.toothData[item.key];
+            }
+
             window.odontogram.render();
         }
     }
-    currentBudgetItems.splice(index, 1);
     await autoSaveActivePatientOdontogram();
     renderBudgetTable();
 };

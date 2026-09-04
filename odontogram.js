@@ -380,7 +380,7 @@ class OdontogramEngine {
             return;
         } else {
             this.toothData[key] = this.currentMode;
-            el.setAttribute('class', `tooth-face ${this.currentMode}`);
+            this.render();
         }
 
         if (this.onFaceClickCallback) {
