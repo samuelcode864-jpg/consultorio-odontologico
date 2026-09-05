@@ -6811,18 +6811,27 @@ function initGlobalEvents() {
         const navOdontogram = document.querySelector('.nav-item[data-tab="odontogram"]') || document.getElementById('mob-nav-odontogram');
         if (navOdontogram) navOdontogram.click();
 
-        // Forzar la creación de un NUEVO presupuesto 100% limpio para este nuevo paciente
-        activeEditingBudgetId = null;
-        currentBudgetItems = [];
-
-        // Limpiar odontograma y firma del paciente para el nuevo documento
-        if (window.odontogram) window.odontogram.setData({});
-        if (window.patientSigPad) window.patientSigPad.clear();
-
         const patients = await SupabaseDataService.getPatients();
         const patient = patients.find(p => String(p.id) === String(patientId));
+
+        // Si ya hay ítems de presupuesto en memoria (por ejemplo, recién seleccionados en el odontograma), NO los borramos.
+        // Si no hay en memoria, intentamos recuperarlos del borrador guardado en metadata.draftBudget.items del paciente.
+        if (!currentBudgetItems || currentBudgetItems.length === 0) {
+            if (patient && patient.metadata && patient.metadata.draftBudget && Array.isArray(patient.metadata.draftBudget.items) && patient.metadata.draftBudget.items.length > 0) {
+                currentBudgetItems = [...patient.metadata.draftBudget.items];
+            }
+        }
+
+        // De igual forma con el odontograma: si ya tiene marcas en memoria, preservarlas. Si no, cargar del paciente.
+        if (window.odontogram) {
+            const currentOdData = window.odontogram.getData();
+            const hasCurrentOdData = currentOdData && Object.keys(currentOdData).length > 0;
+            if (!hasCurrentOdData && patient && patient.odontogramData && Object.keys(patient.odontogramData).length > 0) {
+                window.odontogram.setData(patient.odontogramData);
+            }
+        }
+
         if (window.doctorSigPad) {
-            window.doctorSigPad.clear();
             await autoLoadDoctorSignatureInBudget(patient ? patient.assignedDoctor : null);
         }
 
@@ -6830,11 +6839,6 @@ function initGlobalEvents() {
 
         const searchInput = document.getElementById('od-patient-search-input');
         if (searchInput) searchInput.value = patient ? (patient.fullname || '') : '';
-
-        const notesEl = document.getElementById('budget-notes');
-        if (notesEl) notesEl.value = '';
-        const discEl = document.getElementById('budget-discount-input');
-        if (discEl) discEl.value = '0';
 
         renderBudgetTable();
     };
@@ -6983,6 +6987,9 @@ function initGlobalEvents() {
                     systemic,
                     medication,
                     emergencyContact,
+                    odontogramData: (window.odontogram && Object.keys(window.odontogram.getData() || {}).length > 0)
+                        ? window.odontogram.getData()
+                        : (existing.odontogramData || {}),
                     metadata: {
                         ...(existing.metadata || {}),
                         type,
@@ -7030,7 +7037,10 @@ function initGlobalEvents() {
                         initTreatmentName: getVal('p-init-treatment-name'),
                         initTreatmentSessions: getVal('p-init-treatment-sessions'),
                         initTreatmentInterval: getVal('p-init-treatment-interval'),
-                        sessionsPlan: step4WasRendered ? sessionsData : ((existing.metadata && existing.metadata.sessionsPlan) || [])
+                        sessionsPlan: step4WasRendered ? sessionsData : ((existing.metadata && existing.metadata.sessionsPlan) || []),
+                        draftBudget: {
+                            items: (currentBudgetItems && currentBudgetItems.length > 0) ? currentBudgetItems : ((existing.metadata && existing.metadata.draftBudget && existing.metadata.draftBudget.items) || [])
+                        }
                     }
                 };
             } else {
@@ -7048,7 +7058,9 @@ function initGlobalEvents() {
                     emergencyContact,
                     status: 'Activo',
                     createdAt: new Date().toISOString().split('T')[0],
-                    odontogramData: {},
+                    odontogramData: (window.odontogram && Object.keys(window.odontogram.getData() || {}).length > 0)
+                        ? window.odontogram.getData()
+                        : {},
                     clinicalNotes: [],
                     photos: [],
                     payments: [],
@@ -7098,7 +7110,10 @@ function initGlobalEvents() {
                         initTreatmentName: getVal('p-init-treatment-name'),
                         initTreatmentSessions: getVal('p-init-treatment-sessions'),
                         initTreatmentInterval: getVal('p-init-treatment-interval'),
-                        sessionsPlan: sessionsData
+                        sessionsPlan: sessionsData,
+                        draftBudget: {
+                            items: (currentBudgetItems && currentBudgetItems.length > 0) ? currentBudgetItems : []
+                        }
                     }
                 };
             }
