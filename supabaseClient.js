@@ -1023,7 +1023,9 @@ class SupabaseDataService {
                     recipeFooterText: od.recipeFooterText !== undefined ? od.recipeFooterText : (od.recipe_footer_text !== undefined ? od.recipe_footer_text : (localSaved ? localSaved.recipeFooterText : defaultDoc.recipeFooterText)),
                     recipe_footer_text: od.recipeFooterText !== undefined ? od.recipeFooterText : (od.recipe_footer_text !== undefined ? od.recipe_footer_text : (localSaved ? localSaved.recipeFooterText : defaultDoc.recipeFooterText)),
                     logoUrl: od.logoUrl !== undefined ? od.logoUrl : (od.logo_url !== undefined ? od.logo_url : (localSaved ? localSaved.logoUrl : '')),
-                    logo_url: od.logoUrl !== undefined ? od.logoUrl : (od.logo_url !== undefined ? od.logo_url : (localSaved ? localSaved.logoUrl : ''))
+                    logo_url: od.logoUrl !== undefined ? od.logoUrl : (od.logo_url !== undefined ? od.logo_url : (localSaved ? localSaved.logoUrl : '')),
+                    doctorSignature: od.doctorSignature !== undefined ? od.doctorSignature : (od.doctor_signature !== undefined ? od.doctor_signature : (localSaved ? localSaved.doctorSignature : '')),
+                    doctor_signature: od.doctorSignature !== undefined ? od.doctorSignature : (od.doctor_signature !== undefined ? od.doctor_signature : (localSaved ? localSaved.doctorSignature : ''))
                 };
                 localStorage.setItem('dental_stationery_config', JSON.stringify(mapped));
                 return mapped;
@@ -1042,7 +1044,9 @@ class SupabaseDataService {
                     recipeFooterText: (row.recipe_footer_text !== null && row.recipe_footer_text !== undefined) ? row.recipe_footer_text : (localSaved ? localSaved.recipeFooterText : defaultDoc.recipeFooterText),
                     recipe_footer_text: (row.recipe_footer_text !== null && row.recipe_footer_text !== undefined) ? row.recipe_footer_text : (localSaved ? localSaved.recipeFooterText : defaultDoc.recipeFooterText),
                     logoUrl: row.logo_url || (localSaved ? localSaved.logoUrl : ''),
-                    logo_url: row.logo_url || (localSaved ? localSaved.logoUrl : '')
+                    logo_url: row.logo_url || (localSaved ? localSaved.logoUrl : ''),
+                    doctorSignature: localSaved ? (localSaved.doctorSignature || localSaved.doctor_signature || '') : '',
+                    doctor_signature: localSaved ? (localSaved.doctorSignature || localSaved.doctor_signature || '') : ''
                 };
                 localStorage.setItem('dental_stationery_config', JSON.stringify(mapped));
                 return mapped;
@@ -1060,6 +1064,8 @@ class SupabaseDataService {
         const footerText = configObj.footerText !== undefined ? configObj.footerText : (configObj.footer_text !== undefined ? configObj.footer_text : '');
         const recipeFooterText = configObj.recipeFooterText !== undefined ? configObj.recipeFooterText : (configObj.recipe_footer_text !== undefined ? configObj.recipe_footer_text : '');
         const logoUrl = configObj.logoUrl !== undefined ? configObj.logoUrl : (configObj.logo_url !== undefined ? configObj.logo_url : '');
+        const localSaved = JSON.parse(localStorage.getItem('dental_stationery_config') || 'null');
+        const doctorSignature = configObj.doctorSignature !== undefined ? configObj.doctorSignature : (configObj.doctor_signature !== undefined ? configObj.doctor_signature : (localSaved ? (localSaved.doctorSignature || localSaved.doctor_signature || '') : ''));
 
         const normalized = {
             id: 'default',
@@ -1070,7 +1076,9 @@ class SupabaseDataService {
             recipeFooterText: recipeFooterText,
             recipe_footer_text: recipeFooterText,
             logoUrl: logoUrl,
-            logo_url: logoUrl
+            logo_url: logoUrl,
+            doctorSignature: doctorSignature,
+            doctor_signature: doctorSignature
         };
 
         localStorage.setItem('dental_stationery_config', JSON.stringify(normalized));
@@ -1094,6 +1102,8 @@ class SupabaseDataService {
                         recipe_footer_text: recipeFooterText,
                         logoUrl: logoUrl,
                         logo_url: logoUrl,
+                        doctorSignature: doctorSignature,
+                        doctor_signature: doctorSignature,
                         updatedAt: new Date().toISOString()
                     }
                 };

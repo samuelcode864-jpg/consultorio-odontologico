@@ -350,11 +350,10 @@ async function saveDoctorSignatureToCloud(sigDataUrl, docName = null) {
     if (!sigDataUrl) return;
     const currentUser = getCurrentUser();
     const targetName = docName || (currentUser ? currentUser.fullname : null);
-    if (!targetName) return;
 
     try {
-        const users = await SupabaseDataService.getUsers();
-        let userToUpdate = users.find(u => u.fullname === targetName) || (currentUser && currentUser.fullname === targetName ? currentUser : null);
+        const users = await SupabaseDataService.getUsers(true);
+        let userToUpdate = users.find(u => u.fullname === targetName) || (currentUser && currentUser.fullname === targetName ? currentUser : null) || currentUser;
         
         if (userToUpdate) {
             const currentDocProf = userToUpdate.doctorProfile || userToUpdate.doctor_profile || {};
@@ -370,12 +369,28 @@ async function saveDoctorSignatureToCloud(sigDataUrl, docName = null) {
             await SupabaseDataService.saveUser(userToUpdate);
             
             // Also sync active logged-in session if it matches current user
-            if (currentUser && (currentUser.id === userToUpdate.id || currentUser.fullname === userToUpdate.fullname)) {
+            if (currentUser) {
                 currentUser.doctorProfile = updatedProfile;
                 currentUser.doctor_profile = updatedProfile;
                 sessionStorage.setItem('dental_current_user', JSON.stringify(currentUser));
                 localStorage.setItem('dental_current_user', JSON.stringify(currentUser));
             }
+        }
+
+        // Also persist to stationery config in patients table (SYS-CLINIC-CONFIG) for 100% reliable cross-device sync
+        try {
+            const config = await SupabaseDataService.getStationeryConfig();
+            if (config) {
+                config.doctorSignature = sigDataUrl;
+                config.doctor_signature = sigDataUrl;
+                await SupabaseDataService.saveStationeryConfig(config);
+            }
+        } catch(e) {}
+
+        // If on budget view, refresh budget signature pad immediately
+        if (window.doctorSigPad) {
+            window.doctorSigPad.loadFromDataURL(sigDataUrl);
+            if (typeof window.refreshSignatureBoxBadges === 'function') window.refreshSignatureBoxBadges();
         }
     } catch(err) {
         console.error('Error saving doctor signature to cloud:', err);
@@ -386,24 +401,41 @@ async function autoLoadDoctorSignatureInBudget(targetDoctorName = null) {
     if (!window.doctorSigPad) return;
     
     try {
-        const users = await SupabaseDataService.getUsers(false);
+        const users = await SupabaseDataService.getUsers(true);
         const currentUser = getCurrentUser();
         
-        let doctorUser = null;
+        let sig = null;
+
+        // 1. Try targetDoctorName if provided
         if (targetDoctorName) {
-            doctorUser = users.find(u => u.fullname === targetDoctorName);
+            const doc = users.find(u => u.fullname && u.fullname.toLowerCase() === targetDoctorName.toLowerCase());
+            sig = (doc?.doctorProfile?.signature) || (doc?.doctor_profile?.signature) || null;
         }
-        if (!doctorUser && currentUser) {
-            doctorUser = users.find(u => u.id === currentUser.id || u.fullname === currentUser.fullname) || currentUser;
+
+        // 2. Try currently logged-in user
+        if (!sig && currentUser) {
+            const freshCurrent = users.find(u => u.id === currentUser.id || (u.email && currentUser.email && u.email.toLowerCase() === currentUser.email.toLowerCase()) || (u.fullname && currentUser.fullname && u.fullname.toLowerCase() === currentUser.fullname.toLowerCase()));
+            sig = (freshCurrent?.doctorProfile?.signature) || (freshCurrent?.doctor_profile?.signature) || (currentUser?.doctorProfile?.signature) || (currentUser?.doctor_profile?.signature) || null;
         }
-        if (!doctorUser && users.length > 0) {
-            doctorUser = users.find(u => u.role && (u.role.toLowerCase().includes('medico') || u.role.toLowerCase().includes('odont') || u.role.toLowerCase().includes('doctor')));
+
+        // 3. Try any user with doctor/admin role that has a signature
+        if (!sig && users.length > 0) {
+            const anyDoc = users.find(u => ((u.doctorProfile && u.doctorProfile.signature) || (u.doctor_profile && u.doctor_profile.signature)));
+            if (anyDoc) {
+                sig = (anyDoc.doctorProfile && anyDoc.doctorProfile.signature) || (anyDoc.doctor_profile && anyDoc.doctor_profile.signature);
+            }
         }
-        if (!doctorUser && users.length > 0) {
-            doctorUser = users.find(u => u.role && !u.role.toLowerCase().includes('asistente'));
+
+        // 4. Try stationery config (SYS-CLINIC-CONFIG) fallback
+        if (!sig) {
+            try {
+                const config = await SupabaseDataService.getStationeryConfig();
+                if (config && (config.doctorSignature || config.doctor_signature)) {
+                    sig = config.doctorSignature || config.doctor_signature;
+                }
+            } catch(e) {}
         }
-        
-        const sig = doctorUser && ((doctorUser.doctorProfile && doctorUser.doctorProfile.signature) || (doctorUser.doctor_profile && doctorUser.doctor_profile.signature));
+
         const noticeEl = document.getElementById('doctor-sig-empty-notice');
         const canvasEl = document.getElementById('doctor-sig-canvas');
 
@@ -2382,7 +2414,9 @@ async function renderOdontogramView() {
         document.getElementById('info-patient-name').innerText = 'Paciente';
         document.getElementById('info-patient-cedula').innerText = 'V-00000000';
         document.getElementById('info-patient-category').innerText = 'Privado';
-        document.getElementById('info-patient-doctor').innerText = 'Dr. Rodrigo Navas';
+        const currentDrName = (getCurrentUser() && getCurrentUser().fullname) ? getCurrentUser().fullname : 'Dr. Alejandro Silva';
+        document.getElementById('info-patient-doctor').innerText = currentDrName;
+        await autoLoadDoctorSignatureInBudget(currentDrName);
 
         const searchInput = document.getElementById('od-patient-search-input');
         if (searchInput) searchInput.value = '';
@@ -9351,7 +9385,16 @@ async function renderSettingsView() {
     if (isDoctor || isAdmin) {
         if (docSigSection) docSigSection.classList.remove('hidden');
         
-        const sigData = (user.doctorProfile && user.doctorProfile.signature) || (user.doctor_profile && user.doctor_profile.signature);
+        let sigData = (user.doctorProfile && user.doctorProfile.signature) || (user.doctor_profile && user.doctor_profile.signature);
+        if (!sigData) {
+            try {
+                const config = await SupabaseDataService.getStationeryConfig();
+                if (config && (config.doctorSignature || config.doctor_signature)) {
+                    sigData = config.doctorSignature || config.doctor_signature;
+                }
+            } catch(e) {}
+        }
+
         const previewContainer = document.getElementById('doctor-signature-preview-img-container');
         const previewImg = document.getElementById('doctor-signature-preview-img');
         const settingsSigBox = document.getElementById('settings-doctor-sig-box');
@@ -9402,6 +9445,15 @@ async function renderSettingsView() {
                     sessionStorage.setItem('dental_current_user', JSON.stringify(user));
                     localStorage.setItem('dental_current_user', JSON.stringify(user));
                 }
+                try {
+                    const config = await SupabaseDataService.getStationeryConfig();
+                    if (config) {
+                        config.doctorSignature = '';
+                        config.doctor_signature = '';
+                        await SupabaseDataService.saveStationeryConfig(config);
+                    }
+                } catch(e) {}
+
                 if (previewImg && previewContainer) {
                     previewImg.src = '';
                     previewContainer.classList.add('hidden');
@@ -9413,10 +9465,15 @@ async function renderSettingsView() {
                 if (settingsSigBox) settingsSigBox.classList.remove('has-signature');
                 if (settingsBadge) settingsBadge.innerHTML = '<i class="fa-solid fa-pen-fancy"></i> Clic para firmar';
 
+                if (window.doctorSigPad) {
+                    window.doctorSigPad.clear();
+                    if (typeof window.refreshSignatureBoxBadges === 'function') window.refreshSignatureBoxBadges();
+                }
+
                 Swal.fire({
                     icon: 'info',
                     title: 'Firma Eliminada',
-                    text: 'Se ha eliminado la firma digital de su perfil médico.',
+                    text: 'Se ha eliminado la firma digital de su perfil médico en todos los dispositivos.',
                     timer: 2000,
                     showConfirmButton: false,
                     toast: true,
