@@ -6916,39 +6916,47 @@ function initGlobalEvents() {
     }
 
     // Global Modal Close Handlers (Buttons, Backdrop Click & Escape Key)
-    document.addEventListener('click', (e) => {
+    document.addEventListener('click', async (e) => {
         // 1. Close button clicked ([data-close] or .modal-close or .btn-close-sheet)
         const closeBtn = e.target.closest('[data-close], .modal-close, .btn-close-sheet');
         if (closeBtn) {
             const targetId = closeBtn.dataset.close || closeBtn.getAttribute('data-close');
             if (targetId) {
-                closeModal(targetId);
+                await closeModal(targetId);
             } else {
                 const parentModal = closeBtn.closest('.modal-overlay');
-                if (parentModal) parentModal.classList.add('hidden');
+                if (parentModal) {
+                    if (parentModal.id) {
+                        await closeModal(parentModal.id);
+                    } else {
+                        parentModal.classList.add('hidden');
+                    }
+                }
             }
             return;
         }
 
         // 2. Backdrop click outside dialog
         if (e.target.classList && e.target.classList.contains('modal-overlay')) {
-            e.target.classList.add('hidden');
             if (e.target.id && typeof closeModal === 'function') {
-                closeModal(e.target.id);
+                await closeModal(e.target.id);
+            } else {
+                e.target.classList.add('hidden');
             }
         }
     });
 
     // Close all open modals when pressing ESC key
-    document.addEventListener('keydown', (e) => {
+    document.addEventListener('keydown', async (e) => {
         if (e.key === 'Escape' || e.key === 'Esc') {
-            const openModals = document.querySelectorAll('.modal-overlay:not(.hidden)');
-            openModals.forEach(m => {
-                m.classList.add('hidden');
+            const openModals = Array.from(document.querySelectorAll('.modal-overlay:not(.hidden)'));
+            for (const m of openModals) {
                 if (m.id && typeof closeModal === 'function') {
-                    closeModal(m.id);
+                    await closeModal(m.id);
+                } else {
+                    m.classList.add('hidden');
                 }
-            });
+            }
         }
     });
 
@@ -7458,7 +7466,7 @@ function initGlobalEvents() {
                 }
             }
 
-            closeModal('modal-patient');
+            await closeModal('modal-patient', true);
             setActivePatientId(id);
             await renderPatientsTable();
             await renderEHRView();
@@ -8776,9 +8784,29 @@ function openModal(id) {
     if (el) el.classList.remove('hidden');
 }
 
-function closeModal(id) {
+async function closeModal(id, force = false) {
     const el = document.getElementById(id);
-    if (el) el.classList.add('hidden');
+    if (!el) return;
+
+    if (id === 'modal-patient' && !force && !el.classList.contains('hidden')) {
+        const result = await Swal.fire({
+            title: '¿Deseas salir sin guardar?',
+            html: 'Los cambios o datos ingresados en la ficha, historia clínica o plan de tratamiento no se guardarán.<br><br>Para conservar los cambios que acabas de realizar, debes hacer clic en el botón <strong>"Guardar Cambios"</strong>.<br><br>¿Estás seguro de que deseas salir?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#e11d48',
+            cancelButtonColor: '#0891b2',
+            confirmButtonText: '<i class="fa-solid fa-arrow-right-from-bracket"></i> Sí, salir sin guardar',
+            cancelButtonText: '<i class="fa-solid fa-pen"></i> Continuar editando',
+            reverseButtons: true
+        });
+
+        if (!result.isConfirmed) {
+            return;
+        }
+    }
+
+    el.classList.add('hidden');
     if (id === 'modal-patient') {
         window.patientModalOpenedFromBudget = false;
     }
