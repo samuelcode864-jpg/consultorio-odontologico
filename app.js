@@ -10327,11 +10327,11 @@ function buildMedicalDocumentHTML(opts) {
             
             <!-- 1. Header (Logo left, Title & metadata right) -->
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; gap: 15px;">
-                <div style="flex: 1; max-width: 320px; display: flex; align-items: center; justify-content: flex-start;">
+                <div style="flex: 1; max-width: 360px; display: flex; align-items: center; justify-content: flex-start;">
                     ${logoUrl ? `
-                        <img src="${logoUrl}" style="width: 100%; max-width: 240px; height: auto; max-height: 90px; object-fit: contain; object-position: left top; display: block;" alt="Logo">
+                        <img src="${logoUrl}" style="width: auto; max-width: 340px; height: auto; max-height: 120px; object-fit: contain; object-position: left top; display: block;" alt="Logo">
                     ` : `
-                        <div style="border: 2px dashed #0284c7; border-radius: 6px; padding: 8px 18px; display: inline-block; color: #0284c7; font-weight: 800; font-size: 1.1rem; letter-spacing: 0.05em;">
+                        <div style="border: 2px dashed #0284c7; border-radius: 6px; padding: 10px 22px; display: inline-block; color: #0284c7; font-weight: 800; font-size: 1.15rem; letter-spacing: 0.05em;">
                             LOGO
                         </div>
                     `}
@@ -10468,6 +10468,168 @@ function buildMedicalDocumentHTML(opts) {
 
             ${footerNote ? `
                 <div style="text-align: center; margin-top: 6px; padding-top: 3px; border-top: 1px dashed #cbd5e1; font-size: 0.66rem; color: #94a3b8; page-break-inside: avoid; break-inside: avoid;">
+                    ${footerNote}
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
+
+function buildRecipeDocumentHTML(opts) {
+    const {
+        docTitle = 'Prescripción Médica y Récipe',
+        emissionDate = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }),
+        controlNumber = 'REC-2026-0001',
+        treatmentLinked = 'General / Consulta Externa',
+
+        clinicName = 'Consultorio Odontológico',
+        clinicPhone = '+58 (412) 555-0192',
+        clinicAddress = 'Av. Principal, Torre Consultorios, Caracas',
+        logoUrl = '',
+
+        doctorName = 'Dr. Odontólogo Especialista',
+        doctorSpecialty = 'Odontología General / Especialista',
+        doctorLicense = '',
+        doctorPhone = '+58 (414) 123-4567',
+        doctorSig = '',
+
+        patientName = 'Carlos Eduardo Mendoza',
+        patientId = 'V-18.452.910',
+        patientPhone = '+58 (416) 987-6543',
+
+        medicines = [],
+        notes = '',
+        indications = '',
+        footerNote = ''
+    } = opts;
+
+    let medsList = '';
+    if (medicines && medicines.length > 0) {
+        medicines.forEach((m, idx) => {
+            medsList += `
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 6px 8px; text-align: left; vertical-align: top;">
+                        <strong style="font-size: 0.82rem; color: #0f172a; display: block;">${idx + 1}. ${m.med}</strong>
+                    </td>
+                    <td style="padding: 6px 6px; text-align: left; font-size: 0.80rem; color: #334155; vertical-align: top;">${m.dose}</td>
+                    <td style="padding: 6px 8px; text-align: right; font-size: 0.80rem; font-weight: 600; color: #0f172a; vertical-align: top;">${m.freq}</td>
+                </tr>
+            `;
+        });
+    } else {
+        medsList = `
+            <tr>
+                <td colspan="3" style="padding: 10px; text-align: center; color: #94a3b8; font-style: italic;">Sin medicamentos prescritos</td>
+            </tr>
+        `;
+    }
+
+    const cleanClinicName = (typeof formatHeaderText === 'function') ? formatHeaderText(clinicName) : clinicName;
+
+    return `
+        <div class="medical-doc-container" style="background: #ffffff; color: #1e293b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 0.76rem; line-height: 1.25; width: 100%; max-width: 780px; margin: 0 auto; padding: 12px 18px; box-sizing: border-box; page-break-inside: avoid !important; break-inside: avoid !important;">
+            
+            <!-- 1. Header (Logo left, Title & metadata right) -->
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; gap: 15px;">
+                <div style="flex: 1; max-width: 360px; display: flex; align-items: center; justify-content: flex-start;">
+                    ${logoUrl ? `
+                        <img src="${logoUrl}" style="width: auto; max-width: 340px; height: auto; max-height: 120px; object-fit: contain; object-position: left top; display: block;" alt="Logo">
+                    ` : `
+                        <div style="border: 2px dashed #0284c7; border-radius: 6px; padding: 10px 22px; display: inline-block; color: #0284c7; font-weight: 800; font-size: 1.15rem; letter-spacing: 0.05em;">
+                            LOGO
+                        </div>
+                    `}
+                </div>
+                <div style="text-align: right; min-width: 190px; flex-shrink: 0;">
+                    <h1 style="margin: 0 0 2px 0; font-size: 1.20rem; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">${docTitle}</h1>
+                    <div style="font-size: 0.74rem; color: #475569; display: flex; flex-direction: column; gap: 1px;">
+                        <div><span style="color: #64748b;">Fecha de Emisión:</span> <strong style="color: #0f172a;">${emissionDate}</strong></div>
+                        <div><span style="color: #64748b;">N° de Récipe / Cód:</span> <strong style="color: #0f172a; letter-spacing: 0.03em;">${controlNumber}</strong></div>
+                        <div><span style="color: #64748b;">Tratamiento Vinculado:</span> <strong style="color: #0066f5;">${treatmentLinked}</strong></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. 3-Column Info Cards (Horizontal Row) -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px; font-size: 0.74rem;">
+                <!-- Col 1: Consultorio -->
+                <div>
+                    <div style="font-size: 0.64rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1px;">CONSULTORIO ODONTOLÓGICO</div>
+                    <strong style="font-size: 0.80rem; color: #0f172a; display: block; white-space: pre-line; line-height: 1.2;">${cleanClinicName}</strong>
+                    <div style="color: #475569;">Tlf: ${clinicPhone}</div>
+                    <div style="color: #64748b; font-size: 0.70rem;">${clinicAddress}</div>
+                </div>
+
+                <!-- Col 2: Odontólogo Tratante -->
+                <div>
+                    <div style="font-size: 0.64rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1px;">MÉDICO / ODONTÓLOGO TRATANTE</div>
+                    <strong style="font-size: 0.80rem; color: #0f172a; display: block;">${doctorName.startsWith('Dr') ? doctorName : `Dr(a). ${doctorName}`}</strong>
+                    <div style="color: #475569;">Especialidad: ${doctorSpecialty || 'Odontología General'}</div>
+                    ${doctorLicense ? `<div style="color: #0066f5; font-weight: 600;">Colegiado/Lic: ${doctorLicense}</div>` : ''}
+                    <div style="color: #475569;">Tlf: ${doctorPhone}</div>
+                </div>
+
+                <!-- Col 3: Datos del Paciente -->
+                <div>
+                    <div style="font-size: 0.64rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1px;">DATOS DEL PACIENTE</div>
+                    <strong style="font-size: 0.80rem; color: #0f172a; display: block;">${patientName}</strong>
+                    <div style="color: #475569;">C.I.: ${patientId}</div>
+                    <div style="color: #475569;">Tlf: ${patientPhone}</div>
+                </div>
+            </div>
+
+            <!-- 3. Prescribed Medicines Table -->
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px;">
+                <thead>
+                    <tr>
+                        <th style="background: #0066f5; color: #ffffff; padding: 5px 8px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-align: left; text-transform: uppercase; border-top-left-radius: 4px; border-bottom-left-radius: 4px;">RX - MEDICAMENTO / FÁRMACO / PRESENTACIÓN</th>
+                        <th style="background: #0066f5; color: #ffffff; padding: 5px 6px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-align: left; text-transform: uppercase; width: 170px;">DOSIS</th>
+                        <th style="background: #0066f5; color: #ffffff; padding: 5px 8px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-align: right; text-transform: uppercase; width: 160px; border-top-right-radius: 4px; border-bottom-right-radius: 4px;">FRECUENCIA / DURACIÓN</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${medsList}
+                </tbody>
+            </table>
+
+            <!-- 4. Notes / Instructions -->
+            ${notes ? `
+                <div style="border-left: 3px solid #0066f5; background: #ffffff; border-top: 1px solid #f1f5f9; border-right: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9; border-radius: 0 4px 4px 0; padding: 5px 8px; margin-bottom: 6px; font-size: 0.72rem; line-height: 1.25; page-break-inside: avoid; break-inside: avoid;">
+                    <strong style="text-transform: uppercase; color: #0f172a; font-size: 0.66rem; letter-spacing: 0.05em; display: block; margin-bottom: 1px;">OBSERVACIONES / INSTRUCCIONES DE LA PRESCRIPCIÓN</strong>
+                    <div style="color: #475569;">${notes}</div>
+                </div>
+            ` : ''}
+
+            <!-- 5. Clinical Indications -->
+            ${indications ? `
+                <div style="border-left: 3px solid #0066f5; background: #f8fafc; border-top: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; border-radius: 0 4px 4px 0; padding: 6px 10px; margin-bottom: 8px; font-size: 0.73rem; line-height: 1.3; page-break-inside: avoid; break-inside: avoid;">
+                    <strong style="text-transform: uppercase; color: #0f172a; font-size: 0.68rem; letter-spacing: 0.05em; display: block; margin-bottom: 2px;">
+                        <i class="fa-solid fa-list-check" style="color: #0066f5;"></i> INDICACIONES Y RECOMENDACIONES CLÍNICAS AL PACIENTE
+                    </strong>
+                    <div style="color: #334155; white-space: pre-line;">${indications}</div>
+                </div>
+            ` : ''}
+
+            <!-- 6. Doctor Signature Block (Aligned right with full details: signature, name, colegiado, licencia, specialty) -->
+            <div style="display: flex; justify-content: flex-end; margin-top: 12px; padding-top: 4px; padding-right: 15px; page-break-inside: avoid; break-inside: avoid;">
+                <div style="width: 290px; text-align: center;">
+                    ${doctorSig ? `
+                        <img src="${doctorSig}" style="max-height: 42px; max-width: 170px; object-fit: contain; margin: 0 auto 2px auto; display: block;" alt="Firma Odontólogo">
+                    ` : `<div style="height: 32px;"></div>`}
+                    <div style="border-top: 1px solid #334155; padding-top: 3px; font-size: 0.76rem; font-weight: 700; color: #0f172a;">
+                        ${doctorName.startsWith('Dr') ? doctorName : `Dr(a). ${doctorName}`}
+                    </div>
+                    <div style="font-size: 0.69rem; color: #334155; line-height: 1.25; margin-top: 1px;">
+                        ${doctorSpecialty ? `<div>${doctorSpecialty}</div>` : ''}
+                        ${doctorLicense ? `<div><strong>N° Colegiado / Licencia:</strong> ${doctorLicense}</div>` : `<div>M.P.P.S. / C.O.V.</div>`}
+                    </div>
+                    <div style="font-size: 0.65rem; color: #64748b; margin-top: 2px;">Firma y Sello del Odontólogo</div>
+                </div>
+            </div>
+
+            <!-- 7. Official Footer Note -->
+            ${footerNote ? `
+                <div style="text-align: center; margin-top: 10px; padding-top: 4px; border-top: 1px dashed #cbd5e1; font-size: 0.68rem; color: #94a3b8; font-style: italic; page-break-inside: avoid; break-inside: avoid;">
                     ${footerNote}
                 </div>
             ` : ''}
@@ -12005,69 +12167,31 @@ async function handleStationeryAction(templateType, action) {
             });
         } else if (templateType === 'recipe') {
             const footerNote = recipeFooterText || footerText || 'Documento Clínico Oficial de Prescripción Médica y Recomendaciones.';
-            docHtml = `
-                <div style="font-family: 'Segoe UI', Arial, sans-serif; padding: 25px; color: #1e293b; background: #ffffff; width: 720px; max-width: 720px; margin: 0 auto; box-sizing: border-box;">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom: 2px solid #0d9488; padding-bottom: 12px; margin-bottom: 15px; gap: 15px;">
-                        <div style="flex: 1;">
-                            ${logoBase64 ? `<img src="${logoBase64}" style="max-height: 50px; margin-bottom: 6px; display:block;">` : ''}
-                            <h2 style="margin: 0; color: #0d9488; font-size: 1.15rem; text-transform: uppercase; font-weight: 800;">${busData.name || 'DENTALCARE PRO'}</h2>
-                            <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: #64748b; white-space: pre-line; line-height: 1.3;">${formatHeaderText(headerText) || 'Clínica Odontológica Especializada'}</p>
-                        </div>
-                        <div style="text-align: right; flex-shrink: 0; min-width: 180px;">
-                            <span style="background: #e6fffa; color: #0d9488; font-size: 0.78rem; font-weight: 700; padding: 5px 12px; border-radius: 6px; display: inline-block;">RÉCIPE E INDICACIONES</span>
-                            <div style="font-size: 0.78rem; color: #64748b; margin-top: 6px;">Fecha: ${new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
-                        </div>
-                    </div>
-
-                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; margin-bottom: 18px; font-size: 0.85rem; display: flex; justify-content: space-between;">
-                        <div><strong>Paciente:</strong> Carlos Eduardo Mendoza &nbsp;&nbsp;|&nbsp;&nbsp; <strong>C.I.:</strong> V-18.452.910</div>
-                        <div><strong>Tratamiento:</strong> Sesión #1 (Pieza 16)</div>
-                    </div>
-
-                    <div style="margin-bottom: 20px;">
-                        <h4 style="margin: 0 0 10px 0; color: #0d9488; font-size: 0.92rem; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">
-                            <i class="fa-solid fa-prescription"></i> Rx - MEDICAMENTOS PRESCRITOS
-                        </h4>
-                        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
-                            <thead>
-                                <tr style="background: #f1f5f9; text-align: left; font-size: 0.78rem; color: #475569;">
-                                    <th style="padding: 8px;">Fármaco / Presentación</th>
-                                    <th style="padding: 8px;">Dosis</th>
-                                    <th style="padding: 8px;">Duración</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr style="border-bottom: 1px solid #e2e8f0;">
-                                    <td style="padding: 8px; font-weight: 700;">Amoxicilina 500mg</td>
-                                    <td style="padding: 8px;">1 cápsula cada 8 horas</td>
-                                    <td style="padding: 8px;">Por 7 días</td>
-                                </tr>
-                                <tr style="border-bottom: 1px solid #e2e8f0;">
-                                    <td style="padding: 8px; font-weight: 700;">Ibuprofeno 400mg</td>
-                                    <td style="padding: 8px;">1 tableta cada 8 horas</td>
-                                    <td style="padding: 8px;">Por 3 días (si hay dolor)</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                        <p style="margin: 10px 0 0 0; font-size: 0.8rem; color: #475569;"><strong>Notas:</strong> Tomar con abundante agua después de las comidas principales.</p>
-                    </div>
-
-                    <div style="margin-bottom: 25px;">
-                        <h4 style="margin: 0 0 10px 0; color: #0284c7; font-size: 0.92rem; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">
-                            <i class="fa-solid fa-list-check"></i> INDICACIONES Y RECOMENDACIONES CLÍNICAS
-                        </h4>
-                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; font-size: 0.82rem; color: #334155; line-height: 1.5;">
-                            1. Reposo relativo durante las primeras 48 horas tras el procedimiento.<br>
-                            2. Aplicar frío local en la zona externa por lapsos de 15 minutos.<br>
-                            3. Dieta blanda y fría. Evitar exponerse al sol o realizar esfuerzos físicos intensos.
-                        </div>
-                    </div>
-
-                    <div style="border-top: 1px dashed #cbd5e1; padding-top: 12px; text-align: center; font-size: 0.78rem; color: #64748b;">
-                        ${footerNote}
-                    </div>
-                </div>
-            `;
+            docHtml = buildRecipeDocumentHTML({
+                docTitle: 'Prescripción Médica y Récipe',
+                emissionDate: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }),
+                controlNumber: 'REC-2026-00104',
+                treatmentLinked: 'Sesión #1: Restauración Resina Estética (Pieza 16)',
+                clinicName: busData.name || 'Consultorio Odontológico Especializado',
+                clinicPhone: busData.phone || '+58 (412) 555-0192',
+                clinicAddress: busData.address || 'Av. Principal de Las Mercedes, Torre Consultorios, Piso 4, Caracas',
+                logoUrl: logoBase64,
+                doctorName: busData.doctor || 'Dr. Rodrigo Navas',
+                doctorSpecialty: 'Odontología General / Rehabilitación Oral',
+                doctorLicense: 'MPPS-98402 / C.O.V-20104',
+                doctorPhone: '+58 (414) 123-4567',
+                doctorSig: '',
+                patientName: 'Carlos Eduardo Mendoza',
+                patientId: 'V-18.452.910',
+                patientPhone: '+58 (416) 987-6543',
+                medicines: [
+                    { med: 'Amoxicilina 500mg (Cápsulas)', dose: '1 cápsula cada 8 horas', freq: 'Por 7 días continuos' },
+                    { med: 'Ibuprofeno 400mg (Tabletas)', dose: '1 tableta cada 8 horas', freq: 'Por 3 días (si presenta dolor)' }
+                ],
+                notes: 'Tomar los medicamentos indicados con abundante agua después de las comidas principales.',
+                indications: '1. Reposo relativo durante las primeras 48 horas tras el procedimiento.\n2. Aplicar frío local en la zona externa por lapsos de 15 minutos en caso de inflamación.\n3. Dieta blanda y fría. Evitar alimentos duros, picantes o exponerse directamente al sol.',
+                footerNote: footerNote
+            });
         }
 
         const container = document.createElement('div');
@@ -13011,128 +13135,67 @@ async function renderPublicRecipeView() {
         }
 
         const stationery = await SupabaseDataService.getStationeryConfig();
-        const currentUser = getCurrentUser();
+        const users = await SupabaseDataService.getUsers();
+        let docUser = null;
+        if (recipe && recipe.doctorId) {
+            docUser = users.find(u => u.id === recipe.doctorId);
+        }
+        if (!docUser && recipe && recipe.doctorName) {
+            docUser = users.find(u => u.fullname === recipe.doctorName);
+        }
+        if (!docUser) {
+            const currentUser = getCurrentUser();
+            if (currentUser) docUser = currentUser;
+        }
+
+        const docName = (recipe && recipe.doctorName) || (docUser ? docUser.fullname : 'Dr. Odontólogo Especialista');
+        const docSpecialty = (recipe && recipe.doctorRole) || (docUser ? docUser.role : 'Odontología General');
+        const docLicense = (recipe && recipe.doctorLicense) || (docUser && docUser.license && docUser.license !== 'N/A' ? docUser.license : 'MPPS-98402 / C.O.V-20104');
         
-        let logoImgHtml = '';
-        if (stationery && (stationery.logo_url || stationery.logoUrl)) {
-            const logo = stationery.logo_url || stationery.logoUrl;
-            // LOGO MUCHO MÁS GRANDE (EL DOBLE DE TAMAÑO)
-            logoImgHtml = `<img src="${logo}" style="max-height: 140px; max-width: 320px; object-fit: contain; margin-bottom: 15px;" alt="Logo Clínica"><br>`;
+        let docSignature = (recipe && recipe.doctorSignature) || '';
+        if (!docSignature && docUser) {
+            docSignature = (docUser.doctorProfile && docUser.doctorProfile.signature) || (docUser.doctor_profile && docUser.doctor_profile.signature) || '';
         }
-
-        // Resolviendo Firma del Médico (Doctor Signature)
-        let docSignature = '';
-        if (currentUser && currentUser.doctorProfile && currentUser.doctorProfile.signature) {
-            docSignature = currentUser.doctorProfile.signature;
-        } else if (currentUser && currentUser.doctor_profile && currentUser.doctor_profile.signature) {
-            docSignature = currentUser.doctor_profile.signature;
-        } else if (stationery && (stationery.doctorSignature || stationery.doctor_signature)) {
+        if (!docSignature && stationery && (stationery.doctorSignature || stationery.doctor_signature)) {
             docSignature = stationery.doctorSignature || stationery.doctor_signature;
-        } else if (patient.metadata && patient.metadata.doctorSignature) {
-            docSignature = patient.metadata.doctorSignature;
         }
 
-        const docName = currentUser ? currentUser.fullname : 'Dr. Odontólogo Especialista';
+        const clinicBusData = getClinicBusData(stationery);
+        const logoUrl = stationery ? (stationery.logo_url || stationery.logoUrl || '') : '';
+        const recipeFooter = (stationery && (stationery.recipeFooterText || stationery.footerText)) || 'Documento Clínico Oficial de Prescripción Médica para el Paciente.';
 
-        let medsList = recipe.medicines ? recipe.medicines.map((m, i) => `
-            <tr style="border-bottom:1px solid #e2e8f0;">
-                <td style="padding:10px; font-weight:700; color:#0f172a;">${i + 1}. ${m.med}</td>
-                <td style="padding:10px; color:#334155;">${m.dose}</td>
-                <td style="padding:10px; color:#475569;">${m.freq}</td>
-            </tr>
-        `).join('') : '<tr><td colspan="3" style="padding:10px; text-align:center;">Sin medicamentos prescritos</td></tr>';
+        const docHtml = buildRecipeDocumentHTML({
+            docTitle: 'Prescripción Médica y Récipe',
+            emissionDate: recipe.date,
+            controlNumber: recipe.id,
+            treatmentLinked: recipe.treatmentLinked || 'General',
+            clinicName: clinicBusData.name || (stationery && stationery.headerText) || 'Clínica Odontológica Especializada',
+            clinicPhone: clinicBusData.phone || '',
+            clinicAddress: clinicBusData.address || '',
+            logoUrl: logoUrl,
+            doctorName: docName,
+            doctorSpecialty: docSpecialty,
+            doctorLicense: docLicense,
+            doctorPhone: (docUser && docUser.phone) || clinicBusData.phone || '',
+            doctorSig: docSignature,
+            patientName: patient.fullname,
+            patientId: patient.id,
+            patientPhone: patient.phone || '',
+            medicines: recipe.medicines || [],
+            notes: recipe.notes || '',
+            indications: recipe.indications || '',
+            footerNote: recipeFooter
+        });
 
-        const html = `
-            <div id="public-recipe-printable-doc" style="font-family: inherit; color: #0f172a; line-height: 1.5;">
-                <!-- HEADER CON LOGO AL DOBLE DE TAMAÑO -->
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0d9488; padding-bottom: 20px; margin-bottom: 20px;">
-                    <div>
-                        ${logoImgHtml}
-                        <h2 style="margin: 0; font-size: 1.3rem; color: #0d9488;">PRESCRIPCIÓN MÉDICA Y RÉCIPE ODONTOLÓGICO</h2>
-                        <p style="margin: 4px 0 0 0; font-size: 0.82rem; color: #475569; white-space: pre-line;">${stationery.headerText || stationery.header_text || 'Clínica Odontológica Especializada'}</p>
-                    </div>
-                    <div style="text-align: right;">
-                        <span class="badge-tag green" style="font-size: 0.85rem; padding: 4px 10px; border-radius: 6px;">DOCUMENTO OFICIAL</span>
-                        <div style="font-size: 0.82rem; color: #64748b; margin-top: 6px;">
-                            <strong>Cód:</strong> ${recipe.id}<br>
-                            <strong>Fecha:</strong> ${recipe.date}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- DATOS DEL PACIENTE -->
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 18px; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.88rem;">
-                    <div>
-                        <span style="font-size: 0.72rem; color: #64748b; font-weight: 800; text-transform: uppercase;">Paciente:</span>
-                        <strong style="display: block; font-size: 1.05rem; color: #0f172a;">${patient.fullname}</strong>
-                        <span style="color: #475569;">Cédula / ID: <strong>${patient.id}</strong></span>
-                    </div>
-                    <div style="text-align: right;">
-                        <span style="font-size: 0.72rem; color: #64748b; font-weight: 800; text-transform: uppercase;">Tratamiento Vinculado:</span>
-                        <strong style="display: block; color: #0d9488;">${recipe.treatmentLinked || 'General'}</strong>
-                    </div>
-                </div>
-
-                <!-- TABLA DE MEDICAMENTOS -->
-                <div style="margin-bottom: 20px;">
-                    <h4 style="margin: 0 0 8px 0; color: #0d9488; font-size: 0.95rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
-                        <i class="fa-solid fa-prescription"></i> Rx - Medicamentos Prescritos
-                    </h4>
-                    <table style="width:100%; border-collapse:collapse; margin-top:6px; font-size:0.88rem;">
-                        <thead>
-                            <tr style="background:#f1f5f9; text-align:left; font-size:0.75rem; color:#475569; text-transform:uppercase;">
-                                <th style="padding:8px 10px;">Fármaco / Presentación</th>
-                                <th style="padding:8px 10px;">Dosis</th>
-                                <th style="padding:8px 10px;">Frecuencia / Duración</th>
-                            </tr>
-                        </thead>
-                        <tbody>${medsList}</tbody>
-                    </table>
-                </div>
-
-                <!-- NOTAS Y OBS -->
-                ${recipe.notes ? `
-                    <div style="margin-bottom: 20px; font-size: 0.88rem;">
-                        <strong style="color:#0f172a;">Observaciones de la Prescripción:</strong>
-                        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:10px; margin-top:4px;">${recipe.notes}</div>
-                    </div>
-                ` : ''}
-
-                <!-- INDICACIONES CLÍNICAS -->
-                ${recipe.indications ? `
-                    <div style="margin-bottom: 20px;">
-                        <h4 style="margin: 0 0 8px 0; color: #0284c7; font-size: 0.95rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
-                            <i class="fa-solid fa-list-check"></i> Indicaciones y Recomendaciones Clínicas
-                        </h4>
-                        <div style="background:#f0f9ff; border:1px solid rgba(2,132,199,0.3); border-radius:6px; padding:12px; font-size:0.88rem; white-space:pre-line;">
-                            ${recipe.indications}
-                        </div>
-                    </div>
-                ` : ''}
-
-                <!-- FIRMA Y SELLO DEL ODONTÓLOGO (CON FIRMA CARGADA EN CONFIGURACIONES) -->
-                <div style="margin-top: 45px; display: flex; justify-content: flex-end; padding-right: 20px;">
-                    <div style="width: 250px; text-align: center;">
-                        ${docSignature ? `<img src="${docSignature}" style="max-height: 80px; max-width: 220px; object-fit: contain; margin-bottom: 4px;" alt="Firma Odontólogo"><br>` : ''}
-                        <div style="border-top: 1px solid #334155; padding-top: 5px; font-size: 0.85rem; font-weight: 700; color: #1e293b;">
-                            Dr(a). ${docName}
-                        </div>
-                        <div style="font-size: 0.75rem; color: #64748b;">Firma y Sello del Odontólogo</div>
-                    </div>
-                </div>
-
-                <!-- FOOTER -->
-                <div style="border-top: 1px dashed #cbd5e1; margin-top: 30px; padding-top: 12px; text-align: center; font-size: 0.75rem; color: #64748b; font-style: italic;">
-                    ${stationery.recipeFooterText || stationery.footerText || 'Documento Clínico Oficial de Prescripción Médica para el Paciente.'}
-                </div>
+        publicContent.innerHTML = `
+            <div id="public-recipe-printable-doc">
+                ${docHtml}
             </div>
         `;
 
-        publicContent.innerHTML = html;
-
         document.getElementById('btn-public-session-print').onclick = () => window.print();
         document.getElementById('btn-public-session-download-pdf').onclick = async () => {
-            const clone = publicContent.cloneNode(true);
+            const clone = document.getElementById('public-recipe-printable-doc').cloneNode(true);
             const filename = `Recipe_Medico_${patient.fullname.replace(/\s+/g, '_')}.pdf`;
             await generatePDFFromElement(clone, filename);
         };
@@ -13322,6 +13385,40 @@ window.openRecipeModal = async function(sessionNum = null, sessionTitle = '') {
         }
     }
 
+    // Populate Doctor Selector with doctors list and licenses
+    const doctorSelect = document.getElementById('recipe-doctor-select');
+    if (doctorSelect) {
+        doctorSelect.innerHTML = '';
+        try {
+            const users = await SupabaseDataService.getUsers();
+            const doctors = users.filter(u => {
+                const r = (u.role || '').toLowerCase();
+                return r.includes('odont') || r.includes('medico') || r.includes('médico') || r.includes('especialista') || r.includes('cirujano') || r.includes('doctor') || (u.license && u.license !== 'N/A');
+            });
+            const targetDoctors = (doctors.length > 0) ? doctors : users;
+            const currentUser = getCurrentUser();
+
+            targetDoctors.forEach(doc => {
+                const opt = document.createElement('option');
+                opt.value = doc.id;
+                const lic = (doc.license && doc.license !== 'N/A') ? ` (${doc.license})` : '';
+                opt.innerText = `${doc.fullname} - ${doc.role || 'Odontólogo'}${lic}`;
+                opt.dataset.doctorName = doc.fullname;
+                opt.dataset.doctorRole = doc.role || 'Odontología General';
+                opt.dataset.doctorLicense = (doc.license && doc.license !== 'N/A') ? doc.license : '';
+                const docSig = (doc.doctorProfile && doc.doctorProfile.signature) || (doc.doctor_profile && doc.doctor_profile.signature) || '';
+                opt.dataset.doctorSignature = docSig;
+
+                if (currentUser && (currentUser.id === doc.id || currentUser.fullname === doc.fullname)) {
+                    opt.selected = true;
+                }
+                doctorSelect.appendChild(opt);
+            });
+        } catch(e) {
+            console.warn("Error loading doctors in recipe modal:", e);
+        }
+    }
+
     const tbody = document.getElementById('recipe-medicines-tbody');
     if (tbody) tbody.innerHTML = '';
     window.addRecipeRow('Amoxicilina 500mg', '1 cápsula c/8h', 'Por 7 días');
@@ -13408,6 +13505,32 @@ window.saveRecipeAndIndicationsFinal = async function() {
     const notes = document.getElementById('recipe-general-notes') ? document.getElementById('recipe-general-notes').value.trim() : '';
     const indications = document.getElementById('recipe-clinical-indications') ? document.getElementById('recipe-clinical-indications').value.trim() : '';
 
+    // Capture selected doctor info
+    const doctorSelect = document.getElementById('recipe-doctor-select');
+    let selectedDoctorId = '';
+    let selectedDoctorName = 'Dr. Odontólogo Especialista';
+    let selectedDoctorRole = 'Odontología General';
+    let selectedDoctorLicense = '';
+    let selectedDoctorSignature = '';
+
+    if (doctorSelect && doctorSelect.selectedIndex >= 0) {
+        const opt = doctorSelect.options[doctorSelect.selectedIndex];
+        selectedDoctorId = opt.value;
+        selectedDoctorName = opt.dataset.doctorName || opt.text.split(' - ')[0];
+        selectedDoctorRole = opt.dataset.doctorRole || 'Odontología General';
+        selectedDoctorLicense = opt.dataset.doctorLicense || '';
+        selectedDoctorSignature = opt.dataset.doctorSignature || '';
+    } else {
+        const currentUser = getCurrentUser();
+        if (currentUser) {
+            selectedDoctorId = currentUser.id;
+            selectedDoctorName = currentUser.fullname;
+            selectedDoctorRole = currentUser.role || 'Odontología General';
+            selectedDoctorLicense = (currentUser.license && currentUser.license !== 'N/A') ? currentUser.license : '';
+            selectedDoctorSignature = (currentUser.doctorProfile && currentUser.doctorProfile.signature) || (currentUser.doctor_profile && currentUser.doctor_profile.signature) || '';
+        }
+    }
+
     const patients = await SupabaseDataService.getPatients();
     const p = patients.find(pt => pt.id === activeId);
     if (p) {
@@ -13418,6 +13541,11 @@ window.saveRecipeAndIndicationsFinal = async function() {
             id: 'REC-' + Date.now().toString().slice(-6),
             date: new Date().toISOString().split('T')[0],
             treatmentLinked,
+            doctorId: selectedDoctorId,
+            doctorName: selectedDoctorName,
+            doctorRole: selectedDoctorRole,
+            doctorLicense: selectedDoctorLicense,
+            doctorSignature: selectedDoctorSignature,
             medicines,
             notes,
             indications
@@ -13469,6 +13597,7 @@ window.openRecipesModalForSession = async function(patientId, sessionNum, sessio
                 </div>
                 <div style="font-size:0.85rem; color:var(--text-main);">
                     <div><strong>Tratamiento Vinculado:</strong> ${r.treatmentLinked}</div>
+                    ${r.doctorName ? `<div><strong>Médico:</strong> Dr(a). ${r.doctorName} ${r.doctorLicense ? `(${r.doctorLicense})` : ''}</div>` : ''}
                     ${medsHtml ? `<div style="margin-top:6px;"><strong>Medicamentos Prescritos:</strong><ul style="margin:4px 0; padding-left:20px;">${medsHtml}</ul></div>` : ''}
                     ${r.notes ? `<div style="margin-top:4px;"><strong>Notas:</strong> ${r.notes}</div>` : ''}
                     ${r.indications ? `<div style="margin-top:6px; background:rgba(2,132,199,0.05); padding:8px; border-radius:6px; border:1px solid rgba(2,132,199,0.2);"><strong>Indicaciones Clínicas:</strong><br>${r.indications.replace(/\n/g, '<br>')}</div>` : ''}
@@ -13497,108 +13626,107 @@ window.printSingleRecipePDF = async function(patientId, recipeId = null) {
 
     const meta = p.metadata || {};
     const recipes = meta.recipes || [];
-    const recipe = recipeId ? recipes.find(r => r.id === recipeId) : recipes[0];
+    let recipe = recipeId ? recipes.find(r => r.id === recipeId) : recipes[0];
+
+    // If no saved recipe exists in history, build one from modal inputs if open
+    if (!recipe) {
+        const treatmentLinked = document.getElementById('recipe-treatment-select') ? document.getElementById('recipe-treatment-select').value : 'General';
+        const medicines = [];
+        document.querySelectorAll('#recipe-medicines-tbody tr').forEach(tr => {
+            const med = tr.querySelector('.recipe-med-name') ? tr.querySelector('.recipe-med-name').value.trim() : '';
+            const dose = tr.querySelector('.recipe-med-dose') ? tr.querySelector('.recipe-med-dose').value.trim() : '';
+            const freq = tr.querySelector('.recipe-med-freq') ? tr.querySelector('.recipe-med-freq').value.trim() : '';
+            if (med) medicines.push({ med, dose, freq });
+        });
+        const notes = document.getElementById('recipe-general-notes') ? document.getElementById('recipe-general-notes').value.trim() : '';
+        const indications = document.getElementById('recipe-clinical-indications') ? document.getElementById('recipe-clinical-indications').value.trim() : '';
+        
+        const doctorSelect = document.getElementById('recipe-doctor-select');
+        let selDocName = '';
+        let selDocRole = '';
+        let selDocLic = '';
+        let selDocSig = '';
+        if (doctorSelect && doctorSelect.selectedIndex >= 0) {
+            const opt = doctorSelect.options[doctorSelect.selectedIndex];
+            selDocName = opt.dataset.doctorName || opt.text.split(' - ')[0];
+            selDocRole = opt.dataset.doctorRole || 'Odontología General';
+            selDocLic = opt.dataset.doctorLicense || '';
+            selDocSig = opt.dataset.doctorSignature || '';
+        }
+
+        recipe = {
+            id: 'REC-' + Date.now().toString().slice(-6),
+            date: new Date().toISOString().split('T')[0],
+            treatmentLinked,
+            doctorName: selDocName,
+            doctorRole: selDocRole,
+            doctorLicense: selDocLic,
+            doctorSignature: selDocSig,
+            medicines,
+            notes,
+            indications
+        };
+    }
 
     const config = await SupabaseDataService.getStationeryConfig();
     const headerText = config.headerText || 'Clínica Odontológica Especializada';
     const logoUrl = config.logoUrl || config.logo_url || '';
     const recipeFooter = config.recipeFooterText || config.footerText || 'Documento Clínico Oficial de Prescripción Médica para el Paciente.';
 
-    const currentUser = getCurrentUser();
-    const currentDocName = currentUser ? currentUser.fullname : 'Dr. Odontólogo Especialista';
-
-    // Doctor signature resolution
-    let docSignature = '';
-    if (currentUser && currentUser.doctorProfile && currentUser.doctorProfile.signature) {
-        docSignature = currentUser.doctorProfile.signature;
-    } else if (currentUser && currentUser.doctor_profile && currentUser.doctor_profile.signature) {
-        docSignature = currentUser.doctor_profile.signature;
-    } else if (config && (config.doctorSignature || config.doctor_signature)) {
-        docSignature = config.doctorSignature || config.doctor_signature;
-    } else if (p.metadata && p.metadata.doctorSignature) {
-        docSignature = p.metadata.doctorSignature;
+    const users = await SupabaseDataService.getUsers();
+    let docUser = null;
+    if (recipe && recipe.doctorId) {
+        docUser = users.find(u => u.id === recipe.doctorId);
+    }
+    if (!docUser && recipe && recipe.doctorName) {
+        docUser = users.find(u => u.fullname === recipe.doctorName);
+    }
+    if (!docUser) {
+        const currentUser = getCurrentUser();
+        if (currentUser) docUser = currentUser;
     }
 
-    let medsList = recipe && recipe.medicines ? recipe.medicines.map(m => `
-        <tr style="border-bottom:1px solid #e2e8f0;">
-            <td style="padding:10px; font-weight:700; color:#0f172a;">${m.med}</td>
-            <td style="padding:10px; color:#334155;">${m.dose}</td>
-            <td style="padding:10px; color:#475569;">${m.freq}</td>
-        </tr>
-    `).join('') : '<tr><td colspan="3" style="padding:10px; text-align:center;">Sin medicamentos prescritos</td></tr>';
+    const docName = (recipe && recipe.doctorName) || (docUser ? docUser.fullname : 'Dr. Odontólogo Especialista');
+    const docSpecialty = (recipe && recipe.doctorRole) || (docUser ? docUser.role : 'Odontología General');
+    const docLicense = (recipe && recipe.doctorLicense) || (docUser && docUser.license && docUser.license !== 'N/A' ? docUser.license : 'MPPS-98402 / C.O.V-20104');
+    
+    let docSignature = (recipe && recipe.doctorSignature) || '';
+    if (!docSignature && docUser) {
+        docSignature = (docUser.doctorProfile && docUser.doctorProfile.signature) || (docUser.doctor_profile && docUser.doctor_profile.signature) || '';
+    }
+    if (!docSignature && config && (config.doctorSignature || config.doctor_signature)) {
+        docSignature = config.doctorSignature || config.doctor_signature;
+    }
 
-    const printWin = window.open('', '_blank');
-    if (!printWin) return;
+    const clinicBusData = getClinicBusData(config);
 
-    printWin.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Récipe Médico - ${p.fullname}</title>
-            <style>
-                body { font-family: 'Segoe UI', Arial, sans-serif; padding: 30px; color: #1e293b; }
-                .header { text-align: center; border-bottom: 2px solid #0d9488; padding-bottom: 15px; margin-bottom: 20px; }
-                .header h2 { margin: 0; color: #0d9488; text-transform: uppercase; font-size: 20px; }
-                .header p { margin: 4px 0 0 0; font-size: 13px; color: #64748b; white-space: pre-line; }
-                .patient-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 18px; margin-bottom: 20px; font-size: 14px; }
-                table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-                th { background: #f1f5f9; text-align: left; padding: 8px 10px; font-size: 12px; color: #475569; text-transform: uppercase; }
-                .section-title { color: #0d9488; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; font-size: 15px; margin-top: 25px; margin-bottom: 10px; font-weight: 700; }
-                .footer { margin-top: 50px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 15px; }
-            </style>
-        </head>
-        <body>
-            <div class="header">
-                ${logoUrl ? `<img src="${logoUrl}" style="max-height:120px; max-width:280px; object-fit:contain; margin-bottom:12px;"><br>` : ''}
-                <h2>PRESCRIPCIÓN MÉDICA Y RÉCIPE ODONTOLÓGICO</h2>
-                <p>${formatHeaderText(headerText)}</p>
-            </div>
-            <div class="patient-box">
-                <strong>Paciente:</strong> ${p.fullname} &nbsp;&nbsp;|&nbsp;&nbsp; 
-                <strong>C.I.:</strong> ${p.id} &nbsp;&nbsp;|&nbsp;&nbsp; 
-                <strong>Fecha:</strong> ${recipe ? recipe.date : new Date().toISOString().split('T')[0]}<br>
-                <span style="font-size: 12px; color: #64748b;">Tratamiento Vinculado: ${recipe ? recipe.treatmentLinked : 'General'}</span>
-            </div>
+    const docHtml = buildRecipeDocumentHTML({
+        docTitle: 'Prescripción Médica y Récipe',
+        emissionDate: recipe ? recipe.date : new Date().toISOString().split('T')[0],
+        controlNumber: recipe ? recipe.id : 'REC-001',
+        treatmentLinked: recipe ? (recipe.treatmentLinked || 'General') : 'General',
+        clinicName: clinicBusData.name || headerText,
+        clinicPhone: clinicBusData.phone || '',
+        clinicAddress: clinicBusData.address || '',
+        logoUrl: logoUrl,
+        doctorName: docName,
+        doctorSpecialty: docSpecialty,
+        doctorLicense: docLicense,
+        doctorPhone: (docUser && docUser.phone) || clinicBusData.phone || '',
+        doctorSig: docSignature,
+        patientName: p.fullname,
+        patientId: p.id,
+        patientPhone: p.phone || '',
+        medicines: recipe ? (recipe.medicines || []) : [],
+        notes: recipe ? (recipe.notes || '') : '',
+        indications: recipe ? (recipe.indications || '') : '',
+        footerNote: recipeFooter
+    });
 
-            <div class="section-title">Rx - MEDICAMENTOS PRESCRITOS</div>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width:40%;">Fármaco / Presentación</th>
-                        <th style="width:30%;">Dosis</th>
-                        <th style="width:30%;">Frecuencia / Duración</th>
-                    </tr>
-                </thead>
-                <tbody>${medsList}</tbody>
-            </table>
-
-            ${recipe && recipe.notes ? `<div style="margin-bottom:15px; font-size:13px;"><strong>Instrucciones de la Prescripción:</strong> ${recipe.notes}</div>` : ''}
-
-            ${recipe && recipe.indications ? `
-                <div class="section-title">INDICACIONES Y RECOMENDACIONES CLÍNICAS</div>
-                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:12px; font-size:13px; white-space:pre-line;">
-                    ${recipe.indications}
-                </div>
-            ` : ''}
-
-            <div style="margin-top: 50px; display: flex; justify-content: flex-end; padding-right: 30px;">
-                <div style="width: 250px; text-align: center;">
-                    ${docSignature ? `<img src="${docSignature}" style="max-height: 80px; max-width: 220px; object-fit: contain; margin-bottom: 4px;" alt="Firma Odontólogo"><br>` : ''}
-                    <div style="border-top: 1px solid #334155; padding-top: 5px; font-size: 12px; font-weight: 700; color: #1e293b;">
-                        Dr(a). ${currentDocName}
-                    </div>
-                    <div style="font-size: 11px; color: #64748b;">Firma y Sello del Odontólogo</div>
-                </div>
-            </div>
-
-            <div class="footer">
-                ${recipeFooter}
-            </div>
-            <script>window.onload = function() { window.print(); };</script>
-        </body>
-        </html>
-    `);
-    printWin.document.close();
+    const container = document.createElement('div');
+    container.innerHTML = docHtml;
+    const filename = `Recipe_${recipe ? recipe.id : 'Prescripcion'}_${p.fullname.replace(/\s+/g, '_')}.pdf`;
+    await generatePDFFromElement(container, filename);
 };
 
 window.sendRecipeWhatsApp = async function(patientId, recipeId = null) {
