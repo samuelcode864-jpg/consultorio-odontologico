@@ -749,13 +749,9 @@ class SupabaseDataService {
                 console.warn('Supabase getInvoices sync warn:', err);
             }
 
-            if (cloudInvoices.length > 0) {
-                localStorage.setItem('dental_invoices', JSON.stringify(cloudInvoices));
-                this._invoicesCacheTime = Date.now();
-                return cloudInvoices;
-            }
-
-            return local;
+            localStorage.setItem('dental_invoices', JSON.stringify(cloudInvoices));
+            this._invoicesCacheTime = Date.now();
+            return cloudInvoices;
         })();
 
         if (forceRefresh) return await this._invoicesPromise;
@@ -832,7 +828,7 @@ class SupabaseDataService {
         this._invoicesCacheTime = 0;
         this._invoicesPromise = null;
         let localInvs = JSON.parse(localStorage.getItem('dental_invoices')) || [];
-        localInvs = localInvs.filter(i => i.id !== invoiceId);
+        localInvs = localInvs.filter(i => String(i.id).trim() !== String(invoiceId).trim());
         localStorage.setItem('dental_invoices', JSON.stringify(localInvs));
 
         if (this.isCloudConnected()) {
@@ -843,6 +839,8 @@ class SupabaseDataService {
                 console.error('Supabase deleteInvoice Error:', err);
             }
         }
+        this._invoicesCacheTime = 0;
+        this._invoicesPromise = null;
     }
 
     // ==========================================

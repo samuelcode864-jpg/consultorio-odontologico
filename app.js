@@ -1552,7 +1552,7 @@ window.selectPatientAndLoadApprovedBudget = async function(patientId) {
     }
 };
 
-async function renderBudgetListView() {
+async function renderBudgetListView(forceRefresh = false) {
     localStorage.setItem('dental_odontogram_subview', 'list');
     document.documentElement.setAttribute('data-odontogram-subview', 'list');
     const listContainer = document.getElementById('odontogram-list-container');
@@ -1565,7 +1565,7 @@ async function renderBudgetListView() {
     const tableBody = document.getElementById('budget-list-table-body');
     if (!tableBody) return;
 
-    const invoices = await SupabaseDataService.getInvoices();
+    const invoices = await SupabaseDataService.getInvoices(forceRefresh);
     let budgets = invoices.filter(inv => inv.id && inv.id.startsWith('PRE-'));
 
     // Ordenar por orden de llegada: El último creado SIEMPRE de primero
@@ -1706,7 +1706,7 @@ window.deleteBudget = async function(budgetId) {
         }
 
         // 5. Re-render budget list and dashboard
-        await renderBudgetListView();
+        await renderBudgetListView(true);
         if (typeof renderDashboard === 'function') await renderDashboard();
 
         Swal.fire({
@@ -14420,7 +14420,7 @@ window.restoreFromTrash = async function(category, trashId) {
         } else if (category === 'invoices' || category === 'budgets') {
             await SupabaseDataService.saveInvoice(original);
             if (typeof renderBudgetTable === 'function') await renderBudgetTable();
-            if (typeof renderBudgetListView === 'function') await renderBudgetListView();
+            if (typeof renderBudgetListView === 'function') await renderBudgetListView(true);
             if (typeof renderDashboard === 'function') await renderDashboard();
         } else if (category === 'pricing') {
             const pricingList = await SupabaseDataService.getPricing();
