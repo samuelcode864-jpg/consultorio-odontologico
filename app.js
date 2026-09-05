@@ -1636,9 +1636,10 @@ async function renderBudgetListView() {
                 <td><span class="${badgeClass}" style="font-size:0.75rem; text-transform:none; padding: 2px 6px;">${statusLabel}</span></td>
                 <td style="text-align: center;">
                     <div style="display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;">
-                        <button class="btn btn-xs btn-outline" onclick="loadBudgetIntoEditor('${b.id}')" style="padding: 4px 8px; font-weight:600; border-radius:4px; cursor: pointer;"><i class="fa-solid fa-folder-open"></i> Abrir</button>
+                        <button class="btn btn-xs btn-outline" onclick="loadBudgetIntoEditor('${b.id}')" style="padding: 4px 8px; font-weight:600; border-radius:4px; cursor: pointer;" title="Abrir y Editar Presupuesto"><i class="fa-solid fa-folder-open"></i> Abrir</button>
                         <button class="btn btn-xs btn-success" onclick="window.sendBudgetWhatsApp('${b.id}')" style="padding: 4px 8px; font-weight:600; border-radius:4px; cursor: pointer; background:#25D366; border:none; color:#fff;" title="Enviar Presupuesto por WhatsApp"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
                         ${isApproved ? `<button class="btn btn-xs btn-success" onclick="window.finalizeBudgetDirect('${b.id}')" style="padding: 4px 8px; font-weight:600; border-radius:4px; cursor: pointer; background:#10b981; border:none; color:#fff;" title="Finalizar Tratamiento / Presupuesto"><i class="fa-solid fa-circle-check"></i> Finalizar</button>` : ''}
+                        <button class="btn btn-xs btn-outline text-red" onclick="window.deleteBudget('${b.id}')" style="padding: 4px 8px; font-weight:600; border-radius:4px; cursor: pointer; border-color: #ef4444; color: #ef4444;" title="Eliminar Presupuesto (Enviar a Papelera)"><i class="fa-solid fa-trash-can"></i></button>
                     </div>
                 </td>
             `;
@@ -1646,6 +1647,80 @@ async function renderBudgetListView() {
         });
     }
 }
+
+window.deleteBudget = async function(budgetId) {
+    try {
+        const invoices = await SupabaseDataService.getInvoices();
+        const budget = invoices.find(inv => String(inv.id) === String(budgetId));
+        if (!budget) {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'No se encontró el presupuesto especificado.' });
+            return;
+        }
+
+        const patients = await SupabaseDataService.getPatients();
+        const patient = patients.find(p => String(p.id) === String(budget.patientId));
+        const patientName = patient ? patient.fullname : (budget.patientId || 'Paciente');
+
+        const result = await Swal.fire({
+            title: '¿Eliminar presupuesto?',
+            html: `
+                <div style="text-align: left; font-size: 0.92rem; line-height: 1.5; color: var(--text-main);">
+                    <p style="margin-bottom: 8px;">¿Está seguro de que desea eliminar el presupuesto <strong>${budget.id}</strong> del paciente <strong>${patientName}</strong>?</p>
+                    <div style="background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444; padding: 8px 12px; border-radius: 4px; font-size: 0.85rem; color: #dc2626;">
+                        <i class="fa-solid fa-trash-arrow-up"></i> Este presupuesto se enviará a la <strong>Papelera de Reciclaje</strong>, donde podrá restaurarlo en cualquier momento.
+                    </div>
+                </div>
+            `,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: '<i class="fa-solid fa-trash-can"></i> Sí, enviar a papelera',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (!result.isConfirmed) return;
+
+        // 1. Move to Trash
+        if (window.moveToTrash) {
+            await window.moveToTrash('invoices', budget, `Presupuesto ${budget.id} - ${patientName} ($${(budget.totalRef || budget.totalUSD || 0).toFixed(2)})`);
+        }
+
+        // 2. Delete from invoices
+        await SupabaseDataService.deleteInvoice(budgetId);
+
+        // 3. Clear draft metadata if linked to patient
+        if (patient && patient.metadata && patient.metadata.draftBudget && String(patient.metadata.draftBudget.id) === String(budgetId)) {
+            delete patient.metadata.draftBudget;
+            delete patient.metadata.draftOdontogramData;
+            await SupabaseDataService.savePatient(patient);
+        }
+
+        // 4. If current budget is open in editor, clear it
+        if (activeEditingBudgetId === budgetId) {
+            activeEditingBudgetId = null;
+            currentBudgetItems = [];
+            setActivePatientId(null);
+            if (window.odontogram) window.odontogram.setData({});
+            if (window.dismissFloatingBudgetBubble) window.dismissFloatingBudgetBubble();
+        }
+
+        // 5. Re-render budget list and dashboard
+        await renderBudgetListView();
+        if (typeof renderDashboard === 'function') await renderDashboard();
+
+        Swal.fire({
+            icon: 'success',
+            title: 'Presupuesto Eliminado',
+            text: `El presupuesto ${budgetId} fue movido a la Papelera de Reciclaje.`,
+            timer: 2000,
+            showConfirmButton: false
+        });
+    } catch(err) {
+        console.error("Error deleting budget:", err);
+        Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo eliminar el presupuesto.' });
+    }
+};
 
 window.sendBudgetWhatsApp = async function(budgetId) {
     try {
@@ -14273,6 +14348,8 @@ window.restoreFromTrash = async function(category, trashId) {
         } else if (category === 'invoices' || category === 'budgets') {
             await SupabaseDataService.saveInvoice(original);
             if (typeof renderBudgetTable === 'function') await renderBudgetTable();
+            if (typeof renderBudgetListView === 'function') await renderBudgetListView();
+            if (typeof renderDashboard === 'function') await renderDashboard();
         } else if (category === 'pricing') {
             const pricingList = await SupabaseDataService.getPricing();
             pricingList.push(original);

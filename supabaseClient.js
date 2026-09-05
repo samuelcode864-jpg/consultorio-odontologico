@@ -824,9 +824,13 @@ class SupabaseDataService {
                 console.warn('Supabase saveInvoice caught:', err);
             }
         }
+        this._invoicesCacheTime = 0;
+        this._invoicesPromise = null;
     }
 
     static async deleteInvoice(invoiceId) {
+        this._invoicesCacheTime = 0;
+        this._invoicesPromise = null;
         let localInvs = JSON.parse(localStorage.getItem('dental_invoices')) || [];
         localInvs = localInvs.filter(i => i.id !== invoiceId);
         localStorage.setItem('dental_invoices', JSON.stringify(localInvs));
