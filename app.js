@@ -7976,71 +7976,80 @@ function initGlobalEvents() {
         };
     }
 
+    window.cancelCurrentBudget = async function() {
+        const activeId = getActivePatientId();
+
+        const result = await Swal.fire({
+            title: '¿Deseas cancelar este presupuesto?',
+            text: 'Se descartarán todos los procedimientos en curso, marcas del odontodiagrama no guardadas y firmas de este documento.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#e11d48',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: '<i class="fa-solid fa-trash-can"></i> Sí, cancelar presupuesto',
+            cancelButtonText: 'Continuar editando'
+        });
+
+        if (!result.isConfirmed) return;
+
+        // Limpiar borrador del paciente si no ha sido aprobado
+        if (activeId) {
+            try {
+                const patients = await SupabaseDataService.getPatients();
+                const patient = patients.find(p => String(p.id) === String(activeId));
+                if (patient && patient.metadata) {
+                    delete patient.metadata.draftBudget;
+                    delete patient.metadata.draftOdontogramData;
+                    await SupabaseDataService.savePatient(patient);
+                }
+            } catch(e) {
+                console.error("Error clearing patient draft on cancel:", e);
+            }
+        }
+
+        // Restablecer estado en memoria a cero
+        currentBudgetItems = [];
+        activeEditingBudgetId = null;
+        setActivePatientId(null);
+
+        localStorage.removeItem('dental_anonymous_draft_budget');
+        localStorage.removeItem('dental_anonymous_odontogram_data');
+
+        if (window.odontogram) window.odontogram.setData({});
+        if (window.doctorSigPad) window.doctorSigPad.clear();
+        if (window.patientSigPad) window.patientSigPad.clear();
+
+        const notesEl = document.getElementById('budget-notes');
+        if (notesEl) notesEl.value = '';
+        const discEl = document.getElementById('budget-discount-input');
+        if (discEl) discEl.value = '0';
+        const searchInput = document.getElementById('od-patient-search-input');
+        if (searchInput) searchInput.value = '';
+
+        if (window.dismissFloatingBudgetBubble) window.dismissFloatingBudgetBubble();
+
+        // Ocultar editor y regresar a la vista de lista de presupuestos
+        const listContainer = document.getElementById('odontogram-list-container');
+        const editorContainer = document.getElementById('odontogram-editor-container');
+        if (listContainer) listContainer.classList.remove('hidden');
+        if (editorContainer) editorContainer.classList.add('hidden');
+        document.documentElement.dataset.odontogramSubview = 'list';
+
+        await renderBudgetListView();
+        renderBudgetTable();
+
+        Swal.fire({
+            icon: 'info',
+            title: 'Presupuesto Cancelado',
+            text: 'El área de presupuesto ha sido restablecida correctamente.',
+            timer: 1800,
+            showConfirmButton: false
+        });
+    };
+
     const btnCancelBudget = document.getElementById('btn-cancel-budget');
     if (btnCancelBudget) {
-        btnCancelBudget.onclick = async () => {
-            const activeId = getActivePatientId();
-
-            const result = await Swal.fire({
-                title: '¿Deseas cancelar este presupuesto?',
-                text: 'Se descartarán todos los procedimientos en curso, marcas del odontodiagrama no guardadas y firmas de este documento.',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#e11d48',
-                cancelButtonColor: '#64748b',
-                confirmButtonText: '<i class="fa-solid fa-trash-can"></i> Sí, cancelar presupuesto',
-                cancelButtonText: 'Continuar editando'
-            });
-
-            if (!result.isConfirmed) return;
-
-            // Limpiar borrador del paciente si no ha sido aprobado
-            if (activeId) {
-                try {
-                    const patients = await SupabaseDataService.getPatients();
-                    const patient = patients.find(p => String(p.id) === String(activeId));
-                    if (patient && patient.metadata) {
-                        delete patient.metadata.draftBudget;
-                        delete patient.metadata.draftOdontogramData;
-                        await SupabaseDataService.savePatient(patient);
-                    }
-                } catch(e) {
-                    console.error("Error clearing patient draft on cancel:", e);
-                }
-            }
-
-            // Restablecer estado en memoria a cero
-            currentBudgetItems = [];
-            activeEditingBudgetId = null;
-            setActivePatientId(null);
-
-            localStorage.removeItem('dental_anonymous_draft_budget');
-            localStorage.removeItem('dental_anonymous_odontogram_data');
-
-            if (window.odontogram) window.odontogram.setData({});
-            if (window.doctorSigPad) window.doctorSigPad.clear();
-            if (window.patientSigPad) window.patientSigPad.clear();
-
-            const notesEl = document.getElementById('budget-notes');
-            if (notesEl) notesEl.value = '';
-            const discEl = document.getElementById('budget-discount-input');
-            if (discEl) discEl.value = '0';
-            const searchInput = document.getElementById('od-patient-search-input');
-            if (searchInput) searchInput.value = '';
-
-            if (window.dismissFloatingBudgetBubble) window.dismissFloatingBudgetBubble();
-
-            await renderOdontogramView();
-            renderBudgetTable();
-
-            Swal.fire({
-                icon: 'info',
-                title: 'Presupuesto Cancelado',
-                text: 'El área de presupuesto ha sido restablecida correctamente.',
-                timer: 1800,
-                showConfirmButton: false
-            });
-        };
+        btnCancelBudget.onclick = window.cancelCurrentBudget;
     }
 
     const searchInput = document.getElementById('global-search');
