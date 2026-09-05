@@ -6051,6 +6051,71 @@ function initGlobalEvents() {
         };
     }
 
+    const btnExportPat = document.getElementById('btn-export-patients-excel');
+    if (btnExportPat) {
+        btnExportPat.onclick = async () => {
+            if (!window.XLSX) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Librería XLSX no disponible.' });
+                return;
+            }
+            try {
+                Swal.fire({
+                    title: 'Exportando Pacientes...',
+                    text: 'Generando archivo Excel con toda la base de datos.',
+                    allowOutsideClick: false,
+                    didOpen: () => Swal.showLoading()
+                });
+
+                const patients = await SupabaseDataService.getPatients();
+                if (!patients || patients.length === 0) {
+                    Swal.fire({ icon: 'info', title: 'Sin Registros', text: 'No hay pacientes registrados para exportar.' });
+                    return;
+                }
+
+                const rows = patients.map(p => {
+                    const meta = p.metadata || {};
+                    return {
+                        "Cédula / ID": p.id || "",
+                        "Nombre Completo": p.fullname || "",
+                        "Tipo": p.is_minor ? "Infantil" : "Adulto",
+                        "Fecha Nacimiento": p.birthdate || "",
+                        "Edad": p.age || "",
+                        "Teléfono": p.phone || "",
+                        "Correo Electrónico": p.email || "",
+                        "Ocupación": p.occupation || "",
+                        "Dirección": p.address || "",
+                        "Estado": p.status || "Activo",
+                        "Alergias": Array.isArray(p.allergies) ? p.allergies.join(", ") : (p.allergies || ""),
+                        "Enfermedades Sistémicas": Array.isArray(p.systemicDiseases) ? p.systemicDiseases.join(", ") : (p.systemicDiseases || ""),
+                        "Medicamentos": p.medication || "",
+                        "Contacto de Emergencia": p.emergencyContact || "",
+                        "Representante - Nombre": meta.rep_name || "",
+                        "Representante - Cédula": meta.rep_id || "",
+                        "Representante - Teléfono": meta.rep_phone || "",
+                        "Representante - Parentesco": meta.rep_relationship || "",
+                        "Motivo de Consulta": meta.consultation_reason || "",
+                        "Fecha de Creación": p.created_at ? p.created_at.split('T')[0] : ""
+                    };
+                });
+
+                const ws = XLSX.utils.json_to_sheet(rows);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Base_Datos_Pacientes");
+                const todayStr = new Date().toISOString().split('T')[0];
+                XLSX.writeFile(wb, `Base_de_Datos_Pacientes_${todayStr}.xlsx`);
+
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Exportación Exitosa!',
+                    text: `Se han exportado ${rows.length} pacientes a Excel con éxito.`
+                });
+            } catch (err) {
+                console.error("Error exporting patients to Excel:", err);
+                Swal.fire({ icon: 'error', title: 'Error al exportar', text: err.message || 'No se pudo generar el archivo Excel.' });
+            }
+        };
+    }
+
     const btnImportPat = document.getElementById('btn-import-patients');
     const importPatFile = document.getElementById('import-patients-file');
     if (btnImportPat && importPatFile) {
@@ -6214,6 +6279,55 @@ function initGlobalEvents() {
         };
     }
 
+    const btnExportSrv = document.getElementById('btn-export-services-excel');
+    if (btnExportSrv) {
+        btnExportSrv.onclick = async () => {
+            if (!window.XLSX) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Librería XLSX no disponible.' });
+                return;
+            }
+            try {
+                Swal.fire({
+                    title: 'Exportando Servicios...',
+                    text: 'Generando archivo Excel con todo el baremo de servicios.',
+                    allowOutsideClick: false,
+                    didOpen: () => Swal.showLoading()
+                });
+
+                const services = await SupabaseDataService.getBaremoServices();
+                if (!services || services.length === 0) {
+                    Swal.fire({ icon: 'info', title: 'Sin Registros', text: 'No hay servicios en el baremo para exportar.' });
+                    return;
+                }
+
+                const rows = services.map(s => ({
+                    "Código": s.code || s.id || "",
+                    "Categoría / Especialidad": s.category || "General",
+                    "Nombre del Servicio / Tratamiento": s.name || "",
+                    "Precio Base (USD)": Number(s.price_usd || s.priceUSD || 0),
+                    "Tiempo en Silla (Minutos)": Number(s.chair_time_min || s.chairTimeMin || 30),
+                    "Bono Higienista (USD)": Number(s.hygienist_bonus || s.hygienistBonus || 0),
+                    "Descripción / Notas": s.description || ""
+                }));
+
+                const ws = XLSX.utils.json_to_sheet(rows);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Baremo_Servicios");
+                const todayStr = new Date().toISOString().split('T')[0];
+                XLSX.writeFile(wb, `Baremo_Servicios_${todayStr}.xlsx`);
+
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Exportación Exitosa!',
+                    text: `Se han exportado ${rows.length} servicios del baremo a Excel.`
+                });
+            } catch (err) {
+                console.error("Error exporting services to Excel:", err);
+                Swal.fire({ icon: 'error', title: 'Error al exportar', text: err.message || 'No se pudo generar el archivo Excel.' });
+            }
+        };
+    }
+
     const btnImportSrv = document.getElementById('btn-import-services');
     const importSrvFile = document.getElementById('import-services-file');
     if (btnImportSrv && importSrvFile) {
@@ -6313,6 +6427,61 @@ function initGlobalEvents() {
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Insumos");
             XLSX.writeFile(workbook, "plantilla_insumos.xlsx");
+        };
+    }
+
+    const btnExportMat = document.getElementById('btn-export-materials-excel');
+    if (btnExportMat) {
+        btnExportMat.onclick = async () => {
+            if (!window.XLSX) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Librería XLSX no disponible.' });
+                return;
+            }
+            try {
+                Swal.fire({
+                    title: 'Exportando Inventario...',
+                    text: 'Generando archivo Excel con todos los insumos y materiales.',
+                    allowOutsideClick: false,
+                    didOpen: () => Swal.showLoading()
+                });
+
+                const materials = await SupabaseDataService.getMaterials();
+                if (!materials || materials.length === 0) {
+                    Swal.fire({ icon: 'info', title: 'Sin Registros', text: 'No hay insumos registrados para exportar.' });
+                    return;
+                }
+
+                const rows = materials.map(m => {
+                    const curr = Number(m.current_stock ?? m.currentStock ?? 0);
+                    const min = Number(m.min_stock ?? m.minStock ?? 0);
+                    return {
+                        "Código": m.code || m.id || "",
+                        "Nombre del Insumo": m.name || "",
+                        "Categoría": m.category || "Materiales",
+                        "Stock Actual": curr,
+                        "Stock Mínimo": min,
+                        "Unidad de Medida": m.unit || "Unidades",
+                        "Costo Unitario ($ USD)": Number(m.unit_cost ?? m.unitCost ?? 0),
+                        "Fecha de Vencimiento": m.expiration_date || m.expirationDate || "",
+                        "Estado de Stock": (curr <= min) ? "Stock Bajo / Reordenar" : "Óptimo"
+                    };
+                });
+
+                const ws = XLSX.utils.json_to_sheet(rows);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Inventario_Insumos");
+                const todayStr = new Date().toISOString().split('T')[0];
+                XLSX.writeFile(wb, `Inventario_Insumos_${todayStr}.xlsx`);
+
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Exportación Exitosa!',
+                    text: `Se han exportado ${rows.length} insumos de inventario a Excel.`
+                });
+            } catch (err) {
+                console.error("Error exporting materials to Excel:", err);
+                Swal.fire({ icon: 'error', title: 'Error al exportar', text: err.message || 'No se pudo generar el archivo Excel.' });
+            }
         };
     }
 
