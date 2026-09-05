@@ -7994,6 +7994,7 @@ function initGlobalEvents() {
                 const patients = await SupabaseDataService.getPatients();
                 const p = patients.find(pat => pat.id === activeId);
                 if (p) {
+                    window.patientModalOpenedFromBudget = true;
                     if (window.openClinicalWizardForPatientId) {
                         window.openClinicalWizardForPatientId(p);
                     }
@@ -8778,6 +8779,9 @@ function openModal(id) {
 function closeModal(id) {
     const el = document.getElementById(id);
     if (el) el.classList.add('hidden');
+    if (id === 'modal-patient') {
+        window.patientModalOpenedFromBudget = false;
+    }
 }
 
 async function renderSettingsView() {
@@ -9461,6 +9465,13 @@ function initPatientStepperWizard() {
             const btnSaveAndBudget = document.getElementById('btn-patient-save-and-budget');
             if (!btnSaveAndBudget) return;
 
+            // If patient modal was opened from inside an ongoing budget creation or editing an existing patient: HIDE
+            if (window.patientModalOpenedFromBudget || window.editingPatientId) {
+                btnSaveAndBudget.classList.add('hidden');
+                return;
+            }
+
+            // ONLY when registering a NEW patient: show "Nuevo Presupuesto" on steps 1, 2, 3
             if (currentStep <= 3) {
                 btnSaveAndBudget.classList.remove('hidden');
                 btnSaveAndBudget.innerHTML = '<i class="fa-solid fa-file-invoice-dollar"></i> Nuevo Presupuesto';
@@ -9874,6 +9885,7 @@ function initPatientStepperWizard() {
     };
 
     window.openPatientModalForNew = () => {
+        window.patientModalOpenedFromBudget = false;
         window.currentPatientId = null;
         window.editingPatientId = null;
         window.wizardMode = 'all_steps';
