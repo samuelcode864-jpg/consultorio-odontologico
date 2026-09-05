@@ -960,12 +960,16 @@ class SupabaseDataService {
             header_text: 'DentalCare Pro - Clínica Odontológica Especializada\nDr. Alejandro Silva - C.O.V-14920\nAv. Principal, Mérida - WhatsApp: +584141234567',
             footerText: 'Gracias por su confianza. Todo tratamiento dental requiere control periódico cada 6 meses.',
             footer_text: 'Gracias por su confianza. Todo tratamiento dental requiere control periódico cada 6 meses.',
+            recipeFooterText: 'Documento Clínico Oficial de Prescripción Médica y Recomendaciones para el Paciente.',
+            recipe_footer_text: 'Documento Clínico Oficial de Prescripción Médica y Recomendaciones para el Paciente.',
             logoUrl: '',
             logo_url: ''
         };
 
+        const localSaved = JSON.parse(localStorage.getItem('dental_stationery_config') || 'null');
+
         if (!this.isCloudConnected()) {
-            return JSON.parse(localStorage.getItem('dental_stationery_config')) || defaultDoc;
+            return localSaved || defaultDoc;
         }
 
         try {
@@ -975,12 +979,14 @@ class SupabaseDataService {
                 const od = pData[0].odontogram_data;
                 const mapped = {
                     id: 'default',
-                    headerText: od.headerText || od.header_text || defaultDoc.headerText,
-                    header_text: od.headerText || od.header_text || defaultDoc.headerText,
-                    footerText: od.footerText || od.footer_text || defaultDoc.footerText,
-                    footer_text: od.footerText || od.footer_text || defaultDoc.footerText,
-                    logoUrl: od.logoUrl || od.logo_url || '',
-                    logo_url: od.logoUrl || od.logo_url || ''
+                    headerText: od.headerText !== undefined ? od.headerText : (od.header_text !== undefined ? od.header_text : (localSaved ? localSaved.headerText : defaultDoc.headerText)),
+                    header_text: od.headerText !== undefined ? od.headerText : (od.header_text !== undefined ? od.header_text : (localSaved ? localSaved.headerText : defaultDoc.headerText)),
+                    footerText: od.footerText !== undefined ? od.footerText : (od.footer_text !== undefined ? od.footer_text : (localSaved ? localSaved.footerText : defaultDoc.footerText)),
+                    footer_text: od.footerText !== undefined ? od.footerText : (od.footer_text !== undefined ? od.footer_text : (localSaved ? localSaved.footerText : defaultDoc.footerText)),
+                    recipeFooterText: od.recipeFooterText !== undefined ? od.recipeFooterText : (od.recipe_footer_text !== undefined ? od.recipe_footer_text : (localSaved ? localSaved.recipeFooterText : defaultDoc.recipeFooterText)),
+                    recipe_footer_text: od.recipeFooterText !== undefined ? od.recipeFooterText : (od.recipe_footer_text !== undefined ? od.recipe_footer_text : (localSaved ? localSaved.recipeFooterText : defaultDoc.recipeFooterText)),
+                    logoUrl: od.logoUrl !== undefined ? od.logoUrl : (od.logo_url !== undefined ? od.logo_url : (localSaved ? localSaved.logoUrl : '')),
+                    logo_url: od.logoUrl !== undefined ? od.logoUrl : (od.logo_url !== undefined ? od.logo_url : (localSaved ? localSaved.logoUrl : ''))
                 };
                 localStorage.setItem('dental_stationery_config', JSON.stringify(mapped));
                 return mapped;
@@ -992,28 +998,31 @@ class SupabaseDataService {
                 const row = data[0];
                 const mapped = {
                     id: 'default',
-                    headerText: row.header_text || defaultDoc.headerText,
-                    header_text: row.header_text || defaultDoc.headerText,
-                    footerText: row.footer_text || defaultDoc.footerText,
-                    footer_text: row.footer_text || defaultDoc.footerText,
-                    logoUrl: row.logo_url || '',
-                    logo_url: row.logo_url || ''
+                    headerText: (row.header_text !== null && row.header_text !== undefined) ? row.header_text : (localSaved ? localSaved.headerText : defaultDoc.headerText),
+                    header_text: (row.header_text !== null && row.header_text !== undefined) ? row.header_text : (localSaved ? localSaved.headerText : defaultDoc.headerText),
+                    footerText: (row.footer_text !== null && row.footer_text !== undefined) ? row.footer_text : (localSaved ? localSaved.footerText : defaultDoc.footerText),
+                    footer_text: (row.footer_text !== null && row.footer_text !== undefined) ? row.footer_text : (localSaved ? localSaved.footerText : defaultDoc.footerText),
+                    recipeFooterText: (row.recipe_footer_text !== null && row.recipe_footer_text !== undefined) ? row.recipe_footer_text : (localSaved ? localSaved.recipeFooterText : defaultDoc.recipeFooterText),
+                    recipe_footer_text: (row.recipe_footer_text !== null && row.recipe_footer_text !== undefined) ? row.recipe_footer_text : (localSaved ? localSaved.recipeFooterText : defaultDoc.recipeFooterText),
+                    logoUrl: row.logo_url || (localSaved ? localSaved.logoUrl : ''),
+                    logo_url: row.logo_url || (localSaved ? localSaved.logoUrl : '')
                 };
                 localStorage.setItem('dental_stationery_config', JSON.stringify(mapped));
                 return mapped;
             }
 
-            return JSON.parse(localStorage.getItem('dental_stationery_config')) || defaultDoc;
+            return localSaved || defaultDoc;
         } catch (err) {
             console.error('Supabase getStationeryConfig Error:', err);
-            return JSON.parse(localStorage.getItem('dental_stationery_config')) || defaultDoc;
+            return localSaved || defaultDoc;
         }
     }
 
     static async saveStationeryConfig(configObj) {
-        const headerText = configObj.headerText || configObj.header_text || '';
-        const footerText = configObj.footerText || configObj.footer_text || '';
-        const logoUrl = configObj.logoUrl || configObj.logo_url || '';
+        const headerText = configObj.headerText !== undefined ? configObj.headerText : (configObj.header_text !== undefined ? configObj.header_text : '');
+        const footerText = configObj.footerText !== undefined ? configObj.footerText : (configObj.footer_text !== undefined ? configObj.footer_text : '');
+        const recipeFooterText = configObj.recipeFooterText !== undefined ? configObj.recipeFooterText : (configObj.recipe_footer_text !== undefined ? configObj.recipe_footer_text : '');
+        const logoUrl = configObj.logoUrl !== undefined ? configObj.logoUrl : (configObj.logo_url !== undefined ? configObj.logo_url : '');
 
         const normalized = {
             id: 'default',
@@ -1021,6 +1030,8 @@ class SupabaseDataService {
             header_text: headerText,
             footerText: footerText,
             footer_text: footerText,
+            recipeFooterText: recipeFooterText,
+            recipe_footer_text: recipeFooterText,
             logoUrl: logoUrl,
             logo_url: logoUrl
         };
@@ -1042,6 +1053,8 @@ class SupabaseDataService {
                         header_text: headerText,
                         footerText: footerText,
                         footer_text: footerText,
+                        recipeFooterText: recipeFooterText,
+                        recipe_footer_text: recipeFooterText,
                         logoUrl: logoUrl,
                         logo_url: logoUrl,
                         updatedAt: new Date().toISOString()
@@ -1049,13 +1062,23 @@ class SupabaseDataService {
                 };
                 await supabaseClient.from('patients').upsert(sysPayload);
 
-                // 2. Also try stationery_config table
-                await supabaseClient.from('stationery_config').upsert({
-                    id: 'default',
-                    header_text: headerText,
-                    footer_text: footerText,
-                    logo_url: logoUrl || null
-                });
+                // 2. Also try stationery_config table with graceful fallback for column differences
+                try {
+                    await supabaseClient.from('stationery_config').upsert({
+                        id: 'default',
+                        header_text: headerText,
+                        footer_text: footerText,
+                        recipe_footer_text: recipeFooterText,
+                        logo_url: logoUrl || null
+                    });
+                } catch(e) {
+                    await supabaseClient.from('stationery_config').upsert({
+                        id: 'default',
+                        header_text: headerText,
+                        footer_text: footerText,
+                        logo_url: logoUrl || null
+                    });
+                }
                 console.log('✅ Clinic branding synced to Supabase Cloud!');
             } catch (err) {
                 console.warn('Supabase saveStationeryConfig caught:', err);

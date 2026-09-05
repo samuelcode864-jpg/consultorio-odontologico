@@ -49,10 +49,34 @@ CREATE TABLE IF NOT EXISTS stationery_config (
     header_text TEXT,
     footer_text TEXT,
     logo_url TEXT,
+    recipe_footer_text TEXT,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE stationery_config ADD COLUMN IF NOT EXISTS recipe_footer_text TEXT;
+
 -- Seed default stationery
-INSERT INTO stationery_config (id, header_text, footer_text, logo_url)
-VALUES ('default', 'DentalCare Pro - Clínica Odontológica Especializada', 'Gracias por su confianza. Todo tratamiento dental requiere control periódico cada 6 meses.', NULL)
+INSERT INTO stationery_config (id, header_text, footer_text, logo_url, recipe_footer_text)
+VALUES ('default', 'DentalCare Pro - Clínica Odontológica Especializada', 'Gracias por su confianza. Todo tratamiento dental requiere control periódico cada 6 meses.', NULL, 'Indicaciones válidas por el tiempo establecido por su odontólogo tratante.')
 ON CONFLICT (id) DO NOTHING;
+
+-- 7. RECYCLE BIN TABLE (Papelera de Reciclaje)
+CREATE TABLE IF NOT EXISTS recycle_bin (
+    id TEXT PRIMARY KEY,
+    category TEXT NOT NULL, -- patients, invoices, pricing, inventory
+    deleted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    deleted_by TEXT NOT NULL,
+    name TEXT NOT NULL,
+    original_data JSONB NOT NULL
+);
+
+-- 8. AUDIT LOGS TABLE (Historial de Auditoría Inalterable)
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id TEXT PRIMARY KEY,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    user_name TEXT NOT NULL,
+    user_role TEXT NOT NULL,
+    action TEXT NOT NULL,
+    module TEXT NOT NULL,
+    details TEXT
+);
