@@ -1336,6 +1336,49 @@ h4 { font-size: 1rem; }
     touch-action: none;
 }
 
+.sig-clickable-box {
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    position: relative;
+    border: 2px dashed #0d9488 !important;
+    background: #ffffff !important;
+}
+
+.sig-clickable-box:hover {
+    border-color: #0f766e !important;
+    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.15);
+    transform: translateY(-2px);
+}
+
+.sig-click-badge {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(15, 118, 110, 0.9);
+    color: #ffffff;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    backdrop-filter: blur(4px);
+    transition: opacity 0.2s;
+}
+
+.sig-clickable-box.has-signature .sig-click-badge {
+    top: auto;
+    bottom: 8px;
+    transform: translateX(-50%);
+    font-size: 0.7rem;
+    padding: 3px 10px;
+    background: rgba(15, 23, 42, 0.75);
+}
+
 .terms-checkbox {
     display: flex;
     align-items: center;

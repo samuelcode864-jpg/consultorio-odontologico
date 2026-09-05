@@ -866,25 +866,27 @@
                                         <!-- Patient Signature (Left) -->
                                         <div class="sig-box" style="display: flex; flex-direction: column; gap: 8px;">
                                             <div style="display: flex; justify-content: space-between; align-items: center;">
-                                                <span style="font-weight: 700; font-size: 0.88rem; color: var(--text-main);"><i class="fa-solid fa-pen-nib"></i> Firma Digital del Paciente / Representante</span>
+                                                <span style="font-weight: 700; font-size: 0.88rem; color: var(--text-main);"><i class="fa-solid fa-pen-nib text-teal"></i> Firma Digital del Paciente / Representante</span>
                                                 <button class="btn btn-xs btn-link text-red" id="btn-clear-patient-sig" style="text-decoration: none; font-size: 0.8rem; font-weight: 600;"><i class="fa-solid fa-rotate-left"></i> Limpiar Firma</button>
                                             </div>
-                                            <div class="sig-canvas-wrapper" style="border: 2px dashed var(--border-color); border-radius: 8px; background: #fff; display: flex; justify-content: center; align-items: center; padding: 10px;">
-                                                <canvas id="patient-sig-canvas" width="380" height="120" style="width: 100%; height: 120px; cursor: crosshair;"></canvas>
+                                            <div class="sig-canvas-wrapper sig-clickable-box" id="patient-sig-box" title="Clic aquí para firmar cómodamente en pantalla completa" style="border-radius: 8px; display: flex; justify-content: center; align-items: center; padding: 10px; min-height: 120px;">
+                                                <canvas id="patient-sig-canvas" width="380" height="120" style="width: 100%; height: 120px; cursor: pointer; pointer-events: none;"></canvas>
+                                                <div class="sig-click-badge" id="patient-sig-badge"><i class="fa-solid fa-pen-fancy"></i> Clic para firmar</div>
                                             </div>
-                                            <span style="text-align: center; font-size: 0.75rem; color: var(--text-muted);">Firme dentro del recuadro usando mouse o pantalla táctil</span>
+                                            <span style="text-align: center; font-size: 0.75rem; color: var(--text-muted);"><i class="fa-solid fa-expand text-teal"></i> Haz clic en el recuadro para firmar cómodamente en pantalla ampliada</span>
                                         </div>
 
                                         <!-- Doctor Signature (Right) -->
                                         <div class="sig-box" style="display: flex; flex-direction: column; gap: 8px;">
                                             <div style="display: flex; justify-content: space-between; align-items: center;">
-                                                <span style="font-weight: 700; font-size: 0.88rem; color: var(--text-main);"><i class="fa-solid fa-user-doctor"></i> Firma Digital del Odontólogo Tratante</span>
+                                                <span style="font-weight: 700; font-size: 0.88rem; color: var(--text-main);"><i class="fa-solid fa-user-doctor text-teal"></i> Firma Digital del Odontólogo Tratante</span>
                                                 <button class="btn btn-xs btn-link text-red" id="btn-clear-doc-sig" style="text-decoration: none; font-size: 0.8rem; font-weight: 600;"><i class="fa-solid fa-rotate-left"></i> Limpiar Firma</button>
                                             </div>
-                                            <div class="sig-canvas-wrapper" style="border: 2px dashed var(--border-color); border-radius: 8px; background: #fff; display: flex; justify-content: center; align-items: center; padding: 10px;">
-                                                <canvas id="doctor-sig-canvas" width="380" height="120" style="width: 100%; height: 120px; cursor: crosshair;"></canvas>
+                                            <div class="sig-canvas-wrapper sig-clickable-box" id="doctor-sig-box" title="Clic aquí para firmar cómodamente en pantalla completa" style="border-radius: 8px; display: flex; justify-content: center; align-items: center; padding: 10px; min-height: 120px;">
+                                                <canvas id="doctor-sig-canvas" width="380" height="120" style="width: 100%; height: 120px; cursor: pointer; pointer-events: none;"></canvas>
+                                                <div class="sig-click-badge" id="doctor-sig-badge"><i class="fa-solid fa-pen-fancy"></i> Clic para firmar</div>
                                             </div>
-                                            <span style="text-align: center; font-size: 0.75rem; color: var(--text-muted);">Firme dentro del recuadro usando mouse o pantalla táctil</span>
+                                            <span style="text-align: center; font-size: 0.75rem; color: var(--text-muted);"><i class="fa-solid fa-expand text-teal"></i> Haz clic en el recuadro para firmar cómodamente en pantalla ampliada</span>
                                         </div>
                                     </div>
                                 </div>
@@ -1962,23 +1964,30 @@
 
                                     <!-- Firma Médica (Solo visible si es Odontólogo / Médico) -->
                                     <div id="doctor-signature-setting-section" class="hidden" style="border-top: 1px solid var(--border-color); padding-top:15px;">
-                                        <h4 style="margin-bottom:12px; color:var(--text-heading); font-weight:700;"><i class="fa-solid fa-signature"></i> Firma Digitalizada del Médico</h4>
-                                        <p class="text-muted" style="font-size:0.8rem; margin-bottom:10px;">Esta firma se inyectará al final de los PDFs oficiales (Récipes, Historias Clínicas, Evoluciones).</p>
+                                        <h4 style="margin-bottom:6px; color:var(--text-heading); font-weight:700;"><i class="fa-solid fa-signature text-teal"></i> Firma Digitalizada del Médico</h4>
+                                        <p class="text-muted" style="font-size:0.8rem; margin-bottom:12px;">Esta firma se inyectará automáticamente en los documentos y PDFs oficiales (Récipes, Historias Clínicas, Evoluciones y Presupuestos).</p>
                                         
-                                        <div style="display:flex; gap:20px; align-items:start;">
-                                            <div style="border: 1px dashed var(--border-color); border-radius: 8px; background: #fff; padding: 5px; position: relative; width: 350px;">
-                                                <canvas id="doctor-signature-canvas" width="340" height="120" style="width: 100%; height: 120px; display: block; cursor: crosshair; background:#ffffff;"></canvas>
-                                                <button type="button" class="btn btn-xs btn-outline text-red" id="btn-clear-doctor-signature" style="position: absolute; right: 10px; bottom: 10px;">Limpiar</button>
+                                        <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;">
+                                            <div style="position: relative; width: 350px; max-width: 100%;">
+                                                <div class="sig-clickable-box" id="settings-doctor-sig-box" title="Clic aquí para firmar cómodamente en pantalla completa" style="border-radius: 8px; padding: 5px; min-height: 120px; display: flex; align-items: center; justify-content: center;">
+                                                    <canvas id="doctor-signature-canvas" width="340" height="120" style="width: 100%; height: 120px; display: block; cursor: pointer; pointer-events: none; background:#ffffff;"></canvas>
+                                                    <div class="sig-click-badge" id="settings-doctor-sig-badge"><i class="fa-solid fa-pen-fancy"></i> Clic para firmar</div>
+                                                </div>
+                                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+                                                    <small class="text-muted" style="font-size: 0.73rem;"><i class="fa-solid fa-expand text-teal"></i> Clic en el cuadro para firmar</small>
+                                                    <button type="button" class="btn btn-xs btn-outline text-red" id="btn-clear-doctor-signature" style="padding: 2px 8px; font-size: 0.75rem;"><i class="fa-solid fa-rotate-left"></i> Limpiar</button>
+                                                </div>
                                             </div>
-                                            <div style="flex:1;">
-                                                <label class="btn btn-sm btn-outline" style="cursor:pointer; display:inline-block; margin-bottom:8px;">
-                                                    Subir Imagen de Firma (PNG transparente)
+                                            <div style="flex:1; min-width: 240px;">
+                                                <label class="btn btn-sm btn-outline" style="cursor:pointer; display:inline-flex; align-items: center; gap: 6px; margin-bottom:8px;">
+                                                    <i class="fa-solid fa-upload text-cyan"></i> Subir Imagen de Firma (PNG)
                                                     <input type="file" id="doctor-signature-upload" accept="image/png" class="hidden">
                                                 </label>
-                                                <p class="text-muted" style="font-size:0.72rem;">Sugerido: Imagen con fondo transparente y trazo negro.</p>
-                                                <div id="doctor-signature-preview-img-container" class="mt-5 hidden" style="border: 1px solid var(--border-color); padding: 5px; border-radius: var(--radius-sm); width: 150px; height: 60px; display: flex; align-items: center; justify-content: center; background:#fff;">
+                                                <p class="text-muted" style="font-size:0.72rem; margin-bottom: 8px;">Sugerido: Imagen con fondo transparente y trazo negro.</p>
+                                                <div id="doctor-signature-preview-img-container" class="mt-5 hidden" style="border: 1px solid var(--border-color); padding: 5px; border-radius: var(--radius-sm); width: 160px; height: 70px; display: flex; align-items: center; justify-content: center; background:#fff; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                                                     <img id="doctor-signature-preview-img" src="" alt="Firma Médica Guardada" style="max-width: 100%; max-height: 100%; object-fit: contain;">
                                                 </div>
+                                                <small class="text-emerald" style="display: block; margin-top: 6px; font-size: 0.75rem; font-weight: 600;"><i class="fa-solid fa-cloud-arrow-up"></i> La firma se guarda automáticamente al pulsar "Guardar Firma".</small>
                                             </div>
                                         </div>
                                     </div>
@@ -3715,14 +3724,53 @@
         <span style="display: inline-block; width: 10px; height: 10px; background: #10b981; border-radius: 50%; border: 2px solid white; margin-left: 4px; box-shadow: 0 0 8px #10b981;"></span>
     </div>
 
+    <!-- MODAL: PAD DE FIRMA DIGITAL EXPANDIDO Y CÓMODO -->
+    <div class="modal-overlay hidden" id="modal-signature-pad" style="z-index: 10005;">
+        <div class="modal-dialog modal-lg" style="max-width: 680px; width: 95%;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%); color: #ffffff; border-top-left-radius: var(--radius-lg); border-top-right-radius: var(--radius-lg); padding: 16px 20px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+                        <i class="fa-solid fa-file-signature text-white"></i>
+                    </div>
+                    <div>
+                        <h3 id="modal-signature-title" style="margin: 0; color: #ffffff; font-size: 1.15rem; font-weight: 700;">Firma Digital</h3>
+                        <small id="modal-signature-subtitle" style="color: rgba(255,255,255,0.85); font-size: 0.8rem;">Dibuje su firma en el recuadro con el dedo, stylus o mouse</small>
+                    </div>
+                </div>
+                <button class="modal-close" data-close="modal-signature-pad" style="color: #ffffff; font-size: 1.6rem; opacity: 0.85; background: none; border: none; cursor: pointer;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px; background: var(--bg-card);">
+                <div style="background: #ffffff; border: 2px dashed #0d9488; border-radius: 12px; position: relative; overflow: hidden; box-shadow: inset 0 2px 6px rgba(0,0,0,0.04);">
+                    <canvas id="modal-signature-canvas" style="display: block; width: 100%; height: 260px; cursor: crosshair; touch-action: none; background: #ffffff;"></canvas>
+                    <!-- Baseline guide -->
+                    <div style="position: absolute; bottom: 45px; left: 30px; right: 30px; border-bottom: 1.5px dashed rgba(100, 116, 139, 0.35); pointer-events: none; display: flex; justify-content: flex-end;">
+                        <span style="font-size: 0.72rem; color: #94a3b8; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Línea de Firma ✕</span>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 0.8rem; color: var(--text-muted);">
+                    <span><i class="fa-solid fa-hand-pointer text-teal"></i> Espacio cómodo optimizado para pantallas táctiles y móviles</span>
+                    <button type="button" class="btn btn-sm btn-outline text-red" id="btn-modal-signature-clear" style="border-color: #ef4444; color: #ef4444; padding: 4px 12px; font-weight: 600;">
+                        <i class="fa-solid fa-rotate-left"></i> Limpiar Trazo
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 14px 20px; background: var(--bg-main); border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" class="btn btn-outline" data-close="modal-signature-pad" style="font-weight: 600;">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btn-modal-signature-save" style="background: #0d9488 !important; border: none !important; color: #ffffff; font-weight: 700; padding: 10px 22px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(13, 148, 136, 0.3);">
+                    <i class="fa-solid fa-check"></i> Guardar Firma
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=248"></script>
-    <script src="supabaseClient.js?v=248"></script>
-    <script src="odontogram.js?v=248"></script>
-    <script src="signature.js?v=248"></script>
-    <script src="whatsapp.js?v=248"></script>
-    <script src="kardex.js?v=248"></script>
-    <script src="app.js?v=248"></script>
-    <script src="tutorial.js?v=248"></script>
+    <script src="seededData.js?v=249"></script>
+    <script src="supabaseClient.js?v=249"></script>
+    <script src="odontogram.js?v=249"></script>
+    <script src="signature.js?v=249"></script>
+    <script src="whatsapp.js?v=249"></script>
+    <script src="kardex.js?v=249"></script>
+    <script src="app.js?v=249"></script>
+    <script src="tutorial.js?v=249"></script>
 </body>
 </html>
