@@ -362,7 +362,9 @@ class SupabaseDataService {
                             sessions: ext.sessions || ext.clinicalNotes || p.clinical_notes || [],
                             photos: p.photos || ext.photos || (p.metadata && p.metadata._fallback_photos) || [],
                             payments: p.payments || ext.payments || (p.metadata && p.metadata._fallback_payments) || [],
-                            metadata: p.metadata || ext.metadata || {}
+                            metadata: (p.metadata && Object.keys(p.metadata).length > 0)
+                                ? { ...(ext.metadata || {}), ...p.metadata }
+                                : (ext.metadata || p.metadata || {})
                         };
                     });
 
@@ -713,6 +715,7 @@ class SupabaseDataService {
                             doctorSignature: od.doctorSignature || '',
                             patientSignature: od.patientSignature || '',
                             footerText: od.footerText || '',
+                            odontogramData: od.odontogramData || (od.metadata && od.metadata.odontogramData) || {},
                             metadata: od.metadata || {}
                         });
                     });
@@ -736,6 +739,7 @@ class SupabaseDataService {
                                 doctorSignature: i.doctor_signature || i.doctorSignature || '',
                                 patientSignature: i.patient_signature || i.patientSignature || '',
                                 footerText: i.footer_text,
+                                odontogramData: (i.metadata && i.metadata.odontogramData) || {},
                                 metadata: i.metadata || {}
                             });
                         }
@@ -771,6 +775,7 @@ class SupabaseDataService {
         if (this.isCloudConnected()) {
             try {
                 // 1. Guaranteed persistence in patients table with JSONB
+                const odData = invoiceObj.odontogramData || (invoiceObj.metadata && invoiceObj.metadata.odontogramData) || {};
                 const cloudPayload = {
                     id: invoiceObj.id,
                     fullname: 'Presupuesto: ' + (invoiceObj.id || ''),
@@ -790,7 +795,11 @@ class SupabaseDataService {
                         totalBcv: invoiceObj.totalBcv || 0,
                         status: invoiceObj.status || 'Emitida',
                         footerText: invoiceObj.footerText || '',
-                        metadata: invoiceObj.metadata || {}
+                        odontogramData: odData,
+                        metadata: {
+                            ...(invoiceObj.metadata || {}),
+                            odontogramData: odData
+                        }
                     }
                 };
 

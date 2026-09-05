@@ -1876,18 +1876,19 @@ window.loadBudgetIntoEditor = async function(budgetId) {
     // Load treatments cleanly with deduplication
     const rawItems = (budget.items || []).map((item, idx) => ({
         key: item.key || `proc-${idx}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-        tooth: extractToothNumber(item),
+        tooth: item.tooth || extractToothNumber(item) || 'Gnl',
         face: item.face || 'Gnl',
+        surface: item.surface || '',
         serviceCode: item.code || item.serviceCode || '',
         name: item.name,
-        price: item.price,
+        price: parseFloat(item.price) || 0,
         specialist: item.specialist || (pat ? pat.assignedDoctor : null) || 'Dr. Rodrigo Navas'
     }));
 
     currentBudgetItems = deduplicateBudgetItems(rawItems);
 
     // Cargar odontograma guardado del presupuesto o del paciente
-    const odDataToLoad = budget.odontogramData || (pat && pat.odontogramData) || {};
+    const odDataToLoad = budget.odontogramData || (budget.metadata && budget.metadata.odontogramData) || (pat && pat.metadata && pat.metadata.draftOdontogramData) || (pat && pat.odontogramData) || {};
     if (window.odontogram) {
         window.odontogram.setData(odDataToLoad);
     }
@@ -7342,6 +7343,11 @@ function initGlobalEvents() {
                         initTreatmentName: getVal('p-init-treatment-name'),
                         initTreatmentSessions: getVal('p-init-treatment-sessions'),
                         initTreatmentInterval: getVal('p-init-treatment-interval'),
+                        initialTreatmentPlan: {
+                            treatmentName: getVal('p-init-treatment-name') || 'Tratamiento Integral',
+                            totalSessions: parseInt(getVal('p-init-treatment-sessions')) || 2,
+                            interval: getVal('p-init-treatment-interval') || 'Quincenal'
+                        },
                         sessionsPlan: step4WasRendered ? sessionsData : ((existing.metadata && existing.metadata.sessionsPlan) || []),
                         draftOdontogramData: (window.odontogram && Object.keys(window.odontogram.getData() || {}).length > 0) ? window.odontogram.getData() : ((existing.metadata && existing.metadata.draftOdontogramData) || {}),
                         draftBudget: {
@@ -7414,6 +7420,11 @@ function initGlobalEvents() {
                         initTreatmentName: getVal('p-init-treatment-name'),
                         initTreatmentSessions: getVal('p-init-treatment-sessions'),
                         initTreatmentInterval: getVal('p-init-treatment-interval'),
+                        initialTreatmentPlan: {
+                            treatmentName: getVal('p-init-treatment-name') || 'Tratamiento Integral',
+                            totalSessions: parseInt(getVal('p-init-treatment-sessions')) || 2,
+                            interval: getVal('p-init-treatment-interval') || 'Quincenal'
+                        },
                         sessionsPlan: sessionsData,
                         draftOdontogramData: (window.odontogram && Object.keys(window.odontogram.getData() || {}).length > 0) ? window.odontogram.getData() : {},
                         draftBudget: {
@@ -8179,6 +8190,7 @@ function initGlobalEvents() {
             const notes = document.getElementById('budget-notes').value;
 
             const budgetId = activeEditingBudgetId || `PRE-${Date.now().toString().slice(-6)}`;
+            const odData = (window.odontogram && window.odontogram.getData()) ? window.odontogram.getData() : {};
             
             const budgetObj = {
                 id: budgetId,
@@ -8188,19 +8200,48 @@ function initGlobalEvents() {
                 paymentTerms: 'Contado',
                 currency: 'REF',
                 items: currentBudgetItems.map(item => ({
-                    code: item.serviceCode,
+                    tooth: item.tooth || extractToothNumber(item) || 'Gnl',
+                    face: item.face || 'Gnl',
+                    surface: item.surface || '',
+                    code: item.serviceCode || item.code || '',
+                    serviceCode: item.serviceCode || item.code || '',
                     name: item.name,
-                    price: item.price,
-                    specialist: item.specialist || ''
+                    price: parseFloat(item.price) || 0,
+                    specialist: item.specialist || '',
+                    key: item.key
                 })),
+                odontogramData: odData,
                 totalRef: totalUSD,
+                totalUSD: totalUSD,
                 totalBcv: parseFloat(totalVES),
                 status: 'Borrador',
-                footerText: notes
+                footerText: notes,
+                metadata: {
+                    consentText: document.getElementById('consent-text')?.value || '',
+                    discountPct: discountPct,
+                    odontogramData: odData
+                }
             };
 
             try {
                 await SupabaseDataService.saveInvoice(budgetObj);
+                
+                // Also sync draft with active patient
+                const patients = await SupabaseDataService.getPatients();
+                const patient = patients.find(p => String(p.id) === String(activeId));
+                if (patient) {
+                    if (!patient.metadata) patient.metadata = {};
+                    patient.metadata.draftOdontogramData = odData;
+                    patient.metadata.draftBudget = {
+                        id: budgetId,
+                        items: [...currentBudgetItems],
+                        discountPct: discountPct,
+                        notes: notes,
+                        paymentMethod: paymentMethod,
+                        consentText: document.getElementById('consent-text')?.value || ''
+                    };
+                    await SupabaseDataService.savePatient(patient);
+                }
                 
                 // Reset editor state to zero
                 currentBudgetItems = [];
@@ -9256,14 +9297,16 @@ function renderSessionsPlanner() {
         }
     } else {
         // Renderizado inicial: Si el paciente tiene sesiones guardadas que coincidan con budgetItems
-        if (p && p.metadata?.sessionsPlan && Array.isArray(p.metadata.sessionsPlan) && (!currentBudgetItems || currentBudgetItems.length === 0 || String(p.id) !== String(activePatientId))) {
+        if (p && p.metadata?.sessionsPlan && Array.isArray(p.metadata.sessionsPlan)) {
             p.metadata.sessionsPlan.forEach(s => {
                 const sNum = s.sessionNumber;
                 const selIdxs = [];
                 if (s.services && Array.isArray(s.services)) {
                     s.services.forEach(srv => {
-                        const idx = budgetItems.findIndex(b => b.name === srv.name && (b.tooth === srv.tooth || !srv.tooth));
-                        if (idx >= 0) selIdxs.push(idx.toString());
+                        const idx = budgetItems.findIndex(b => b.name === srv.name && (String(b.tooth || '') === String(srv.tooth || '') || !srv.tooth));
+                        if (idx >= 0 && !selIdxs.includes(idx.toString())) {
+                            selIdxs.push(idx.toString());
+                        }
                     });
                 }
                 prevData[sNum] = {
