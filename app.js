@@ -8930,7 +8930,7 @@ function openModal(id) {
 
 async function closeModal(id, force = false) {
     const el = document.getElementById(id);
-    if (!el) return;
+    if (!el) return true;
 
     if (id === 'modal-patient' && !force && !el.classList.contains('hidden')) {
         const result = await Swal.fire({
@@ -8946,7 +8946,7 @@ async function closeModal(id, force = false) {
         });
 
         if (!result.isConfirmed) {
-            return;
+            return false;
         }
     }
 
@@ -8954,6 +8954,7 @@ async function closeModal(id, force = false) {
     if (id === 'modal-patient') {
         window.patientModalOpenedFromBudget = false;
     }
+    return true;
 }
 
 async function renderSettingsView() {
@@ -9356,15 +9357,58 @@ function renderSessionsPlanner() {
 
     window.currentPlannerBudgetItems = budgetItems;
 
+    window.continueToBudgetFromStep4 = async function() {
+        const pId = (document.getElementById('p-id') && document.getElementById('p-id').value.trim()) || window.editingPatientId || getActivePatientId();
+
+        // Intentar cerrar el modal. Si el usuario no ha hecho clic en "Guardar Cambios",
+        // closeModal('modal-patient', false) mostrará la alerta preguntando si desea salir sin guardar o continuar editando.
+        const closed = await closeModal('modal-patient', false);
+        if (closed === false) {
+            // El usuario eligió "Continuar editando"
+            return;
+        }
+
+        if (pId) {
+            setActivePatientId(pId);
+            const searchInput = document.getElementById('od-patient-search-input');
+            if (searchInput) {
+                const firstname = (document.getElementById('p-firstname') && document.getElementById('p-firstname').value.trim()) || '';
+                const lastname = (document.getElementById('p-lastname') && document.getElementById('p-lastname').value.trim()) || '';
+                const fullname = `${firstname} ${lastname}`.trim();
+                if (fullname) searchInput.value = fullname;
+            }
+        }
+
+        // Regresar al editor de Presupuesto / Odontograma sin resetear nada del presupuesto en curso
+        localStorage.setItem('dental_odontogram_subview', 'editor');
+        document.documentElement.setAttribute('data-odontogram-subview', 'editor');
+        const listContainer = document.getElementById('odontogram-list-container');
+        const editorContainer = document.getElementById('odontogram-editor-container');
+        if (listContainer) listContainer.classList.add('hidden');
+        if (editorContainer) editorContainer.classList.remove('hidden');
+
+        const navOdontogram = document.querySelector('.nav-item[data-tab="odontogram"]') || document.getElementById('mob-nav-odontogram');
+        if (navOdontogram) {
+            navOdontogram.click();
+        }
+
+        if (typeof renderOdontogramView === 'function') {
+            await renderOdontogramView();
+        }
+        if (typeof renderBudgetTable === 'function') {
+            renderBudgetTable();
+        }
+    };
+
     if (budgetItems.length === 0) {
         window.step4HasBudgetItems = false;
         container.innerHTML = `
             <div style="color: var(--text-muted); font-size: 0.88rem; text-align: center; padding: 20px; border: 1px dashed var(--border-color); border-radius:8px; background:var(--bg-main); display:flex; flex-direction:column; align-items:center; gap:10px;">
                 <div><i class="fa-solid fa-triangle-exclamation text-amber" style="font-size:1.5rem;"></i></div>
                 <div style="font-weight:600; color:var(--text-main);">No hay tratamientos cargados en el presupuesto para este paciente.</div>
-                <small style="color:var(--text-muted); max-width:450px;">Como el paciente aún no cuenta con una propuesta económica ni tratamientos asignados, puede crear un presupuesto ahora.</small>
-                <button type="button" class="btn btn-success mt-5" onclick="window.savePatientRecord(true)" style="background: #10b981 !important; color: white !important; font-weight: 700; border: none; display: flex; align-items: center; gap: 6px; padding: 8px 18px; border-radius: 6px; cursor: pointer;">
-                    <i class="fa-solid fa-file-invoice-dollar"></i> Crear Presupuesto
+                <small style="color:var(--text-muted); max-width:450px;">Como el paciente aún no cuenta con una propuesta económica ni tratamientos asignados, puede continuar cargando los servicios en el odontograma y presupuesto ahora.</small>
+                <button type="button" class="btn btn-success mt-5" onclick="window.continueToBudgetFromStep4()" style="background: #10b981 !important; color: white !important; font-weight: 700; border: none; display: flex; align-items: center; gap: 6px; padding: 8px 18px; border-radius: 6px; cursor: pointer;">
+                    <i class="fa-solid fa-file-invoice-dollar"></i> Continuar con el Presupuesto
                 </button>
             </div>
         `;
