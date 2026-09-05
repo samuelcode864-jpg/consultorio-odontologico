@@ -1725,9 +1725,21 @@ window.deleteBudget = async function(budgetId) {
 window.sendBudgetWhatsApp = async function(budgetId) {
     try {
         const invoices = await SupabaseDataService.getInvoices();
-        const budget = invoices.find(inv => inv.id === budgetId);
+        const budget = invoices.find(inv => String(inv.id) === String(budgetId));
         if (!budget) {
             Swal.fire({ icon: 'error', title: 'Error', text: 'No se encontró el presupuesto.' });
+            return;
+        }
+
+        // VALIDAR QUE EL PRESUPUESTO ESTÉ APROBADO ANTES DE ENVIARLO POR WHATSAPP
+        const status = String(budget.status || '').toLowerCase();
+        const isApproved = status === 'aprobado' || status === 'approved' || status === 'facturado' || status === 'completada' || status === 'finalizado';
+        if (!isApproved) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Presupuesto no Aprobado',
+                text: 'No se puede enviar el presupuesto al paciente por WhatsApp porque aún está en estado Borrador. Debe Aprobar el presupuesto antes de enviarlo.'
+            });
             return;
         }
 
@@ -8063,45 +8075,25 @@ function initGlobalEvents() {
             const notes = document.getElementById('budget-notes').value;
             const consentText = document.getElementById('consent-text').value;
 
-            // Generate budgetId or use active editing one
-            const budgetId = activeEditingBudgetId || `PRE-${Date.now().toString().slice(-6)}`;
-
-            if (!activeEditingBudgetId) {
-                // Auto save as Borrador so that the database has the record for the patient to view
-                try {
-                    const budgetObj = {
-                        id: budgetId,
-                        patientId: activeId,
-                        invoiceDate: new Date().toISOString().split('T')[0],
-                        paymentMethod: paymentMethodSelect.value,
-                        paymentTerms: 'Contado',
-                        currency: 'REF',
-                        items: currentBudgetItems.map(item => ({
-                            tooth: item.tooth,
-                            face: item.face,
-                            code: item.serviceCode,
-                            name: item.name,
-                            price: item.price,
-                            specialist: item.specialist || ''
-                        })),
-                        totalRef: totalUSD,
-                        totalBcv: totalUSD * getExchangeRate(),
-                        status: 'Borrador',
-                        footerText: notes,
-                        metadata: {
-                            consentText: consentText,
-                            discountPct: discountPct
-                        }
-                    };
-                    await SupabaseDataService.saveInvoice(budgetObj);
-                    activeEditingBudgetId = budgetId;
-                    await renderBudgetListView();
-                } catch (saveErr) {
-                    console.error("Error auto-saving budget before whatsapp:", saveErr);
-                }
+            // VALIDAR QUE EL PRESUPUESTO ESTÉ APROBADO ANTES DE ENVIARLO
+            let isApproved = false;
+            if (activeEditingBudgetId) {
+                const invoices = await SupabaseDataService.getInvoices();
+                const inv = invoices.find(i => String(i.id) === String(activeEditingBudgetId));
+                const st = String(inv?.status || '').toLowerCase();
+                isApproved = st === 'aprobado' || st === 'approved' || st === 'facturado' || st === 'completada' || st === 'finalizado';
             }
 
-            const msg = WhatsAppService.generateBudgetMessage(patient, currentBudgetItems, totalUSD, paymentModeText, notes, subtotalUSD, discountPct, paymentMethodLabel, budgetId);
+            if (!isApproved) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Presupuesto no Aprobado',
+                    text: 'No se puede enviar el presupuesto al paciente por WhatsApp porque aún no ha sido Aprobado. Debe hacer clic en "Aprobar Presupuesto" antes de enviarlo.'
+                });
+                return;
+            }
+
+            const msg = WhatsAppService.generateBudgetMessage(patient, currentBudgetItems, totalUSD, paymentModeText, notes, subtotalUSD, discountPct, paymentMethodLabel, activeEditingBudgetId);
             WhatsAppService.sendToPatient(patient.phone, msg);
         };
     }
@@ -13313,12 +13305,12 @@ async function renderPublicBudgetView() {
         let itemsHtml = '';
         budget.items.forEach(item => {
             itemsHtml += `
-                <tr style="border-bottom: 1px dashed #cbd5e1; font-size: 0.85rem;">
-                    <td style="padding: 10px 0;">Pieza ${item.tooth || 'Gnl'} (${item.face || 'Gnl'})</td>
-                    <td style="padding: 10px 0;"><strong>${item.name}</strong></td>
-                    <td style="padding: 10px 0;">${item.specialist || '-'}</td>
-                    <td style="padding: 10px 0; font-weight: 600;">$${item.price.toFixed(2)} USD</td>
-                    <td style="padding: 10px 0; text-align: right; font-weight: 600; color: #1e3a8a;">Bs. ${(item.price * rate).toFixed(2)}</td>
+                <tr style="border-bottom: 1px dashed #e2e8f0; font-size: 0.82rem;">
+                    <td style="padding: 8px 6px; vertical-align: top; color: #334155; white-space: nowrap;">Pieza ${item.tooth || 'Gnl'}<br><small style="color:#64748b;">(${item.face || 'Gnl'})</small></td>
+                    <td style="padding: 8px 6px; vertical-align: top; color: #0f172a; word-break: break-word;"><strong>${item.name}</strong></td>
+                    <td style="padding: 8px 6px; vertical-align: top; color: #475569; font-size: 0.78rem;">${item.specialist || '-'}</td>
+                    <td style="padding: 8px 6px; vertical-align: top; font-weight: 600; color: #0f172a; white-space: nowrap;">$${(item.price || 0).toFixed(2)} USD</td>
+                    <td style="padding: 8px 6px; vertical-align: top; text-align: right; font-weight: 600; color: #0891b2; white-space: nowrap;">Bs. ${((item.price || 0) * rate).toFixed(2)}</td>
                 </tr>
             `;
         });
@@ -13337,24 +13329,24 @@ async function renderPublicBudgetView() {
 
         let docSignatureHtml = '';
         if (budget.metadata && budget.metadata.doctorSig) {
-            docSignatureHtml = `<img src="${budget.metadata.doctorSig}" style="max-height: 70px; border-bottom: 1px solid #94a3b8; display:block; margin:0 auto 4px auto;" alt="Firma Odontólogo"><span style="font-size:0.75rem; color:#64748b;">Firma Odontólogo</span>`;
+            docSignatureHtml = `<img src="${budget.metadata.doctorSig}" style="max-height: 60px; max-width: 100%; border-bottom: 1px solid #94a3b8; display:block; margin:0 auto 4px auto;" alt="Firma Odontólogo"><span style="font-size:0.75rem; color:#64748b;">Firma Odontólogo</span>`;
         } else {
-            docSignatureHtml = `<div style="height: 70px; border-bottom: 1px solid #94a3b8; margin-bottom: 4px;"></div><span style="font-size:0.75rem; color:#64748b;">Firma Odontólogo</span>`;
+            docSignatureHtml = `<div style="height: 55px; border-bottom: 1px solid #94a3b8; margin-bottom: 4px;"></div><span style="font-size:0.75rem; color:#64748b;">Firma Odontólogo</span>`;
         }
 
         let patSignatureHtml = '';
         if (budget.metadata && budget.metadata.patientSig) {
-            patSignatureHtml = `<img src="${budget.metadata.patientSig}" style="max-height: 70px; border-bottom: 1px solid #94a3b8; display:block; margin:0 auto 4px auto;" alt="Firma Paciente"><span style="font-size:0.75rem; color:#64748b;">Firma Paciente</span>`;
+            patSignatureHtml = `<img src="${budget.metadata.patientSig}" style="max-height: 60px; max-width: 100%; border-bottom: 1px solid #94a3b8; display:block; margin:0 auto 4px auto;" alt="Firma Paciente"><span style="font-size:0.75rem; color:#64748b;">Firma Paciente</span>`;
         } else {
-            patSignatureHtml = `<div style="height: 70px; border-bottom: 1px solid #94a3b8; margin-bottom: 4px;"></div><span style="font-size:0.75rem; color:#64748b;">Firma Paciente</span>`;
+            patSignatureHtml = `<div style="height: 55px; border-bottom: 1px solid #94a3b8; margin-bottom: 4px;"></div><span style="font-size:0.75rem; color:#64748b;">Firma Paciente</span>`;
         }
 
         let notesHtml = '';
         if (budget.footerText) {
             notesHtml = `
-                <div style="margin-top: 25px; border-top: 1px solid #cbd5e1; padding-top: 15px; text-align: left;">
-                    <h5 style="margin: 0 0 6px 0; color: #0f172a; font-size: 0.85rem; text-transform: uppercase; font-weight:700;">Observaciones Clínicas / Condiciones:</h5>
-                    <p style="margin: 0; font-size: 0.85rem; color: #475569; line-height: 1.45; white-space: pre-wrap;">${budget.footerText}</p>
+                <div style="margin-top: 20px; border-top: 1px solid #cbd5e1; padding-top: 12px; text-align: left;">
+                    <h5 style="margin: 0 0 4px 0; color: #0f172a; font-size: 0.82rem; text-transform: uppercase; font-weight:700;">Observaciones Clínicas / Condiciones:</h5>
+                    <p style="margin: 0; font-size: 0.8rem; color: #475569; line-height: 1.4; white-space: pre-wrap;">${budget.footerText}</p>
                 </div>
             `;
         }
@@ -13362,80 +13354,83 @@ async function renderPublicBudgetView() {
         let consentHtml = '';
         if (budget.metadata && budget.metadata.consentText) {
             consentHtml = `
-                <div style="margin-top: 20px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 12px; font-size: 0.78rem; color: #475569; line-height: 1.45; text-align: left;">
+                <div style="margin-top: 15px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 10px 12px; font-size: 0.76rem; color: #475569; line-height: 1.4; text-align: left;">
                     <strong>Consentimiento Informado:</strong> ${budget.metadata.consentText}
                 </div>
             `;
         }
 
         const html = `
-            <div style="font-family: 'Inter', system-ui, sans-serif; color: #1e293b; padding: 10px;">
+            <div style="font-family: 'Inter', system-ui, sans-serif; color: #1e293b; width: 100%; box-sizing: border-box;">
                 <!-- HEADER -->
-                <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #06b6d4; padding-bottom: 15px; margin-bottom: 25px; align-items: flex-start; text-align: left;">
-                    <div>
-                        ${logoBase64 ? `<img src="${logoBase64}" style="max-height: 195px; max-width: 450px; margin-bottom: 12px; display: block;" alt="Logo Clinic">` : ''}
-                        <h2 style="margin: 0; font-size: 1.3rem; color: #0f172a; font-weight: 800;">${busData.name || 'Consultorio Odontológico'}</h2>
-                        <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #64748b;">
-                            ${busData.rif ? `RIF: ${busData.rif} | ` : ''} 
-                            ${busData.phone ? `Tlf: ${busData.phone} | ` : ''} 
-                            ${busData.email ? `Email: ${busData.email}` : ''}
+                <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #06b6d4; padding-bottom: 14px; margin-bottom: 20px; align-items: flex-start; text-align: left; flex-wrap: wrap; gap: 12px;">
+                    <div style="max-width: 100%; min-width: 200px; flex: 1;">
+                        ${logoBase64 ? `<img src="${logoBase64}" style="max-height: 80px; max-width: 220px; width: auto; object-fit: contain; margin-bottom: 8px; display: block;" alt="Logo Clinic">` : ''}
+                        <h2 style="margin: 0; font-size: 1.15rem; color: #0f172a; font-weight: 800; line-height: 1.25;">${busData.name || 'Consultorio Odontológico'}</h2>
+                        <p style="margin: 4px 0 0 0; font-size: 0.78rem; color: #64748b; line-height: 1.35;">
+                            ${busData.rif ? `RIF: ${busData.rif} ` : ''} 
+                            ${busData.phone ? `| Tlf: ${busData.phone} ` : ''} 
+                            ${busData.email ? `| Email: ${busData.email}` : ''}
                         </p>
-                        ${busData.address ? `<p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #64748b;">${busData.address}</p>` : ''}
+                        ${busData.address ? `<p style="margin: 3px 0 0 0; font-size: 0.78rem; color: #64748b; line-height: 1.3;">${busData.address}</p>` : ''}
                     </div>
-                    <div style="text-align: right;">
-                        <span style="background: rgba(6, 182, 212, 0.1); color: #0891b2; font-weight: 800; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; text-transform: uppercase; display: inline-block; margin-bottom: 8px;">PRESUPUESTO</span>
-                        <p style="margin: 0; font-size: 0.95rem; font-weight: 800; color: #0f172a;">N° Control: ${budget.id}</p>
-                        <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #64748b;">Fecha Emisión: ${budget.invoiceDate}</p>
+                    <div style="text-align: right; min-width: 140px;">
+                        <span style="background: rgba(6, 182, 212, 0.1); color: #0891b2; font-weight: 800; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; text-transform: uppercase; display: inline-block; margin-bottom: 6px;">PRESUPUESTO</span>
+                        <p style="margin: 0; font-size: 0.92rem; font-weight: 800; color: #0f172a;">N° Control: ${budget.id}</p>
+                        <p style="margin: 3px 0 0 0; font-size: 0.78rem; color: #64748b;">Fecha: ${budget.invoiceDate || ''}</p>
                     </div>
                 </div>
 
                 <!-- INFO PATIENT -->
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; display: flex; justify-content: space-between; margin-bottom: 25px; font-size: 0.85rem; text-align: left;">
-                    <div>
-                        <span style="font-size: 0.72rem; color: #64748b; font-weight: 800; text-transform: uppercase; display: block; margin-bottom: 4px;">Paciente:</span>
-                        <strong style="font-size: 1rem; color: #0f172a;">${patient.fullname}</strong>
-                        <span style="display: block; color: #475569; margin-top: 4px;">${patientFiliation}</span>
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; font-size: 0.82rem; text-align: left;">
+                    <div style="min-width: 180px; flex: 1;">
+                        <span style="font-size: 0.7rem; color: #64748b; font-weight: 800; text-transform: uppercase; display: block; margin-bottom: 2px;">Paciente:</span>
+                        <strong style="font-size: 0.95rem; color: #0f172a;">${patient.fullname}</strong>
+                        <span style="display: block; color: #475569; margin-top: 2px; font-size: 0.78rem;">${patientFiliation}</span>
                     </div>
-                    <div style="text-align: right;">
-                        <span style="font-size: 0.72rem; color: #64748b; font-weight: 800; text-transform: uppercase; display: block; margin-bottom: 4px;">Términos de Pago:</span>
-                        <strong>Contado</strong>
-                        <span style="display: block; color: #475569; margin-top: 4px;">Método: ${budget.paymentMethod || 'Pago Móvil'}</span>
+                    <div style="text-align: right; min-width: 130px;">
+                        <span style="font-size: 0.7rem; color: #64748b; font-weight: 800; text-transform: uppercase; display: block; margin-bottom: 2px;">Términos & Pago:</span>
+                        <strong style="color: #0f172a;">${budget.paymentTerms || 'Contado'}</strong>
+                        <span style="display: block; color: #475569; margin-top: 2px; font-size: 0.78rem;">Método: ${budget.paymentMethod || 'Pago Móvil'}</span>
                     </div>
                 </div>
 
-                <!-- TABLE ITEMS -->
-                <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem; margin-bottom: 25px;">
-                    <thead>
-                        <tr style="border-bottom: 2px solid #cbd5e1; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 0.75rem;">
-                            <th style="padding: 10px 0; width: 15%;">Pieza</th>
-                            <th style="padding: 10px 0; width: 45%;">Procedimiento</th>
-                            <th style="padding: 10px 0; width: 20%;">Especialista</th>
-                            <th style="padding: 10px 0; width: 10%;">Precio Ref.</th>
-                            <th style="padding: 10px 0; width: 10%; text-align: right;">Monto (Bs)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${itemsHtml}
-                    </tbody>
-                </table>
+                <!-- TABLE ITEMS (RESPONSIVE SCROLL CONTAINER) -->
+                <div style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 20px; border-radius: 6px;">
+                    <table style="width: 100%; min-width: 480px; border-collapse: collapse; text-align: left; font-size: 0.82rem;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #cbd5e1; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.3px;">
+                                <th style="padding: 8px 6px; width: 18%;">Pieza</th>
+                                <th style="padding: 8px 6px; width: 42%;">Procedimiento</th>
+                                <th style="padding: 8px 6px; width: 20%;">Especialista</th>
+                                <th style="padding: 8px 6px; width: 10%;">Precio Ref.</th>
+                                <th style="padding: 8px 6px; width: 10%; text-align: right;">Monto (Bs)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${itemsHtml}
+                        </tbody>
+                    </table>
+                </div>
 
                 <!-- TOTALS -->
-                <div style="display: flex; justify-content: flex-end; margin-bottom: 30px;">
-                    <div style="width: 290px; font-size: 0.85rem; text-align: right;">
-                        <div style="display: flex; justify-content: space-between; padding: 4px 0; color: #475569;">
+                <div style="display: flex; justify-content: flex-end; margin-bottom: 24px;">
+                    <div style="width: 100%; max-width: 300px; font-size: 0.82rem; text-align: right;">
+                        <div style="display: flex; justify-content: space-between; padding: 3px 0; color: #475569;">
                             <span>Subtotal:</span>
-                            <span>$${subtotalUSD.toFixed(2)} USD</span>
+                            <strong style="color: #334155;">$${subtotalUSD.toFixed(2)} USD</strong>
                         </div>
-                        <div style="display: flex; justify-content: space-between; padding: 4px 0; color: #dc2626; font-weight: 600;">
+                        ${discountPct > 0 ? `
+                        <div style="display: flex; justify-content: space-between; padding: 3px 0; color: #dc2626; font-weight: 600;">
                             <span>Descuento (${discountPct}%):</span>
                             <span>-$${discountAmountUSD.toFixed(2)} USD</span>
-                        </div>
-                        <div style="border-top: 1px solid #cbd5e1; margin: 6px 0;"></div>
-                        <div style="display: flex; justify-content: space-between; padding: 4px 0; font-weight: 800; font-size: 0.95rem; color: #0f172a;">
+                        </div>` : ''}
+                        <div style="border-top: 1px solid #cbd5e1; margin: 5px 0;"></div>
+                        <div style="display: flex; justify-content: space-between; padding: 3px 0; font-weight: 800; font-size: 0.92rem; color: #0f172a;">
                             <span>Total Final USD:</span>
                             <span>$${totalUSD.toFixed(2)} USD</span>
                         </div>
-                        <div style="display: flex; justify-content: space-between; padding: 4px 0; font-weight: 800; font-size: 1rem; color: #0891b2;">
+                        <div style="display: flex; justify-content: space-between; padding: 3px 0; font-weight: 800; font-size: 0.95rem; color: #0891b2;">
                             <span>Total Bolívares (BCV):</span>
                             <span>Bs. ${totalVES} Bs</span>
                         </div>
@@ -13443,9 +13438,9 @@ async function renderPublicBudgetView() {
                 </div>
 
                 <!-- SIGNATURES -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 40px; text-align: center;">
-                    <div>${docSignatureHtml}</div>
-                    <div>${patSignatureHtml}</div>
+                <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 24px; margin-top: 30px; text-align: center;">
+                    <div style="min-width: 160px; max-width: 240px; flex: 1;">${docSignatureHtml}</div>
+                    <div style="min-width: 160px; max-width: 240px; flex: 1;">${patSignatureHtml}</div>
                 </div>
 
                 <!-- CONSENT AND FOOTER NOTES -->
@@ -13454,7 +13449,7 @@ async function renderPublicBudgetView() {
 
                 <!-- PIE DE PÁGINA OFICIAL DE PAPELERÍA -->
                 ${(stationery && (stationery.footer_text || stationery.footerText)) ? `
-                    <div style="margin-top: 25px; border-top: 1px dashed #cbd5e1; padding-top: 12px; text-align: center; font-size: 0.76rem; color: #64748b; font-style: italic; line-height: 1.4;">
+                    <div style="margin-top: 20px; border-top: 1px dashed #cbd5e1; padding-top: 10px; text-align: center; font-size: 0.74rem; color: #64748b; font-style: italic; line-height: 1.35;">
                         ${stationery.footer_text || stationery.footerText}
                     </div>
                 ` : ''}
