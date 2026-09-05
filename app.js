@@ -399,8 +399,9 @@ async function autoSaveActivePatientOdontogram() {
         const patients = await SupabaseDataService.getPatients();
         const patient = patients.find(p => String(p.id) === String(activeId));
         if (patient) {
-            patient.odontogramData = odData;
             if (!patient.metadata) patient.metadata = {};
+            draft.odontogramData = odData;
+            patient.metadata.draftOdontogramData = odData;
             patient.metadata.draftBudget = draft;
             if (patSig) {
                 patient.metadata.patientSignature = patSig;
@@ -1404,9 +1405,9 @@ async function saveCurrentBudgetAsDraft(patientIdToSave) {
 
         await SupabaseDataService.saveInvoice(budgetObj);
 
-        // Also persist in patient metadata
-        patient.odontogramData = odData;
+        // Also persist in patient draft metadata without polluting official EHR odontogram
         if (!patient.metadata) patient.metadata = {};
+        patient.metadata.draftOdontogramData = odData;
         patient.metadata.draftBudget = {
             id: budgetId,
             items: currentBudgetItems || [],
@@ -1529,13 +1530,16 @@ window.selectPatientAndLoadApprovedBudget = async function(patientId) {
         // Cargar prioritariamente el presupuesto Aprobado oficial
         await window.loadBudgetIntoEditor(approvedBudget.id);
     } else {
-        // Si no tiene presupuesto aprobado oficial: iniciar presupuesto nuevo/limpio para este paciente
-        activeEditingBudgetId = null;
-        currentBudgetItems = [];
+        // Si no tiene presupuesto aprobado oficial: cargar borrador en progreso si existe, o iniciar limpio
         const patients = await SupabaseDataService.getPatients();
         const p = patients.find(pat => String(pat.id) === String(patientId));
+        activeEditingBudgetId = (p?.metadata?.draftBudget && p.metadata.draftBudget.id) || null;
+        currentBudgetItems = (p?.metadata?.draftBudget && Array.isArray(p.metadata.draftBudget.items))
+            ? [...p.metadata.draftBudget.items]
+            : [];
+        const draftOdData = (p?.metadata && p.metadata.draftOdontogramData) || (p?.odontogramData) || {};
         if (window.odontogram) {
-            window.odontogram.setData(p?.odontogramData || {});
+            window.odontogram.setData(draftOdData);
         }
         if (window.patientSigPad) {
             window.patientSigPad.clear();
@@ -2939,12 +2943,23 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                 `;
             }
 
-            // 3. Obtener Presupuestos y Tratamientos para Sincronización Total
+            // 3. Obtener Presupuestos y Tratamientos para Sincronización Total (Solo Aprobados)
             const allInvoices = await SupabaseDataService.getInvoices();
             const patientBudgets = allInvoices.filter(i => String(i.patientId) === String(activePatient.id));
-            const activeApprovedBudget = patientBudgets.find(b => b.status === 'Aprobado') || patientBudgets[0];
+            const approvedBudgets = patientBudgets.filter(b => 
+                String(b.status).toLowerCase() === 'aprobado' || 
+                String(b.status).toLowerCase() === 'approved' || 
+                String(b.status).toLowerCase() === 'pagada' || 
+                String(b.status).toLowerCase() === 'pagado' || 
+                String(b.status).toLowerCase() === 'completada' || 
+                String(b.status).toLowerCase() === 'finalizado'
+            );
+            // Ordenar de más antiguo a más reciente
+            approvedBudgets.sort((a, b) => new Date(a.invoiceDate || a.date || a.createdAt || 0) - new Date(b.invoiceDate || b.date || b.createdAt || 0));
 
-            // Combinar tratamientos registrados en metadata o provenientes del presupuesto activo
+            const activeApprovedBudget = approvedBudgets.length > 0 ? approvedBudgets[approvedBudgets.length - 1] : null;
+
+            // Tratamientos registrados en metadata o provenientes de presupuestos aprobados
             let treatmentsList = (activePatient.metadata && activePatient.metadata.treatments) || [];
             if (treatmentsList.length === 0 && activeApprovedBudget && activeApprovedBudget.items && activeApprovedBudget.items.length > 0) {
                 treatmentsList = activeApprovedBudget.items.map((it, idx) => ({
@@ -2960,56 +2975,77 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                 }));
             }
 
-            // 4. Odontodiagrama Tab (Comparación Diagnóstico Inicial vs Evolución Actual)
+            // 4. Odontodiagrama Tab (Comparación Diagnóstico Inicial vs Evolución Actual de Presupuestos Aprobados)
             const initialWrapper = document.getElementById('ehr-od-initial-view');
             const currentWrapper = document.getElementById('ehr-od-current-view');
+            const initDateEl = document.getElementById('ehr-od-initial-date');
+            const currDateEl = document.getElementById('ehr-od-current-date');
+            const evoSelector = document.getElementById('ehr-evolution-selector');
+
             if (initialWrapper && currentWrapper) {
                 initialWrapper.innerHTML = `<div id="od-snap-initial"></div>`;
                 currentWrapper.innerHTML = `<div id="od-snap-current"></div>`;
                 
-                // Odontodiagrama inicial: datos diagnósticos iniciales
-                let initOdData = { ...((activePatient.metadata && activePatient.metadata.initialOdontogramData) || activePatient.odontogramData || {}) };
-                let currentOdData = { ...(activePatient.odontogramData || {}) };
-
-                // Map any treatments with tooth numbers to ensure visual feedback in Odontodiagrama
-                treatmentsList.forEach(t => {
-                    if (t.tooth && t.tooth !== 'Gnl' && !isNaN(parseInt(t.tooth))) {
-                        const toothNum = parseInt(t.tooth);
-                        const faceKey = t.face ? `${toothNum}-${t.face}` : `${toothNum}-center`;
-                        if (!initOdData[faceKey]) {
-                            initOdData[faceKey] = 'patology'; // Caries / Tratamiento propuesto inicial
-                        }
-                        if (t.status === 'Completado') {
-                            currentOdData[faceKey] = 'treated'; // Verde - Restaurado/Tratado
-                        } else {
-                            if (!currentOdData[faceKey]) currentOdData[faceKey] = 'proposed'; // Azul - Planificado
-                        }
-                    }
-                });
-
                 const isPedi = (meta.type === 'Infantil') || (activePatient.birthdate && calculateAge(activePatient.birthdate) < 18);
 
-                window.ehrInitialOdontogram = new OdontogramEngine('od-snap-initial', { initialData: initOdData, isPediatric: isPedi, readOnly: true });
-                window.ehrCurrentOdontogram = new OdontogramEngine('od-snap-current', { initialData: currentOdData, isPediatric: isPedi, readOnly: true });
+                if (approvedBudgets.length === 0) {
+                    // Sin presupuestos aprobados: odontogramas limpios sin datos preliminares/borrador
+                    window.ehrInitialOdontogram = new OdontogramEngine('od-snap-initial', { initialData: {}, isPediatric: isPedi, readOnly: true });
+                    window.ehrCurrentOdontogram = new OdontogramEngine('od-snap-current', { initialData: {}, isPediatric: isPedi, readOnly: true });
+                    if (initDateEl) initDateEl.innerHTML = `<i class="fa-regular fa-calendar"></i> Sin diagnóstico aprobado`;
+                    if (currDateEl) currDateEl.innerHTML = `<i class="fa-solid fa-clock-rotate-left"></i> Sin evoluciones`;
+                    if (evoSelector) {
+                        evoSelector.style.display = 'none';
+                        evoSelector.innerHTML = '';
+                    }
+                } else {
+                    // 1. Diagnóstico Inicial: Primer presupuesto Aprobado
+                    const firstApproved = approvedBudgets[0];
+                    const initOdData = firstApproved.odontogramData || (activePatient.metadata && activePatient.metadata.initialOdontogramData) || {};
+                    const initDateStr = firstApproved.invoiceDate || firstApproved.date || (activePatient.metadata && activePatient.metadata.initialDiagnosisDate) || 'Inicial';
 
-                // Mostrar fechas de diagnóstico inicial y de última actualización
-                const initDateStr = (activePatient.metadata && activePatient.metadata.initialDiagnosisDate) || (activeApprovedBudget && activeApprovedBudget.date) || activePatient.createdAt || 'Inicial';
-                const initDateEl = document.getElementById('ehr-od-initial-date');
-                if (initDateEl) initDateEl.innerHTML = `<i class="fa-regular fa-calendar"></i> Registro Inicial: ${initDateStr}`;
+                    window.ehrInitialOdontogram = new OdontogramEngine('od-snap-initial', { initialData: initOdData, isPediatric: isPedi, readOnly: true });
+                    if (initDateEl) initDateEl.innerHTML = `<i class="fa-regular fa-calendar"></i> Diagnóstico Inicial: ${initDateStr}`;
 
-                let lastUpdateStr = '';
-                if (activePatient.sessions && activePatient.sessions.length > 0) {
-                    const latestSession = activePatient.sessions[activePatient.sessions.length - 1];
-                    lastUpdateStr = latestSession.datetime ? latestSession.datetime.replace('T', ' ') : latestSession.date;
+                    // 2. Evolución Actualizada: Último presupuesto Aprobado por defecto
+                    const latestApproved = approvedBudgets[approvedBudgets.length - 1];
+                    let latestOdData = latestApproved.odontogramData || activePatient.odontogramData || {};
+                    let latestDateStr = latestApproved.invoiceDate || latestApproved.date || (activePatient.metadata && activePatient.metadata.odontogramLastUpdated) || 'Actualizado';
+
+                    window.ehrCurrentOdontogram = new OdontogramEngine('od-snap-current', { initialData: latestOdData, isPediatric: isPedi, readOnly: true });
+                    if (currDateEl) currDateEl.innerHTML = `<i class="fa-solid fa-clock-rotate-left"></i> Actualizado: ${latestDateStr}`;
+
+                    // 3. Selector interactivo de Evoluciones si existen múltiples presupuestos aprobados
+                    if (evoSelector) {
+                        if (approvedBudgets.length > 1) {
+                            evoSelector.style.display = 'inline-block';
+                            evoSelector.innerHTML = '';
+                            [...approvedBudgets].reverse().forEach((b, revIdx) => {
+                                const opt = document.createElement('option');
+                                opt.value = b.id;
+                                const originalIdx = approvedBudgets.length - revIdx;
+                                const label = originalIdx === 1 
+                                    ? `Diagnóstico Inicial (${b.id} - ${b.invoiceDate || b.date})` 
+                                    : `Evolución ${originalIdx - 1} (${b.id} - ${b.invoiceDate || b.date})`;
+                                opt.innerText = label;
+                                evoSelector.appendChild(opt);
+                            });
+
+                            evoSelector.onchange = (e) => {
+                                const selectedBudgetId = e.target.value;
+                                const foundBudget = approvedBudgets.find(b => String(b.id) === String(selectedBudgetId));
+                                if (foundBudget && window.ehrCurrentOdontogram) {
+                                    const odDataToShow = foundBudget.odontogramData || {};
+                                    window.ehrCurrentOdontogram.setData(odDataToShow);
+                                    if (currDateEl) currDateEl.innerHTML = `<i class="fa-solid fa-clock-rotate-left"></i> Actualizado: ${foundBudget.invoiceDate || foundBudget.date}`;
+                                }
+                            };
+                        } else {
+                            evoSelector.style.display = 'none';
+                            evoSelector.innerHTML = '';
+                        }
+                    }
                 }
-                if (!lastUpdateStr && activePatient.metadata && activePatient.metadata.odontogramLastUpdated) {
-                    lastUpdateStr = activePatient.metadata.odontogramLastUpdated;
-                }
-                if (!lastUpdateStr) {
-                    lastUpdateStr = (activeApprovedBudget && activeApprovedBudget.date) || activePatient.createdAt || new Date().toISOString().split('T')[0];
-                }
-                const currDateEl = document.getElementById('ehr-od-current-date');
-                if (currDateEl) currDateEl.innerHTML = `<i class="fa-solid fa-clock-rotate-left"></i> Actualizado: ${lastUpdateStr}`;
             }
 
             // Cálculo dinámico del total de sesiones requeridas
@@ -6987,9 +7023,7 @@ function initGlobalEvents() {
                     systemic,
                     medication,
                     emergencyContact,
-                    odontogramData: (window.odontogram && Object.keys(window.odontogram.getData() || {}).length > 0)
-                        ? window.odontogram.getData()
-                        : (existing.odontogramData || {}),
+                    odontogramData: (existing && existing.odontogramData) ? existing.odontogramData : {},
                     metadata: {
                         ...(existing.metadata || {}),
                         type,
@@ -7038,6 +7072,7 @@ function initGlobalEvents() {
                         initTreatmentSessions: getVal('p-init-treatment-sessions'),
                         initTreatmentInterval: getVal('p-init-treatment-interval'),
                         sessionsPlan: step4WasRendered ? sessionsData : ((existing.metadata && existing.metadata.sessionsPlan) || []),
+                        draftOdontogramData: (window.odontogram && Object.keys(window.odontogram.getData() || {}).length > 0) ? window.odontogram.getData() : ((existing.metadata && existing.metadata.draftOdontogramData) || {}),
                         draftBudget: {
                             items: (currentBudgetItems && currentBudgetItems.length > 0) ? currentBudgetItems : ((existing.metadata && existing.metadata.draftBudget && existing.metadata.draftBudget.items) || [])
                         }
@@ -7058,9 +7093,7 @@ function initGlobalEvents() {
                     emergencyContact,
                     status: 'Activo',
                     createdAt: new Date().toISOString().split('T')[0],
-                    odontogramData: (window.odontogram && Object.keys(window.odontogram.getData() || {}).length > 0)
-                        ? window.odontogram.getData()
-                        : {},
+                    odontogramData: {},
                     clinicalNotes: [],
                     photos: [],
                     payments: [],
@@ -7111,6 +7144,7 @@ function initGlobalEvents() {
                         initTreatmentSessions: getVal('p-init-treatment-sessions'),
                         initTreatmentInterval: getVal('p-init-treatment-interval'),
                         sessionsPlan: sessionsData,
+                        draftOdontogramData: (window.odontogram && Object.keys(window.odontogram.getData() || {}).length > 0) ? window.odontogram.getData() : {},
                         draftBudget: {
                             items: (currentBudgetItems && currentBudgetItems.length > 0) ? currentBudgetItems : []
                         }
@@ -7345,6 +7379,8 @@ function initGlobalEvents() {
 
                 // Generate or load budget invoice record ID
                 const invoiceId = activeEditingBudgetId || `PRE-${Date.now().toString().slice(-6)}`;
+                const approvedOdData = (window.odontogram ? window.odontogram.getData() : {});
+
                 const invoiceObj = {
                     id: invoiceId,
                     patientId: patient.id,
@@ -7360,6 +7396,7 @@ function initGlobalEvents() {
                         price: item.price,
                         specialist: item.specialist || ''
                     })),
+                    odontogramData: { ...approvedOdData },
                     totalRef: totalUSD,
                     totalBcv: parseFloat(totalVES),
                     status: 'Aprobado',
@@ -7386,12 +7423,28 @@ function initGlobalEvents() {
                     status: 'Planificado',
                     sessionNum: item.sessionNum || (idx + 1)
                 }));
-                await SupabaseDataService.savePatient(patient);
 
-                // Save odontogram data from current budget
-                if (window.odontogram) {
-                    patient.odontogramData = { ...(patient.odontogramData || {}), ...window.odontogram.getData() };
+                // Save official odontogram data and evolution history
+                if (!patient.metadata.approvedOdontograms) {
+                    patient.metadata.approvedOdontograms = [];
                 }
+
+                // If first approval, establish as Initial Diagnosis
+                if (!patient.metadata.initialOdontogramData || Object.keys(patient.metadata.initialOdontogramData).length === 0) {
+                    patient.metadata.initialOdontogramData = { ...approvedOdData };
+                    patient.metadata.initialDiagnosisDate = invoiceObj.invoiceDate;
+                }
+
+                // Update cumulative official odontogram and push evolution snapshot
+                patient.odontogramData = { ...(patient.odontogramData || {}), ...approvedOdData };
+                patient.metadata.approvedOdontograms.push({
+                    id: invoiceObj.id,
+                    date: invoiceObj.invoiceDate,
+                    totalUSD: totalUSD,
+                    odontogramData: { ...approvedOdData },
+                    treatments: deduplicateBudgetItems(currentBudgetItems)
+                });
+                patient.metadata.odontogramLastUpdated = invoiceObj.invoiceDate;
 
                 // Set treatment plan overview
                 const treatmentTitle = currentBudgetItems.map(i => i.name).slice(0, 3).join(' + ') + (currentBudgetItems.length > 3 ? '...' : '');
@@ -7437,6 +7490,7 @@ function initGlobalEvents() {
 
                 if (patient.metadata) {
                     delete patient.metadata.draftBudget;
+                    delete patient.metadata.draftOdontogramData;
                 }
                 await SupabaseDataService.savePatient(patient);
 
