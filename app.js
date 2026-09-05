@@ -2959,20 +2959,24 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
 
             const activeApprovedBudget = approvedBudgets.length > 0 ? approvedBudgets[approvedBudgets.length - 1] : null;
 
-            // Tratamientos registrados en metadata o provenientes de presupuestos aprobados
-            let treatmentsList = (activePatient.metadata && activePatient.metadata.treatments) || [];
-            if (treatmentsList.length === 0 && activeApprovedBudget && activeApprovedBudget.items && activeApprovedBudget.items.length > 0) {
-                treatmentsList = activeApprovedBudget.items.map((it, idx) => ({
-                    id: 'trt-' + (idx + 1),
-                    serviceCode: it.code || '',
-                    name: it.name || 'Procedimiento',
-                    tooth: it.tooth || 'Gnl',
-                    face: it.face || '',
-                    price: it.price || it.priceUSD || 0,
-                    specialist: it.specialist || '',
-                    status: (activePatient.sessions && activePatient.sessions.length > idx) ? 'Completado' : 'Planificado',
-                    sessionNum: idx + 1
-                }));
+            // Tratamientos SOLO si hay presupuesto aprobado oficial
+            let treatmentsList = [];
+            if (activeApprovedBudget) {
+                if (activePatient.metadata && Array.isArray(activePatient.metadata.treatments) && activePatient.metadata.treatments.length > 0) {
+                    treatmentsList = activePatient.metadata.treatments;
+                } else if (activeApprovedBudget.items && activeApprovedBudget.items.length > 0) {
+                    treatmentsList = activeApprovedBudget.items.map((it, idx) => ({
+                        id: 'trt-' + (idx + 1),
+                        serviceCode: it.code || '',
+                        name: it.name || 'Procedimiento',
+                        tooth: it.tooth || 'Gnl',
+                        face: it.face || '',
+                        price: it.price || it.priceUSD || 0,
+                        specialist: it.specialist || '',
+                        status: (activePatient.sessions && activePatient.sessions.length > idx) ? 'Completado' : 'Planificado',
+                        sessionNum: idx + 1
+                    }));
+                }
             }
 
             // 4. Odontodiagrama Tab (Comparación Diagnóstico Inicial vs Evolución Actual de Presupuestos Aprobados)
@@ -3048,25 +3052,27 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                 }
             }
 
-            // Cálculo dinámico del total de sesiones requeridas
-            let totalSessions = (meta.initialTreatmentPlan && meta.initialTreatmentPlan.totalSessions) || (treatmentsList.length > 0 ? treatmentsList.length : 4);
-            if (totalSessions < 1) totalSessions = 1;
-
+            // Cálculo dinámico del total de sesiones requeridas (Solo para presupuestos aprobados)
+            let totalSessions = 0;
             const completedSessions = activePatient.sessions ? activePatient.sessions.length : 0;
-            if (completedSessions > totalSessions) totalSessions = completedSessions;
+            let pct = 0;
+            let treatmentTitle = 'Sin tratamiento activo';
 
-            const pendingSessions = Math.max(0, totalSessions - completedSessions);
-            const pct = Math.min(100, Math.round((completedSessions / totalSessions) * 100));
+            if (approvedBudgets.length > 0) {
+                totalSessions = (meta.initialTreatmentPlan && meta.initialTreatmentPlan.totalSessions) || (treatmentsList.length > 0 ? treatmentsList.length : 1);
+                if (totalSessions < 1) totalSessions = 1;
+                if (completedSessions > totalSessions) totalSessions = completedSessions;
+                pct = Math.min(100, Math.round((completedSessions / totalSessions) * 100));
 
-            // Título del tratamiento general
-            let treatmentTitle = (meta.initialTreatmentPlan && meta.initialTreatmentPlan.treatmentName);
-            if (!treatmentTitle || treatmentTitle === 'Tratamiento General') {
-                if (treatmentsList.length > 0) {
-                    treatmentTitle = treatmentsList.map(t => t.name).slice(0, 3).join(' + ') + (treatmentsList.length > 3 ? '...' : '');
-                } else if (activeApprovedBudget) {
-                    treatmentTitle = `Presupuesto ${activeApprovedBudget.id} (${activeApprovedBudget.paymentTerms || 'Contado'})`;
-                } else {
-                    treatmentTitle = 'Tratamiento Odontológico General';
+                treatmentTitle = (meta.initialTreatmentPlan && meta.initialTreatmentPlan.treatmentName);
+                if (!treatmentTitle || treatmentTitle === 'Tratamiento General') {
+                    if (treatmentsList.length > 0) {
+                        treatmentTitle = treatmentsList.map(t => t.name).slice(0, 3).join(' + ') + (treatmentsList.length > 3 ? '...' : '');
+                    } else if (activeApprovedBudget) {
+                        treatmentTitle = `Presupuesto ${activeApprovedBudget.id} (${activeApprovedBudget.paymentTerms || 'Contado'})`;
+                    } else {
+                        treatmentTitle = 'Tratamiento Odontológico Integral';
+                    }
                 }
             }
 
@@ -3076,15 +3082,19 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
 
             const pctDisplayEl = document.getElementById('ehr-sessions-percent-display');
             if (pctDisplayEl) {
-                let statusBadge = '';
-                if (pct >= 100) {
-                    statusBadge = '<span class="badge-tag green" style="margin-left:8px;"><i class="fa-solid fa-circle-check"></i> 100% Completado</span>';
-                } else if (completedSessions > 0) {
-                    statusBadge = `<span class="badge-tag amber" style="margin-left:8px;"><i class="fa-solid fa-spinner fa-spin"></i> En Proceso (${completedSessions}/${totalSessions} sesiones)</span>`;
+                if (approvedBudgets.length === 0) {
+                    pctDisplayEl.innerHTML = `0% (0 sesiones) <span class="badge-tag" style="margin-left:8px; background:#f1f5f9; color:#64748b;"><i class="fa-solid fa-hourglass-start"></i> Pendiente de Aprobación</span>`;
                 } else {
-                    statusBadge = `<span class="badge-tag blue" style="margin-left:8px;"><i class="fa-solid fa-clipboard-list"></i> Planificado (${totalSessions} sesiones)</span>`;
+                    let statusBadge = '';
+                    if (pct >= 100) {
+                        statusBadge = '<span class="badge-tag green" style="margin-left:8px;"><i class="fa-solid fa-circle-check"></i> 100% Completado</span>';
+                    } else if (completedSessions > 0) {
+                        statusBadge = `<span class="badge-tag amber" style="margin-left:8px;"><i class="fa-solid fa-spinner fa-spin"></i> En Proceso (${completedSessions}/${totalSessions} sesiones)</span>`;
+                    } else {
+                        statusBadge = `<span class="badge-tag blue" style="margin-left:8px;"><i class="fa-solid fa-clipboard-list"></i> Planificado (${totalSessions} sesiones)</span>`;
+                    }
+                    pctDisplayEl.innerHTML = `${completedSessions} de ${totalSessions} sesiones (${pct}%) ${statusBadge}`;
                 }
-                pctDisplayEl.innerHTML = `${completedSessions} de ${totalSessions} sesiones (${pct}%) ${statusBadge}`;
             }
 
             const bar = document.getElementById('ehr-sessions-progress-bar');
@@ -3096,150 +3106,159 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
             const timeline = document.getElementById('ehr-sessions-timeline');
             timeline.innerHTML = '';
 
-            // 1. Mostrar tabla de Tratamientos / Presupuesto si existen ítems
-            if (treatmentsList.length > 0) {
-                const trtSection = document.createElement('div');
-                trtSection.style.marginBottom = '20px';
-                trtSection.style.padding = '12px 16px';
-                trtSection.style.background = 'var(--bg-card)';
-                trtSection.style.border = '1px solid var(--border-color)';
-                trtSection.style.borderRadius = '8px';
-
-                let trtRowsHtml = treatmentsList.map((t, idx) => {
-                    const isDone = (idx < completedSessions) || t.status === 'Completado';
-                    const toothNum = extractToothNumber(t);
-                    const toothLabel = toothNum === 'General' ? 'Pieza General' : `Pieza ${toothNum}`;
-                    return `
-                        <tr style="border-bottom: 1px solid var(--border-color); font-size: 0.85rem;">
-                            <td style="padding: 6px 8px;"><strong>${toothLabel}</strong></td>
-                            <td style="padding: 6px 8px;">${t.name}</td>
-                            <td style="padding: 6px 8px; color: #15803d; font-weight: 600;">$${parseFloat(t.price || 0).toFixed(2)}</td>
-                            <td style="padding: 6px 8px;">${t.specialist || 'Dr. Asignado'}</td>
-                            <td style="padding: 6px 8px;">
-                                <span class="badge-tag ${isDone ? 'green' : 'amber'}">${isDone ? '✓ Atendido' : '⏳ Planificado'}</span>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
-
-                trtSection.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <h4 style="margin:0; font-size:0.92rem; color:var(--primary-cyan);"><i class="fa-solid fa-teeth"></i> Tratamientos Planificados en Presupuesto</h4>
-                        ${activeApprovedBudget ? `<small class="text-muted"><i class="fa-solid fa-receipt"></i> ${activeApprovedBudget.id} • $${parseFloat(activeApprovedBudget.totalRef || 0).toFixed(2)} USD</small>` : ''}
-                    </div>
-                    <div style="overflow-x:auto;">
-                        <table style="width:100%; border-collapse:collapse; text-align:left;">
-                            <thead>
-                                <tr style="border-bottom:2px solid var(--border-color); font-size:0.75rem; color:#64748b; text-transform:uppercase;">
-                                    <th style="padding:4px 8px;">Diente</th>
-                                    <th style="padding:4px 8px;">Procedimiento</th>
-                                    <th style="padding:4px 8px;">Monto</th>
-                                    <th style="padding:4px 8px;">Especialista</th>
-                                    <th style="padding:4px 8px;">Estado</th>
-                                </tr>
-                            </thead>
-                            <tbody>${trtRowsHtml}</tbody>
-                        </table>
+            if (approvedBudgets.length === 0) {
+                timeline.innerHTML = `
+                    <div style="padding: 35px 20px; text-align: center; color: var(--text-muted); background: var(--bg-card); border: 1px dashed var(--border-color); border-radius: 8px;">
+                        <i class="fa-solid fa-clipboard-list" style="font-size: 2.2rem; display: block; margin-bottom: 12px; color: #94a3b8;"></i>
+                        <strong style="font-size: 1rem; color: var(--text-main); display: block;">Sin tratamientos ni sesiones asignadas</strong>
+                        <p style="margin: 8px auto 0 auto; max-width: 450px; font-size: 0.85rem; line-height: 1.4;">Los tratamientos, sesiones y cronograma de citas se activarán automáticamente en esta sección una vez que se apruebe formalmente un presupuesto para el paciente.</p>
                     </div>
                 `;
-                timeline.appendChild(trtSection);
-            }
+            } else {
+                // 1. Mostrar tabla de Tratamientos / Presupuesto si existen ítems
+                if (treatmentsList.length > 0) {
+                    const trtSection = document.createElement('div');
+                    trtSection.style.marginBottom = '20px';
+                    trtSection.style.padding = '12px 16px';
+                    trtSection.style.background = 'var(--bg-card)';
+                    trtSection.style.border = '1px solid var(--border-color)';
+                    trtSection.style.borderRadius = '8px';
 
-            // 2. Renderizar Línea de Tiempo de Sesiones (1 a Total): Flexibilidad total para atender en cualquier orden
-            const patientSessions = activePatient.sessions || [];
+                    let trtRowsHtml = treatmentsList.map((t, idx) => {
+                        const isDone = (idx < completedSessions) || t.status === 'Completado';
+                        const toothNum = extractToothNumber(t);
+                        const toothLabel = toothNum === 'General' ? 'Pieza General' : `Pieza ${toothNum}`;
+                        return `
+                            <tr style="border-bottom: 1px solid var(--border-color); font-size: 0.85rem;">
+                                <td style="padding: 6px 8px;"><strong>${toothLabel}</strong></td>
+                                <td style="padding: 6px 8px;">${t.name}</td>
+                                <td style="padding: 6px 8px; color: #15803d; font-weight: 600;">$${parseFloat(t.price || 0).toFixed(2)}</td>
+                                <td style="padding: 6px 8px;">${t.specialist || 'Dr. Asignado'}</td>
+                                <td style="padding: 6px 8px;">
+                                    <span class="badge-tag ${isDone ? 'green' : 'amber'}">${isDone ? '✓ Atendido' : '⏳ Planificado'}</span>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
 
-            for (let sNum = 1; sNum <= totalSessions; sNum++) {
-                const s = patientSessions.find(sess => sess.sessionNum === sNum);
-                const trtItem = treatmentsList[sNum - 1];
+                    trtSection.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <h4 style="margin:0; font-size:0.92rem; color:var(--primary-cyan);"><i class="fa-solid fa-teeth"></i> Tratamientos Planificados en Presupuesto</h4>
+                            ${activeApprovedBudget ? `<small class="text-muted"><i class="fa-solid fa-receipt"></i> ${activeApprovedBudget.id} • $${parseFloat(activeApprovedBudget.totalRef || 0).toFixed(2)} USD</small>` : ''}
+                        </div>
+                        <div style="overflow-x:auto;">
+                            <table style="width:100%; border-collapse:collapse; text-align:left;">
+                                <thead>
+                                    <tr style="border-bottom:2px solid var(--border-color); font-size:0.75rem; color:#64748b; text-transform:uppercase;">
+                                        <th style="padding:4px 8px;">Diente</th>
+                                        <th style="padding:4px 8px;">Procedimiento</th>
+                                        <th style="padding:4px 8px;">Monto</th>
+                                        <th style="padding:4px 8px;">Especialista</th>
+                                        <th style="padding:4px 8px;">Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${trtRowsHtml}</tbody>
+                            </table>
+                        </div>
+                    `;
+                    timeline.appendChild(trtSection);
+                }
 
-                if (s) {
-                    // SESIÓN REALIZADA
-                    let matsHtml = '';
-                    if (s.materials && s.materials.length > 0) {
-                        matsHtml = '<div style="margin-top:8px; font-size:0.75rem; color:#64748b;"><strong>Insumos descargados:</strong> ';
-                        matsHtml += s.materials.map(m => `${m.name} (x${m.qty})`).join(', ');
-                        matsHtml += '</div>';
+                // 2. Renderizar Línea de Tiempo de Sesiones (1 a Total)
+                const patientSessions = activePatient.sessions || [];
+
+                for (let sNum = 1; sNum <= totalSessions; sNum++) {
+                    const s = patientSessions.find(sess => sess.sessionNum === sNum);
+                    const trtItem = treatmentsList[sNum - 1];
+
+                    if (s) {
+                        // SESIÓN REALIZADA
+                        let matsHtml = '';
+                        if (s.materials && s.materials.length > 0) {
+                            matsHtml = '<div style="margin-top:8px; font-size:0.75rem; color:#64748b;"><strong>Insumos descargados:</strong> ';
+                            matsHtml += s.materials.map(m => `${m.name} (x${m.qty})`).join(', ');
+                            matsHtml += '</div>';
+                        }
+
+                        const deleteSessionBtn = isAssistant ? '' : `<button class="btn btn-xs btn-outline text-red" style="margin-left:4px;" onclick="deleteSessionFromPatient('${activePatient.id}', ${s.sessionNum})" title="Eliminar Sesión"><i class="fa-solid fa-trash"></i></button>`;
+
+                        let payInfoHtml = '';
+                        if (s.paymentUSD > 0) {
+                            payInfoHtml = `<div style="margin-top: 6px; font-size: 0.8rem; color: #15803d; font-weight: 600;"><i class="fa-solid fa-money-bill-wave"></i> Cobrado en sesión: $${s.paymentUSD.toFixed(2)} USD (${s.paymentMethodLabel || 'Efectivo'})</div>`;
+                        }
+
+                        const div = document.createElement('div');
+                        div.className = 'timeline-item timeline-item-completed';
+                        div.innerHTML = `
+                            <div class="timeline-meta" style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 6px;">
+                                <span><strong style="color:#10b981;"><i class="fa-solid fa-circle-check"></i> Sesión N° ${s.sessionNum}</strong> — <i class="fa-solid fa-clock"></i> ${s.datetime}</span>
+                                <div style="display: flex; gap: 4px; align-items: center;">
+                                    <button class="btn btn-xs btn-outline" style="border-color:#10b981; color:#10b981; font-weight:600;" onclick="window.openRecipesModalForSession('${activePatient.id}', ${s.sessionNum}, '${s.procedure}')" title="Ver / Crear Récipe e Indicaciones"><i class="fa-solid fa-pills"></i> Récipes</button>
+                                    <button class="btn btn-xs btn-outline" style="color: #15803d; border-color: #22c55e;" onclick="sendSessionReceiptWhatsApp('${activePatient.id}', ${s.sessionNum})" title="Enviar Recibo por WhatsApp"><i class="fa-brands fa-whatsapp"></i> Recibo</button>
+                                    <button class="btn btn-xs btn-outline" onclick="downloadSessionReceiptPDFById('${activePatient.id}', ${s.sessionNum})" title="Descargar Recibo en PDF"><i class="fa-solid fa-file-pdf text-blue"></i> PDF</button>
+                                    <span class="badge-tag green">✓ Realizada</span>
+                                    ${deleteSessionBtn}
+                                </div>
+                            </div>
+                            <p style="margin:8px 0; font-size:0.88rem; color:var(--text-heading); font-weight:500;">${s.procedure}</p>
+                            ${s.indications ? `<p style="margin:4px 0; font-size:0.8rem; color:#0284c7;"><strong>Indicaciones Médicas:</strong> ${s.indications}</p>` : ''}
+                            ${payInfoHtml}
+                            ${matsHtml}
+                            ${s.signatureData ? `
+                            <div style="margin-top:10px; display:flex; align-items:center; gap:10px;">
+                                <span style="font-size:0.75rem; color:#64748b;">Firma de conformidad:</span>
+                                <img src="${s.signatureData}" style="max-height: 40px; border:1px solid var(--border-color); border-radius:4px; padding:2px; background:#fff;" alt="Firma de conformidad del paciente">
+                            </div>` : ''}
+                        `;
+                        timeline.appendChild(div);
+                    } else {
+                        // SESIÓN PENDIENTE POR ATENDER
+                        const procHint = trtItem ? `Procedimiento asignado: <strong>${trtItem.name}</strong> (Pieza ${trtItem.tooth || 'Gnl'})` : 'Continuación del plan de tratamiento';
+                        const defaultProcName = trtItem ? trtItem.name : `Sesión #${sNum}`;
+
+                        const pendingDiv = document.createElement('div');
+                        pendingDiv.className = 'timeline-item timeline-item-pending';
+                        pendingDiv.innerHTML = `
+                            <div class="timeline-meta" style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 6px;">
+                                <span><strong style="color:#f59e0b;"><i class="fa-solid fa-hourglass-half"></i> Sesión N° ${sNum}</strong> — <span class="badge-tag amber">⏳ Pendiente</span></span>
+                                <div style="display: flex; gap: 6px; align-items: center;">
+                                    <button class="btn btn-xs btn-outline" style="border-color:#10b981; color:#10b981; font-weight:600;" onclick="window.openRecipesModalForSession('${activePatient.id}', ${sNum}, '${defaultProcName}')" title="Ver / Crear Récipe e Indicaciones"><i class="fa-solid fa-pills"></i> Récipes</button>
+                                    <button class="btn btn-xs btn-outline" style="border-color:var(--primary-cyan); color:var(--primary-cyan);" onclick="window.openAppointmentModalForPatient('${activePatient.id}', ${sNum}, '${defaultProcName}')" title="Agendar esta sesión en la Agenda">
+                                        <i class="fa-solid fa-calendar-plus"></i> Agendar
+                                    </button>
+                                    <button class="btn btn-xs btn-primary" style="background-color:var(--primary-cyan) !important; color:white !important;" onclick="window.openSessionModalForPatient('${activePatient.id}', ${sNum}, '${defaultProcName}')" title="Atender esta sesión ahora">
+                                        <i class="fa-solid fa-stethoscope"></i> Atender Sesión N° ${sNum}
+                                    </button>
+                                </div>
+                            </div>
+                            <p style="margin:6px 0 0 0; font-size:0.84rem; color:var(--text-muted);">${procHint}</p>
+                        `;
+                        timeline.appendChild(pendingDiv);
                     }
+                }
 
-                    const deleteSessionBtn = isAssistant ? '' : `<button class="btn btn-xs btn-outline text-red" style="margin-left:4px;" onclick="deleteSessionFromPatient('${activePatient.id}', ${s.sessionNum})" title="Eliminar Sesión"><i class="fa-solid fa-trash"></i></button>`;
-
-                    let payInfoHtml = '';
-                    if (s.paymentUSD > 0) {
-                        payInfoHtml = `<div style="margin-top: 6px; font-size: 0.8rem; color: #15803d; font-weight: 600;"><i class="fa-solid fa-money-bill-wave"></i> Cobrado en sesión: $${s.paymentUSD.toFixed(2)} USD (${s.paymentMethodLabel || 'Efectivo'})</div>`;
-                    }
-
+                // 3. Renderizar Sesiones adicionales fuera del plan (si hubiere)
+                const extraSessions = patientSessions.filter(sess => sess.sessionNum > totalSessions);
+                extraSessions.forEach(s => {
                     const div = document.createElement('div');
                     div.className = 'timeline-item timeline-item-completed';
                     div.innerHTML = `
                         <div class="timeline-meta" style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 6px;">
-                            <span><strong style="color:#10b981;"><i class="fa-solid fa-circle-check"></i> Sesión N° ${s.sessionNum}</strong> — <i class="fa-solid fa-clock"></i> ${s.datetime}</span>
+                            <span><strong style="color:#10b981;"><i class="fa-solid fa-circle-check"></i> Sesión Extra N° ${s.sessionNum}</strong> — <i class="fa-solid fa-clock"></i> ${s.datetime}</span>
                             <div style="display: flex; gap: 4px; align-items: center;">
-                                <button class="btn btn-xs btn-outline" style="border-color:#10b981; color:#10b981; font-weight:600;" onclick="window.openRecipesModalForSession('${activePatient.id}', ${s.sessionNum}, '${s.procedure}')" title="Ver / Crear Récipe e Indicaciones"><i class="fa-solid fa-pills"></i> Récipes</button>
-                                <button class="btn btn-xs btn-outline" style="color: #15803d; border-color: #22c55e;" onclick="sendSessionReceiptWhatsApp('${activePatient.id}', ${s.sessionNum})" title="Enviar Recibo por WhatsApp"><i class="fa-brands fa-whatsapp"></i> Recibo</button>
-                                <button class="btn btn-xs btn-outline" onclick="downloadSessionReceiptPDFById('${activePatient.id}', ${s.sessionNum})" title="Descargar Recibo en PDF"><i class="fa-solid fa-file-pdf text-blue"></i> PDF</button>
                                 <span class="badge-tag green">✓ Realizada</span>
-                                ${deleteSessionBtn}
                             </div>
                         </div>
-                        <p style="margin:8px 0; font-size:0.88rem; color:var(--text-heading); font-weight:500;">${s.procedure}</p>
-                        ${s.indications ? `<p style="margin:4px 0; font-size:0.8rem; color:#0284c7;"><strong>Indicaciones Médicas:</strong> ${s.indications}</p>` : ''}
-                        ${payInfoHtml}
-                        ${matsHtml}
-                        ${s.signatureData ? `
-                        <div style="margin-top:10px; display:flex; align-items:center; gap:10px;">
-                            <span style="font-size:0.75rem; color:#64748b;">Firma de conformidad:</span>
-                            <img src="${s.signatureData}" style="max-height: 40px; border:1px solid var(--border-color); border-radius:4px; padding:2px; background:#fff;" alt="Firma de conformidad del paciente">
-                        </div>` : ''}
+                        <p style="margin:8px 0; font-size:0.88rem; color:var(--text-heading);">${s.procedure}</p>
                     `;
                     timeline.appendChild(div);
-                } else {
-                    // SESIÓN PENDIENTE POR ATENDER
-                    const procHint = trtItem ? `Procedimiento asignado: <strong>${trtItem.name}</strong> (Pieza ${trtItem.tooth || 'Gnl'})` : 'Continuación del plan de tratamiento';
-                    const defaultProcName = trtItem ? trtItem.name : `Sesión #${sNum}`;
-
-                    const pendingDiv = document.createElement('div');
-                    pendingDiv.className = 'timeline-item timeline-item-pending';
-                    pendingDiv.innerHTML = `
-                        <div class="timeline-meta" style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 6px;">
-                            <span><strong style="color:#f59e0b;"><i class="fa-solid fa-hourglass-half"></i> Sesión N° ${sNum}</strong> — <span class="badge-tag amber">⏳ Pendiente</span></span>
-                            <div style="display: flex; gap: 6px; align-items: center;">
-                                <button class="btn btn-xs btn-outline" style="border-color:#10b981; color:#10b981; font-weight:600;" onclick="window.openRecipesModalForSession('${activePatient.id}', ${sNum}, '${defaultProcName}')" title="Ver / Crear Récipe e Indicaciones"><i class="fa-solid fa-pills"></i> Récipes</button>
-                                <button class="btn btn-xs btn-outline" style="border-color:var(--primary-cyan); color:var(--primary-cyan);" onclick="window.openAppointmentModalForPatient('${activePatient.id}', ${sNum}, '${defaultProcName}')" title="Agendar esta sesión en la Agenda">
-                                    <i class="fa-solid fa-calendar-plus"></i> Agendar
-                                </button>
-                                <button class="btn btn-xs btn-primary" style="background-color:var(--primary-cyan) !important; color:white !important;" onclick="window.openSessionModalForPatient('${activePatient.id}', ${sNum}, '${defaultProcName}')" title="Atender esta sesión ahora">
-                                    <i class="fa-solid fa-stethoscope"></i> Atender Sesión N° ${sNum}
-                                </button>
-                            </div>
-                        </div>
-                        <p style="margin:6px 0 0 0; font-size:0.84rem; color:var(--text-muted);">${procHint}</p>
-                    `;
-                    timeline.appendChild(pendingDiv);
-                }
+                });
             }
 
-            // 3. Renderizar Sesiones adicionales fuera del plan (si hubiere)
-            const extraSessions = patientSessions.filter(sess => sess.sessionNum > totalSessions);
-            extraSessions.forEach(s => {
-                const div = document.createElement('div');
-                div.className = 'timeline-item timeline-item-completed';
-                div.innerHTML = `
-                    <div class="timeline-meta" style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 6px;">
-                        <span><strong style="color:#10b981;"><i class="fa-solid fa-circle-check"></i> Sesión Extra N° ${s.sessionNum}</strong> — <i class="fa-solid fa-clock"></i> ${s.datetime}</span>
-                        <div style="display: flex; gap: 4px; align-items: center;">
-                            <span class="badge-tag green">✓ Realizada</span>
-                        </div>
-                    </div>
-                    <p style="margin:8px 0; font-size:0.88rem; color:var(--text-heading);">${s.procedure}</p>
-                `;
-                timeline.appendChild(div);
-            });
-
-            // Bind sessions add button (Permite registrar cualquier sesión libremente)
+            // Bind sessions add button
             const addSessBtn = document.getElementById('btn-add-session');
             if (addSessBtn) {
                 addSessBtn.onclick = async () => {
-                    // Encontrar la primera sesión que falte por atender
                     let nextSuggestedNum = 1;
                     for (let n = 1; n <= totalSessions + 1; n++) {
                         if (!patientSessions.some(ps => ps.sessionNum === n)) {
@@ -3247,20 +3266,18 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                             break;
                         }
                     }
-
                     await window.openSessionModalForPatient(activePatient.id, nextSuggestedNum, '');
                 };
             }
 
-            // 5. Pagos Tab (Balance Financiero 360° del Paciente)
+            // 5. Pagos Tab (Balance Financiero 360° del Paciente - SOLO APROBADOS)
             const payTbody = document.getElementById('ehr-payments-table-body');
             payTbody.innerHTML = '';
             
-            // Recopilar todos los abonos, presupuestos y pagos del paciente
             const allPaymentsList = [];
 
-            // Presupuestos
-            patientBudgets.forEach(b => {
+            // Presupuestos Aprobados (descarta borradores o no aprobados)
+            approvedBudgets.forEach(b => {
                 allPaymentsList.push({
                     date: b.invoiceDate || '2026-01-01',
                     concept: `Presupuesto ${b.id} (${b.paymentTerms || 'Contado'})`,
@@ -7155,43 +7172,43 @@ function initGlobalEvents() {
             await SupabaseDataService.savePatient(patientToSave);
             window.editingPatientId = null;
             
-            // Create or update automatically scheduled appointments for each session with a date
+            // Create or update automatically scheduled appointments ONLY if the budget is approved
             if (sessionsData && sessionsData.length > 0) {
-                let appointmentsScheduledCount = 0;
-                const existingAppts = await SupabaseDataService.getAppointments();
                 const invoices = await SupabaseDataService.getInvoices();
-                const isBudgetApproved = invoices.some(inv => String(inv.patientId) === String(id) && inv.status === 'Aprobado');
+                const isBudgetApproved = invoices.some(inv => String(inv.patientId) === String(id) && (String(inv.status).toLowerCase() === 'aprobado' || String(inv.status).toLowerCase() === 'approved'));
                 
-                const targetStatus = isBudgetApproved ? 'Programada' : 'Pendiente Aprobación';
-                
-                for (const session of sessionsData) {
-                    if (session.date) {
-                        const servicesText = session.services && session.services.length > 0
-                            ? session.services.map(s => `Pza ${s.tooth || 'Gnl'}: ${s.name}`).join(', ')
-                            : 'Tratamiento Planificado';
-                        
-                        const treatmentTitle = `Sesión ${session.sessionNumber}: ${servicesText}`;
-                        const safeId = (id || '').replace(/[^a-zA-Z0-9]/g, '_');
-                        const apptId = `appt-${safeId}-session-${session.sessionNumber}`;
-                        
-                        const existingAppt = existingAppts.find(a => a.id === apptId || (a.patientId === id && a.treatment && a.treatment.startsWith(`Sesión ${session.sessionNumber}:`)));
-                        
-                        const appt = {
-                            id: existingAppt ? existingAppt.id : apptId,
-                            patientId: id,
-                            patientName: fullname,
-                            date: session.date,
-                            time: session.time || "09:00 AM",
-                            treatment: treatmentTitle,
-                            status: existingAppt ? (existingAppt.status === 'Pendiente Aprobación' && isBudgetApproved ? 'Programada' : existingAppt.status) : targetStatus,
-                            isTomorrow: false
-                        };
-                        await SupabaseDataService.saveAppointment(appt);
-                        appointmentsScheduledCount++;
+                if (isBudgetApproved) {
+                    let appointmentsScheduledCount = 0;
+                    const existingAppts = await SupabaseDataService.getAppointments();
+                    for (const session of sessionsData) {
+                        if (session.date) {
+                            const servicesText = session.services && session.services.length > 0
+                                ? session.services.map(s => `Pza ${s.tooth || 'Gnl'}: ${s.name}`).join(', ')
+                                : 'Tratamiento Planificado';
+                            
+                            const treatmentTitle = `Sesión ${session.sessionNumber}: ${servicesText}`;
+                            const safeId = (id || '').replace(/[^a-zA-Z0-9]/g, '_');
+                            const apptId = `appt-${safeId}-session-${session.sessionNumber}`;
+                            
+                            const existingAppt = existingAppts.find(a => a.id === apptId || (a.patientId === id && a.treatment && a.treatment.startsWith(`Sesión ${session.sessionNumber}:`)));
+                            
+                            const appt = {
+                                id: existingAppt ? existingAppt.id : apptId,
+                                patientId: id,
+                                patientName: fullname,
+                                date: session.date,
+                                time: session.time || "09:00 AM",
+                                treatment: treatmentTitle,
+                                status: "Programada",
+                                isTomorrow: false
+                            };
+                            await SupabaseDataService.saveAppointment(appt);
+                            appointmentsScheduledCount++;
+                        }
                     }
-                }
-                if (appointmentsScheduledCount > 0) {
-                    await renderAgendaView(); // Reload agenda immediately
+                    if (appointmentsScheduledCount > 0) {
+                        await renderAgendaView(); // Reload agenda immediately
+                    }
                 }
             }
 
