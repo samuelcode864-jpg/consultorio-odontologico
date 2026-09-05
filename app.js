@@ -2085,7 +2085,7 @@ async function renderOdontogramView() {
         btnClearAllOd.onclick = async () => {
             const result = await Swal.fire({
                 title: '¿Está seguro de borrar todo?',
-                text: 'Esta acción limpiará por completo el odontograma y el presupuesto generado.',
+                text: 'Esta acción limpiará por completo el odontograma, el presupuesto, el desglose de pago mixto y la distribución de sesiones del paso 4.',
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonText: 'Sí, borrar todo',
@@ -2095,27 +2095,90 @@ async function renderOdontogramView() {
             });
 
             if (result.isConfirmed) {
+                // 1. Reset budget items and odontogram
                 currentBudgetItems = [];
                 if (window.odontogram) {
                     window.odontogram.setData({});
                 }
+
+                // 2. Clear Mixed Payment Inputs and Container
+                document.querySelectorAll('.budget-split-input').forEach(input => {
+                    input.value = '0';
+                });
+                const splitContainer = document.getElementById('budget-split-payment-container');
+                if (splitContainer) splitContainer.classList.add('hidden');
+                const splitStatus = document.getElementById('budget-split-status');
+                if (splitStatus) splitStatus.innerHTML = '';
+
+                // Reset Payment Method Selector to default
+                document.querySelectorAll('.pay-method-btn').forEach(btn => {
+                    if (btn.dataset.method === 'pagomovil') {
+                        btn.classList.add('active');
+                        btn.style.background = '#0d9488';
+                        btn.style.color = '#fff';
+                        btn.style.borderColor = '#0d9488';
+                    } else {
+                        btn.classList.remove('active');
+                        btn.style.background = 'transparent';
+                        btn.style.color = 'var(--text-main)';
+                        btn.style.borderColor = 'var(--border-color)';
+                    }
+                });
+                const budgetPayMethodSelect = document.getElementById('budget-payment-method');
+                if (budgetPayMethodSelect) budgetPayMethodSelect.value = 'pagomovil';
+
+                // 3. Clear Step 4 (Plan Inicial de Tratamiento Multisesión)
+                const planContainer = document.getElementById('plan-sessions-container');
+                if (planContainer) planContainer.innerHTML = '';
+                const initSessionsInput = document.getElementById('p-init-treatment-sessions');
+                if (initSessionsInput) initSessionsInput.value = '2';
+
+                // 4. Clear Terms & Signatures & Notes & Discounts
+                const chkTerms = document.getElementById('chk-terms');
+                if (chkTerms) chkTerms.checked = false;
+                const discEl = document.getElementById('budget-discount-input');
+                if (discEl) discEl.value = '0';
+                const notesEl = document.getElementById('budget-notes');
+                if (notesEl) notesEl.value = '';
+                if (window.doctorSigPad && typeof window.doctorSigPad.clear === 'function') window.doctorSigPad.clear();
+                if (window.patientSigPad && typeof window.patientSigPad.clear === 'function') window.patientSigPad.clear();
+
+                // 5. Clean Patient Metadata (Only Budget/Sessions/Odontogram, preserving Personal/Medical/Habits data)
                 const activeId = getActivePatientId();
                 if (activeId) {
-                    const patients = await SupabaseDataService.getPatients();
-                    const patient = patients.find(p => String(p.id) === String(activeId));
-                    if (patient && patient.metadata) {
-                        delete patient.metadata.draftBudget;
-                        delete patient.metadata.sessionsPlan;
-                        delete patient.metadata.initialTreatmentPlan;
-                        patient.odontogramData = {};
-                        await SupabaseDataService.savePatient(patient);
+                    try {
+                        const patients = await SupabaseDataService.getPatients();
+                        const patient = patients.find(p => String(p.id) === String(activeId));
+                        if (patient && patient.metadata) {
+                            delete patient.metadata.draftBudget;
+                            delete patient.metadata.draftOdontogramData;
+                            delete patient.metadata.sessionsPlan;
+                            delete patient.metadata.initialTreatmentPlan;
+                            delete patient.metadata.splitPayments;
+                            patient.odontogramData = {};
+                            await SupabaseDataService.savePatient(patient);
+                        }
+                    } catch (e) {
+                        console.error("Error clearing patient metadata on clear all:", e);
                     }
                 }
+
+                // 6. Remove localStorage draft keys
                 localStorage.removeItem('dental_anonymous_odontogram_data');
                 localStorage.removeItem('dental_anonymous_draft_budget');
+                localStorage.removeItem('dental_budget_split_data');
+
+                // 7. Dismiss floating budget bubble and refresh table
                 if (window.dismissFloatingBudgetBubble) window.dismissFloatingBudgetBubble();
                 renderBudgetTable();
-                Swal.fire({ icon: 'success', title: 'Odontograma y presupuesto limpiados', timer: 1500, showConfirmButton: false });
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Presupuesto y Odontograma Limpiados',
+                    text: 'Se han eliminado los procedimientos, desglose de pagos y plan de sesiones correctamente.',
+                    timer: 1800,
+                    showConfirmButton: false
+                });
             }
         };
     }
@@ -8183,6 +8246,10 @@ function initGlobalEvents() {
                 if (patient && patient.metadata) {
                     delete patient.metadata.draftBudget;
                     delete patient.metadata.draftOdontogramData;
+                    delete patient.metadata.sessionsPlan;
+                    delete patient.metadata.initialTreatmentPlan;
+                    delete patient.metadata.splitPayments;
+                    patient.odontogramData = {};
                     await SupabaseDataService.savePatient(patient);
                 }
             } catch(e) {
@@ -8197,10 +8264,24 @@ function initGlobalEvents() {
 
         localStorage.removeItem('dental_anonymous_draft_budget');
         localStorage.removeItem('dental_anonymous_odontogram_data');
+        localStorage.removeItem('dental_budget_split_data');
 
         if (window.odontogram) window.odontogram.setData({});
-        if (window.doctorSigPad) window.doctorSigPad.clear();
-        if (window.patientSigPad) window.patientSigPad.clear();
+        if (window.doctorSigPad && typeof window.doctorSigPad.clear === 'function') window.doctorSigPad.clear();
+        if (window.patientSigPad && typeof window.patientSigPad.clear === 'function') window.patientSigPad.clear();
+
+        // Clear mixed payment fields & Step 4 sessions container
+        document.querySelectorAll('.budget-split-input').forEach(input => input.value = '0');
+        const splitContainer = document.getElementById('budget-split-payment-container');
+        if (splitContainer) splitContainer.classList.add('hidden');
+        const splitStatus = document.getElementById('budget-split-status');
+        if (splitStatus) splitStatus.innerHTML = '';
+        const planContainer = document.getElementById('plan-sessions-container');
+        if (planContainer) planContainer.innerHTML = '';
+        const initSessionsInput = document.getElementById('p-init-treatment-sessions');
+        if (initSessionsInput) initSessionsInput.value = '2';
+        const chkTerms = document.getElementById('chk-terms');
+        if (chkTerms) chkTerms.checked = false;
 
         const notesEl = document.getElementById('budget-notes');
         if (notesEl) notesEl.value = '';
