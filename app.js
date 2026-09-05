@@ -12159,109 +12159,176 @@ async function generatePDFFromElement(element, filename) {
         innerDoc.style.boxShadow = 'none';
     }
 
-    document.body.appendChild(element);
+    if (!document.body.contains(element)) {
+        document.body.appendChild(element);
+    }
 
-    Swal.fire({
-        title: 'Generando Documento PDF...',
-        html: `
-            <div style="margin-bottom: 10px; font-weight: bold; color: #0284c7;">
-                <i class="fa-solid fa-circle-notch fa-spin"></i> Ajustando márgenes y compilando documento...
-            </div>
-            <div style="font-size: 0.8rem; color: #64748b;">
-                Generando documento en alta resolución. Por favor espere.
-            </div>
-        `,
-        showConfirmButton: false,
-        allowOutsideClick: false,
-        didOpen: () => {
-            Swal.showLoading();
+    const cleanupElement = () => {
+        try {
+            if (element && element.parentNode) {
+                element.parentNode.removeChild(element);
+            }
+        } catch (e) {}
+    };
 
-            setTimeout(async () => {
-                try {
-                    if (typeof window.html2pdf === 'function') {
-                        const opt = {
-                            margin: [5, 6, 5, 6],
-                            filename: filename,
-                            image: { type: 'jpeg', quality: 0.98 },
-                            html2canvas: { scale: 2, useCORS: true, letterRendering: true, backgroundColor: '#ffffff', logging: false, width: 720 },
-                            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                            pagebreak: { mode: ['css', 'legacy'] }
-                        };
-                        await window.html2pdf().set(opt).from(element).save();
-                    } else {
-                        const jsPDFClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
-                        if (!jsPDFClass || !window.html2canvas) {
-                            throw new Error("Librerías de PDF no disponibles en el navegador");
-                        }
-                        const canvas = await window.html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff', width: 720 });
-                        const imgString = canvas.toDataURL('image/jpeg', 0.95);
-                        const pdf = new jsPDFClass('p', 'mm', 'a4');
-                        const imgWidth = 210;
-                        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-                        pdf.addImage(imgString, 'JPEG', 0, 0, imgWidth, imgHeight);
-                        pdf.save(filename);
+    let isCancelled = false;
+
+    return new Promise((resolve) => {
+        Swal.fire({
+            title: 'Generando Documento PDF...',
+            html: `
+                <div style="margin-bottom: 10px; font-weight: bold; color: #0284c7;">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i> Ajustando márgenes y compilando documento...
+                </div>
+                <div style="font-size: 0.82rem; color: #64748b;">
+                    Generando documento en alta resolución.<br>
+                    <span style="font-size: 0.76rem; color: #94a3b8;">Haga clic afuera, presione <b>Escape</b> o pulse <b>Cancelar</b> para detener.</span>
+                </div>
+            `,
+            showConfirmButton: false,
+            showCancelButton: true,
+            cancelButtonText: 'Cancelar',
+            cancelButtonColor: '#64748b',
+            allowOutsideClick: true,
+            allowEscapeKey: true,
+            didOpen: () => {
+                Swal.showLoading();
+
+                setTimeout(async () => {
+                    if (isCancelled) {
+                        cleanupElement();
+                        resolve(false);
+                        return;
                     }
 
-                    try { document.body.removeChild(element); } catch (e) {}
-
-                    Swal.fire({
-                        icon: 'success',
-                        title: '¡PDF Generado!',
-                        text: `Se ha descargado ${filename}`,
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
-                } catch (err) {
                     try {
-                        document.body.removeChild(element);
-                    } catch (e) {}
-                    Swal.close();
-
-                    // Fallback to Native Print/Save Window
-                    Swal.fire({
-                        icon: 'info',
-                        title: 'Ventana de Impresión / Guardar PDF',
-                        text: `Abriendo vista de impresión para guardar como PDF...`,
-                        confirmButtonText: 'Abrir'
-                    }).then(() => {
-                        const printWindow = window.open('', '_blank');
-                        if (printWindow) {
-                            printWindow.document.write(`
-                                <html>
-                                    <head>
-                                        <title>${filename}</title>
-                                        <style>
-                                            body { margin: 30px; font-family: 'Inter', Arial, sans-serif; background: #fff; color: #000; }
-                                            table { width: 100%; border-collapse: collapse; }
-                                            th, td { padding: 8px; text-align: left; border-bottom: 1px dashed #ccc; }
-                                            @media print {
-                                                body { margin: 0; }
-                                            }
-                                        </style>
-                                    </head>
-                                    <body>
-                                        ${element.innerHTML}
-                                        <script>
-                                            window.onload = function() {
-                                                window.print();
-                                                window.close();
-                                            };
-                                        <\/script>
-                                    </body>
-                                </html>
-                            `);
-                            printWindow.document.close();
+                        if (typeof window.html2pdf === 'function') {
+                            const opt = {
+                                margin: [5, 6, 5, 6],
+                                filename: filename,
+                                image: { type: 'jpeg', quality: 0.98 },
+                                html2canvas: { scale: 2, useCORS: true, letterRendering: true, backgroundColor: '#ffffff', logging: false, width: 720 },
+                                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                                pagebreak: { mode: ['css', 'legacy'] }
+                            };
+                            if (isCancelled) {
+                                cleanupElement();
+                                resolve(false);
+                                return;
+                            }
+                            await window.html2pdf().set(opt).from(element).save();
                         } else {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Bloqueador de Ventanas Activo',
-                                text: 'Por favor permita las ventanas emergentes en este sitio.'
-                            });
+                            const jsPDFClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+                            if (!jsPDFClass || !window.html2canvas) {
+                                throw new Error("Librerías de PDF no disponibles en el navegador");
+                            }
+                            if (isCancelled) {
+                                cleanupElement();
+                                resolve(false);
+                                return;
+                            }
+                            const canvas = await window.html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff', width: 720 });
+                            if (isCancelled) {
+                                cleanupElement();
+                                resolve(false);
+                                return;
+                            }
+                            const imgString = canvas.toDataURL('image/jpeg', 0.95);
+                            const pdf = new jsPDFClass('p', 'mm', 'a4');
+                            const imgWidth = 210;
+                            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                            pdf.addImage(imgString, 'JPEG', 0, 0, imgWidth, imgHeight);
+                            if (isCancelled) {
+                                cleanupElement();
+                                resolve(false);
+                                return;
+                            }
+                            pdf.save(filename);
                         }
-                    });
-                }
-            }, 600);
-        }
+
+                        cleanupElement();
+
+                        if (!isCancelled) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: '¡PDF Generado!',
+                                text: `Se ha descargado ${filename}`,
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+                            resolve(true);
+                        } else {
+                            resolve(false);
+                        }
+                    } catch (err) {
+                        cleanupElement();
+                        if (isCancelled) {
+                            resolve(false);
+                            return;
+                        }
+                        Swal.close();
+
+                        // Fallback to Native Print/Save Window
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Ventana de Impresión / Guardar PDF',
+                            text: `Abriendo vista de impresión para guardar como PDF...`,
+                            showCancelButton: true,
+                            cancelButtonText: 'Cerrar',
+                            confirmButtonText: 'Abrir'
+                        }).then((r) => {
+                            if (r.isConfirmed) {
+                                const printWindow = window.open('', '_blank');
+                                if (printWindow) {
+                                    printWindow.document.write(`
+                                        <html>
+                                            <head>
+                                                <title>${filename}</title>
+                                                <style>
+                                                    body { margin: 30px; font-family: 'Inter', Arial, sans-serif; background: #fff; color: #000; }
+                                                    table { width: 100%; border-collapse: collapse; }
+                                                    th, td { padding: 8px; text-align: left; border-bottom: 1px dashed #ccc; }
+                                                    @media print {
+                                                        body { margin: 0; }
+                                                    }
+                                                </style>
+                                            </head>
+                                            <body>
+                                                ${element.innerHTML}
+                                                <script>
+                                                    window.onload = function() {
+                                                        window.print();
+                                                        window.close();
+                                                    };
+                                                <\/script>
+                                            </body>
+                                        </html>
+                                    `);
+                                    printWindow.document.close();
+                                } else {
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Bloqueador de Ventanas Activo',
+                                        text: 'Por favor permita las ventanas emergentes en este sitio.'
+                                    });
+                                }
+                            }
+                            resolve(false);
+                        });
+                    }
+                }, 600);
+            },
+            willClose: () => {
+                isCancelled = true;
+                cleanupElement();
+            }
+        }).then((result) => {
+            if (result.dismiss) {
+                isCancelled = true;
+                cleanupElement();
+                resolve(false);
+            }
+        });
     });
 }
 
