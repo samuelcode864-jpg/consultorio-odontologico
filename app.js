@@ -6683,25 +6683,39 @@ function initGlobalEvents() {
         };
     }
 
-    document.querySelectorAll('[data-close]').forEach(btn => {
-        btn.onclick = () => closeModal(btn.dataset.close);
-    });
-
-    // Close modal when clicking backdrop outside modal dialog
-    document.querySelectorAll('.modal-overlay').forEach(overlay => {
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) {
-                overlay.classList.add('hidden');
+    // Global Modal Close Handlers (Buttons, Backdrop Click & Escape Key)
+    document.addEventListener('click', (e) => {
+        // 1. Close button clicked ([data-close] or .modal-close or .btn-close-sheet)
+        const closeBtn = e.target.closest('[data-close], .modal-close, .btn-close-sheet');
+        if (closeBtn) {
+            const targetId = closeBtn.dataset.close || closeBtn.getAttribute('data-close');
+            if (targetId) {
+                closeModal(targetId);
+            } else {
+                const parentModal = closeBtn.closest('.modal-overlay');
+                if (parentModal) parentModal.classList.add('hidden');
             }
-        });
+            return;
+        }
+
+        // 2. Backdrop click outside dialog
+        if (e.target.classList && e.target.classList.contains('modal-overlay')) {
+            e.target.classList.add('hidden');
+            if (e.target.id && typeof closeModal === 'function') {
+                closeModal(e.target.id);
+            }
+        }
     });
 
-    // Close modal when pressing ESC key
+    // Close all open modals when pressing ESC key
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' || e.key === 'Esc') {
             const openModals = document.querySelectorAll('.modal-overlay:not(.hidden)');
             openModals.forEach(m => {
                 m.classList.add('hidden');
+                if (m.id && typeof closeModal === 'function') {
+                    closeModal(m.id);
+                }
             });
         }
     });
@@ -12608,9 +12622,10 @@ window.downloadSessionReceiptPDF = async (patient, sessionObj) => {
 
 async function renderAttendedPatientsModal(dateStr) {
     const tbody = document.getElementById('attended-details-tbody');
+    const counterEl = document.getElementById('attended-total-counter');
     if (!tbody) return;
 
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center">Cargando...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center" style="padding: 20px;"><i class="fa-solid fa-spinner fa-spin text-cyan"></i> Cargando información...</td></tr>';
     
     try {
         const allPatients = await SupabaseDataService.getPatients();
@@ -12653,26 +12668,29 @@ async function renderAttendedPatientsModal(dateStr) {
         // Sort by time ascending
         records.sort((a, b) => a.time.localeCompare(b.time));
 
+        if (counterEl) counterEl.textContent = records.length;
+
         tbody.innerHTML = '';
         if (records.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No se registraron pacientes atendidos en esta fecha.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted" style="padding: 25px;"><i class="fa-solid fa-folder-open" style="font-size: 1.5rem; display: block; margin-bottom: 6px; opacity: 0.5;"></i> No se registraron pacientes atendidos en esta fecha.</td></tr>';
             return;
         }
 
         records.forEach(rec => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td><strong>${rec.id}</strong></td>
-                <td><strong>${rec.name}</strong></td>
-                <td><i class="fa-solid fa-clock text-blue"></i> ${rec.time}</td>
-                <td><span class="badge-tag ${rec.type.includes('Sesión') ? 'green' : 'blue'}">${rec.type}</span></td>
-                <td><small style="font-size:0.8rem; color:var(--text-muted);">${rec.details}</small></td>
+                <td style="padding: 12px 16px;"><strong>${rec.id}</strong></td>
+                <td style="padding: 12px 16px;"><strong>${rec.name}</strong></td>
+                <td style="padding: 12px 16px;"><i class="fa-solid fa-clock text-cyan"></i> ${rec.time}</td>
+                <td style="padding: 12px 16px;"><span class="badge-tag ${rec.type.includes('Sesión') ? 'green' : 'blue'}">${rec.type}</span></td>
+                <td style="padding: 12px 16px;"><span style="font-size:0.86rem; color:var(--text-main);">${rec.details}</span></td>
             `;
             tbody.appendChild(tr);
         });
     } catch (err) {
         console.error("Error loading attended patients modal table:", err);
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-red">Error al cargar datos de pacientes.</td></tr>';
+        if (counterEl) counterEl.textContent = '0';
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-red" style="padding: 20px;">Error al cargar datos de pacientes.</td></tr>';
     }
 }
 

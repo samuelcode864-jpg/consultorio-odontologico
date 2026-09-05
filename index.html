@@ -2959,10 +2959,8 @@
     <!-- MODAL: INTERCONSULTA Y SOLICITUD DE ESTUDIOS ESPECIALES -->
     <div class="modal-overlay hidden" id="modal-interconsultation">
         <div class="modal-dialog" style="max-width: 800px; width: 95%;">
-            <div class="modal-header" style="background: var(--bg-main); border-bottom: 1px solid var(--border-color);">
-                <h3 style="margin: 0; color: var(--text-main); font-weight: 700; display: flex; align-items: center; gap: 8px;">
-                    <i class="fa-solid fa-user-doctor text-cyan"></i> Solicitud de Interconsulta y Estudio Especial
-                </h3>
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-user-doctor text-cyan"></i> Solicitud de Interconsulta y Estudio Especial</h3>
                 <button class="modal-close" data-close="modal-interconsultation">&times;</button>
             </div>
             <div class="modal-body" style="padding: 20px;">
@@ -3106,10 +3104,8 @@
     <!-- MODAL: CONFECCIONADOR DE RÉCIPES E INDICACIONES MÉDICAS -->
     <div class="modal-overlay hidden" id="modal-recipe-and-indications">
         <div class="modal-dialog" style="max-width: 850px; width: 95%;">
-            <div class="modal-header" style="background: var(--bg-main); border-bottom: 1px solid var(--border-color);">
-                <h3 style="margin: 0; color: var(--text-main); font-weight: 700; display: flex; align-items: center; gap: 8px;">
-                    <i class="fa-solid fa-prescription text-cyan"></i> Confeccionador de Récipe Médico e Indicaciones
-                </h3>
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-prescription text-cyan"></i> Confeccionador de Récipe Médico e Indicaciones</h3>
                 <button class="modal-close" data-close="modal-recipe-and-indications">&times;</button>
             </div>
             <div class="modal-body" style="padding: 20px;">
@@ -3417,26 +3413,33 @@
 
     <!-- MODAL: PACIENTES ATENDIDOS DEL DÍA -->
     <div class="modal-overlay hidden" id="modal-attended-details">
-        <div class="modal-dialog" style="max-width: 750px; width: 100%;">
+        <div class="modal-dialog modal-xl" style="max-width: 1180px; width: 95vw;">
             <div class="modal-header">
-                <h3><i class="fa-solid fa-user-check text-blue"></i> Pacientes Atendidos</h3>
+                <h3><i class="fa-solid fa-user-check text-blue"></i> Registro Detallado de Pacientes Atendidos</h3>
                 <button class="modal-close" data-close="modal-attended-details">&times;</button>
             </div>
-            <div class="modal-body" style="max-height: 70vh; overflow-y: auto; display: flex; flex-direction: column; gap: 15px;">
-                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: rgba(0,0,0,0.01); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
-                    <label style="font-weight: 700; font-size: 0.88rem; color: var(--text-main); white-space: nowrap;">Filtrar por Fecha:</label>
-                    <input type="date" id="attended-filter-date" class="form-input" style="width: auto; min-width: 140px; max-width: 180px; padding: 6px 12px; height: 36px; border-radius: 6px;">
+            <div class="modal-body" style="max-height: 75vh; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; padding: 24px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 15px; flex-wrap: wrap; background: rgba(8, 145, 178, 0.04); padding: 14px 18px; border-radius: 10px; border: 1px solid var(--border-color);">
+                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                        <label style="font-weight: 700; font-size: 0.9rem; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-calendar-day text-cyan"></i> Filtrar por Fecha:
+                        </label>
+                        <input type="date" id="attended-filter-date" class="form-input" style="width: auto; min-width: 160px; max-width: 200px; padding: 7px 14px; height: 38px; border-radius: 8px; font-weight: 600;">
+                    </div>
+                    <div id="attended-count-badge" style="font-size: 0.88rem; font-weight: 700; color: #0891b2; background: rgba(8, 145, 178, 0.1); padding: 6px 14px; border-radius: 20px; border: 1px solid rgba(8, 145, 178, 0.25);">
+                        Total atendidos: <span id="attended-total-counter">0</span>
+                    </div>
                 </div>
                 
-                <div class="table-container" style="border: 1px solid var(--border-color); border-radius: 8px;">
-                    <table class="table table-compact" style="margin:0;">
+                <div class="table-container" style="border: 1px solid var(--border-color); border-radius: 10px; overflow-x: auto; background: var(--bg-card); box-shadow: var(--shadow-sm);">
+                    <table class="table" style="margin:0; width: 100%; min-width: 750px;">
                         <thead>
-                            <tr>
-                                <th style="width: 15%;">Cédula / ID</th>
-                                <th style="width: 25%;">Paciente</th>
-                                <th style="width: 15%;">Hora</th>
-                                <th style="width: 15%;">Tipo de Registro</th>
-                                <th style="width: 30%;">Detalle / Procedimiento</th>
+                            <tr style="background: rgba(0,0,0,0.02);">
+                                <th style="width: 15%; padding: 12px 16px; font-weight: 700;">Cédula / ID</th>
+                                <th style="width: 22%; padding: 12px 16px; font-weight: 700;">Paciente</th>
+                                <th style="width: 12%; padding: 12px 16px; font-weight: 700;">Hora</th>
+                                <th style="width: 18%; padding: 12px 16px; font-weight: 700;">Tipo de Registro</th>
+                                <th style="width: 33%; padding: 12px 16px; font-weight: 700;">Detalle / Procedimiento</th>
                             </tr>
                         </thead>
                         <tbody id="attended-details-tbody">
@@ -3707,13 +3710,13 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=236"></script>
-    <script src="supabaseClient.js?v=236"></script>
-    <script src="odontogram.js?v=236"></script>
-    <script src="signature.js?v=236"></script>
-    <script src="whatsapp.js?v=236"></script>
-    <script src="kardex.js?v=236"></script>
-    <script src="app.js?v=236"></script>
-    <script src="tutorial.js?v=236"></script>
+    <script src="seededData.js?v=237"></script>
+    <script src="supabaseClient.js?v=237"></script>
+    <script src="odontogram.js?v=237"></script>
+    <script src="signature.js?v=237"></script>
+    <script src="whatsapp.js?v=237"></script>
+    <script src="kardex.js?v=237"></script>
+    <script src="app.js?v=237"></script>
+    <script src="tutorial.js?v=237"></script>
 </body>
 </html>
