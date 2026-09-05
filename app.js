@@ -1991,16 +1991,39 @@ window.loadBudgetIntoEditor = async function(budgetId) {
     const discInput = document.getElementById('budget-discount-input');
     if (discInput) discInput.value = discountPct;
 
-    // Set payment method select
+    // Set payment method select and split inputs
     const paymentMethodSelect = document.getElementById('budget-payment-method');
+    let rawMethod = (budget.metadata && budget.metadata.paymentMethodCode) || budget.paymentMethod || 'pagomovil';
+    if (typeof rawMethod === 'string' && (rawMethod.toLowerCase().includes('mixto') || rawMethod.toLowerCase().includes('split'))) {
+        rawMethod = 'split';
+    }
     if (paymentMethodSelect) {
-        paymentMethodSelect.value = budget.paymentMethod || 'pagomovil';
+        paymentMethodSelect.value = rawMethod;
+    }
+
+    const splitContainer = document.getElementById('budget-split-payment-container');
+    const splitDetails = (budget.metadata && budget.metadata.splitDetails) || (pat?.metadata?.draftBudget?.splitDetails) || {};
+    const splitPm = document.getElementById('budget-split-pagomovil');
+    const splitCash = document.getElementById('budget-split-cash');
+    const splitZelle = document.getElementById('budget-split-zelle');
+    const splitBinance = document.getElementById('budget-split-binance');
+    if (splitPm) splitPm.value = splitDetails.pagomovil !== undefined ? splitDetails.pagomovil : 0;
+    if (splitCash) splitCash.value = splitDetails.cash !== undefined ? splitDetails.cash : 0;
+    if (splitZelle) splitZelle.value = splitDetails.zelle !== undefined ? splitDetails.zelle : 0;
+    if (splitBinance) splitBinance.value = splitDetails.binance !== undefined ? splitDetails.binance : 0;
+
+    if (splitContainer) {
+        if (rawMethod === 'split') {
+            splitContainer.classList.remove('hidden');
+        } else {
+            splitContainer.classList.add('hidden');
+        }
     }
     
     // Sync payment selector buttons visual state
     document.querySelectorAll('.pay-method-btn').forEach(btn => {
         const method = btn.getAttribute('data-method');
-        if (method === budget.paymentMethod) {
+        if (method === rawMethod) {
             btn.classList.add('active');
             btn.style.background = '#0d9488';
             btn.style.color = '#fff';
@@ -7724,15 +7747,55 @@ function initGlobalEvents() {
                 const discountVES = (discountAmountUSD * rate).toFixed(2);
 
                 const paymentModeSelect = document.getElementById('payment-mode-select');
-                const paymentModeText = paymentModeSelect.options[paymentModeSelect.selectedIndex].text;
+                const paymentModeText = paymentModeSelect ? paymentModeSelect.options[paymentModeSelect.selectedIndex].text : 'Contado';
                 const paymentMethodSelect = document.getElementById('budget-payment-method');
-                let paymentMethod = paymentMethodSelect ? paymentMethodSelect.value : 'pagomovil';
-                let paymentMethodLabel = paymentMethodSelect ? paymentMethodSelect.options[paymentMethodSelect.selectedIndex].text : 'Pago Móvil';
-                if (paymentMethod === 'split') {
-                    const pmAmt = parseFloat(document.getElementById('budget-split-pagomovil').value) || 0;
-                    const cashAmt = parseFloat(document.getElementById('budget-split-cash').value) || 0;
-                    const zelleAmt = parseFloat(document.getElementById('budget-split-zelle').value) || 0;
-                    const binanceAmt = parseFloat(document.getElementById('budget-split-binance').value) || 0;
+                const rawPaymentMethod = paymentMethodSelect ? paymentMethodSelect.value : '';
+                
+                if (!rawPaymentMethod) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Método de Pago Requerido',
+                        text: 'No se puede aprobar el presupuesto porque aún falta seleccionar o añadir el método de pago.'
+                    });
+                    return;
+                }
+
+                let paymentMethod = rawPaymentMethod;
+                let paymentMethodLabel = paymentMethodSelect ? paymentMethodSelect.options[paymentMethodSelect.selectedIndex]?.text : 'Pago Móvil';
+                let splitDetails = {};
+
+                if (rawPaymentMethod === 'split') {
+                    const pmAmt = parseFloat(document.getElementById('budget-split-pagomovil')?.value) || 0;
+                    const cashAmt = parseFloat(document.getElementById('budget-split-cash')?.value) || 0;
+                    const zelleAmt = parseFloat(document.getElementById('budget-split-zelle')?.value) || 0;
+                    const binanceAmt = parseFloat(document.getElementById('budget-split-binance')?.value) || 0;
+                    const sumSplit = pmAmt + cashAmt + zelleAmt + binanceAmt;
+
+                    if (sumSplit <= 0) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Distribución de Pago Incompleta',
+                            text: 'Ha seleccionado "Pago Mixto", pero no ha distribuido los montos en los métodos de pago (Pago Móvil, Efectivo, Zelle o Binance).'
+                        });
+                        return;
+                    }
+
+                    const diff = Math.abs(totalUSD - sumSplit);
+                    if (diff > 0.05) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Distribución Descuadrada',
+                            text: `La suma de los montos en Pago Mixto ($${sumSplit.toFixed(2)} USD) no coincide con el total del presupuesto ($${totalUSD.toFixed(2)} USD). Por favor ajuste la distribución.`
+                        });
+                        return;
+                    }
+
+                    splitDetails = {
+                        pagomovil: pmAmt,
+                        cash: cashAmt,
+                        zelle: zelleAmt,
+                        binance: binanceAmt
+                    };
 
                     const parts = [];
                     if (pmAmt > 0) parts.push(`Pago Móvil: $${pmAmt.toFixed(2)}`);
@@ -7787,7 +7850,14 @@ function initGlobalEvents() {
                     status: 'Aprobado',
                     doctorSignature: docSig,
                     patientSignature: patSig,
-                    footerText: `Descuento global del ${discountPct}% aplicado. Ahorro: $${discountAmountUSD.toFixed(2)}.`
+                    footerText: `Descuento global del ${discountPct}% aplicado. Ahorro: $${discountAmountUSD.toFixed(2)}.`,
+                    metadata: {
+                        consentText: consentText,
+                        discountPct: discountPct,
+                        paymentMethodCode: rawPaymentMethod,
+                        splitDetails: splitDetails,
+                        odontogramData: approvedOdData
+                    }
                 };
 
                 // Save Invoice
@@ -8275,12 +8345,21 @@ function initGlobalEvents() {
             const totalVES = (totalUSD * rate).toFixed(2);
 
             const paymentMethodSelect = document.getElementById('budget-payment-method');
-            let paymentMethod = paymentMethodSelect ? paymentMethodSelect.value : 'pagomovil';
-            if (paymentMethod === 'split') {
-                const pmAmt = parseFloat(document.getElementById('budget-split-pagomovil').value) || 0;
-                const cashAmt = parseFloat(document.getElementById('budget-split-cash').value) || 0;
-                const zelleAmt = parseFloat(document.getElementById('budget-split-zelle').value) || 0;
-                const binanceAmt = parseFloat(document.getElementById('budget-split-binance').value) || 0;
+            const rawPaymentMethod = paymentMethodSelect ? paymentMethodSelect.value : 'pagomovil';
+            let paymentMethod = rawPaymentMethod;
+            let splitDetails = {};
+            if (rawPaymentMethod === 'split') {
+                const pmAmt = parseFloat(document.getElementById('budget-split-pagomovil')?.value) || 0;
+                const cashAmt = parseFloat(document.getElementById('budget-split-cash')?.value) || 0;
+                const zelleAmt = parseFloat(document.getElementById('budget-split-zelle')?.value) || 0;
+                const binanceAmt = parseFloat(document.getElementById('budget-split-binance')?.value) || 0;
+
+                splitDetails = {
+                    pagomovil: pmAmt,
+                    cash: cashAmt,
+                    zelle: zelleAmt,
+                    binance: binanceAmt
+                };
 
                 const parts = [];
                 if (pmAmt > 0) parts.push(`Pago Móvil: $${pmAmt.toFixed(2)}`);
@@ -8290,7 +8369,7 @@ function initGlobalEvents() {
 
                 paymentMethod = `Mixto (${parts.join(', ') || 'Sin distribución'})`;
             }
-            const notes = document.getElementById('budget-notes').value;
+            const notes = document.getElementById('budget-notes')?.value || '';
 
             const budgetId = activeEditingBudgetId || `PRE-${Date.now().toString().slice(-6)}`;
             const odData = (window.odontogram && window.odontogram.getData()) ? window.odontogram.getData() : {};
@@ -8322,6 +8401,8 @@ function initGlobalEvents() {
                 metadata: {
                     consentText: document.getElementById('consent-text')?.value || '',
                     discountPct: discountPct,
+                    paymentMethodCode: rawPaymentMethod,
+                    splitDetails: splitDetails,
                     odontogramData: odData
                 }
             };
@@ -8341,6 +8422,8 @@ function initGlobalEvents() {
                         discountPct: discountPct,
                         notes: notes,
                         paymentMethod: paymentMethod,
+                        paymentMethodCode: rawPaymentMethod,
+                        splitDetails: splitDetails,
                         consentText: document.getElementById('consent-text')?.value || ''
                     };
                     await SupabaseDataService.savePatient(patient);
