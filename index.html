@@ -891,20 +891,30 @@
                                     </div>
                                 </div>
 
-                                <!-- Action Buttons (Bottom single Green Button) -->
-                                <div class="budget-action-buttons-container" style="display: flex; justify-content: flex-end; width: 100%; gap: 10px; flex-wrap: wrap;">
-                                    <button class="btn btn-primary btn-lg" id="btn-bill-budget-direct" style="background: #2563eb !important; border: none !important; display: flex; align-items: center; gap: 8px; font-weight: 700; padding: 12px 20px; font-size: 1rem; border-radius: 8px; cursor: pointer;">
-                                        <i class="fa-solid fa-file-invoice-dollar"></i> Facturar
-                                    </button>
-                                    <button class="btn btn-lg" id="btn-close-financial-direct" style="background: #10b981 !important; color: #ffffff !important; border: none !important; display: flex; align-items: center; gap: 8px; font-weight: 700; padding: 12px 20px; font-size: 1rem; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);" title="Finalizar Tratamiento / Presupuesto">
-                                        <i class="fa-solid fa-circle-check"></i> Finalizar
-                                    </button>
-                                    <button class="btn btn-outline btn-lg" id="btn-update-budget-edits" style="border: 1px solid var(--border-color) !important; color: var(--text-main) !important; background: transparent !important; display: flex; align-items: center; gap: 8px; font-weight: 700; padding: 12px 20px; font-size: 1rem; border-radius: 8px; cursor: pointer;">
-                                        <i class="fa-solid fa-floppy-disk"></i> Guardar Borrador
-                                    </button>
-                                    <button class="btn btn-success btn-lg" id="btn-approve-budget" style="background: #0d9488 !important; border: none !important; display: flex; align-items: center; gap: 8px; font-weight: 700; padding: 12px 30px; font-size: 1rem; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-                                        <i class="fa-solid fa-shield-halved"></i> Aprobar Presupuesto
-                                    </button>
+                                <!-- Action Buttons (Bottom container with Cancel on left and Actions on right) -->
+                                <div class="budget-action-buttons-container" style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 12px; flex-wrap: wrap; margin-top: 10px;">
+                                    <!-- Left: Cancel Button (Gray) -->
+                                    <div>
+                                        <button class="btn btn-lg" id="btn-cancel-budget" style="background: #64748b !important; color: #ffffff !important; border: none !important; display: flex; align-items: center; gap: 8px; font-weight: 600; padding: 12px 22px; font-size: 0.95rem; border-radius: 8px; cursor: pointer; transition: all 0.2s;" title="Cancelar presupuesto en elaboración">
+                                            <i class="fa-solid fa-ban"></i> Cancelar
+                                        </button>
+                                    </div>
+
+                                    <!-- Right: Action Buttons -->
+                                    <div style="display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap;">
+                                        <button class="btn btn-primary btn-lg" id="btn-bill-budget-direct" style="background: #2563eb !important; border: none !important; display: flex; align-items: center; gap: 8px; font-weight: 700; padding: 12px 20px; font-size: 1rem; border-radius: 8px; cursor: pointer;">
+                                            <i class="fa-solid fa-file-invoice-dollar"></i> Facturar
+                                        </button>
+                                        <button class="btn btn-lg" id="btn-close-financial-direct" style="background: #10b981 !important; color: #ffffff !important; border: none !important; display: flex; align-items: center; gap: 8px; font-weight: 700; padding: 12px 20px; font-size: 1rem; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);" title="Finalizar Tratamiento / Presupuesto">
+                                            <i class="fa-solid fa-circle-check"></i> Finalizar
+                                        </button>
+                                        <button class="btn btn-outline btn-lg" id="btn-update-budget-edits" style="border: 1px solid var(--border-color) !important; color: var(--text-main) !important; background: transparent !important; display: flex; align-items: center; gap: 8px; font-weight: 700; padding: 12px 20px; font-size: 1rem; border-radius: 8px; cursor: pointer;">
+                                            <i class="fa-solid fa-floppy-disk"></i> Guardar Borrador
+                                        </button>
+                                        <button class="btn btn-success btn-lg" id="btn-approve-budget" style="background: #0d9488 !important; border: none !important; display: flex; align-items: center; gap: 8px; font-weight: 700; padding: 12px 30px; font-size: 1rem; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                                            <i class="fa-solid fa-shield-halved"></i> Aprobar Presupuesto
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -3687,13 +3697,13 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=231"></script>
-    <script src="supabaseClient.js?v=231"></script>
-    <script src="odontogram.js?v=231"></script>
-    <script src="signature.js?v=231"></script>
-    <script src="whatsapp.js?v=231"></script>
-    <script src="kardex.js?v=231"></script>
-    <script src="app.js?v=231"></script>
-    <script src="tutorial.js?v=231"></script>
+    <script src="seededData.js?v=232"></script>
+    <script src="supabaseClient.js?v=232"></script>
+    <script src="odontogram.js?v=232"></script>
+    <script src="signature.js?v=232"></script>
+    <script src="whatsapp.js?v=232"></script>
+    <script src="kardex.js?v=232"></script>
+    <script src="app.js?v=232"></script>
+    <script src="tutorial.js?v=232"></script>
 </body>
 </html>
