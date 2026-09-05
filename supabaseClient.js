@@ -446,6 +446,9 @@ class SupabaseDataService {
                 throw err;
             }
         }
+        this._patientsCacheTime = 0;
+        this._patientsPromise = null;
+        this.notifyDataChanged('patients', patientObj.id);
     }
 
     static async deletePatient(patientId) {
@@ -460,6 +463,9 @@ class SupabaseDataService {
                 console.error('Supabase deletePatient Error:', err);
             }
         }
+        this._patientsCacheTime = 0;
+        this._patientsPromise = null;
+        this.notifyDataChanged('patients', patientId);
     }
 
     // ==========================================
@@ -550,6 +556,9 @@ class SupabaseDataService {
                 throw err;
             }
         }
+        this._apptsCacheTime = 0;
+        this._apptsPromise = null;
+        this.notifyDataChanged('appointments', appointmentObj.id);
     }
 
     static async deleteAppointment(apptId) {
@@ -564,6 +573,9 @@ class SupabaseDataService {
                 console.error('Supabase deleteAppointment Error:', err);
             }
         }
+        this._apptsCacheTime = 0;
+        this._apptsPromise = null;
+        this.notifyDataChanged('appointments', apptId);
     }
 
     // ==========================================
@@ -649,6 +661,9 @@ class SupabaseDataService {
                 throw err;
             }
         }
+        this._inventoryCacheTime = 0;
+        this._inventoryPromise = null;
+        this.notifyDataChanged('inventory', itemObj.code);
     }
 
     static async deleteInventoryItem(code) {
@@ -665,6 +680,9 @@ class SupabaseDataService {
                 console.error('Supabase deleteInventoryItem Error:', err);
             }
         }
+        this._inventoryCacheTime = 0;
+        this._inventoryPromise = null;
+        this.notifyDataChanged('inventory', code);
     }
 
     // ==========================================
@@ -822,6 +840,7 @@ class SupabaseDataService {
         }
         this._invoicesCacheTime = 0;
         this._invoicesPromise = null;
+        this.notifyDataChanged('invoices', invoiceObj.id);
     }
 
     static async deleteInvoice(invoiceId) {
@@ -841,6 +860,7 @@ class SupabaseDataService {
         }
         this._invoicesCacheTime = 0;
         this._invoicesPromise = null;
+        this.notifyDataChanged('invoices', invoiceId);
     }
 
     // ==========================================
@@ -944,6 +964,7 @@ class SupabaseDataService {
                 console.warn('Supabase saveProviderBill caught:', err);
             }
         }
+        this.notifyDataChanged('bills', billObj.id);
     }
 
     static async deleteProviderBill(billId) {
@@ -959,6 +980,7 @@ class SupabaseDataService {
                 console.error('Supabase deleteProviderBill Error:', err);
             }
         }
+        this.notifyDataChanged('bills', billId);
     }
 
     // ==========================================
@@ -1338,7 +1360,162 @@ class SupabaseDataService {
             console.warn('Sync to cloud warning:', err);
         }
     }
+
+    // ==========================================
+    // 14. UNIVERSAL MULTI-DEVICE REALTIME ENGINE
+    // ==========================================
+    static _realtimeChannel = null;
+    static _realtimeInitialized = false;
+
+    static async notifyDataChanged(category, entityId = '') {
+        if (!this._realtimeChannel) return;
+        try {
+            await this._realtimeChannel.send({
+                type: 'broadcast',
+                event: 'clinic_data_changed',
+                payload: { category, entityId, timestamp: Date.now() }
+            });
+        } catch(e) {}
+    }
+
+    static async refreshActiveViews(forceRefresh = false) {
+        try {
+            if (forceRefresh) {
+                this._patientsCacheTime = 0;
+                this._invoicesCacheTime = 0;
+                this._apptsCacheTime = 0;
+                this._inventoryCacheTime = 0;
+                this._usersCacheTime = 0;
+                this._baremoCacheTime = 0;
+                this._stationeryCacheTime = 0;
+                this._trashCacheTime = 0;
+            }
+
+            // Do not disturb if user is typing in an open modal
+            const isEditingPatient = document.getElementById('modal-patient') && !document.getElementById('modal-patient').classList.contains('hidden');
+            const isEditingAppt = document.getElementById('modal-appointment') && !document.getElementById('modal-appointment').classList.contains('hidden');
+            const isEditingUser = document.getElementById('modal-user') && !document.getElementById('modal-user').classList.contains('hidden');
+
+            const activeView = document.querySelector('.view-pane:not(.hidden)');
+            const viewId = activeView ? activeView.id : '';
+
+            if (viewId === 'view-dashboard') {
+                if (typeof renderDashboard === 'function') await renderDashboard();
+            } else if (viewId === 'view-patients' && !isEditingPatient) {
+                if (typeof renderPatientsTable === 'function') await renderPatientsTable();
+            } else if (viewId === 'view-agenda' && !isEditingAppt) {
+                if (typeof renderAgendaView === 'function') await renderAgendaView();
+            } else if (viewId === 'view-odontogram') {
+                const subview = localStorage.getItem('dental_odontogram_subview') || 'list';
+                if (subview === 'list') {
+                    if (typeof renderBudgetListView === 'function') await renderBudgetListView(forceRefresh);
+                }
+            } else if (viewId === 'view-ehr') {
+                if (typeof renderEHRView === 'function') await renderEHRView();
+            } else if (viewId === 'view-inventory') {
+                if (typeof renderInventoryTable === 'function') await renderInventoryTable();
+            } else if (viewId === 'view-finance') {
+                if (typeof renderFinanceView === 'function') await renderFinanceView();
+            } else if (viewId === 'view-pricing') {
+                if (typeof renderPricingTable === 'function') await renderPricingTable();
+            } else if (viewId === 'view-users' && !isEditingUser) {
+                if (typeof renderUsersTable === 'function') await renderUsersTable();
+            }
+        } catch (err) {
+            console.warn('Realtime refreshActiveViews warn:', err);
+        }
+    }
+
+    static initRealtimeSync() {
+        if (!this.isCloudConnected() || this._realtimeInitialized) return;
+        this._realtimeInitialized = true;
+
+        try {
+            this._realtimeChannel = supabaseClient.channel('clinic_realtime_sync', {
+                config: { broadcast: { self: false } }
+            });
+
+            // 1. Listen for broadcast events from other devices (laptop, tablet, phone)
+            this._realtimeChannel.on('broadcast', { event: 'clinic_data_changed' }, async (payload) => {
+                const cat = payload?.payload?.category;
+                console.log('⚡ Realtime sync received from another device:', cat);
+                if (cat === 'patients') {
+                    this._patientsCacheTime = 0;
+                    this._invoicesCacheTime = 0;
+                } else if (cat === 'invoices' || cat === 'budgets') {
+                    this._invoicesCacheTime = 0;
+                } else if (cat === 'appointments' || cat === 'agenda') {
+                    this._apptsCacheTime = 0;
+                } else if (cat === 'inventory') {
+                    this._inventoryCacheTime = 0;
+                } else if (cat === 'users') {
+                    this._usersCacheTime = 0;
+                }
+                await this.refreshActiveViews(true);
+            });
+
+            // 2. Listen to PostgreSQL database level changes (INSERT, UPDATE, DELETE)
+            this._realtimeChannel
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'patients' }, async () => {
+                    this._patientsCacheTime = 0;
+                    this._invoicesCacheTime = 0;
+                    await this.refreshActiveViews(true);
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, async () => {
+                    this._invoicesCacheTime = 0;
+                    await this.refreshActiveViews(true);
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, async () => {
+                    this._apptsCacheTime = 0;
+                    await this.refreshActiveViews(true);
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'kardex_inventory' }, async () => {
+                    this._inventoryCacheTime = 0;
+                    await this.refreshActiveViews(true);
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, async () => {
+                    this._usersCacheTime = 0;
+                    await this.refreshActiveViews(true);
+                });
+
+            this._realtimeChannel.subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                    console.log('🟢 Supabase Live Realtime Channel Active (Multi-Device Auto Sync)');
+                }
+            });
+        } catch (err) {
+            console.warn('Realtime channel setup error:', err);
+        }
+
+        // 3. Auto-sync on Device Unlock / Tab Focus
+        if (typeof document !== 'undefined') {
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    this.refreshActiveViews(true);
+                }
+            });
+            window.addEventListener('focus', () => {
+                this.refreshActiveViews(true);
+            });
+        }
+
+        // 4. Background Sync Heartbeat (Smart Polling every 12 seconds)
+        setInterval(() => {
+            if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+                this.refreshActiveViews(false);
+            }
+        }, 12000);
+    }
 }
 
 window.SupabaseDataService = SupabaseDataService;
+
+// Initialize Live Realtime Multi-Device Synchronization
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => SupabaseDataService.initRealtimeSync());
+    } else {
+        setTimeout(() => SupabaseDataService.initRealtimeSync(), 300);
+    }
+}
 
