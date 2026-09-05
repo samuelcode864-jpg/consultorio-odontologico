@@ -52,15 +52,18 @@ class SupabaseDataService {
                 if (error) throw error;
                 if (data && data.length > 0) {
                     const mapped = data.map(u => {
-                        let docProfile = u.doctor_profile || {};
+                        let docProfile = {};
+                        if (u.doctor_profile && typeof u.doctor_profile === 'object') {
+                            docProfile = { ...u.doctor_profile };
+                        }
                         let licenseStr = u.license || '';
 
                         if (licenseStr && licenseStr.startsWith('{')) {
                             try {
                                 const parsedLicense = JSON.parse(licenseStr);
                                 licenseStr = parsedLicense.license || parsedLicense.licenseNumber || '';
-                                if (parsedLicense.doctorProfile) {
-                                    docProfile = { ...parsedLicense.doctorProfile, ...docProfile };
+                                if (parsedLicense.doctorProfile && typeof parsedLicense.doctorProfile === 'object') {
+                                    docProfile = { ...docProfile, ...parsedLicense.doctorProfile };
                                 }
                             } catch (e) { }
                         }
@@ -101,6 +104,7 @@ class SupabaseDataService {
         if (idx >= 0) localUsers[idx] = userObj;
         else localUsers.push(userObj);
         localStorage.setItem('dental_users', JSON.stringify(localUsers));
+        this._usersCacheTime = 0; // Invalidate cache so all components fetch latest
 
         if (this.isCloudConnected()) {
             try {

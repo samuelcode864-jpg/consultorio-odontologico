@@ -876,17 +876,21 @@
                                             <span style="text-align: center; font-size: 0.75rem; color: var(--text-muted);"><i class="fa-solid fa-expand text-teal"></i> Haz clic en el recuadro para firmar cómodamente en pantalla ampliada</span>
                                         </div>
 
-                                        <!-- Doctor Signature (Right) -->
+                                        <!-- Doctor Signature (Right - Auto-cargada desde Perfil) -->
                                         <div class="sig-box" style="display: flex; flex-direction: column; gap: 8px;">
                                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                                 <span style="font-weight: 700; font-size: 0.88rem; color: var(--text-main);"><i class="fa-solid fa-user-doctor text-teal"></i> Firma Digital del Odontólogo Tratante</span>
-                                                <button class="btn btn-xs btn-link text-red" id="btn-clear-doc-sig" style="text-decoration: none; font-size: 0.8rem; font-weight: 600;"><i class="fa-solid fa-rotate-left"></i> Limpiar Firma</button>
+                                                <span class="badge-tag green" style="font-size: 0.72rem; text-transform: none; font-weight: 600;"><i class="fa-solid fa-circle-check"></i> Oficial de Perfil</span>
                                             </div>
-                                            <div class="sig-canvas-wrapper sig-clickable-box" id="doctor-sig-box" title="Clic aquí para firmar cómodamente en pantalla completa" style="border-radius: 8px; display: flex; justify-content: center; align-items: center; padding: 10px; min-height: 120px;">
-                                                <canvas id="doctor-sig-canvas" width="380" height="120" style="width: 100%; height: 120px; cursor: pointer; pointer-events: none;"></canvas>
-                                                <div class="sig-click-badge" id="doctor-sig-badge"><i class="fa-solid fa-pen-fancy"></i> Clic para firmar</div>
+                                            <div class="sig-canvas-wrapper" id="doctor-sig-box-wrapper" style="border: 1.5px solid var(--border-color); border-radius: 8px; background: #ffffff; display: flex; justify-content: center; align-items: center; padding: 10px; min-height: 120px; position: relative;">
+                                                <canvas id="doctor-sig-canvas" width="380" height="120" style="width: 100%; height: 120px; display: block; pointer-events: none; background: #ffffff;"></canvas>
+                                                <div id="doctor-sig-empty-notice" class="hidden" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8fafc; border-radius: 8px; padding: 12px; text-align: center;">
+                                                    <i class="fa-solid fa-signature text-teal" style="font-size: 1.4rem; margin-bottom: 4px;"></i>
+                                                    <strong style="font-size: 0.82rem; color: #334155;">Sin firma médica configurada</strong>
+                                                    <small class="text-muted" style="font-size: 0.73rem; margin-top: 2px;">Configura tu firma en <strong>Mi Perfil</strong> para que se inserte automáticamente.</small>
+                                                </div>
                                             </div>
-                                            <span style="text-align: center; font-size: 0.75rem; color: var(--text-muted);"><i class="fa-solid fa-expand text-teal"></i> Haz clic en el recuadro para firmar cómodamente en pantalla ampliada</span>
+                                            <span style="text-align: center; font-size: 0.75rem; color: var(--text-muted);"><i class="fa-solid fa-lock text-teal"></i> Firma precargada automáticamente desde el perfil del médico tratante</span>
                                         </div>
                                     </div>
                                 </div>
@@ -3764,13 +3768,13 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=249"></script>
-    <script src="supabaseClient.js?v=249"></script>
-    <script src="odontogram.js?v=249"></script>
-    <script src="signature.js?v=249"></script>
-    <script src="whatsapp.js?v=249"></script>
-    <script src="kardex.js?v=249"></script>
-    <script src="app.js?v=249"></script>
-    <script src="tutorial.js?v=249"></script>
+    <script src="seededData.js?v=250"></script>
+    <script src="supabaseClient.js?v=250"></script>
+    <script src="odontogram.js?v=250"></script>
+    <script src="signature.js?v=250"></script>
+    <script src="whatsapp.js?v=250"></script>
+    <script src="kardex.js?v=250"></script>
+    <script src="app.js?v=250"></script>
+    <script src="tutorial.js?v=250"></script>
 </body>
 </html>

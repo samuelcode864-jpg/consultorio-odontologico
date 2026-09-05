@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.doctorSigPad = new SignaturePad('doctor-sig-canvas');
     window.patientSigPad = new SignaturePad('patient-sig-canvas');
 
-    // Helper to refresh visual badges on clickable signature boxes
+    // Helper to refresh visual badges on signature boxes
     window.refreshSignatureBoxBadges = function() {
         const patientBox = document.getElementById('patient-sig-box');
         const patientBadge = document.getElementById('patient-sig-badge');
@@ -68,16 +68,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        const docBox = document.getElementById('doctor-sig-box');
-        const docBadge = document.getElementById('doctor-sig-badge');
-        if (docBox && docBadge) {
+        const noticeEl = document.getElementById('doctor-sig-empty-notice');
+        const canvasEl = document.getElementById('doctor-sig-canvas');
+        if (noticeEl && canvasEl) {
             const hasSig = window.doctorSigPad && !window.doctorSigPad.isEmpty();
             if (hasSig) {
-                docBox.classList.add('has-signature');
-                docBadge.innerHTML = '<i class="fa-solid fa-check text-white"></i> Firmado (Clic para modificar)';
+                noticeEl.classList.add('hidden');
+                canvasEl.style.display = 'block';
             } else {
-                docBox.classList.remove('has-signature');
-                docBadge.innerHTML = '<i class="fa-solid fa-pen-fancy"></i> Clic para firmar';
+                noticeEl.classList.remove('hidden');
+                canvasEl.style.display = 'none';
             }
         }
     };
@@ -130,48 +130,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 },
                 onClear: () => {
                     if (window.patientSigPad) window.patientSigPad.clear();
-                    window.refreshSignatureBoxBadges();
-                }
-            });
-        });
-    }
-
-    // Click trigger for Doctor Signature in Budget
-    const doctorSigBox = document.getElementById('doctor-sig-box');
-    if (doctorSigBox) {
-        doctorSigBox.addEventListener('click', () => {
-            const currentSig = (window.doctorSigPad && !window.doctorSigPad.isEmpty()) ? window.doctorSigPad.toDataURL() : null;
-
-            window.openSignatureModal({
-                title: 'Firma Digital del Odontólogo Tratante',
-                subtitle: 'Dibuje su firma cómodamente en el recuadro con el dedo, stylus o mouse.',
-                initialDataUrl: currentSig,
-                onSave: async (dataUrl) => {
-                    if (dataUrl && window.doctorSigPad) {
-                        window.doctorSigPad.loadFromDataURL(dataUrl);
-                    } else if (window.doctorSigPad) {
-                        window.doctorSigPad.clear();
-                    }
-
-                    // Direct independent persistence to doctor profile in cloud
-                    if (dataUrl) {
-                        await saveDoctorSignatureToCloud(dataUrl);
-                    }
-                    await autoSaveActivePatientOdontogram();
-                    window.refreshSignatureBoxBadges();
-
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Firma Guardada',
-                        text: 'La firma del odontólogo se ha guardado exitosamente.',
-                        timer: 2000,
-                        showConfirmButton: false,
-                        toast: true,
-                        position: 'top-end'
-                    });
-                },
-                onClear: () => {
-                    if (window.doctorSigPad) window.doctorSigPad.clear();
                     window.refreshSignatureBoxBadges();
                 }
             });
@@ -428,7 +386,7 @@ async function autoLoadDoctorSignatureInBudget(targetDoctorName = null) {
     if (!window.doctorSigPad) return;
     
     try {
-        const users = await SupabaseDataService.getUsers();
+        const users = await SupabaseDataService.getUsers(false);
         const currentUser = getCurrentUser();
         
         let doctorUser = null;
@@ -439,14 +397,26 @@ async function autoLoadDoctorSignatureInBudget(targetDoctorName = null) {
             doctorUser = users.find(u => u.id === currentUser.id || u.fullname === currentUser.fullname) || currentUser;
         }
         if (!doctorUser && users.length > 0) {
-            doctorUser = users.find(u => u.role && !u.role.toLowerCase().includes('admin') && !u.role.toLowerCase().includes('asistente'));
+            doctorUser = users.find(u => u.role && (u.role.toLowerCase().includes('medico') || u.role.toLowerCase().includes('odont') || u.role.toLowerCase().includes('doctor')));
+        }
+        if (!doctorUser && users.length > 0) {
+            doctorUser = users.find(u => u.role && !u.role.toLowerCase().includes('asistente'));
         }
         
         const sig = doctorUser && ((doctorUser.doctorProfile && doctorUser.doctorProfile.signature) || (doctorUser.doctor_profile && doctorUser.doctor_profile.signature));
+        const noticeEl = document.getElementById('doctor-sig-empty-notice');
+        const canvasEl = document.getElementById('doctor-sig-canvas');
+
         if (sig && window.doctorSigPad) {
             window.doctorSigPad.loadFromDataURL(sig);
-            if (typeof window.refreshSignatureBoxBadges === 'function') window.refreshSignatureBoxBadges();
+            if (noticeEl) noticeEl.classList.add('hidden');
+            if (canvasEl) canvasEl.style.display = 'block';
+        } else {
+            if (window.doctorSigPad) window.doctorSigPad.clear();
+            if (noticeEl) noticeEl.classList.remove('hidden');
+            if (canvasEl) canvasEl.style.display = 'none';
         }
+        if (typeof window.refreshSignatureBoxBadges === 'function') window.refreshSignatureBoxBadges();
     } catch(e) {
         console.error("Error auto loading doctor signature from cloud:", e);
     }
@@ -853,6 +823,22 @@ function checkAuthSession() {
 
             applyRolePermissionsUI(user.role);
             
+            // Background sync from Supabase Cloud to update signatures and profile across devices
+            SupabaseDataService.getUsers(true).then(users => {
+                if (users && users.length > 0) {
+                    const freshUser = users.find(u => u.id === user.id || (u.email && user.email && u.email.toLowerCase() === user.email.toLowerCase()));
+                    if (freshUser) {
+                        sessionStorage.setItem('dental_current_user', JSON.stringify(freshUser));
+                        localStorage.setItem('dental_current_user', JSON.stringify(freshUser));
+                        const freshSig = (freshUser.doctorProfile && freshUser.doctorProfile.signature) || (freshUser.doctor_profile && freshUser.doctor_profile.signature);
+                        if (freshSig && window.doctorSigPad) {
+                            window.doctorSigPad.loadFromDataURL(freshSig);
+                            if (typeof window.refreshSignatureBoxBadges === 'function') window.refreshSignatureBoxBadges();
+                        }
+                    }
+                }
+            }).catch(e => console.warn("Background user sync notice:", e));
+
             // Start/reset timer upon validation
             resetInactivityTimer();
             return;
@@ -1061,7 +1047,7 @@ function renderMobileNavigationForRole(roleType) {
 }
 
 async function login(email, password) {
-    const users = await SupabaseDataService.getUsers();
+    const users = await SupabaseDataService.getUsers(true);
     const match = users.find(u => u.email.toLowerCase() === email.toLowerCase().trim() && u.password === password.trim());
     const errorMsg = document.getElementById('login-error-msg');
 
