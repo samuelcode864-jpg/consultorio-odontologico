@@ -13009,20 +13009,56 @@ async function renderStationeryView() {
 
 async function handleStationeryAction(templateType, action) {
     try {
-        const headerText = document.getElementById('stat-header-text') ? document.getElementById('stat-header-text').value : '';
-        const footerText = document.getElementById('stat-footer-text') ? document.getElementById('stat-footer-text').value : '';
-        const recipeFooterText = document.getElementById('stat-recipe-footer-text') ? document.getElementById('stat-recipe-footer-text').value : '';
+        const stationery = await SupabaseDataService.getStationeryConfig();
+        const headerText = document.getElementById('stat-header-text') ? document.getElementById('stat-header-text').value : (stationery.headerText || stationery.header_text || '');
+        const footerText = document.getElementById('stat-footer-text') ? document.getElementById('stat-footer-text').value : (stationery.footerText || stationery.footer_text || '');
+        const recipeFooterText = document.getElementById('stat-recipe-footer-text') ? document.getElementById('stat-recipe-footer-text').value : (stationery.recipeFooterText || '');
         
         const previewImg = document.getElementById('stat-logo-preview-img');
         const rawLogoSrc = (previewImg && previewImg.getAttribute('src')) ? previewImg.getAttribute('src') : '';
-        const logoSrc = (rawLogoSrc && rawLogoSrc !== window.location.href) ? rawLogoSrc : '';
+        const logoSrc = (rawLogoSrc && rawLogoSrc !== window.location.href) ? rawLogoSrc : (stationery.logoUrl || stationery.logo_url || '');
 
-        const busData = getClinicBusData({ header_text: headerText, logo_url: logoSrc, footer_text: footerText });
+        const busData = getClinicBusData({ 
+            header_text: headerText || stationery.headerText || stationery.header_text, 
+            logo_url: logoSrc || stationery.logoUrl || stationery.logo_url, 
+            footer_text: footerText || stationery.footerText || stationery.footer_text 
+        });
+
         let logoBase64 = '';
-        if (busData.logoUrl && busData.logoUrl !== window.location.href) {
-            logoBase64 = busData.logoUrl.startsWith('data:') ? busData.logoUrl : await toDataURL(busData.logoUrl);
+        const effectiveLogo = logoSrc || busData.logoUrl || stationery.logoUrl || stationery.logo_url || '';
+        if (effectiveLogo && effectiveLogo !== window.location.href) {
+            logoBase64 = effectiveLogo.startsWith('data:') ? effectiveLogo : await toDataURL(effectiveLogo);
         }
 
+        // Doctor data & signature from logged-in user / doctor profile
+        const currentUser = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
+        let docSig = '';
+        if (currentUser) {
+            docSig = (currentUser.doctorProfile && currentUser.doctorProfile.signature) || (currentUser.doctor_profile && currentUser.doctor_profile.signature) || '';
+        }
+        if (!docSig && window.doctorSigPad && typeof window.doctorSigPad.isEmpty === 'function' && !window.doctorSigPad.isEmpty()) {
+            docSig = window.doctorSigPad.toDataURL();
+        }
+
+        const doctorName = (currentUser && currentUser.fullname) || busData.doctor || 'Dr. Rodrigo Navas';
+        const doctorPhone = (currentUser && currentUser.phone) || busData.phone;
+        const doctorSpecialty = (currentUser && (currentUser.specialty || (currentUser.doctorProfile && currentUser.doctorProfile.specialty))) || 'Odontología General / Facturación Clínica';
+
+        // Patient sample signature if available
+        let patSig = '';
+        if (window.patientSigPad && typeof window.patientSigPad.isEmpty === 'function' && !window.patientSigPad.isEmpty()) {
+            patSig = window.patientSigPad.toDataURL();
+        }
+        if (!patSig) {
+            try {
+                const pts = await SupabaseDataService.getPatients();
+                if (pts && pts.length > 0 && pts[0].metadata && pts[0].metadata.patientSignature) {
+                    patSig = pts[0].metadata.patientSignature;
+                }
+            } catch(e) {}
+        }
+
+        const rate = getExchangeRate();
         let docHtml = '';
 
         if (templateType === 'factura') {
@@ -13031,30 +13067,39 @@ async function handleStationeryAction(templateType, action) {
                 docTitle: 'Factura Digital',
                 emissionDate: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }),
                 controlNumber: 'FC-2026-00892',
-                paymentMethod: 'Transferencia / PAGO MÓVIL',
-                clinicName: busData.name || 'Consultorio Médico',
-                clinicPhone: busData.phone || '+58 (412) 555-0192',
-                clinicAddress: busData.address || 'Av. Principal de Las Mercedes, Torre Consultorios, Piso 4, Off. 4B, Caracas',
+                paymentMethod: 'Contado / Transferencia - Pago Móvil',
+                
+                clinicName: busData.name,
+                clinicPhone: busData.phone,
+                clinicAddress: busData.address,
                 logoUrl: logoBase64,
-                doctorName: busData.doctor || 'Dr. Rodrigo Navas',
-                doctorSpecialty: 'Odontología General / Rehabilitación Oral',
-                doctorPhone: '+58 (414) 123-4567',
+                
+                doctorName: doctorName,
+                doctorSpecialty: doctorSpecialty,
+                doctorPhone: doctorPhone,
+                doctorSig: docSig,
+                
                 patientName: 'Carlos Eduardo Mendoza',
                 patientId: 'V-18.452.910',
                 patientPhone: '+58 (416) 987-6543',
+                patientSig: patSig,
+                
                 items: [
-                    { name: 'Consulta Médica Especializada', description: 'Evaluación clínica integral y revisión de antecedentes', qty: 1, price: 60.00, total: 60.00 },
-                    { name: 'Limpieza Ultrasónica + Profilaxis', description: 'Eliminación de cálculo dental y pulido coronario', qty: 1, price: 40.00, total: 40.00 }
+                    { name: 'Consulta Diagnóstica / Evaluación Clínica Especializada (CONS-01)', description: 'Procedimiento odontológico facturado', qty: 1, price: 30.00, total: 30.00 },
+                    { name: 'Limpieza Ultrasónica + Profilaxis Dental Completa (LIM-02)', description: 'Eliminación de cálculo y placa bacteriana', qty: 1, price: 40.00, total: 40.00 }
                 ],
-                subtotalUSD: 100.00,
+                subtotalUSD: 70.00,
                 discountPct: 0,
-                discountUSD: 0.00,
-                taxUSD: 0.00,
-                totalUSD: 100.00,
-                totalVES: 'Bs. 3.650,00',
-                paymentTerms: 'Contado / Pago inmediato al momento de la consulta.',
+                discountUSD: 0,
+                taxUSD: 0,
+                totalUSD: 70.00,
+                totalVES: `Bs. ${(70.00 * rate).toFixed(2)}`,
+                approvedAmountUSD: 70.00,
+                
+                paymentTerms: `Términos: Contado. Moneda de emisión: REF. Tasa BCV: Bs. ${rate.toFixed(2)} / USD.`,
                 bankingDetails: busData.bankInfo,
-                observations: 'Paciente presenta evolución favorable. Se recomienda control preventivo cada 6 meses.',
+                observations: footerText || 'El paciente presenta evolución favorable. Se recomienda mantener tratamiento y esquema preventivo indicado.',
+                consentText: 'Por medio de la presente, el paciente declara haber recibido explicación clara y detallada acerca de los procedimientos facturados, expresando su conformidad con los cobros correspondientes.',
                 footerNote: footerText || busData.footer
             });
         } else if (templateType === 'cotizacion') {
@@ -13064,30 +13109,39 @@ async function handleStationeryAction(templateType, action) {
                 emissionDate: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }),
                 controlNumber: 'PR-2026-00341',
                 paymentMethod: 'Por Sesiones / Efectivo USD',
-                clinicName: busData.name || 'Consultorio Odontológico Especializado',
-                clinicPhone: busData.phone || '+58 (412) 555-0192',
-                clinicAddress: busData.address || 'Av. Principal de Las Mercedes, Torre Consultorios, Piso 4, Caracas',
+                
+                clinicName: busData.name,
+                clinicPhone: busData.phone,
+                clinicAddress: busData.address,
                 logoUrl: logoBase64,
-                doctorName: busData.doctor || 'Dr. Rodrigo Navas',
-                doctorSpecialty: 'Odontología Estética y Prótesis',
-                doctorPhone: '+58 (414) 123-4567',
+                
+                doctorName: doctorName,
+                doctorSpecialty: doctorSpecialty,
+                doctorPhone: doctorPhone,
+                doctorSig: docSig,
+                
                 patientName: 'Carlos Eduardo Mendoza',
                 patientId: 'V-18.452.910',
                 patientPhone: '+58 (416) 987-6543',
+                patientSig: patSig,
+                
                 items: [
-                    { name: 'Limpieza Ultrasónica + Profilaxis (General)', description: 'Eliminación de cálculo dental', qty: 1, price: 40.00, total: 40.00 },
-                    { name: 'Restauración Resina Estética (Pieza 16)', description: 'Obturación fotocurada anatómica', qty: 1, price: 45.00, total: 45.00 },
-                    { name: 'Corona de Zirconio Monolítico (Pieza 24)', description: 'CAD/CAM de alta estética', qty: 1, price: 180.00, total: 180.00 }
+                    { name: 'Limpieza Ultrasónica + Profilaxis Dental (LIM-02)', description: 'Eliminación de cálculo dental y pulido coronario', qty: 1, price: 40.00, total: 40.00 },
+                    { name: 'Restauración Resina Estética (Pieza 16) (RES-01)', description: 'Obturación fotocurada anatómica', qty: 1, price: 45.00, total: 45.00 },
+                    { name: 'Corona de Zirconio Monolítico (Pieza 24) (PROT-03)', description: 'CAD/CAM de alta resistencia estética', qty: 1, price: 180.00, total: 180.00 }
                 ],
                 subtotalUSD: 265.00,
                 discountPct: 5,
                 discountUSD: 13.25,
-                taxUSD: 0.00,
+                taxUSD: 0,
                 totalUSD: 251.75,
-                totalVES: 'Bs. 9.188,88',
-                paymentTerms: 'Validez del presupuesto: 15 días continuos.',
+                totalVES: `Bs. ${(251.75 * rate).toFixed(2)}`,
+                approvedAmountUSD: 251.75,
+                
+                paymentTerms: 'Validez del presupuesto: 15 días continuos. Términos: Por sesiones clínicas.',
                 bankingDetails: busData.bankInfo,
-                observations: 'Plan integral de rehabilitación oral.',
+                observations: footerText || 'Plan integral de rehabilitación oral y restauración funcional.',
+                consentText: 'Por medio de la presente, el paciente declara haber recibido explicación clara y detallada acerca del presupuesto y plan propuesto, manifestando su conformidad.',
                 footerNote: footerText || busData.footer
             });
         } else if (templateType === 'recibo') {
@@ -13096,47 +13150,56 @@ async function handleStationeryAction(templateType, action) {
                 docTitle: 'Recibo de Atención Clínica',
                 emissionDate: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }),
                 controlNumber: 'REC-2026-00215',
-                paymentMethod: 'Transferencia / PAGO MÓVIL',
-                clinicName: busData.name || 'Consultorio Odontológico',
-                clinicPhone: busData.phone || '+58 (412) 555-0192',
-                clinicAddress: busData.address || 'Av. Principal de Las Mercedes, Torre Consultorios, Piso 4, Caracas',
+                paymentMethod: 'Transferencia / Pago Móvil',
+                
+                clinicName: busData.name,
+                clinicPhone: busData.phone,
+                clinicAddress: busData.address,
                 logoUrl: logoBase64,
-                doctorName: busData.doctor || 'Dr. Rodrigo Navas',
-                doctorSpecialty: 'Odontología General',
-                doctorPhone: '+58 (414) 123-4567',
+                
+                doctorName: doctorName,
+                doctorSpecialty: doctorSpecialty,
+                doctorPhone: doctorPhone,
+                doctorSig: docSig,
+                
                 patientName: 'Carlos Eduardo Mendoza',
                 patientId: 'V-18.452.910',
                 patientPhone: '+58 (416) 987-6543',
+                patientSig: patSig,
+                
                 items: [
                     { name: 'Sesión Clínica #1: Limpieza Ultrasónica + Profilaxis', description: 'Tratamiento completado y conforme', qty: 1, price: 40.00, total: 40.00 }
                 ],
                 subtotalUSD: 40.00,
                 discountPct: 0,
-                discountUSD: 0.00,
-                taxUSD: 0.00,
+                discountUSD: 0,
+                taxUSD: 0,
                 totalUSD: 40.00,
-                totalVES: 'Bs. 1.460,00',
-                paymentTerms: 'Abono en consulta. Comprobante de cancelación.',
+                totalVES: `Bs. ${(40.00 * rate).toFixed(2)}`,
+                approvedAmountUSD: 40.00,
+                
+                paymentTerms: 'Abono realizado en consulta. Comprobante administrativo.',
                 bankingDetails: busData.bankInfo,
-                observations: 'Paciente atendido satisfactoriamente.',
+                observations: footerText || 'Paciente atendido satisfactoriamente.',
+                consentText: 'Por medio de la presente se deja constancia del pago y la conformidad con el procedimiento efectuado en sesión.',
                 footerNote: footerText || busData.footer
             });
         } else if (templateType === 'recipe') {
-            const footerNote = recipeFooterText || footerText || 'Documento Clínico Oficial de Prescripción Médica y Recomendaciones.';
+            const footerNote = recipeFooterText || footerText || busData.footer || 'Documento Clínico Oficial de Prescripción Médica y Recomendaciones.';
             docHtml = buildRecipeDocumentHTML({
                 docTitle: 'Prescripción Médica y Récipe',
                 emissionDate: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }),
                 controlNumber: 'REC-2026-00104',
                 treatmentLinked: 'Sesión #1: Restauración Resina Estética (Pieza 16)',
-                clinicName: busData.name || 'Consultorio Odontológico Especializado',
-                clinicPhone: busData.phone || '+58 (412) 555-0192',
-                clinicAddress: busData.address || 'Av. Principal de Las Mercedes, Torre Consultorios, Piso 4, Caracas',
+                clinicName: busData.name,
+                clinicPhone: busData.phone,
+                clinicAddress: busData.address,
                 logoUrl: logoBase64,
-                doctorName: busData.doctor || 'Dr. Rodrigo Navas',
-                doctorSpecialty: 'Odontología General / Rehabilitación Oral',
-                doctorLicense: 'MPPS-98402 / C.O.V-20104',
-                doctorPhone: '+58 (414) 123-4567',
-                doctorSig: '',
+                doctorName: doctorName,
+                doctorSpecialty: doctorSpecialty,
+                doctorLicense: (currentUser && currentUser.doctorProfile && currentUser.doctorProfile.license) || 'MPPS-98402 / C.O.V-20104',
+                doctorPhone: doctorPhone,
+                doctorSig: docSig,
                 patientName: 'Carlos Eduardo Mendoza',
                 patientId: 'V-18.452.910',
                 patientPhone: '+58 (416) 987-6543',
