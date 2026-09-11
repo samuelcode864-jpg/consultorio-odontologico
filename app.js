@@ -13152,13 +13152,29 @@ async function handleStationeryAction(templateType, action) {
 
         const container = document.createElement('div');
         container.innerHTML = docHtml;
+        container.classList.add('print-section');
+        container.style.background = '#ffffff';
+        container.style.padding = '0';
+        container.style.margin = '0 auto';
+        container.style.maxWidth = '100%';
+        container.style.maxHeight = 'none';
+        container.style.height = 'auto';
+        container.style.overflow = 'visible';
+        container.querySelectorAll('*').forEach(el => {
+            el.style.maxHeight = 'none';
+            if (el.style.overflow === 'auto' || el.style.overflow === 'scroll' || el.style.overflowY === 'auto' || el.style.overflowY === 'scroll') {
+                el.style.overflow = 'visible';
+                el.style.overflowY = 'visible';
+                el.style.height = 'auto';
+            }
+        });
 
-        if (action === 'print') {
-            container.classList.add('print-section');
-            container.style.background = '#ffffff';
+        if (action === 'preview' || action === 'print') {
             document.body.appendChild(container);
             window.print();
-            document.body.removeChild(container);
+            if (document.body.contains(container)) {
+                document.body.removeChild(container);
+            }
         } else if (action === 'pdf') {
             const templateName = (templateType || 'documento').toUpperCase();
             const filename = `Papeleria_${templateName}.pdf`;
