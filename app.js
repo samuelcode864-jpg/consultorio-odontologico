@@ -12052,6 +12052,17 @@ async function renderBillingView() {
         printClone.style.padding = '0';
         printClone.style.margin = '0 auto';
         printClone.style.maxWidth = '100%';
+        printClone.style.maxHeight = 'none';
+        printClone.style.height = 'auto';
+        printClone.style.overflow = 'visible';
+        printClone.querySelectorAll('*').forEach(el => {
+            el.style.maxHeight = 'none';
+            if (el.style.overflow === 'auto' || el.style.overflow === 'scroll' || el.style.overflowY === 'auto' || el.style.overflowY === 'scroll') {
+                el.style.overflow = 'visible';
+                el.style.overflowY = 'visible';
+                el.style.height = 'auto';
+            }
+        });
         document.body.appendChild(printClone);
         printClone.classList.add('print-section');
         window.print();
@@ -12063,6 +12074,20 @@ async function renderBillingView() {
         if (!previewEl) return;
 
         const printClone = previewEl.cloneNode(true);
+        printClone.style.padding = '0';
+        printClone.style.margin = '0 auto';
+        printClone.style.maxWidth = '100%';
+        printClone.style.maxHeight = 'none';
+        printClone.style.height = 'auto';
+        printClone.style.overflow = 'visible';
+        printClone.querySelectorAll('*').forEach(el => {
+            el.style.maxHeight = 'none';
+            if (el.style.overflow === 'auto' || el.style.overflow === 'scroll' || el.style.overflowY === 'auto' || el.style.overflowY === 'scroll') {
+                el.style.overflow = 'visible';
+                el.style.overflowY = 'visible';
+                el.style.height = 'auto';
+            }
+        });
         const filename = `Factura_${(activeBillingInvoice && activeBillingInvoice.id) || 'Digital'}.pdf`;
         generatePDFFromElement(printClone, filename);
     };
@@ -13198,6 +13223,9 @@ async function generatePDFFromElement(element, filename) {
     element.style.position = 'relative';
     element.style.width = '720px';
     element.style.maxWidth = '720px';
+    element.style.maxHeight = 'none';
+    element.style.height = 'auto';
+    element.style.overflow = 'visible';
     element.style.margin = '0 auto';
     element.style.backgroundColor = '#ffffff';
     element.style.color = '#1e293b';
@@ -13206,9 +13234,24 @@ async function generatePDFFromElement(element, filename) {
     element.style.padding = '10px 15px';
     element.style.boxSizing = 'border-box';
 
+    // Ensure all children are unconstrained in height and overflow
+    element.querySelectorAll('*').forEach(el => {
+        if (el.style.maxHeight && el.style.maxHeight !== 'none') {
+            el.style.maxHeight = 'none';
+        }
+        if (el.style.overflow === 'auto' || el.style.overflow === 'scroll' || el.style.overflowY === 'auto' || el.style.overflowY === 'scroll') {
+            el.style.overflow = 'visible';
+            el.style.overflowY = 'visible';
+            el.style.height = 'auto';
+        }
+    });
+
     const innerDoc = element.querySelector('.medical-doc-container');
     if (innerDoc) {
         innerDoc.style.maxWidth = '100%';
+        innerDoc.style.maxHeight = 'none';
+        innerDoc.style.height = 'auto';
+        innerDoc.style.overflow = 'visible';
         innerDoc.style.padding = '10px 15px';
         innerDoc.style.margin = '0';
         innerDoc.style.boxShadow = 'none';
