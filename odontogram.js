@@ -339,14 +339,19 @@ class OdontogramEngine {
 
             if (this.toothData[extractionKey]) {
                 delete this.toothData[extractionKey];
+                this.render();
+                if (this.onFaceClickCallback) {
+                    this.onFaceClickCallback(toothNumber, 'all', 'extraction_cleared', extractionKey);
+                }
+                return;
             } else {
                 this.toothData[extractionKey] = 'extraction';
+                this.render();
+                if (this.onFaceClickCallback) {
+                    this.onFaceClickCallback(toothNumber, 'all', 'extraction', extractionKey);
+                }
+                return;
             }
-            this.render();
-            if (this.onFaceClickCallback) {
-                this.onFaceClickCallback(toothNumber, 'all', 'extraction', extractionKey);
-            }
-            return;
         }
 
         if (this.currentMode === 'treated') {

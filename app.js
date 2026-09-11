@@ -2668,15 +2668,25 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
             odData[`${toothNumber}-endo`] = chosenEndoStatus;
             if (window.odontogram) window.odontogram.setData(odData);
 
+            // Clean previous endo items for this tooth before adding
+            currentBudgetItems = currentBudgetItems.filter(item => {
+                const isThisTooth = String(extractToothNumber(item)) === String(toothNumber);
+                const isEndo = item.serviceCode === 'EN-01' || item.serviceCode === 'EN-02' || (item.name && item.name.toLowerCase().includes('endodoncia'));
+                return !(isThisTooth && isEndo);
+            });
+
+            const doctors = await getDoctorsList();
+            const defaultDoc = doctors[0] ? doctors[0].fullname : 'Dr. Alejandro Silva';
+
             if (chosenEndoStatus === 'por_hacer') {
                 currentBudgetItems.push({
                     key: `${toothNumber}-endo-proc-${Date.now()}`,
                     tooth: toothNumber,
                     face: 'Gnl',
                     serviceCode: porHacerProc.code || 'EN-01',
-                    name: `Endodoncia: ${porHacerProc.name}`,
+                    name: `Endodoncia: ${porHacerProc.name} (Pieza ${toothNumber})`,
                     price: porHacerProc.priceUSD || 120.00,
-                    specialist: 'Dr. Alejandro Silva'
+                    specialist: defaultDoc
                 });
             } else if (chosenEndoStatus === 'rehacer') {
                 currentBudgetItems.push({
@@ -2684,9 +2694,9 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
                     tooth: toothNumber,
                     face: 'Gnl',
                     serviceCode: rehacerProc.code || 'EN-02',
-                    name: `Retratamiento de Endodoncia: ${rehacerProc.name}`,
+                    name: `Retratamiento de Endodoncia: ${rehacerProc.name} (Pieza ${toothNumber})`,
                     price: rehacerProc.priceUSD || 180.00,
-                    specialist: 'Dr. Alejandro Silva'
+                    specialist: defaultDoc
                 });
             }
 
@@ -2704,7 +2714,22 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
     }
 
     if (mode === 'absence') {
-        currentBudgetItems = currentBudgetItems.filter(item => item.key !== `${toothNumber}-extraction`);
+        currentBudgetItems = currentBudgetItems.filter(item => {
+            const isThisTooth = String(extractToothNumber(item)) === String(toothNumber);
+            const isExtOrProc = item.key === `${toothNumber}-extraction` || (item.name && (item.name.toLowerCase().includes('extrac') || item.name.toLowerCase().includes('exodoncia')));
+            return !(isThisTooth && isExtOrProc);
+        });
+        await autoSaveActivePatientOdontogram();
+        renderBudgetTable();
+        return;
+    }
+
+    if (mode === 'extraction_cleared') {
+        currentBudgetItems = currentBudgetItems.filter(item => {
+            const isThisTooth = String(extractToothNumber(item)) === String(toothNumber);
+            const isExt = item.key === `${toothNumber}-extraction` || (item.name && (item.name.toLowerCase().includes('extrac') || item.name.toLowerCase().includes('exodoncia') || item.name.toLowerCase().includes('cirug')));
+            return !(isThisTooth && isExt);
+        });
         await autoSaveActivePatientOdontogram();
         renderBudgetTable();
         return;
@@ -2775,6 +2800,7 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
             `;
             btn.onclick = async () => {
                 addProcedureToBudget(pendingToothFaceKey, proc);
+                pendingToothFaceKey = null;
                 await autoSaveActivePatientOdontogram();
                 closeModal('modal-tooth-treatment');
             };
@@ -2793,10 +2819,13 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
 }
 
 function addProcedureToBudget(toothKeyObj, procedure) {
+    if (!toothKeyObj) return;
     const toothNum = toothKeyObj.toothNumber || 'General';
-    const itemName = toothKeyObj.mode === 'extraction' 
-        ? `${procedure.name} (Pieza ${toothNum})`
-        : procedure.name;
+    const faceLabel = toothKeyObj.faceId && toothKeyObj.faceId !== 'Gnl' && toothKeyObj.faceId !== 'all' ? ` (${toothKeyObj.faceId})` : '';
+    let itemName = procedure.name;
+    if (!itemName.includes(`Pieza ${toothNum}`) && !itemName.includes(`Pza ${toothNum}`) && toothNum !== 'General') {
+        itemName = `${procedure.name} (Pieza ${toothNum}${faceLabel})`;
+    }
 
     const uniqueItemKey = `${toothNum}-${toothKeyObj.faceId || 'Gnl'}-${procedure.code || 'srv'}-${Date.now()}`;
 
@@ -3009,20 +3038,41 @@ window.removeBudgetItem = async function(index) {
         if (window.odontogram && toothNum && toothNum !== 'General') {
             const remainingForTooth = currentBudgetItems.filter(i => String(extractToothNumber(i)) === String(toothNum));
 
-            // Only remove face color from odontogram if no other items remain for that face
-            if (item.face && item.face !== 'Gnl' && item.face !== 'all') {
-                const remainingForFace = remainingForTooth.filter(i => i.face === item.face);
-                if (remainingForFace.length === 0 && window.odontogram.toothData[`${toothNum}-${item.face}`]) {
-                    delete window.odontogram.toothData[`${toothNum}-${item.face}`];
+            if (remainingForTooth.length === 0) {
+                // Clear all marks on this tooth
+                delete window.odontogram.toothData[`${toothNum}-absence`];
+                delete window.odontogram.toothData[`${toothNum}-extraction`];
+                delete window.odontogram.toothData[`${toothNum}-endo`];
+                delete window.odontogram.toothData[`${toothNum}-endo-status`];
+                ['top', 'right', 'bottom', 'left', 'center'].forEach(f => {
+                    delete window.odontogram.toothData[`${toothNum}-${f}`];
+                });
+            } else {
+                // Remove specific face color if no remaining item uses it
+                if (item.face && item.face !== 'Gnl' && item.face !== 'all') {
+                    const hasOtherFace = remainingForTooth.some(i => i.face === item.face);
+                    if (!hasOtherFace && window.odontogram.toothData[`${toothNum}-${item.face}`]) {
+                        delete window.odontogram.toothData[`${toothNum}-${item.face}`];
+                    }
                 }
-            }
 
-            // Only remove endo line if no other endo items remain for this tooth
-            if (item.serviceCode === 'EN-01' || item.serviceCode === 'EN-02' || (item.name && item.name.toLowerCase().includes('endodoncia'))) {
-                const hasOtherEndo = remainingForTooth.some(i => i.serviceCode === 'EN-01' || i.serviceCode === 'EN-02' || (item.name && item.name.toLowerCase().includes('endodoncia')));
-                if (!hasOtherEndo) {
-                    delete window.odontogram.toothData[`${toothNum}-endo`];
-                    delete window.odontogram.toothData[`${toothNum}-endo-status`];
+                // Remove endo if no other endo item remains
+                const isEndo = item.serviceCode === 'EN-01' || item.serviceCode === 'EN-02' || (item.name && item.name.toLowerCase().includes('endodoncia'));
+                if (isEndo) {
+                    const hasOtherEndo = remainingForTooth.some(i => i.serviceCode === 'EN-01' || i.serviceCode === 'EN-02' || (i.name && i.name.toLowerCase().includes('endodoncia')));
+                    if (!hasOtherEndo) {
+                        delete window.odontogram.toothData[`${toothNum}-endo`];
+                        delete window.odontogram.toothData[`${toothNum}-endo-status`];
+                    }
+                }
+
+                // Remove extraction if no other extraction item remains
+                const isExt = (item.name && (item.name.toLowerCase().includes('extrac') || item.name.toLowerCase().includes('exodoncia') || item.name.toLowerCase().includes('cirug'))) || (item.key && item.key.includes('extraction'));
+                if (isExt) {
+                    const hasOtherExt = remainingForTooth.some(i => (i.name && (i.name.toLowerCase().includes('extrac') || i.name.toLowerCase().includes('exodoncia') || i.name.toLowerCase().includes('cirug'))) || (i.key && i.key.includes('extraction')));
+                    if (!hasOtherExt) {
+                        delete window.odontogram.toothData[`${toothNum}-extraction`];
+                    }
                 }
             }
 
@@ -6204,12 +6254,33 @@ function initGlobalEvents() {
             let faceVal = 'Gnl';
 
             if (!isNaN(toothNum) && toothNum > 0) {
-                faceVal = 'center';
-                
-                // Color center face (Oclusal) as Lesión (patology) on odontogram
-                if (window.odontogram) {
-                    window.odontogram.toothData[`${toothNum}-center`] = 'patology';
-                    window.odontogram.render();
+                const lowerName = nameVal.toLowerCase();
+                if (lowerName.includes('extrac') || lowerName.includes('exodoncia') || lowerName.includes('cirug')) {
+                    faceVal = 'Gnl';
+                    if (window.odontogram) {
+                        window.odontogram.toothData[`${toothNum}-extraction`] = 'extraction';
+                        delete window.odontogram.toothData[`${toothNum}-absence`];
+                        window.odontogram.render();
+                    }
+                } else if (lowerName.includes('endo') || lowerName.includes('conducto')) {
+                    faceVal = 'Gnl';
+                    if (window.odontogram) {
+                        window.odontogram.toothData[`${toothNum}-endo`] = 'por_hacer';
+                        window.odontogram.render();
+                    }
+                } else if (lowerName.includes('ausen') || lowerName.includes('falta')) {
+                    faceVal = 'Gnl';
+                    if (window.odontogram) {
+                        window.odontogram.toothData[`${toothNum}-absence`] = 'absence';
+                        delete window.odontogram.toothData[`${toothNum}-extraction`];
+                        window.odontogram.render();
+                    }
+                } else {
+                    faceVal = 'center';
+                    if (window.odontogram) {
+                        window.odontogram.toothData[`${toothNum}-center`] = 'patology';
+                        window.odontogram.render();
+                    }
                 }
             }
 
@@ -9270,6 +9341,23 @@ async function closeModal(id, force = false) {
     el.classList.add('hidden');
     if (id === 'modal-patient') {
         window.patientModalOpenedFromBudget = false;
+    }
+    if (id === 'modal-tooth-treatment') {
+        if (typeof pendingToothFaceKey !== 'undefined' && pendingToothFaceKey) {
+            const hasItem = currentBudgetItems.some(item => 
+                String(extractToothNumber(item)) === String(pendingToothFaceKey.toothNumber) &&
+                (item.face === pendingToothFaceKey.faceId || (pendingToothFaceKey.mode === 'extraction' && item.key && item.key.includes('extraction')))
+            );
+            if (!hasItem && window.odontogram) {
+                if (pendingToothFaceKey.mode === 'extraction') {
+                    delete window.odontogram.toothData[`${pendingToothFaceKey.toothNumber}-extraction`];
+                } else if (pendingToothFaceKey.key) {
+                    delete window.odontogram.toothData[pendingToothFaceKey.key];
+                }
+                window.odontogram.render();
+            }
+            pendingToothFaceKey = null;
+        }
     }
     return true;
 }
