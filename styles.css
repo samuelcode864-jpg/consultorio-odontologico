@@ -4845,6 +4845,7 @@ select, .form-select, select.form-control {
         max-width: 100% !important;
         border-collapse: collapse !important;
         page-break-inside: auto !important;
+        box-sizing: border-box !important;
     }
 
     tr {
@@ -4861,9 +4862,10 @@ select, .form-select, select.form-control {
     }
 
     th, td {
-        padding: 5px 8px !important;
-        font-size: 9.5pt !important;
+        padding: 5px 6px !important;
+        font-size: 9pt !important;
         border-bottom: 1px solid #e2e8f0 !important;
+        box-sizing: border-box !important;
     }
 
     th {

@@ -4292,13 +4292,13 @@ async function exportEHRToPDF() {
         allPayments.forEach(pay => {
             paymentsHtml += `
                 <tr>
-                    <td style="padding:6px 8px; border-bottom:1px solid #e2e8f0; font-size:0.78rem;">${pay.date}</td>
-                    <td style="padding:6px 8px; border-bottom:1px solid #e2e8f0; font-size:0.78rem;"><strong>${pay.concept}</strong></td>
-                    <td style="padding:6px 8px; border-bottom:1px solid #e2e8f0; font-size:0.78rem; color:#1e40af;">${pay.bank} <small style="color:#64748b; display:block;">(${getPaymentMethodLabel(pay.method)})</small></td>
-                    <td style="padding:6px 8px; border-bottom:1px solid #e2e8f0; font-size:0.78rem; font-family:monospace;">${pay.reference}</td>
-                    <td style="padding:6px 8px; border-bottom:1px solid #e2e8f0; font-size:0.78rem;">$${pay.totalUSD.toFixed(2)}</td>
-                    <td style="padding:6px 8px; border-bottom:1px solid #e2e8f0; font-size:0.78rem; color:#059669; font-weight:600;">$${pay.paidUSD.toFixed(2)}</td>
-                    <td style="padding:6px 8px; border-bottom:1px solid #e2e8f0; font-size:0.78rem; color:${pay.balanceUSD > 0 ? '#dc2626' : '#64748b'}; font-weight:600;">$${pay.balanceUSD.toFixed(2)}</td>
+                    <td style="padding:5px 6px; border-bottom:1px solid #e2e8f0; font-size:0.75rem; white-space:nowrap; vertical-align:middle; box-sizing:border-box;">${pay.date}</td>
+                    <td style="padding:5px 6px; border-bottom:1px solid #e2e8f0; font-size:0.75rem; vertical-align:middle; word-break:break-word; box-sizing:border-box;"><strong>${pay.concept}</strong></td>
+                    <td style="padding:5px 6px; border-bottom:1px solid #e2e8f0; font-size:0.75rem; color:#1e40af; vertical-align:middle; word-break:break-word; box-sizing:border-box;">${pay.bank} <small style="color:#64748b; display:block;">(${getPaymentMethodLabel(pay.method)})</small></td>
+                    <td style="padding:5px 6px; border-bottom:1px solid #e2e8f0; font-size:0.75rem; font-family:monospace; vertical-align:middle; word-break:break-all; box-sizing:border-box;">${pay.reference}</td>
+                    <td style="padding:5px 6px; border-bottom:1px solid #e2e8f0; font-size:0.75rem; text-align:right; white-space:nowrap; vertical-align:middle; box-sizing:border-box;">$${pay.totalUSD.toFixed(2)}</td>
+                    <td style="padding:5px 6px; border-bottom:1px solid #e2e8f0; font-size:0.75rem; color:#059669; font-weight:600; text-align:right; white-space:nowrap; vertical-align:middle; box-sizing:border-box;">$${pay.paidUSD.toFixed(2)}</td>
+                    <td style="padding:5px 6px; border-bottom:1px solid #e2e8f0; font-size:0.75rem; color:${pay.balanceUSD > 0 ? '#dc2626' : '#64748b'}; font-weight:600; text-align:right; white-space:nowrap; vertical-align:middle; box-sizing:border-box;">$${pay.balanceUSD.toFixed(2)}</td>
                 </tr>
             `;
         });
@@ -4307,12 +4307,18 @@ async function exportEHRToPDF() {
     }
 
     // Dynamic Header / Footer configuration
+    const resolvedLogo = getBusinessLogoSync();
+    const logoImg = resolvedLogo ? `<img src="${resolvedLogo}" style="max-height: 55px; max-width: 130px; object-fit: contain; margin-right: 15px;" alt="Logo Clínica">` : '';
+
     let headerHtml = `
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0284c7; padding-bottom: 15px; margin-bottom: 20px;">
-            <div>
-                <h1 style="font-family: 'Outfit', sans-serif; font-size: 1.6rem; color: #0284c7; margin: 0;">🦷 DentalCare Pro</h1>
-                <p style="font-size: 0.8rem; color: #64748b; margin: 2px 0 0 0;">Consultorio Odontológico Unipersonal | Expediente Clínico Oficial</p>
-                <small style="font-size: 0.72rem; color: #94a3b8;">Odontólogo: Dr. Alejandro Silva (MPPS-84920 / C.O.V-14920)</small>
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0284c7; padding-bottom: 12px; margin-bottom: 15px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                ${logoImg}
+                <div>
+                    <h1 style="font-family: 'Outfit', Arial, sans-serif; font-size: 1.4rem; color: #0284c7; margin: 0; font-weight: 700;">🦷 DentalCare Pro</h1>
+                    <p style="font-size: 0.8rem; color: #475569; margin: 2px 0 0 0;">Consultorio Odontológico Unipersonal | Expediente Clínico Oficial</p>
+                    <small style="font-size: 0.72rem; color: #64748b;">Odontólogo: Dr. Alejandro Silva (MPPS-84920 / C.O.V-14920)</small>
+                </div>
             </div>
             <div style="text-align: right;">
                 <span style="display: inline-block; background: #e0f2fe; color: #0284c7; padding: 4px 10px; border-radius: 12px; font-weight: 700; font-size: 0.75rem;">HISTORIA CLÍNICA</span>
@@ -4322,7 +4328,7 @@ async function exportEHRToPDF() {
     `;
 
     let footerHtml = `
-        <div style="font-size:0.75rem; color:#64748b; text-align:center; margin-top:20px; border-top:1px solid #e2e8f0; padding-top:10px;">
+        <div style="font-size:0.75rem; color:#64748b; text-align:center; margin-top:15px; border-top:1px solid #e2e8f0; padding-top:8px;">
             Gracias por su confianza. Todo tratamiento dental requiere control periódico cada 6 meses.
         </div>
     `;
@@ -4332,7 +4338,7 @@ async function exportEHRToPDF() {
         if (config) {
             if (config.footer_text) {
                 footerHtml = `
-                    <div style="font-size:0.75rem; color:#64748b; text-align:center; margin-top:20px; border-top:1px solid #e2e8f0; padding-top:10px;">
+                    <div style="font-size:0.75rem; color:#64748b; text-align:center; margin-top:15px; border-top:1px solid #e2e8f0; padding-top:8px;">
                         ${config.footer_text}
                     </div>
                 `;
@@ -4340,12 +4346,13 @@ async function exportEHRToPDF() {
             let busData = null;
             try { busData = JSON.parse(config.header_text); } catch(e) {}
             if (busData) {
-                const logo = config.logo_url ? `<img src="${config.logo_url}" style="max-height: 60px; max-width: 60px; object-fit: contain; margin-right: 15px;" alt="Logo Negocio">` : '';
+                const finalLogo = config.logo_url || resolvedLogo;
+                const finalLogoImg = finalLogo ? `<img src="${finalLogo}" style="max-height: 55px; max-width: 130px; object-fit: contain; margin-right: 15px;" alt="Logo Clínica">` : '';
                 headerHtml = `
-                    <div style="display: flex; align-items: center; border-bottom: 2px solid #0284c7; padding-bottom: 15px; margin-bottom: 20px;">
-                        ${logo}
+                    <div style="display: flex; align-items: center; border-bottom: 2px solid #0284c7; padding-bottom: 12px; margin-bottom: 15px;">
+                        ${finalLogoImg}
                         <div style="flex:1;">
-                            <h1 style="font-family: 'Outfit', sans-serif; font-size: 1.5rem; color: #0284c7; margin: 0;">${busData.name}</h1>
+                            <h1 style="font-family: 'Outfit', Arial, sans-serif; font-size: 1.4rem; color: #0284c7; margin: 0; font-weight: 700;">${busData.name}</h1>
                             <p style="font-size: 0.78rem; color: #475569; margin: 2px 0 0 0;">${busData.type} | RIF: ${busData.rif}</p>
                             <small style="font-size: 0.72rem; color: #64748b; display:block; margin-top:2px;">Dirección: ${busData.address} | Tel: ${busData.phone}</small>
                         </div>
@@ -4466,8 +4473,10 @@ async function exportEHRToPDF() {
     }
 
     const container = document.createElement('div');
-    container.style.padding = '16px 20px';
+    container.className = 'medical-doc-container';
+    container.style.padding = '0';
     container.style.width = '100%';
+    container.style.maxWidth = '100%';
     container.style.boxSizing = 'border-box';
     container.style.fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, Arial, sans-serif";
     container.style.color = '#0f172a';
@@ -4478,11 +4487,11 @@ async function exportEHRToPDF() {
         ${headerHtml}
 
         <!-- PATIENT DATA CARD -->
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
-            <h3 style="font-size: 1.05rem; color: #0f172a; margin: 0 0 10px 0; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 15px; margin-bottom: 12px; box-sizing: border-box;">
+            <h3 style="font-size: 0.98rem; color: #0f172a; margin: 0 0 8px 0; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">
                 👤 Datos de Filiación del Paciente
             </h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.85rem;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.82rem;">
                 <div><strong>Nombre y Apellido:</strong> ${patient.fullname}</div>
                 <div><strong>Cédula / ID:</strong> ${patient.id}</div>
                 <div><strong>Fecha Nacimiento:</strong> ${patient.birthdate} (${calculateAge(patient.birthdate)} años)</div>
@@ -4495,11 +4504,11 @@ async function exportEHRToPDF() {
         </div>
 
         <!-- MEDICAL HEAD (ALERTAS CLINICAS Y SALUD) -->
-        <div style="background: #fff1f2; border: 1px solid #fecdd3; border-radius: 8px; padding: 12px 15px; margin-bottom: 15px;">
-            <h3 style="font-size: 1rem; color: #be123c; margin: 0 0 6px 0;">
+        <div style="background: #fff1f2; border: 1px solid #fecdd3; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; box-sizing: border-box;">
+            <h3 style="font-size: 0.95rem; color: #be123c; margin: 0 0 6px 0;">
                 🩺 Ficha Médica de Cabecera & Alergias
             </h3>
-            <div style="font-size: 0.84rem; line-height: 1.5;">
+            <div style="font-size: 0.82rem; line-height: 1.45;">
                 <div><strong style="color: #dc2626;">Alergias Conocidas:</strong> ${allergiesText}</div>
                 <div><strong style="color: #d97706;">Enfermedades Sistémicas:</strong> ${systemicText}</div>
                 <div><strong>Medicación Prescrita:</strong> ${medText}</div>
@@ -4508,25 +4517,25 @@ async function exportEHRToPDF() {
         </div>
 
         <!-- CLINICAL ODONTOGRAMS (SEGUIDAMENTE DE LA ANAMNESIS) -->
-        <div style="margin-bottom: 20px; --tooth-face-bg: #ffffff; --tooth-face-stroke: #334155; --bg-card: #ffffff; --border-color: #cbd5e1; --primary-cyan: #0284c7;">
-            <h3 style="font-size: 1.05rem; color: #0f172a; border-bottom: 2px solid #0284c7; padding-bottom: 4px; margin-bottom: 10px;">
+        <div style="margin-bottom: 15px; --tooth-face-bg: #ffffff; --tooth-face-stroke: #334155; --bg-card: #ffffff; --border-color: #cbd5e1; --primary-cyan: #0284c7; box-sizing: border-box;">
+            <h3 style="font-size: 0.98rem; color: #0f172a; border-bottom: 2px solid #0284c7; padding-bottom: 4px; margin-bottom: 8px;">
                 🦷 Odontodiagrama Inicial (Diagnóstico)
             </h3>
-            <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; background: #ffffff; margin-bottom: 15px;">
+            <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; background: #ffffff; margin-bottom: 12px; box-sizing: border-box;">
                 ${initialOdHtml}
             </div>
 
-            <h3 style="font-size: 1.05rem; color: #0f172a; border-bottom: 2px solid #059669; padding-bottom: 4px; margin-bottom: 10px;">
+            <h3 style="font-size: 0.98rem; color: #0f172a; border-bottom: 2px solid #059669; padding-bottom: 4px; margin-bottom: 8px;">
                 🦷 Odontodiagrama Actualizado (Evolución)
             </h3>
-            <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; background: #ffffff;">
+            <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; background: #ffffff; box-sizing: border-box;">
                 ${currentOdHtml}
             </div>
         </div>
 
         <!-- INTERCONSULTATIONS & SPECIAL STUDIES & RECIPES (SEGUIDAMENTE) -->
-        <div style="margin-bottom: 20px;">
-            <h3 style="font-size: 1.05rem; color: #0f172a; border-bottom: 2px solid #0d9488; padding-bottom: 4px; margin-bottom: 10px;">
+        <div style="margin-bottom: 15px; box-sizing: border-box;">
+            <h3 style="font-size: 0.98rem; color: #0f172a; border-bottom: 2px solid #0d9488; padding-bottom: 4px; margin-bottom: 8px;">
                 🩺 Historial de Interconsultas, Estudios Especiales y Prescripciones Médicas
             </h3>
             ${interconsultationsHtml}
@@ -4534,28 +4543,28 @@ async function exportEHRToPDF() {
         </div>
 
         <!-- CLINICAL EVOLUTIONS -->
-        <div style="margin-bottom: 20px;">
-            <h3 style="font-size: 1.05rem; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 12px;">
+        <div style="margin-bottom: 15px; box-sizing: border-box;">
+            <h3 style="font-size: 0.98rem; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 10px;">
                 📝 Registro de Evoluciones Clínicas y Sesiones
             </h3>
             ${evolutionsHtml}
         </div>
 
         <!-- PAYMENTS & ACCOUNT BALANCE -->
-        <div style="margin-bottom: 30px;">
-            <h3 style="font-size: 1.05rem; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 12px;">
+        <div style="margin-bottom: 20px; box-sizing: border-box; page-break-inside: auto;">
+            <h3 style="font-size: 0.98rem; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 10px;">
                 💳 Estado de Cuenta, Presupuestos y Pagos / Abonos
             </h3>
-            <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; table-layout: fixed; box-sizing: border-box; margin-bottom: 5px;">
                 <thead>
-                    <tr style="background: #f1f5f9; font-size: 0.75rem; color: #475569;">
-                        <th style="padding: 6px 8px;">Fecha</th>
-                        <th style="padding: 6px 8px;">Tratamiento / Concepto</th>
-                        <th style="padding: 6px 8px;">Banco / Método</th>
-                        <th style="padding: 6px 8px;">Nº Ref</th>
-                        <th style="padding: 6px 8px;">Total</th>
-                        <th style="padding: 6px 8px;">Abonado</th>
-                        <th style="padding: 6px 8px;">Saldo Pendiente</th>
+                    <tr style="background: #f1f5f9; font-size: 0.73rem; color: #475569;">
+                        <th style="padding: 6px 6px; width: 14%; text-align: left; box-sizing: border-box;">Fecha</th>
+                        <th style="padding: 6px 6px; width: 28%; text-align: left; box-sizing: border-box;">Tratamiento / Concepto</th>
+                        <th style="padding: 6px 6px; width: 20%; text-align: left; box-sizing: border-box;">Banco / Método</th>
+                        <th style="padding: 6px 6px; width: 12%; text-align: left; box-sizing: border-box;">Nº Ref</th>
+                        <th style="padding: 6px 6px; width: 8%; text-align: right; box-sizing: border-box;">Total</th>
+                        <th style="padding: 6px 6px; width: 9%; text-align: right; box-sizing: border-box;">Abonado</th>
+                        <th style="padding: 6px 6px; width: 9%; text-align: right; box-sizing: border-box;">Saldo Pend.</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -4565,15 +4574,19 @@ async function exportEHRToPDF() {
         </div>
 
         <!-- SIGNATURE FOOTER -->
-        <div style="margin-top: 40px; display: flex; justify-content: space-between; text-align: center;">
-            <div style="width: 200px;">
+        <div style="margin-top: 25px; margin-bottom: 12px; display: flex; justify-content: space-around; text-align: center; page-break-inside: avoid; break-inside: avoid;">
+            <div style="width: 220px;">
                 ${signatureHtml}
                 <span style="font-size: 0.78rem; color: #475569; font-weight: 600;">Firma del Médico Odontólogo</span>
             </div>
-            <div style="width: 200px;">
+            <div style="width: 220px;">
                 <div style="border-bottom: 1px solid #0f172a; height: 50px; margin-bottom: 6px;"></div>
                 <span style="font-size: 0.78rem; color: #475569; font-weight: 600;">Firma del Paciente / Titular</span>
             </div>
+        </div>
+
+        <div style="font-size: 0.66rem; color: #64748b; text-align: center; margin-top: 10px; border-top: 1px dashed #cbd5e1; padding-top: 6px; text-transform: uppercase; letter-spacing: 0.2px; page-break-inside: avoid; break-inside: avoid;">
+            TODO TRATAMIENTO REALIZADO DEBERÁ SER CANCELADO EN SU MOMENTO. EL PRECIO DE LOS TRATAMIENTOS PROTÉSICOS PUEDE ESTAR SUJETO A CAMBIOS DESPUÉS DE 45 DÍAS POR PARTE DEL LABORATORIO DENTAL.
         </div>
 
         ${footerHtml}
