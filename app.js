@@ -4370,15 +4370,15 @@ async function exportEHRToPDF() {
 
     // Doctor signature display
     const user = getCurrentUser();
-    let signatureHtml = '<div style="border-bottom: 1px solid #0f172a; height: 50px; margin-bottom: 6px;"></div>';
+    let signatureHtml = '<div style="border-bottom: 1px solid #0f172a; height: 35px; margin-bottom: 4px;"></div>';
     if (user) {
         const sig = (user.doctorProfile && user.doctorProfile.signature) || (user.doctor_profile && user.doctor_profile.signature);
         if (sig) {
             signatureHtml = `
-                <div style="height: 50px; display:flex; align-items:center; justify-content:center; margin-bottom: 6px;">
-                    <img src="${sig}" style="max-height: 50px; object-fit: contain;" alt="Firma Médica">
+                <div style="height: 35px; display:flex; align-items:center; justify-content:center; margin-bottom: 4px;">
+                    <img src="${sig}" style="max-height: 35px; object-fit: contain;" alt="Firma Médica">
                 </div>
-                <div style="border-bottom: 1px solid #0f172a; margin-bottom: 6px;"></div>
+                <div style="border-bottom: 1px solid #0f172a; margin-bottom: 4px;"></div>
             `;
         }
     }
@@ -4551,8 +4551,8 @@ async function exportEHRToPDF() {
         </div>
 
         <!-- PAYMENTS & ACCOUNT BALANCE -->
-        <div style="margin-bottom: 20px; box-sizing: border-box; page-break-inside: auto;">
-            <h3 style="font-size: 0.98rem; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 10px;">
+        <div style="margin-bottom: 15px; box-sizing: border-box;">
+            <h3 style="font-size: 0.98rem; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 8px;">
                 💳 Estado de Cuenta, Presupuestos y Pagos / Abonos
             </h3>
             <table style="width: 100%; border-collapse: collapse; text-align: left; table-layout: fixed; box-sizing: border-box; margin-bottom: 5px;">
@@ -4574,19 +4574,15 @@ async function exportEHRToPDF() {
         </div>
 
         <!-- SIGNATURE FOOTER -->
-        <div style="margin-top: 25px; margin-bottom: 12px; display: flex; justify-content: space-around; text-align: center; page-break-inside: avoid; break-inside: avoid;">
-            <div style="width: 220px;">
+        <div style="margin-top: 15px; margin-bottom: 8px; display: flex; justify-content: space-around; text-align: center; page-break-inside: avoid; break-inside: avoid;">
+            <div style="width: 200px;">
                 ${signatureHtml}
-                <span style="font-size: 0.78rem; color: #475569; font-weight: 600;">Firma del Médico Odontólogo</span>
+                <span style="font-size: 0.75rem; color: #475569; font-weight: 600;">Firma del Médico Odontólogo</span>
             </div>
-            <div style="width: 220px;">
-                <div style="border-bottom: 1px solid #0f172a; height: 50px; margin-bottom: 6px;"></div>
-                <span style="font-size: 0.78rem; color: #475569; font-weight: 600;">Firma del Paciente / Titular</span>
+            <div style="width: 200px;">
+                <div style="border-bottom: 1px solid #0f172a; height: 35px; margin-bottom: 4px;"></div>
+                <span style="font-size: 0.75rem; color: #475569; font-weight: 600;">Firma del Paciente / Titular</span>
             </div>
-        </div>
-
-        <div style="font-size: 0.66rem; color: #64748b; text-align: center; margin-top: 10px; border-top: 1px dashed #cbd5e1; padding-top: 6px; text-transform: uppercase; letter-spacing: 0.2px; page-break-inside: avoid; break-inside: avoid;">
-            TODO TRATAMIENTO REALIZADO DEBERÁ SER CANCELADO EN SU MOMENTO. EL PRECIO DE LOS TRATAMIENTOS PROTÉSICOS PUEDE ESTAR SUJETO A CAMBIOS DESPUÉS DE 45 DÍAS POR PARTE DEL LABORATORIO DENTAL.
         </div>
 
         ${footerHtml}
