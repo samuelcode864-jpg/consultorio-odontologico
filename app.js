@@ -4370,21 +4370,21 @@ async function exportEHRToPDF() {
 
     // Doctor signature display
     const user = getCurrentUser();
-    let signatureHtml = '<div style="border-bottom: 1px solid #0f172a; height: 35px; margin-bottom: 4px;"></div>';
+    let signatureHtml = '<div style="border-bottom: 1px solid #0f172a; height: 28px; margin-bottom: 3px;"></div>';
     if (user) {
         const sig = (user.doctorProfile && user.doctorProfile.signature) || (user.doctor_profile && user.doctor_profile.signature);
         if (sig) {
             signatureHtml = `
-                <div style="height: 35px; display:flex; align-items:center; justify-content:center; margin-bottom: 4px;">
-                    <img src="${sig}" style="max-height: 35px; object-fit: contain;" alt="Firma Médica">
+                <div style="height: 28px; display:flex; align-items:center; justify-content:center; margin-bottom: 3px;">
+                    <img src="${sig}" style="max-height: 28px; object-fit: contain;" alt="Firma Médica">
                 </div>
-                <div style="border-bottom: 1px solid #0f172a; margin-bottom: 4px;"></div>
+                <div style="border-bottom: 1px solid #0f172a; margin-bottom: 3px;"></div>
             `;
         }
     }
 
     const repInfo = (patient.metadata && patient.metadata.repName) ? `
-        <div style="grid-column: span 2; background: #eff6ff; padding: 8px 12px; border-radius: 6px; border: 1px solid #bfdbfe; margin-top: 5px;">
+        <div style="grid-column: span 2; background: #eff6ff; padding: 5px 8px; border-radius: 4px; border: 1px solid #bfdbfe; margin-top: 3px; font-size: 0.75rem;">
             <strong>Representante Legal:</strong> ${patient.metadata.repName} (C.I: ${patient.metadata.repId || 'N/A'} | Tel: ${patient.metadata.repPhone || 'N/A'} | Relación: ${patient.metadata.repRelation || 'Representante'})
         </div>
     ` : '';
@@ -4438,35 +4438,35 @@ async function exportEHRToPDF() {
             let stName = ic.studyName || (ic.studies && ic.studies.length > 0 ? ic.studies[0].name : 'Estudio Especial');
             let stNote = ic.studies && ic.studies.length > 0 ? ic.studies[0].note : '';
             interconsultationsHtml += `
-                <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; padding:10px; margin-bottom:8px; font-size:0.82rem;">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:5px; padding:6px 10px; margin-bottom:5px; font-size:0.76rem;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
                         <strong style="color:#0d9488;">📄 Interconsulta: ${stName} (${ic.id || 'IC'})</strong>
-                        <span style="color:#64748b; font-size:0.75rem;">${ic.date}</span>
+                        <span style="color:#64748b; font-size:0.72rem;">${ic.date}</span>
                     </div>
-                    ${stNote ? `<div style="color:#334155; margin-bottom:4px;"><strong>Especificaciones:</strong> ${stNote}</div>` : ''}
+                    ${stNote ? `<div style="color:#334155; margin-bottom:2px;"><strong>Especificaciones:</strong> ${stNote}</div>` : ''}
                     ${ic.notes ? `<div style="color:#475569;"><strong>Observaciones Clínicas:</strong> ${ic.notes}</div>` : ''}
                 </div>
             `;
         });
     } else {
-        interconsultationsHtml = `<p style="font-size:0.82rem; color:#64748b; font-style:italic; margin:4px 0;">Sin solicitudes de interconsulta registradas.</p>`;
+        interconsultationsHtml = `<p style="font-size:0.76rem; color:#64748b; font-style:italic; margin:2px 0;">Sin solicitudes de interconsulta registradas.</p>`;
     }
 
     const rcs = (patient.metadata && patient.metadata.recipes) || [];
     let recipesHtml = '';
     if (rcs.length > 0) {
-        recipesHtml = '<h4 style="margin:10px 0 6px 0; font-size:0.88rem; color:#059669;">📋 Prescripciones Médicas e Indicaciones Emitidas:</h4>';
+        recipesHtml = '<h4 style="margin:6px 0 4px 0; font-size:0.80rem; color:#059669;">📋 Prescripciones Médicas e Indicaciones Emitidas:</h4>';
         rcs.forEach(rc => {
             let medsStr = rc.medicines ? rc.medicines.map(m => `• <strong>${m.med}</strong>: ${m.dose} (${m.freq})`).join('<br>') : 'Sin fármacos prescritos';
             recipesHtml += `
-                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px; margin-bottom:8px; font-size:0.82rem;">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:5px; padding:6px 10px; margin-bottom:5px; font-size:0.76rem;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
                         <strong style="color:#059669;">💊 Récipe #${rc.id}</strong>
-                        <span style="color:#64748b; font-size:0.75rem;">${rc.date}</span>
+                        <span style="color:#64748b; font-size:0.72rem;">${rc.date}</span>
                     </div>
-                    <div style="margin-bottom:4px;"><strong>Tratamiento Vinculado:</strong> ${rc.treatmentLinked || 'General'}</div>
-                    <div style="margin-bottom:4px;">${medsStr}</div>
-                    ${rc.indications ? `<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:4px; padding:6px; font-size:0.78rem; margin-top:4px; white-space:pre-line;"><strong>Indicaciones:</strong><br>${rc.indications}</div>` : ''}
+                    <div style="margin-bottom:2px;"><strong>Tratamiento Vinculado:</strong> ${rc.treatmentLinked || 'General'}</div>
+                    <div style="margin-bottom:2px;">${medsStr}</div>
+                    ${rc.indications ? `<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:4px; padding:4px 6px; font-size:0.74rem; margin-top:2px; white-space:pre-line;"><strong>Indicaciones:</strong><br>${rc.indications}</div>` : ''}
                 </div>
             `;
         });
@@ -4487,84 +4487,87 @@ async function exportEHRToPDF() {
         ${headerHtml}
 
         <!-- PATIENT DATA CARD -->
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 15px; margin-bottom: 12px; box-sizing: border-box;">
-            <h3 style="font-size: 0.98rem; color: #0f172a; margin: 0 0 8px 0; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; box-sizing: border-box;">
+            <h3 style="font-size: 0.88rem; color: #0f172a; margin: 0 0 6px 0; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; font-weight: 700;">
                 👤 Datos de Filiación del Paciente
             </h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.82rem;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 0.78rem;">
                 <div><strong>Nombre y Apellido:</strong> ${patient.fullname}</div>
                 <div><strong>Cédula / ID:</strong> ${patient.id}</div>
                 <div><strong>Fecha Nacimiento:</strong> ${patient.birthdate} (${calculateAge(patient.birthdate)} años)</div>
                 <div><strong>Teléfono:</strong> ${patient.phone}</div>
-                <div><strong>Ocupación / Profesión:</strong> ${patient.occupation || (patient.metadata && patient.metadata.profession) || 'N/A'}</div>
-                <div><strong>Correo Electrónico:</strong> ${patient.email || 'N/A'}</div>
-                <div style="grid-column: span 2;"><strong>Dirección de Habitación:</strong> ${(patient.metadata && patient.metadata.address) || patient.address || 'N/A'}</div>
+                <div><strong>Ocupación:</strong> ${patient.occupation || (patient.metadata && patient.metadata.profession) || 'N/A'}</div>
+                <div><strong>Correo:</strong> ${patient.email || 'N/A'}</div>
+                <div style="grid-column: span 2;"><strong>Dirección:</strong> ${(patient.metadata && patient.metadata.address) || patient.address || 'N/A'}</div>
                 ${repInfo}
             </div>
         </div>
 
         <!-- MEDICAL HEAD (ALERTAS CLINICAS Y SALUD) -->
-        <div style="background: #fff1f2; border: 1px solid #fecdd3; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; box-sizing: border-box;">
-            <h3 style="font-size: 0.95rem; color: #be123c; margin: 0 0 6px 0;">
+        <div style="background: #fff1f2; border: 1px solid #fecdd3; border-radius: 6px; padding: 7px 12px; margin-bottom: 8px; box-sizing: border-box;">
+            <h3 style="font-size: 0.88rem; color: #be123c; margin: 0 0 4px 0; font-weight: 700;">
                 🩺 Ficha Médica de Cabecera & Alergias
             </h3>
-            <div style="font-size: 0.82rem; line-height: 1.45;">
-                <div><strong style="color: #dc2626;">Alergias Conocidas:</strong> ${allergiesText}</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 0.76rem; line-height: 1.35;">
+                <div><strong style="color: #dc2626;">Alergias:</strong> ${allergiesText}</div>
                 <div><strong style="color: #d97706;">Enfermedades Sistémicas:</strong> ${systemicText}</div>
-                <div><strong>Medicación Prescrita:</strong> ${medText}</div>
-                <div><strong>Contacto de Emergencia:</strong> ${patient.emergencyContact || 'Sin registrar'}</div>
+                <div><strong>Medicación:</strong> ${medText}</div>
+                <div><strong>Emergencia:</strong> ${patient.emergencyContact || 'Sin registrar'}</div>
             </div>
         </div>
 
-        <!-- CLINICAL ODONTOGRAMS (SEGUIDAMENTE DE LA ANAMNESIS) -->
-        <div style="margin-bottom: 15px; --tooth-face-bg: #ffffff; --tooth-face-stroke: #334155; --bg-card: #ffffff; --border-color: #cbd5e1; --primary-cyan: #0284c7; box-sizing: border-box;">
-            <h3 style="font-size: 0.98rem; color: #0f172a; border-bottom: 2px solid #0284c7; padding-bottom: 4px; margin-bottom: 8px;">
-                🦷 Odontodiagrama Inicial (Diagnóstico)
-            </h3>
-            <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; background: #ffffff; margin-bottom: 12px; box-sizing: border-box;">
-                ${initialOdHtml}
+        <!-- CLINICAL ODONTOGRAMS (SIDE BY SIDE COMPACT) -->
+        <div style="margin-bottom: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; --tooth-face-bg: #ffffff; --tooth-face-stroke: #334155; --bg-card: #ffffff; --border-color: #cbd5e1; --primary-cyan: #0284c7; box-sizing: border-box; page-break-inside: avoid;">
+            <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px; background: #ffffff; box-sizing: border-box;">
+                <h4 style="font-size: 0.78rem; color: #0284c7; margin: 0 0 4px 0; font-weight: 700; border-bottom: 1px solid #e2e8f0; padding-bottom: 2px;">
+                    🦷 Odontodiagrama Inicial
+                </h4>
+                <div style="transform: scale(0.94); transform-origin: top center;">
+                    ${initialOdHtml}
+                </div>
             </div>
-
-            <h3 style="font-size: 0.98rem; color: #0f172a; border-bottom: 2px solid #059669; padding-bottom: 4px; margin-bottom: 8px;">
-                🦷 Odontodiagrama Actualizado (Evolución)
-            </h3>
-            <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; background: #ffffff; box-sizing: border-box;">
-                ${currentOdHtml}
+            <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px; background: #ffffff; box-sizing: border-box;">
+                <h4 style="font-size: 0.78rem; color: #059669; margin: 0 0 4px 0; font-weight: 700; border-bottom: 1px solid #e2e8f0; padding-bottom: 2px;">
+                    🦷 Odontodiagrama Actual
+                </h4>
+                <div style="transform: scale(0.94); transform-origin: top center;">
+                    ${currentOdHtml}
+                </div>
             </div>
         </div>
 
-        <!-- INTERCONSULTATIONS & SPECIAL STUDIES & RECIPES (SEGUIDAMENTE) -->
-        <div style="margin-bottom: 15px; box-sizing: border-box;">
-            <h3 style="font-size: 0.98rem; color: #0f172a; border-bottom: 2px solid #0d9488; padding-bottom: 4px; margin-bottom: 8px;">
-                🩺 Historial de Interconsultas, Estudios Especiales y Prescripciones Médicas
+        <!-- INTERCONSULTATIONS & SPECIAL STUDIES & RECIPES -->
+        <div style="margin-bottom: 8px; box-sizing: border-box;">
+            <h3 style="font-size: 0.88rem; color: #0f172a; border-bottom: 2px solid #0d9488; padding-bottom: 3px; margin-bottom: 5px; font-weight: 700;">
+                🩺 Historial de Interconsultas, Estudios Especiales y Prescripciones
             </h3>
             ${interconsultationsHtml}
             ${recipesHtml}
         </div>
 
         <!-- CLINICAL EVOLUTIONS -->
-        <div style="margin-bottom: 15px; box-sizing: border-box;">
-            <h3 style="font-size: 0.98rem; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 10px;">
+        <div style="margin-bottom: 8px; box-sizing: border-box;">
+            <h3 style="font-size: 0.88rem; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 3px; margin-bottom: 5px; font-weight: 700;">
                 📝 Registro de Evoluciones Clínicas y Sesiones
             </h3>
             ${evolutionsHtml}
         </div>
 
         <!-- PAYMENTS & ACCOUNT BALANCE -->
-        <div style="margin-bottom: 15px; box-sizing: border-box;">
-            <h3 style="font-size: 0.98rem; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 8px;">
+        <div style="margin-bottom: 10px; box-sizing: border-box;">
+            <h3 style="font-size: 0.88rem; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 3px; margin-bottom: 6px; font-weight: 700;">
                 💳 Estado de Cuenta, Presupuestos y Pagos / Abonos
             </h3>
-            <table style="width: 100%; border-collapse: collapse; text-align: left; table-layout: fixed; box-sizing: border-box; margin-bottom: 5px;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; table-layout: fixed; box-sizing: border-box; margin-bottom: 4px;">
                 <thead>
-                    <tr style="background: #f1f5f9; font-size: 0.73rem; color: #475569;">
-                        <th style="padding: 6px 6px; width: 14%; text-align: left; box-sizing: border-box;">Fecha</th>
-                        <th style="padding: 6px 6px; width: 28%; text-align: left; box-sizing: border-box;">Tratamiento / Concepto</th>
-                        <th style="padding: 6px 6px; width: 20%; text-align: left; box-sizing: border-box;">Banco / Método</th>
-                        <th style="padding: 6px 6px; width: 12%; text-align: left; box-sizing: border-box;">Nº Ref</th>
-                        <th style="padding: 6px 6px; width: 8%; text-align: right; box-sizing: border-box;">Total</th>
-                        <th style="padding: 6px 6px; width: 9%; text-align: right; box-sizing: border-box;">Abonado</th>
-                        <th style="padding: 6px 6px; width: 9%; text-align: right; box-sizing: border-box;">Saldo Pend.</th>
+                    <tr style="background: #f1f5f9; font-size: 0.72rem; color: #475569;">
+                        <th style="padding: 5px 5px; width: 14%; text-align: left; box-sizing: border-box;">Fecha</th>
+                        <th style="padding: 5px 5px; width: 28%; text-align: left; box-sizing: border-box;">Tratamiento / Concepto</th>
+                        <th style="padding: 5px 5px; width: 20%; text-align: left; box-sizing: border-box;">Banco / Método</th>
+                        <th style="padding: 5px 5px; width: 12%; text-align: left; box-sizing: border-box;">Nº Ref</th>
+                        <th style="padding: 5px 4px; width: 8%; text-align: right; box-sizing: border-box;">Total</th>
+                        <th style="padding: 5px 4px; width: 9%; text-align: right; box-sizing: border-box;">Abonado</th>
+                        <th style="padding: 5px 4px; width: 9%; text-align: right; box-sizing: border-box;">Saldo Pend.</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -4574,14 +4577,14 @@ async function exportEHRToPDF() {
         </div>
 
         <!-- SIGNATURE FOOTER -->
-        <div style="margin-top: 15px; margin-bottom: 8px; display: flex; justify-content: space-around; text-align: center; page-break-inside: avoid; break-inside: avoid;">
-            <div style="width: 200px;">
+        <div style="margin-top: 10px; margin-bottom: 6px; display: flex; justify-content: space-around; text-align: center; page-break-inside: avoid; break-inside: avoid;">
+            <div style="width: 190px;">
                 ${signatureHtml}
-                <span style="font-size: 0.75rem; color: #475569; font-weight: 600;">Firma del Médico Odontólogo</span>
+                <span style="font-size: 0.72rem; color: #475569; font-weight: 600;">Firma del Médico Odontólogo</span>
             </div>
-            <div style="width: 200px;">
-                <div style="border-bottom: 1px solid #0f172a; height: 35px; margin-bottom: 4px;"></div>
-                <span style="font-size: 0.75rem; color: #475569; font-weight: 600;">Firma del Paciente / Titular</span>
+            <div style="width: 190px;">
+                <div style="border-bottom: 1px solid #0f172a; height: 28px; margin-bottom: 3px;"></div>
+                <span style="font-size: 0.72rem; color: #475569; font-weight: 600;">Firma del Paciente / Titular</span>
             </div>
         </div>
 
