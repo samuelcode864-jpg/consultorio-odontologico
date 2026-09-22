@@ -3002,13 +3002,13 @@ html, body {
 
 @page {
     size: letter portrait;
-    margin: 3mm 5mm 3mm 5mm !important;
+    margin: 6mm 8mm 6mm 8mm !important;
 }
 
 @media print {
     @page {
         size: letter portrait;
-        margin: 3mm 5mm 3mm 5mm !important;
+        margin: 6mm 8mm 6mm 8mm !important;
     }
 
     html, body {
@@ -3019,6 +3019,8 @@ html, body {
         background: #ffffff !important;
         color: #000000 !important;
         overflow: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
     }
 
     /* Hide everything on the page except the print-section */
@@ -3027,22 +3029,17 @@ html, body {
     }
 
     /* Print section styling */
-    .print-section, .invoice-paper-container {
+    .print-section {
         display: block !important;
-        position: relative !important;
-        left: 0 !important;
-        top: 0 !important;
+        position: static !important;
         width: 100% !important;
         max-width: 100% !important;
-        height: auto !important;
-        max-height: none !important;
-        margin: 0 !important;
+        margin: 0 auto !important;
         padding: 0 !important;
         background: #ffffff !important;
         color: #000000 !important;
         border: none !important;
         box-shadow: none !important;
-        z-index: 9999999 !important;
         overflow: visible !important;
     }
 
@@ -4735,6 +4732,165 @@ select, .form-select, select.form-control {
     }
     .tutorial-popover-body p {
         font-size: 0.83rem !important;
+    }
+}
+
+/* ==========================================================================
+   NATIVE GOOGLE CHROMIUM PRINT & PDF ENGINE STYLES
+   ========================================================================== */
+@page {
+    size: letter portrait;
+    margin: 6mm 8mm 6mm 8mm !important;
+}
+
+@media print {
+    *, *::before, *::after {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        box-sizing: border-box !important;
+    }
+
+    html, body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        min-height: auto !important;
+        font-family: 'Inter', Arial, sans-serif !important;
+        font-size: 11pt !important;
+        overflow: visible !important;
+    }
+
+    /* Hide entire application UI during print */
+    body > *:not(.print-section):not(#print-section) {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        max-height: 0 !important;
+        overflow: hidden !important;
+    }
+
+    .top-header,
+    .sidebar,
+    .main-sidebar,
+    .app-header,
+    .navigation,
+    .bottom-nav,
+    .actions-bar,
+    .btn,
+    .floating-btn,
+    .swal2-container,
+    .tutorial-overlay,
+    .tutorial-popover,
+    .modal,
+    .badge-btn {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    /* Print section container */
+    .print-section, #print-section {
+        display: block !important;
+        visibility: visible !important;
+        position: static !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
+        margin: 0 auto !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+        box-shadow: none !important;
+        border: none !important;
+    }
+
+    .print-section *, #print-section * {
+        visibility: visible !important;
+    }
+
+    /* Medical and Invoice document container */
+    .medical-doc-container {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
+        margin: 0 auto !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        box-shadow: none !important;
+        border: none !important;
+        border-radius: 0 !important;
+    }
+
+    .medical-doc-header {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        border-bottom: 2px solid #0d9488 !important;
+        padding-bottom: 8px !important;
+        margin-bottom: 12px !important;
+    }
+
+    .medical-doc-logo img {
+        max-height: 55px !important;
+        max-width: 140px !important;
+        object-fit: contain !important;
+    }
+
+    table {
+        width: 100% !important;
+        max-width: 100% !important;
+        border-collapse: collapse !important;
+        page-break-inside: auto !important;
+    }
+
+    tr {
+        page-break-inside: avoid !important;
+        page-break-after: auto !important;
+    }
+
+    thead {
+        display: table-header-group !important;
+    }
+
+    tfoot {
+        display: table-footer-group !important;
+    }
+
+    th, td {
+        padding: 5px 8px !important;
+        font-size: 9.5pt !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+    }
+
+    th {
+        background-color: #f1f5f9 !important;
+        color: #1e293b !important;
+        font-weight: 700 !important;
+    }
+
+    .signatures-grid, .doc-signatures {
+        display: flex !important;
+        justify-content: space-around !important;
+        align-items: flex-end !important;
+        margin-top: 20px !important;
+        page-break-inside: avoid !important;
+    }
+
+    .signature-line {
+        border-top: 1px solid #000000 !important;
+        width: 180px !important;
+        margin-top: 40px !important;
+        text-align: center !important;
+        font-size: 8.5pt !important;
+        color: #000000 !important;
+    }
+
+    .no-print {
+        display: none !important;
     }
 }
 

@@ -11237,6 +11237,21 @@ function getClinicBusData(config) {
     return busData;
 }
 
+function getBusinessLogoSync() {
+    try {
+        const local = JSON.parse(localStorage.getItem('dental_stationery_config') || 'null');
+        if (local && (local.logo_url || local.logoUrl)) return local.logo_url || local.logoUrl;
+    } catch(e) {}
+    const savedLogo = localStorage.getItem('dental_clinic_logo') || localStorage.getItem('dental_clinic_branding_logo');
+    if (savedLogo) return savedLogo;
+
+    const headerImg = document.querySelector('.clinic-logo-header');
+    if (headerImg && headerImg.src && !headerImg.src.endsWith('/') && !headerImg.src.includes('undefined')) {
+        return headerImg.src;
+    }
+    return '';
+}
+
 function buildMedicalDocumentHTML(opts) {
     const {
         docType = 'factura',
@@ -11342,6 +11357,7 @@ function buildMedicalDocumentHTML(opts) {
 
     const effectiveApproved = (approvedAmountUSD > 0) ? approvedAmountUSD : totalUSD;
     const cleanClinicName = formatHeaderText(clinicName);
+    const resolvedLogo = logoUrl || getBusinessLogoSync();
 
     return `
         <div class="medical-doc-container" style="background: #ffffff; color: #1e293b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 0.70rem; line-height: 1.20; width: 100%; max-width: 100%; margin: 0 auto; padding: 6px 14px; box-sizing: border-box; page-break-inside: avoid !important; break-inside: avoid !important;">
@@ -11350,11 +11366,11 @@ function buildMedicalDocumentHTML(opts) {
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 4px; padding-bottom: 3px; border-bottom: 2px solid #0066f5; table-layout: fixed;">
                 <tr>
                     <td style="width: 50%; vertical-align: middle; text-align: left; padding: 0;">
-                        ${logoUrl ? `
-                            <img src="${logoUrl}" style="width: auto; max-width: 220px; height: auto; max-height: 48px; object-fit: contain; object-position: left center; display: block;" alt="Logo">
+                        ${resolvedLogo ? `
+                            <img src="${resolvedLogo}" style="width: auto; max-width: 240px; height: auto; max-height: 52px; object-fit: contain; object-position: left center; display: block;" alt="Logo Clínica">
                         ` : `
-                            <div style="border: 1.5px dashed #0284c7; border-radius: 4px; padding: 4px 12px; display: inline-block; color: #0284c7; font-weight: 800; font-size: 0.90rem; letter-spacing: 0.05em;">
-                                LOGO
+                            <div style="font-size: 1.10rem; font-weight: 800; color: #0066f5; text-transform: uppercase; letter-spacing: -0.02em;">
+                                ${cleanClinicName || 'CONSULTORIO ODONTOLÓGICO'}
                             </div>
                         `}
                     </td>
@@ -13399,26 +13415,21 @@ function getPaymentMethodLabel(method) {
 }
 
 async function generatePDFFromElement(element, filename) {
-    element.style.position = 'relative';
-    element.style.width = '794px';
-    element.style.maxWidth = '794px';
-    element.style.minWidth = '794px';
-    element.style.maxHeight = 'none';
-    element.style.height = 'auto';
-    element.style.overflow = 'visible';
-    element.style.margin = '0 auto';
-    element.style.backgroundColor = '#ffffff';
-    element.style.color = '#1e293b';
-    element.style.display = 'block';
-    element.style.visibility = 'visible';
-    element.style.padding = '0';
-    element.style.boxSizing = 'border-box';
+    if (!element) return;
 
-    // Ensure all children are unconstrained in height and overflow
-    element.querySelectorAll('*').forEach(el => {
-        if (el.style.maxHeight && el.style.maxHeight !== 'none') {
-            el.style.maxHeight = 'none';
-        }
+    // Clean up any existing print sections
+    document.querySelectorAll('.print-section').forEach(el => el.remove());
+
+    const htmlContent = element.innerHTML || element.outerHTML || '';
+
+    // Create pristine print-section container attached directly to body
+    const printSection = document.createElement('div');
+    printSection.className = 'print-section';
+    printSection.innerHTML = htmlContent;
+
+    // Ensure all internal elements inside printSection are fully expanded without scrollbars
+    printSection.querySelectorAll('*').forEach(el => {
+        if (el.style.maxHeight && el.style.maxHeight !== 'none') el.style.maxHeight = 'none';
         if (el.style.overflow === 'auto' || el.style.overflow === 'scroll' || el.style.overflowY === 'auto' || el.style.overflowY === 'scroll') {
             el.style.overflow = 'visible';
             el.style.overflowY = 'visible';
@@ -13426,208 +13437,37 @@ async function generatePDFFromElement(element, filename) {
         }
     });
 
-    const innerDoc = element.querySelector('.medical-doc-container');
+    const innerDoc = printSection.querySelector('.medical-doc-container');
     if (innerDoc) {
         innerDoc.style.width = '100%';
         innerDoc.style.maxWidth = '100%';
         innerDoc.style.minWidth = '100%';
-        innerDoc.style.maxHeight = 'none';
-        innerDoc.style.height = 'auto';
-        innerDoc.style.overflow = 'visible';
         innerDoc.style.margin = '0 auto';
+        innerDoc.style.padding = '0';
         innerDoc.style.boxShadow = 'none';
+        innerDoc.style.border = 'none';
         innerDoc.style.boxSizing = 'border-box';
     }
 
-    if (!document.body.contains(element)) {
-        document.body.appendChild(element);
+    document.body.appendChild(printSection);
+
+    // Save previous document title and replace with target filename (used as default PDF name)
+    const originalTitle = document.title;
+    if (filename) {
+        document.title = filename.replace(/\.pdf$/i, '');
     }
 
-    const cleanupElement = () => {
-        try {
-            if (element && element.parentNode) {
-                element.parentNode.removeChild(element);
+    try {
+        await new Promise(resolve => setTimeout(resolve, 150));
+        window.print();
+    } finally {
+        setTimeout(() => {
+            document.title = originalTitle;
+            if (printSection && printSection.parentNode) {
+                printSection.remove();
             }
-        } catch (e) {}
-    };
-
-    let isCancelled = false;
-
-    return new Promise((resolve) => {
-        Swal.fire({
-            title: 'Generando Documento PDF...',
-            html: `
-                <div style="margin-bottom: 10px; font-weight: bold; color: #0284c7;">
-                    <i class="fa-solid fa-circle-notch fa-spin"></i> Ajustando márgenes y compilando documento...
-                </div>
-                <div style="font-size: 0.82rem; color: #64748b;">
-                    Generando documento en alta resolución y escala completa.<br>
-                    <span style="font-size: 0.76rem; color: #94a3b8;">Haga clic afuera, presione <b>Escape</b> o pulse <b>Cancelar</b> para detener.</span>
-                </div>
-            `,
-            showConfirmButton: false,
-            showCancelButton: true,
-            cancelButtonText: 'Cancelar',
-            cancelButtonColor: '#64748b',
-            allowOutsideClick: true,
-            allowEscapeKey: true,
-            didOpen: () => {
-                Swal.showLoading();
-
-                setTimeout(async () => {
-                    if (isCancelled) {
-                        cleanupElement();
-                        resolve(false);
-                        return;
-                    }
-
-                    try {
-                        if (typeof window.html2pdf === 'function') {
-                            const opt = {
-                                margin: [6, 6, 6, 6],
-                                filename: filename,
-                                image: { type: 'jpeg', quality: 0.98 },
-                                html2canvas: {
-                                    scale: 2,
-                                    useCORS: true,
-                                    letterRendering: true,
-                                    backgroundColor: '#ffffff',
-                                    logging: false,
-                                    scrollX: 0,
-                                    scrollY: 0,
-                                    windowWidth: 794
-                                },
-                                jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
-                                pagebreak: { mode: ['css', 'legacy'] }
-                            };
-                            if (isCancelled) {
-                                cleanupElement();
-                                resolve(false);
-                                return;
-                            }
-                            await window.html2pdf().set(opt).from(element).save();
-                        } else {
-                            const jsPDFClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
-                            if (!jsPDFClass || !window.html2canvas) {
-                                throw new Error("Librerías de PDF no disponibles en el navegador");
-                            }
-                            if (isCancelled) {
-                                cleanupElement();
-                                resolve(false);
-                                return;
-                            }
-                            const canvas = await window.html2canvas(element, {
-                                scale: 2,
-                                useCORS: true,
-                                backgroundColor: '#ffffff',
-                                scrollX: 0,
-                                scrollY: 0,
-                                windowWidth: 794
-                            });
-                            if (isCancelled) {
-                                cleanupElement();
-                                resolve(false);
-                                return;
-                            }
-                            const imgString = canvas.toDataURL('image/jpeg', 0.98);
-                            const pdf = new jsPDFClass('p', 'mm', 'letter');
-                            const pageWidth = 215.9;
-                            const margin = 6;
-                            const printWidth = pageWidth - (margin * 2);
-                            const printHeight = (canvas.height * printWidth) / canvas.width;
-                            pdf.addImage(imgString, 'JPEG', margin, margin, printWidth, printHeight);
-                            if (isCancelled) {
-                                cleanupElement();
-                                resolve(false);
-                                return;
-                            }
-                            pdf.save(filename);
-                        }
-
-                        cleanupElement();
-
-                        if (!isCancelled) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: '¡PDF Generado!',
-                                text: `Se ha descargado ${filename}`,
-                                timer: 2000,
-                                showConfirmButton: false
-                            });
-                            resolve(true);
-                        } else {
-                            resolve(false);
-                        }
-                    } catch (err) {
-                        cleanupElement();
-                        if (isCancelled) {
-                            resolve(false);
-                            return;
-                        }
-                        Swal.close();
-
-                        // Fallback to Native Print/Save Window
-                        Swal.fire({
-                            icon: 'info',
-                            title: 'Ventana de Impresión / Guardar PDF',
-                            text: `Abriendo vista de impresión para guardar como PDF...`,
-                            showCancelButton: true,
-                            cancelButtonText: 'Cerrar',
-                            confirmButtonText: 'Abrir'
-                        }).then((r) => {
-                            if (r.isConfirmed) {
-                                const printWindow = window.open('', '_blank');
-                                if (printWindow) {
-                                    printWindow.document.write(`
-                                        <html>
-                                            <head>
-                                                <title>${filename}</title>
-                                                <style>
-                                                    body { margin: 30px; font-family: 'Inter', Arial, sans-serif; background: #fff; color: #000; }
-                                                    table { width: 100%; border-collapse: collapse; }
-                                                    th, td { padding: 8px; text-align: left; border-bottom: 1px dashed #ccc; }
-                                                    @media print {
-                                                        body { margin: 0; }
-                                                    }
-                                                </style>
-                                            </head>
-                                            <body>
-                                                ${element.innerHTML}
-                                                <script>
-                                                    window.onload = function() {
-                                                        window.print();
-                                                        window.close();
-                                                    };
-                                                <\/script>
-                                            </body>
-                                        </html>
-                                    `);
-                                    printWindow.document.close();
-                                } else {
-                                    Swal.fire({
-                                        icon: 'error',
-                                        title: 'Bloqueador de Ventanas Activo',
-                                        text: 'Por favor permita las ventanas emergentes en este sitio.'
-                                    });
-                                }
-                            }
-                            resolve(false);
-                        });
-                    }
-                }, 600);
-            },
-            willClose: () => {
-                isCancelled = true;
-                cleanupElement();
-            }
-        }).then((result) => {
-            if (result.dismiss) {
-                isCancelled = true;
-                cleanupElement();
-                resolve(false);
-            }
-        });
-    });
+        }, 1000);
+    }
 }
 
 window.generateSessionReceiptHTML = (patient, sessionObj, busData) => {
