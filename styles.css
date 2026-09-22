@@ -3048,10 +3048,10 @@ html, body {
 
     .medical-doc-container {
         width: 100% !important;
-        max-width: 740px !important;
+        max-width: 100% !important;
         height: auto !important;
         max-height: none !important;
-        padding: 4px 8px !important;
+        padding: 0 !important;
         margin: 0 auto !important;
         box-shadow: none !important;
         border: none !important;
