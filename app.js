@@ -1753,6 +1753,9 @@ window.selectPatientAndLoadApprovedBudget = async function(patientId) {
                 try { window.patientSigPad.loadFromDataURL(p.metadata.patientSignature); } catch(e){}
             }
         }
+        if (typeof window.refreshSignatureBoxBadges === 'function') {
+            window.refreshSignatureBoxBadges();
+        }
         await renderOdontogramView();
         if (window.odontogram && Object.keys(draftOdData).length > 0) {
             window.odontogram.setData(draftOdData);
@@ -8689,6 +8692,20 @@ function initGlobalEvents() {
                 paymentMethod = `Mixto (${parts.join(', ') || 'Sin distribución'})`;
             }
             const notes = document.getElementById('budget-notes')?.value || '';
+            const consentText = document.getElementById('consent-text')?.value || document.getElementById('budget-consent-text')?.value || '';
+
+            let docSig = null;
+            if (window.doctorSigPad && !window.doctorSigPad.isEmpty()) {
+                docSig = window.doctorSigPad.toDataURL();
+            } else {
+                const currentUser = getCurrentUser();
+                docSig = currentUser ? ((currentUser.doctorProfile && currentUser.doctorProfile.signature) || (currentUser.doctor_profile && currentUser.doctor_profile.signature)) : null;
+            }
+
+            let patSig = null;
+            if (window.patientSigPad && !window.patientSigPad.isEmpty()) {
+                patSig = window.patientSigPad.toDataURL();
+            }
 
             const budgetId = activeEditingBudgetId || `PRE-${Date.now().toString().slice(-6)}`;
             const odData = (window.odontogram && window.odontogram.getData()) ? window.odontogram.getData() : {};
@@ -8716,13 +8733,17 @@ function initGlobalEvents() {
                 totalUSD: totalUSD,
                 totalBcv: parseFloat(totalVES),
                 status: 'Borrador',
+                doctorSignature: docSig,
+                patientSignature: patSig,
                 footerText: notes,
                 metadata: {
-                    consentText: document.getElementById('consent-text')?.value || '',
+                    consentText: consentText,
                     discountPct: discountPct,
                     paymentMethodCode: rawPaymentMethod,
                     splitDetails: splitDetails,
-                    odontogramData: odData
+                    odontogramData: odData,
+                    doctorSignature: docSig,
+                    patientSignature: patSig
                 }
             };
 
@@ -8734,6 +8755,12 @@ function initGlobalEvents() {
                 const patient = patients.find(p => String(p.id) === String(activeId));
                 if (patient) {
                     if (!patient.metadata) patient.metadata = {};
+                    if (patSig) {
+                        patient.metadata.patientSignature = patSig;
+                    }
+                    if (docSig) {
+                        patient.metadata.doctorSignature = docSig;
+                    }
                     patient.metadata.draftOdontogramData = odData;
                     patient.metadata.draftBudget = {
                         id: budgetId,
@@ -8743,7 +8770,9 @@ function initGlobalEvents() {
                         paymentMethod: paymentMethod,
                         paymentMethodCode: rawPaymentMethod,
                         splitDetails: splitDetails,
-                        consentText: document.getElementById('consent-text')?.value || ''
+                        consentText: consentText,
+                        doctorSignature: docSig,
+                        patientSignature: patSig
                     };
                     await SupabaseDataService.savePatient(patient);
                 }
@@ -13775,16 +13804,18 @@ async function renderPublicBudgetView() {
         let patientFiliation = `Cédula / ID: ${patient.id}`;
         if (patient.phone) patientFiliation += ` | Tel: ${patient.phone}`;
 
+        const resolvedDocSig = budget.doctorSignature || budget.doctor_signature || (budget.metadata && (budget.metadata.doctorSig || budget.metadata.doctorSignature)) || (patient && patient.metadata && patient.metadata.doctorSignature);
         let docSignatureHtml = '';
-        if (budget.metadata && budget.metadata.doctorSig) {
-            docSignatureHtml = `<img src="${budget.metadata.doctorSig}" style="max-height: 60px; max-width: 100%; border-bottom: 1px solid #94a3b8; display:block; margin:0 auto 4px auto;" alt="Firma Odontólogo"><span style="font-size:0.75rem; color:#64748b;">Firma Odontólogo</span>`;
+        if (resolvedDocSig) {
+            docSignatureHtml = `<img src="${resolvedDocSig}" style="max-height: 60px; max-width: 100%; border-bottom: 1px solid #94a3b8; display:block; margin:0 auto 4px auto;" alt="Firma Odontólogo"><span style="font-size:0.75rem; color:#64748b;">Firma Odontólogo</span>`;
         } else {
             docSignatureHtml = `<div style="height: 55px; border-bottom: 1px solid #94a3b8; margin-bottom: 4px;"></div><span style="font-size:0.75rem; color:#64748b;">Firma Odontólogo</span>`;
         }
 
+        const resolvedPatSig = budget.patientSignature || budget.patient_signature || (budget.metadata && (budget.metadata.patientSig || budget.metadata.patientSignature)) || (patient && patient.metadata && patient.metadata.patientSignature);
         let patSignatureHtml = '';
-        if (budget.metadata && budget.metadata.patientSig) {
-            patSignatureHtml = `<img src="${budget.metadata.patientSig}" style="max-height: 60px; max-width: 100%; border-bottom: 1px solid #94a3b8; display:block; margin:0 auto 4px auto;" alt="Firma Paciente"><span style="font-size:0.75rem; color:#64748b;">Firma Paciente</span>`;
+        if (resolvedPatSig) {
+            patSignatureHtml = `<img src="${resolvedPatSig}" style="max-height: 60px; max-width: 100%; border-bottom: 1px solid #94a3b8; display:block; margin:0 auto 4px auto;" alt="Firma Paciente"><span style="font-size:0.75rem; color:#64748b;">Firma Paciente</span>`;
         } else {
             patSignatureHtml = `<div style="height: 55px; border-bottom: 1px solid #94a3b8; margin-bottom: 4px;"></div><span style="font-size:0.75rem; color:#64748b;">Firma Paciente</span>`;
         }

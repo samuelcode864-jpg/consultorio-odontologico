@@ -723,6 +723,8 @@ class SupabaseDataService {
 
                     budgetRows.forEach(row => {
                         const od = row.odontogram_data || {};
+                        const docSig = od.doctorSignature || (od.metadata && (od.metadata.doctorSignature || od.metadata.doctorSig)) || '';
+                        const patSig = od.patientSignature || (od.metadata && (od.metadata.patientSignature || od.metadata.patientSig)) || '';
                         cloudInvoices.push({
                             id: od.id || row.id,
                             patientId: od.patientId || row.phone,
@@ -734,11 +736,15 @@ class SupabaseDataService {
                             totalRef: parseFloat(od.totalRef || 0),
                             totalBcv: parseFloat(od.totalBcv || 0),
                             status: od.status || row.status || 'Emitida',
-                            doctorSignature: od.doctorSignature || '',
-                            patientSignature: od.patientSignature || '',
+                            doctorSignature: docSig,
+                            patientSignature: patSig,
                             footerText: od.footerText || '',
                             odontogramData: od.odontogramData || (od.metadata && od.metadata.odontogramData) || {},
-                            metadata: od.metadata || {}
+                            metadata: {
+                                ...(od.metadata || {}),
+                                doctorSignature: docSig,
+                                patientSignature: patSig
+                            }
                         });
                     });
                 }
@@ -746,7 +752,13 @@ class SupabaseDataService {
                 const { data: invData, error: invErr } = await supabaseClient.from('invoices').select('*');
                 if (!invErr && invData && invData.length > 0) {
                     invData.forEach(i => {
-                        if (!cloudInvoices.find(c => c.id === i.id)) {
+                        const docSig = i.doctor_signature || i.doctorSignature || (i.metadata && (i.metadata.doctorSignature || i.metadata.doctorSig)) || '';
+                        const patSig = i.patient_signature || i.patientSignature || (i.metadata && (i.metadata.patientSignature || i.metadata.patientSig)) || '';
+                        const existingIdx = cloudInvoices.findIndex(c => c.id === i.id);
+                        if (existingIdx >= 0) {
+                            if (!cloudInvoices[existingIdx].doctorSignature && docSig) cloudInvoices[existingIdx].doctorSignature = docSig;
+                            if (!cloudInvoices[existingIdx].patientSignature && patSig) cloudInvoices[existingIdx].patientSignature = patSig;
+                        } else {
                             cloudInvoices.push({
                                 id: i.id,
                                 patientId: i.patient_id,
@@ -758,11 +770,15 @@ class SupabaseDataService {
                                 totalRef: parseFloat(i.total_ref || 0),
                                 totalBcv: parseFloat(i.total_bcv || 0),
                                 status: i.status || 'Emitida',
-                                doctorSignature: i.doctor_signature || i.doctorSignature || '',
-                                patientSignature: i.patient_signature || i.patientSignature || '',
+                                doctorSignature: docSig,
+                                patientSignature: patSig,
                                 footerText: i.footer_text,
                                 odontogramData: (i.metadata && i.metadata.odontogramData) || {},
-                                metadata: i.metadata || {}
+                                metadata: {
+                                    ...(i.metadata || {}),
+                                    doctorSignature: docSig,
+                                    patientSignature: patSig
+                                }
                             });
                         }
                     });
@@ -784,6 +800,18 @@ class SupabaseDataService {
         if (!invoiceObj.createdAt) {
             invoiceObj.createdAt = new Date().toISOString();
         }
+
+        const docSig = invoiceObj.doctorSignature || invoiceObj.doctor_signature || (invoiceObj.metadata && (invoiceObj.metadata.doctorSignature || invoiceObj.metadata.doctorSig)) || '';
+        const patSig = invoiceObj.patientSignature || invoiceObj.patient_signature || (invoiceObj.metadata && (invoiceObj.metadata.patientSignature || invoiceObj.metadata.patientSig)) || '';
+        invoiceObj.doctorSignature = docSig;
+        invoiceObj.patientSignature = patSig;
+        if (!invoiceObj.metadata) invoiceObj.metadata = {};
+        if (docSig) invoiceObj.metadata.doctorSignature = docSig;
+        if (patSig) {
+            invoiceObj.metadata.patientSignature = patSig;
+            invoiceObj.metadata.patientSig = patSig;
+        }
+
         let localInvs = JSON.parse(localStorage.getItem('dental_invoices')) || [];
         const idx = localInvs.findIndex(i => i.id === invoiceObj.id);
         if (idx >= 0) localInvs[idx] = invoiceObj;
@@ -812,10 +840,15 @@ class SupabaseDataService {
                         totalRef: invoiceObj.totalRef || 0,
                         totalBcv: invoiceObj.totalBcv || 0,
                         status: invoiceObj.status || 'Emitida',
+                        doctorSignature: docSig,
+                        patientSignature: patSig,
                         footerText: invoiceObj.footerText || '',
                         odontogramData: odData,
                         metadata: {
                             ...(invoiceObj.metadata || {}),
+                            doctorSignature: docSig,
+                            patientSignature: patSig,
+                            patientSig: patSig,
                             odontogramData: odData
                         }
                     }
@@ -835,9 +868,18 @@ class SupabaseDataService {
                     total_ref: invoiceObj.totalRef,
                     total_bcv: invoiceObj.totalBcv,
                     status: invoiceObj.status || 'Emitida',
-                    footer_text: invoiceObj.footerText
+                    doctor_signature: docSig,
+                    patient_signature: patSig,
+                    footer_text: invoiceObj.footerText,
+                    metadata: {
+                        ...(invoiceObj.metadata || {}),
+                        doctorSignature: docSig,
+                        patientSignature: patSig,
+                        patientSig: patSig,
+                        odontogramData: odData
+                    }
                 });
-                console.log('✅ Invoice / Budget synced to Supabase Cloud:', invoiceObj.id);
+                console.log('✅ Invoice / Budget with signatures synced to Supabase Cloud:', invoiceObj.id);
             } catch (err) {
                 console.warn('Supabase saveInvoice caught:', err);
             }
