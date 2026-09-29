@@ -1838,11 +1838,26 @@ async function renderBudgetListView(forceRefresh = false) {
             const badgeClass = isFacturado ? 'badge-tag blue' : (isApproved ? 'badge-tag green' : 'badge-tag orange');
             const statusLabel = isFacturado ? 'Finalizado' : (isApproved ? 'Aprobado' : 'Borrador');
 
+            let budgetDateDisplay = b.invoiceDate || '-';
+            let budgetTimeDisplay = '';
+            if (b.createdAt) {
+                try {
+                    const dt = new Date(b.createdAt);
+                    if (!isNaN(dt.getTime())) {
+                        budgetDateDisplay = dt.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                        budgetTimeDisplay = dt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true });
+                    }
+                } catch(e){}
+            }
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><strong>${b.id}</strong></td>
                 <td>${patientName}</td>
-                <td>${b.invoiceDate}</td>
+                <td>
+                    <div style="font-size:0.82rem; font-weight:600; color:var(--text-main); white-space:nowrap;"><i class="fa-regular fa-calendar text-cyan" style="font-size:0.75rem; margin-right:3px;"></i>${budgetDateDisplay}</div>
+                    ${budgetTimeDisplay ? `<small class="text-muted" style="display:block; font-size:0.72rem; margin-top:1px;"><i class="fa-regular fa-clock" style="font-size:0.68rem; margin-right:2px;"></i>${budgetTimeDisplay}</small>` : ''}
+                </td>
                 <td>$${b.totalRef.toFixed(2)}</td>
                 <td>${spec}</td>
                 <td><span class="${badgeClass}" style="font-size:0.75rem; text-transform:none; padding: 2px 6px;">${statusLabel}</span></td>
@@ -2281,6 +2296,22 @@ window.loadBudgetIntoEditor = async function(budgetId) {
         window.refreshSignatureBoxBadges();
     }
 
+    const infoBudgetDateEl = document.getElementById('info-budget-date');
+    if (infoBudgetDateEl) {
+        let bDateDisplay = budget.invoiceDate || 'Hoy';
+        if (budget.createdAt) {
+            try {
+                const dt = new Date(budget.createdAt);
+                if (!isNaN(dt.getTime())) {
+                    const dStr = dt.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    const tStr = dt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true });
+                    bDateDisplay = `${dStr} ${tStr} (${budget.status || 'Emitido'})`;
+                }
+            } catch(e){}
+        }
+        infoBudgetDateEl.innerText = bDateDisplay;
+    }
+
     renderBudgetTable();
 };
 
@@ -2371,6 +2402,22 @@ async function renderOdontogramView() {
             document.getElementById('info-patient-category').innerText = patient.category || 'Privado';
             document.getElementById('info-patient-doctor').innerText = patient.assignedDoctor || 'Dr. Rodrigo Navas';
 
+            let pCreatedDisplay = '-';
+            if (patient.createdAt) {
+                try {
+                    const d = new Date(patient.createdAt);
+                    if (!isNaN(d.getTime())) {
+                        pCreatedDisplay = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    } else {
+                        pCreatedDisplay = String(patient.createdAt).split('T')[0];
+                    }
+                } catch(e){
+                    pCreatedDisplay = String(patient.createdAt).split('T')[0];
+                }
+            }
+            const infoPatCreatedEl = document.getElementById('info-patient-created');
+            if (infoPatCreatedEl) infoPatCreatedEl.innerText = pCreatedDisplay;
+
             const searchInput = document.getElementById('od-patient-search-input');
             if (searchInput) {
                 searchInput.value = patient ? (patient.fullname || '') : '';
@@ -2395,6 +2442,11 @@ async function renderOdontogramView() {
             }
         }
     } else {
+        const infoPatCreatedEl = document.getElementById('info-patient-created');
+        if (infoPatCreatedEl) infoPatCreatedEl.innerText = '-';
+        const infoBudgetDateEl = document.getElementById('info-budget-date');
+        if (infoBudgetDateEl && !activeEditingBudgetId) infoBudgetDateEl.innerText = 'Hoy (En edición)';
+
         // Cargar respaldo de odontograma y presupuesto anónimo si no se ha seleccionado paciente aún
         if (currentBudgetItems && currentBudgetItems.length > 0) {
             // Mantener items en memoria para trabajo anónimo
@@ -3116,7 +3168,7 @@ async function renderPatientsTable(filter = 'all', searchQuery = '') {
     }
 
     if (patients.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted" style="padding: 24px;">No se encontraron pacientes en la base de datos.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted" style="padding: 24px;">No se encontraron pacientes en la base de datos.</td></tr>`;
         return;
     }
 
@@ -3124,6 +3176,20 @@ async function renderPatientsTable(filter = 'all', searchQuery = '') {
         const age = calculateAge(p.birthdate);
         const initials = p.fullname.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
         
+        let regDateDisplay = '-';
+        if (p.createdAt) {
+            try {
+                const d = new Date(p.createdAt);
+                if (!isNaN(d.getTime())) {
+                    regDateDisplay = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                } else if (typeof p.createdAt === 'string') {
+                    regDateDisplay = p.createdAt.split('T')[0];
+                }
+            } catch(e) {
+                regDateDisplay = String(p.createdAt).split('T')[0];
+            }
+        }
+
         let alertsHtml = '';
         if (p.allergies && p.allergies.length > 0) {
             p.allergies.forEach(a => {
@@ -3153,6 +3219,9 @@ async function renderPatientsTable(filter = 'all', searchQuery = '') {
                     <strong>${p.fullname}</strong>
                     <small>${p.occupation || 'Sin especificación'}</small>
                 </div>
+            </td>
+            <td>
+                <div style="font-size:0.82rem; font-weight:600; color:var(--text-main); white-space:nowrap;"><i class="fa-regular fa-calendar text-cyan" style="font-size:0.75rem; margin-right:3px;"></i>${regDateDisplay}</div>
             </td>
             <td>
                 <strong>${age} años</strong>
@@ -3299,8 +3368,22 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
     if (activeId) {
         const activePatient = allPatients.find(p => p.id === activeId);
         if (activePatient) {
+            let regEhrDisplay = '-';
+            if (activePatient.createdAt) {
+                try {
+                    const dt = new Date(activePatient.createdAt);
+                    if (!isNaN(dt.getTime())) {
+                        regEhrDisplay = dt.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    } else {
+                        regEhrDisplay = String(activePatient.createdAt).split('T')[0];
+                    }
+                } catch(e) {
+                    regEhrDisplay = String(activePatient.createdAt).split('T')[0];
+                }
+            }
+
             document.getElementById('ehr-patient-fullname').innerText = activePatient.fullname;
-            document.getElementById('ehr-patient-subinfo').innerText = `Cédula: ${activePatient.id} | Edad: ${calculateAge(activePatient.birthdate)} años | Tel: ${activePatient.phone}`;
+            document.getElementById('ehr-patient-subinfo').innerText = `Cédula: ${activePatient.id} | Edad: ${calculateAge(activePatient.birthdate)} años | Tel: ${activePatient.phone} | 📅 F. Registro: ${regEhrDisplay}`;
             
             const meta = activePatient.metadata || {};
 
@@ -3323,6 +3406,7 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                 }
 
                 summaryFiliation.innerHTML = `
+                    <div><strong>Fecha de Registro:</strong> <span style="color:#0d9488; font-weight:700;"><i class="fa-regular fa-calendar-check"></i> ${regEhrDisplay}</span></div>
                     <div><strong>Tipo de Paciente:</strong> ${meta.type || 'Adulto'}</div>
                     <div><strong>Edad:</strong> ${meta.age || calculateAge(activePatient.birthdate)} años</div>
                     <div><strong>Sexo:</strong> ${meta.gender || 'N/A'}</div>
@@ -10644,6 +10728,9 @@ function initPatientStepperWizard() {
         if (modalTitle) {
             modalTitle.innerHTML = `<i class="fa-solid fa-user-plus text-cyan"></i> Registro de Paciente`;
         }
+        const createdText = document.getElementById('modal-patient-created-text');
+        if (createdText) createdText.innerText = '(Nuevo registro)';
+
         const saveBtn = document.getElementById('btn-save-patient');
         if (saveBtn) saveBtn.innerText = 'Guardar Paciente';
 
@@ -10680,6 +10767,25 @@ function initPatientStepperWizard() {
             if (modalTitle) {
                 modalTitle.innerHTML = `<i class="fa-solid fa-user-pen text-cyan"></i> Editar Paciente: ${p.fullname}`;
             }
+
+            const createdText = document.getElementById('modal-patient-created-text');
+            if (createdText) {
+                let regDate = '-';
+                if (p.createdAt) {
+                    try {
+                        const dt = new Date(p.createdAt);
+                        if (!isNaN(dt.getTime())) {
+                            regDate = dt.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + dt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true });
+                        } else {
+                            regDate = String(p.createdAt).split('T')[0];
+                        }
+                    } catch(e){
+                        regDate = String(p.createdAt).split('T')[0];
+                    }
+                }
+                createdText.innerText = regDate;
+            }
+
             const saveBtn = document.getElementById('btn-save-patient');
             if (saveBtn) {
                 saveBtn.innerText = 'Guardar Cambios';
@@ -13839,6 +13945,16 @@ async function renderPublicBudgetView() {
             `;
         }
 
+        let bDateTimeStr = budget.invoiceDate || '';
+        if (budget.createdAt) {
+            try {
+                const dt = new Date(budget.createdAt);
+                if (!isNaN(dt.getTime())) {
+                    bDateTimeStr = dt.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + dt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true });
+                }
+            } catch(e){}
+        }
+
         const html = `
             <div style="font-family: 'Inter', system-ui, sans-serif; color: #1e293b; width: 100%; box-sizing: border-box;">
                 <!-- HEADER -->
@@ -13856,7 +13972,7 @@ async function renderPublicBudgetView() {
                     <div style="text-align: right; min-width: 140px;">
                         <span style="background: rgba(6, 182, 212, 0.1); color: #0891b2; font-weight: 800; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; text-transform: uppercase; display: inline-block; margin-bottom: 6px;">PRESUPUESTO</span>
                         <p style="margin: 0; font-size: 0.92rem; font-weight: 800; color: #0f172a;">N° Control: ${budget.id}</p>
-                        <p style="margin: 3px 0 0 0; font-size: 0.78rem; color: #64748b;">Fecha: ${budget.invoiceDate || ''}</p>
+                        <p style="margin: 3px 0 0 0; font-size: 0.78rem; color: #64748b;">Fecha y Hora: <strong style="color:#0f172a;">${bDateTimeStr}</strong></p>
                     </div>
                 </div>
 

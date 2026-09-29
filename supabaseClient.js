@@ -361,14 +361,15 @@ class SupabaseDataService {
                             medication: p.medication || '',
                             emergencyContact: p.emergency_contact || '',
                             status: p.status || 'Activo',
+                            createdAt: p.created_at || (p.metadata && p.metadata.createdAt) || ext.createdAt || (p.odontogram_data && p.odontogram_data._app_extended && p.odontogram_data._app_extended.createdAt) || '2026-01-15T08:00:00.000Z',
                             odontogramData: toothStates,
                             clinicalNotes: p.clinical_notes || ext.clinicalNotes || (p.metadata && p.metadata._fallback_clinical_notes) || [],
                             sessions: ext.sessions || ext.clinicalNotes || p.clinical_notes || [],
                             photos: p.photos || ext.photos || (p.metadata && p.metadata._fallback_photos) || [],
                             payments: p.payments || ext.payments || (p.metadata && p.metadata._fallback_payments) || [],
                             metadata: (p.metadata && Object.keys(p.metadata).length > 0)
-                                ? { ...(ext.metadata || {}), ...p.metadata }
-                                : (ext.metadata || p.metadata || {})
+                                ? { ...(ext.metadata || {}), ...p.metadata, createdAt: p.created_at || (p.metadata && p.metadata.createdAt) || ext.createdAt || '2026-01-15T08:00:00.000Z' }
+                                : (ext.metadata || p.metadata || { createdAt: p.created_at || ext.createdAt || '2026-01-15T08:00:00.000Z' })
                         };
                     });
 
@@ -402,6 +403,14 @@ class SupabaseDataService {
     }
 
     static async savePatient(patientObj) {
+        if (!patientObj.createdAt) {
+            patientObj.createdAt = new Date().toISOString();
+        }
+        if (!patientObj.metadata) patientObj.metadata = {};
+        if (!patientObj.metadata.createdAt) {
+            patientObj.metadata.createdAt = patientObj.createdAt;
+        }
+
         let localPatients = JSON.parse(localStorage.getItem('dental_patients')) || [];
         const idx = localPatients.findIndex(p => p.id === patientObj.id);
         if (idx >= 0) localPatients[idx] = patientObj;
@@ -414,6 +423,7 @@ class SupabaseDataService {
                 const packedOdontogramData = {
                     ...(patientObj.odontogramData || {}),
                     _app_extended: {
+                        createdAt: patientObj.createdAt,
                         clinicalNotes: patientObj.clinicalNotes || [],
                         sessions: patientObj.sessions || patientObj.clinicalNotes || [],
                         photos: patientObj.photos || [],
@@ -725,10 +735,12 @@ class SupabaseDataService {
                         const od = row.odontogram_data || {};
                         const docSig = od.doctorSignature || (od.metadata && (od.metadata.doctorSignature || od.metadata.doctorSig)) || '';
                         const patSig = od.patientSignature || (od.metadata && (od.metadata.patientSignature || od.metadata.patientSig)) || '';
+                        const rowCreatedAt = row.created_at || od.createdAt || (od.metadata && od.metadata.createdAt) || (od.invoiceDate ? `${od.invoiceDate}T12:00:00.000Z` : new Date().toISOString());
                         cloudInvoices.push({
                             id: od.id || row.id,
                             patientId: od.patientId || row.phone,
                             invoiceDate: od.invoiceDate || row.birthdate,
+                            createdAt: rowCreatedAt,
                             paymentMethod: od.paymentMethod || 'Efectivo USD',
                             paymentTerms: od.paymentTerms || 'Contado',
                             currency: od.currency || 'REF',
@@ -742,6 +754,7 @@ class SupabaseDataService {
                             odontogramData: od.odontogramData || (od.metadata && od.metadata.odontogramData) || {},
                             metadata: {
                                 ...(od.metadata || {}),
+                                createdAt: rowCreatedAt,
                                 doctorSignature: docSig,
                                 patientSignature: patSig
                             }
@@ -754,15 +767,18 @@ class SupabaseDataService {
                     invData.forEach(i => {
                         const docSig = i.doctor_signature || i.doctorSignature || (i.metadata && (i.metadata.doctorSignature || i.metadata.doctorSig)) || '';
                         const patSig = i.patient_signature || i.patientSignature || (i.metadata && (i.metadata.patientSignature || i.metadata.patientSig)) || '';
+                        const invCreatedAt = i.created_at || (i.metadata && (i.metadata.createdAt || i.metadata.created_at)) || (i.invoice_date ? `${i.invoice_date}T12:00:00.000Z` : new Date().toISOString());
                         const existingIdx = cloudInvoices.findIndex(c => c.id === i.id);
                         if (existingIdx >= 0) {
                             if (!cloudInvoices[existingIdx].doctorSignature && docSig) cloudInvoices[existingIdx].doctorSignature = docSig;
                             if (!cloudInvoices[existingIdx].patientSignature && patSig) cloudInvoices[existingIdx].patientSignature = patSig;
+                            if (!cloudInvoices[existingIdx].createdAt && invCreatedAt) cloudInvoices[existingIdx].createdAt = invCreatedAt;
                         } else {
                             cloudInvoices.push({
                                 id: i.id,
                                 patientId: i.patient_id,
                                 invoiceDate: i.invoice_date,
+                                createdAt: invCreatedAt,
                                 paymentMethod: i.payment_method,
                                 paymentTerms: i.payment_terms,
                                 currency: i.currency,
@@ -776,6 +792,7 @@ class SupabaseDataService {
                                 odontogramData: (i.metadata && i.metadata.odontogramData) || {},
                                 metadata: {
                                     ...(i.metadata || {}),
+                                    createdAt: invCreatedAt,
                                     doctorSignature: docSig,
                                     patientSignature: patSig
                                 }
