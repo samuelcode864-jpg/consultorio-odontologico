@@ -61,23 +61,37 @@ document.addEventListener('DOMContentLoaded', async () => {
             const hasSig = window.patientSigPad && !window.patientSigPad.isEmpty();
             if (hasSig) {
                 patientBox.classList.add('has-signature');
+                patientBadge.className = 'badge-tag green';
                 patientBadge.innerHTML = '<i class="fa-solid fa-check text-white"></i> Firmado (Clic para modificar)';
             } else {
                 patientBox.classList.remove('has-signature');
+                patientBadge.className = 'badge-tag amber';
                 patientBadge.innerHTML = '<i class="fa-solid fa-pen-fancy"></i> Clic para firmar';
             }
         }
 
         const noticeEl = document.getElementById('doctor-sig-empty-notice');
         const canvasEl = document.getElementById('doctor-sig-canvas');
+        const doctorBadge = document.getElementById('doctor-sig-badge');
+        const hasDocSig = window.doctorSigPad && !window.doctorSigPad.isEmpty();
+
         if (noticeEl && canvasEl) {
-            const hasSig = window.doctorSigPad && !window.doctorSigPad.isEmpty();
-            if (hasSig) {
+            if (hasDocSig) {
                 noticeEl.classList.add('hidden');
                 canvasEl.style.display = 'block';
             } else {
                 noticeEl.classList.remove('hidden');
                 canvasEl.style.display = 'none';
+            }
+        }
+
+        if (doctorBadge) {
+            if (hasDocSig) {
+                doctorBadge.className = 'badge-tag green';
+                doctorBadge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Oficial de Perfil';
+            } else {
+                doctorBadge.className = 'badge-tag amber';
+                doctorBadge.innerHTML = '<i class="fa-solid fa-pen-fancy"></i> Clic para firmar';
             }
         }
     };
@@ -130,6 +144,55 @@ document.addEventListener('DOMContentLoaded', async () => {
                 },
                 onClear: () => {
                     if (window.patientSigPad) window.patientSigPad.clear();
+                    window.refreshSignatureBoxBadges();
+                }
+            });
+        });
+    }
+
+    // Click trigger for Doctor Signature in Budget (Direct Signing)
+    const doctorSigBoxWrapper = document.getElementById('doctor-sig-box-wrapper');
+    if (doctorSigBoxWrapper) {
+        doctorSigBoxWrapper.addEventListener('click', () => {
+            const currentDocSig = (window.doctorSigPad && !window.doctorSigPad.isEmpty()) ? window.doctorSigPad.toDataURL() : null;
+
+            window.openSignatureModal({
+                title: 'Firma Digitalizada del Odontólogo Tratante',
+                subtitle: 'Dibuje su firma con el dedo, stylus o mouse. Se vinculará a su perfil y a los presupuestos.',
+                initialDataUrl: currentDocSig,
+                onSave: async (dataUrl) => {
+                    if (dataUrl && window.doctorSigPad) {
+                        window.doctorSigPad.loadFromDataURL(dataUrl);
+                    } else if (window.doctorSigPad) {
+                        window.doctorSigPad.clear();
+                    }
+
+                    // Auto-save to currently logged-in user profile
+                    const currentUser = getCurrentUser();
+                    if (currentUser) {
+                        if (!currentUser.doctorProfile) currentUser.doctorProfile = {};
+                        currentUser.doctorProfile.signature = dataUrl || '';
+                        currentUser.doctor_profile = currentUser.doctorProfile;
+                        await SupabaseDataService.saveUser(currentUser);
+                        sessionStorage.setItem('dental_current_user', JSON.stringify(currentUser));
+                        localStorage.setItem('dental_current_user', JSON.stringify(currentUser));
+                    }
+
+                    window.refreshSignatureBoxBadges();
+                    await autoSaveActivePatientOdontogram();
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Firma Odontológica Guardada',
+                        text: 'Su firma digital se ha guardado exitosamente en su perfil.',
+                        timer: 2000,
+                        showConfirmButton: false,
+                        toast: true,
+                        position: 'top-end'
+                    });
+                },
+                onClear: () => {
+                    if (window.doctorSigPad) window.doctorSigPad.clear();
                     window.refreshSignatureBoxBadges();
                 }
             });
@@ -3167,6 +3230,17 @@ async function renderPatientsTable(filter = 'all', searchQuery = '') {
         );
     }
 
+    // Ordenar por orden de registro: El último registrado SIEMPRE de primero
+    patients.sort((a, b) => {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        if (timeA !== timeB) return timeB - timeA;
+
+        const idNumA = parseInt(String(a.id).replace(/[^0-9]/g, '')) || 0;
+        const idNumB = parseInt(String(b.id).replace(/[^0-9]/g, '')) || 0;
+        return idNumB - idNumA;
+    });
+
     if (patients.length === 0) {
         tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted" style="padding: 24px;">No se encontraron pacientes en la base de datos.</td></tr>`;
         return;
@@ -3337,6 +3411,17 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
             (p.phone && p.phone.includes(q))
         );
     }
+
+    // Ordenar por orden de registro: El último registrado SIEMPRE de primero
+    patients.sort((a, b) => {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        if (timeA !== timeB) return timeB - timeA;
+
+        const idNumA = parseInt(String(a.id).replace(/[^0-9]/g, '')) || 0;
+        const idNumB = parseInt(String(b.id).replace(/[^0-9]/g, '')) || 0;
+        return idNumB - idNumA;
+    });
 
     if (patients.length === 0) {
         listGroup.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.85rem;"><i class="fa-solid fa-user-slash" style="display:block; font-size:1.5rem; margin-bottom:6px;"></i>Sin coincidencias</div>`;
