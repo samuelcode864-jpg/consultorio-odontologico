@@ -619,8 +619,20 @@ function getExchangeRate() {
 
 // Helper: Persist Active Patient's Odontogram & Draft Budget Changes (With Anonymous Fallback)
 async function autoSaveActivePatientOdontogram() {
-    const odData = window.odontogram ? window.odontogram.getData() : {};
+    let odData = window.odontogram ? window.odontogram.getData() : {};
     
+    // Reconciliar de forma estricta para que nunca haya datos huérfanos en borradores
+    try {
+        if (typeof reconcileOdontogramAndBudget === 'function') {
+            const baremo = await SupabaseDataService.getBaremo();
+            const reconciled = reconcileOdontogramAndBudget(currentBudgetItems, odData, baremo);
+            currentBudgetItems = reconciled.items;
+            odData = reconciled.odData;
+        }
+    } catch(e) {
+        console.warn("Reconciliation check in autoSave:", e);
+    }
+
     const discInput = document.getElementById('budget-discount-input');
     const notesInput = document.getElementById('budget-notes');
     const termsInput = document.getElementById('payment-mode-select');
@@ -704,6 +716,201 @@ function deduplicateBudgetItems(items) {
         seen.add(key);
         return true;
     });
+}
+
+function reconcileOdontogramAndBudget(rawItems = [], rawOdData = {}, baremoList = []) {
+    let items = Array.isArray(rawItems) ? [...rawItems] : [];
+    let odData = { ...(rawOdData || {}) };
+
+    const faceNameMap = {
+        'top': 'Vestibular',
+        'bottom': 'Lingual / Palatino',
+        'left': 'Mesial',
+        'right': 'Distal',
+        'center': 'Oclusal'
+    };
+
+    function findBaremoProc(keywords = [], defaultName = '', defaultPrice = 35.0, defaultCode = 'OP-01') {
+        if (Array.isArray(baremoList) && baremoList.length > 0) {
+            for (const kw of keywords) {
+                const query = kw.toLowerCase();
+                const found = baremoList.find(b => 
+                    (b.code && b.code.toLowerCase() === query) ||
+                    (b.name && b.name.toLowerCase().includes(query)) ||
+                    (b.category && b.category.toLowerCase().includes(query))
+                );
+                if (found) {
+                    return {
+                        name: found.name,
+                        priceUSD: parseFloat(found.priceUSD) || defaultPrice,
+                        code: found.code || defaultCode
+                    };
+                }
+            }
+        }
+        return { name: defaultName, priceUSD: defaultPrice, code: defaultCode };
+    }
+
+    const defaultResina = findBaremoProc(['op-01', 'resina', 'restauracion', 'obturacion'], 'Restauración Resina Fotocurado', 35.00, 'OP-01');
+    const defaultEndoSingle = findBaremoProc(['en-01', 'unirradicular', 'conducto'], 'Tratamiento de Conducto Unirradicular', 120.00, 'EN-01');
+    const defaultEndoMulti = findBaremoProc(['en-02', 'multirradicular', 'molar', 'retratamiento'], 'Tratamiento de Conducto Multirradicular', 180.00, 'EN-02');
+    const defaultExt = findBaremoProc(['cx-01', 'exodoncia', 'extraccion', 'cirugia'], 'Exodoncia / Extracción Simple', 30.00, 'CX-01');
+    const defaultCrown = findBaremoProc(['pr-01', 'corona', 'protesis', 'incrustacion'], 'Corona / Prótesis Fija', 180.00, 'PR-01');
+
+    // PASS 1: Odontogram Marks (odData) -> Budget Items
+    Object.keys(odData).forEach(key => {
+        const val = odData[key];
+        if (!val || val === 'clear') return;
+
+        // Face Marks: e.g. "18-top", "24-center"
+        const faceMatch = key.match(/^(\d{1,2})-(top|bottom|left|right|center)$/);
+        if (faceMatch) {
+            const toothNum = faceMatch[1];
+            const faceId = faceMatch[2];
+            const faceSpan = faceNameMap[faceId] || faceId;
+
+            const hasItem = items.some(i => {
+                const iTooth = extractToothNumber(i);
+                if (String(iTooth) !== String(toothNum)) return false;
+                if (i.face === faceId) return true;
+                const iName = (i.name || '').toLowerCase();
+                if (iName.includes(faceSpan.toLowerCase()) || iName.includes(faceId)) return true;
+                return false;
+            });
+
+            if (!hasItem) {
+                if (val === 'patology' || val === 'proposed' || val === 'crown') {
+                    const proc = (val === 'crown') ? defaultCrown : defaultResina;
+                    items.push({
+                        key: `${toothNum}-${faceId}-proc-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                        tooth: toothNum,
+                        face: faceId,
+                        surface: faceSpan,
+                        serviceCode: proc.code,
+                        name: `${proc.name} (Pieza ${toothNum} - ${faceSpan})`,
+                        price: proc.priceUSD,
+                        specialist: 'Dr. Alejandro Silva'
+                    });
+                }
+            }
+        }
+
+        // Endodontics: e.g. "16-endo"
+        const endoMatch = key.match(/^(\d{1,2})-(?:endo|endo-status)$/);
+        if (endoMatch) {
+            const toothNum = endoMatch[1];
+            if (val === 'por_hacer' || val === 'rehacer') {
+                const hasEndoItem = items.some(i => {
+                    const iTooth = extractToothNumber(i);
+                    if (String(iTooth) !== String(toothNum)) return false;
+                    const iCode = (i.serviceCode || i.code || '').toLowerCase();
+                    const iName = (i.name || '').toLowerCase();
+                    return iCode.includes('en-') || iName.includes('endo') || iName.includes('conducto');
+                });
+
+                if (!hasEndoItem) {
+                    const proc = (val === 'rehacer') ? defaultEndoMulti : defaultEndoSingle;
+                    const prefix = (val === 'rehacer') ? 'Retratamiento de Endodoncia' : 'Endodoncia';
+                    items.push({
+                        key: `${toothNum}-endo-proc-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                        tooth: toothNum,
+                        face: 'Gnl',
+                        serviceCode: proc.code,
+                        name: `${prefix}: ${proc.name} (Pieza ${toothNum})`,
+                        price: proc.priceUSD,
+                        specialist: 'Dr. Alejandro Silva'
+                    });
+                }
+            }
+        }
+
+        // Extraction: e.g. "21-extraction"
+        const extMatch = key.match(/^(\d{1,2})-extraction$/);
+        if (extMatch && val === 'extraction') {
+            const toothNum = extMatch[1];
+            const hasExtItem = items.some(i => {
+                const iTooth = extractToothNumber(i);
+                if (String(iTooth) !== String(toothNum)) return false;
+                const iCode = (i.serviceCode || i.code || '').toLowerCase();
+                const iName = (i.name || '').toLowerCase();
+                return iCode.includes('cx-') || iCode.includes('ex-') || iName.includes('extrac') || iName.includes('exodoncia') || iName.includes('cirug');
+            });
+
+            if (!hasExtItem) {
+                items.push({
+                    key: `${toothNum}-extraction-proc-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                    tooth: toothNum,
+                    face: 'Gnl',
+                    serviceCode: defaultExt.code,
+                    name: `${defaultExt.name} (Pieza ${toothNum})`,
+                    price: defaultExt.priceUSD,
+                    specialist: 'Dr. Alejandro Silva'
+                });
+            }
+        }
+    });
+
+    // PASS 2: Budget Items -> Odontogram Marks
+    items.forEach(item => {
+        if (!item) return;
+        const toothNum = extractToothNumber(item);
+        if (!toothNum || toothNum === 'General' || toothNum === 'Gnl') return;
+
+        const iCode = (item.serviceCode || item.code || '').toLowerCase();
+        const iName = (item.name || '').toLowerCase();
+        const iFace = item.face || 'center';
+
+        // Check Extraction
+        if (iCode.includes('cx-') || iCode.includes('ex-') || iName.includes('extrac') || iName.includes('exodoncia') || iName.includes('cirug') || (item.key && item.key.includes('extraction'))) {
+            odData[`${toothNum}-extraction`] = 'extraction';
+            delete odData[`${toothNum}-absence`];
+            return;
+        }
+
+        // Check Endodontics
+        if (iCode.includes('en-02') || iName.includes('multirradicular') || iName.includes('retratamiento')) {
+            odData[`${toothNum}-endo`] = 'rehacer';
+            return;
+        }
+        if (iCode.includes('en-01') || iCode.includes('en-') || iName.includes('endo') || iName.includes('conducto')) {
+            odData[`${toothNum}-endo`] = 'por_hacer';
+            return;
+        }
+
+        // Check Absence
+        if (iName.includes('ausen') || iName.includes('falta')) {
+            odData[`${toothNum}-absence`] = 'absence';
+            delete odData[`${toothNum}-extraction`];
+            return;
+        }
+
+        // Check Crown / Protesis
+        if (iCode.includes('pr-') || iName.includes('corona') || iName.includes('prótesis') || iName.includes('protesis') || iName.includes('incrustaci')) {
+            const faceKey = (iFace && iFace !== 'Gnl' && iFace !== 'all') ? iFace : 'center';
+            odData[`${toothNum}-${faceKey}`] = 'crown';
+            return;
+        }
+
+        // General Restorative / Cavity / Resina
+        let detectedFace = (iFace && iFace !== 'Gnl' && iFace !== 'all') ? iFace : null;
+        if (!detectedFace) {
+            if (iName.includes('vestibular')) detectedFace = 'top';
+            else if (iName.includes('lingual') || iName.includes('palatino')) detectedFace = 'bottom';
+            else if (iName.includes('mesial')) detectedFace = 'left';
+            else if (iName.includes('distal')) detectedFace = 'right';
+            else detectedFace = 'center';
+        }
+
+        const currentFaceVal = odData[`${toothNum}-${detectedFace}`];
+        if (!currentFaceVal) {
+            odData[`${toothNum}-${detectedFace}`] = 'patology';
+        }
+    });
+
+    return {
+        items: deduplicateBudgetItems(items),
+        odData: odData
+    };
 }
 
 function restoreDraftBudgetUI(draft) {
@@ -1615,7 +1822,12 @@ async function saveCurrentBudgetAsDraft(patientIdToSave) {
         const patient = patients.find(p => String(p.id) === String(patientIdToSave));
         if (!patient) return;
 
-        const odData = window.odontogram ? window.odontogram.getData() : {};
+        let odData = window.odontogram ? window.odontogram.getData() : {};
+        const baremo = await SupabaseDataService.getBaremo();
+        const reconciled = reconcileOdontogramAndBudget(currentBudgetItems, odData, baremo);
+        currentBudgetItems = reconciled.items;
+        odData = reconciled.odData;
+
         const discInput = document.getElementById('budget-discount-input');
         const notesInput = document.getElementById('budget-notes');
         const termsInput = document.getElementById('payment-mode-select');
@@ -1806,10 +2018,16 @@ window.selectPatientAndLoadApprovedBudget = async function(patientId) {
         const patients = await SupabaseDataService.getPatients();
         const p = patients.find(pat => String(pat.id) === String(patientId));
         activeEditingBudgetId = (p?.metadata?.draftBudget && p.metadata.draftBudget.id) || null;
-        currentBudgetItems = (p?.metadata?.draftBudget && Array.isArray(p.metadata.draftBudget.items))
+        const rawDraftItems = (p?.metadata?.draftBudget && Array.isArray(p.metadata.draftBudget.items))
             ? [...p.metadata.draftBudget.items]
             : [];
-        const draftOdData = (p?.metadata && p.metadata.draftOdontogramData) || (p?.odontogramData) || {};
+        const rawDraftOd = (p?.metadata && p.metadata.draftOdontogramData) || (p?.odontogramData) || {};
+
+        const baremo = await SupabaseDataService.getBaremo();
+        const reconciled = reconcileOdontogramAndBudget(rawDraftItems, rawDraftOd, baremo);
+        currentBudgetItems = reconciled.items;
+        const draftOdData = reconciled.odData;
+
         if (window.patientSigPad) {
             window.patientSigPad.clear();
             if (p?.metadata?.patientSignature) {
@@ -2266,17 +2484,21 @@ window.loadBudgetIntoEditor = async function(budgetId) {
         specialist: item.specialist || (pat ? pat.assignedDoctor : null) || 'Dr. Rodrigo Navas'
     }));
 
-    currentBudgetItems = deduplicateBudgetItems(rawItems);
+    // Reconciliar de forma estricta y bidireccional Odontograma (Sección 3) <-> Presupuesto (Sección 4)
+    const baremo = await SupabaseDataService.getBaremo();
+    const odDataRaw = budget.odontogramData || (budget.metadata && budget.metadata.odontogramData) || (pat && pat.metadata && pat.metadata.draftOdontogramData) || (pat && pat.odontogramData) || {};
+    const reconciled = reconcileOdontogramAndBudget(rawItems, odDataRaw, baremo);
 
-    // Cargar odontograma guardado del presupuesto o del paciente
-    const odDataToLoad = budget.odontogramData || (budget.metadata && budget.metadata.odontogramData) || (pat && pat.metadata && pat.metadata.draftOdontogramData) || (pat && pat.odontogramData) || {};
+    currentBudgetItems = reconciled.items;
+    const odDataToLoad = reconciled.odData;
+
     if (window.odontogram) {
         window.odontogram.setData(odDataToLoad);
     }
 
     await renderOdontogramView();
 
-    // Re-verify odontogram has exact data loaded after view render
+    // Re-verificar que el odontograma tenga la data reconciliada
     if (window.odontogram && odDataToLoad && Object.keys(odDataToLoad).length > 0) {
         window.odontogram.setData(odDataToLoad);
     }
@@ -8221,20 +8443,37 @@ function initGlobalEvents() {
             approveBudgetBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
 
             try {
-                // Deduplicate current budget items FIRST
-                currentBudgetItems = deduplicateBudgetItems(currentBudgetItems);
+                // Reconciliar de forma estricta y bidireccional Odontograma <-> Items antes de aprobar
+                const baremo = await SupabaseDataService.getBaremo();
+                const rawOd = (window.odontogram ? window.odontogram.getData() : {});
+                const reconciled = reconcileOdontogramAndBudget(currentBudgetItems, rawOd, baremo);
+                currentBudgetItems = reconciled.items;
+                if (window.odontogram) {
+                    window.odontogram.setData(reconciled.odData);
+                }
 
                 const activeId = getActivePatientId();
                 if (!activeId) {
                     Swal.fire({ icon: 'info', title: 'Seleccione un paciente', text: 'Por favor active un paciente antes de aprobar el presupuesto.' });
+                    approveBudgetBtn.disabled = false;
+                    approveBudgetBtn.innerHTML = origHtml;
+                    window.isSavingBudget = false;
                     return;
                 }
                 const patients = await SupabaseDataService.getPatients();
                 const patient = patients.find(p => p.id === activeId);
-                if (!patient) return;
+                if (!patient) {
+                    approveBudgetBtn.disabled = false;
+                    approveBudgetBtn.innerHTML = origHtml;
+                    window.isSavingBudget = false;
+                    return;
+                }
 
                 if (currentBudgetItems.length === 0) {
                     Swal.fire({ icon: 'warning', title: 'Presupuesto vacío', text: 'Agregue al menos un tratamiento al presupuesto.' });
+                    approveBudgetBtn.disabled = false;
+                    approveBudgetBtn.innerHTML = origHtml;
+                    window.isSavingBudget = false;
                     return;
                 }
 
@@ -8822,6 +9061,17 @@ function initGlobalEvents() {
                 Swal.fire({ icon: 'warning', title: 'Seleccione un paciente', text: 'Por favor active un paciente antes de guardar.' });
                 return;
             }
+
+            // Reconciliar de forma estricta y bidireccional Odontograma <-> Items antes de actualizar
+            const baremo = await SupabaseDataService.getBaremo();
+            const rawOd = (window.odontogram ? window.odontogram.getData() : {});
+            const reconciled = reconcileOdontogramAndBudget(currentBudgetItems, rawOd, baremo);
+            currentBudgetItems = reconciled.items;
+            const odData = reconciled.odData;
+            if (window.odontogram) {
+                window.odontogram.setData(odData);
+            }
+
             if (currentBudgetItems.length === 0) {
                 Swal.fire({ icon: 'warning', title: 'Presupuesto vacío', text: 'Agregue al menos un tratamiento.' });
                 return;
@@ -8877,7 +9127,6 @@ function initGlobalEvents() {
             }
 
             const budgetId = activeEditingBudgetId || `PRE-${Date.now().toString().slice(-6)}`;
-            const odData = (window.odontogram && window.odontogram.getData()) ? window.odontogram.getData() : {};
             
             const budgetObj = {
                 id: budgetId,
