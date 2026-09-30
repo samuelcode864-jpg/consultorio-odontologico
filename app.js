@@ -695,6 +695,28 @@ function extractToothNumber(item) {
     return 'General';
 }
 
+function normalizeProcedureName(rawName = '') {
+    return String(rawName || '')
+        .toLowerCase()
+        .replace(/pza\.?\s*\d+/gi, '')
+        .replace(/pieza\s*\d+/gi, '')
+        .replace(/diente\s*\d+/gi, '')
+        .replace(/\(\s*center\s*\)/gi, '')
+        .replace(/\(\s*left\s*\)/gi, '')
+        .replace(/\(\s*right\s*\)/gi, '')
+        .replace(/\(\s*top\s*\)/gi, '')
+        .replace(/\(\s*bottom\s*\)/gi, '')
+        .replace(/\(\s*oclusal\s*\)/gi, '')
+        .replace(/\(\s*mesial\s*\)/gi, '')
+        .replace(/\(\s*distal\s*\)/gi, '')
+        .replace(/\(\s*vestibular\s*\)/gi, '')
+        .replace(/\(\s*lingual\s*\)/gi, '')
+        .replace(/\(\s*palatino\s*\)/gi, '')
+        .replace(/[^a-z0-9]/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
 function deduplicateBudgetItems(items) {
     if (!Array.isArray(items)) return [];
     const seen = new Set();
@@ -702,24 +724,73 @@ function deduplicateBudgetItems(items) {
         if (!item) return false;
         const tooth = extractToothNumber(item);
         const code = (item.serviceCode || item.code || '').trim().toLowerCase();
-        const rawName = (item.name || '').trim();
-        const cleanName = rawName
-            .replace(/^Pza\s*\d+\s*\([^\)]+\):\s*/i, '')
-            .replace(/^(Endodoncia|Retratamiento de Endodoncia):\s*/i, '')
-            .replace(/\s*\(Pieza\s*\d+\)/i, '')
-            .replace(/\s*\(Pza\.?\s*\d+\)/i, '')
-            .trim()
-            .toLowerCase();
-        
-        const key = code ? `${tooth}_${code}` : `${tooth}_${cleanName}`;
+        const normName = normalizeProcedureName(item.name || item.procedure || '');
+        const face = String(item.face || '').toLowerCase().trim();
+
+        // Unique signature combining tooth, code/normalized name, and face if face-specific
+        let key = '';
+        if (code && code !== 'srv' && code !== 'op-01' && code !== 'general') {
+            key = `${tooth}_code_${code}`;
+        } else if (normName) {
+            key = `${tooth}_name_${normName}_face_${face || 'gnl'}`;
+        } else {
+            key = `${tooth}_face_${face || 'gnl'}_price_${item.price || 0}`;
+        }
+
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
     });
 }
 
+function itemMatchesToothAndFace(item, toothNum, faceId) {
+    const itemTooth = extractToothNumber(item);
+    if (String(itemTooth) !== String(toothNum)) return false;
+
+    const itemFace = String(item.face || '').toLowerCase().trim();
+    const faceAliases = {
+        'center': ['center', 'c', 'oclusal', 'incisal', 'o', 'i'],
+        'top': ['top', 't', 'vestibular', 'v', 'sup', 'arriba', 'facial'],
+        'bottom': ['bottom', 'b', 'lingual', 'palatino', 'palatina', 'l', 'p', 'inf', 'abajo'],
+        'left': ['left', 'l', 'mesial', 'm', 'izq', 'izquierda'],
+        'right': ['right', 'r', 'distal', 'd', 'der', 'derecha']
+    };
+
+    const targetAliases = faceAliases[faceId] || [faceId];
+
+    if (targetAliases.includes(itemFace)) return true;
+
+    const lowerName = (item.name || '').toLowerCase();
+    for (const alias of targetAliases) {
+        if (lowerName.includes(alias)) return true;
+    }
+
+    // Generic or single-procedure tooth fallback: If the item is on this tooth and has a generic face, it already covers the tooth
+    if (itemFace === 'gnl' || itemFace === 'all' || !itemFace || itemFace === 'general') {
+        return true;
+    }
+
+    return false;
+}
+
+function itemMatchesToothAndEndo(item, toothNum) {
+    const itemTooth = extractToothNumber(item);
+    if (String(itemTooth) !== String(toothNum)) return false;
+    const code = (item.serviceCode || item.code || '').toLowerCase();
+    const name = (item.name || '').toLowerCase();
+    return code.includes('en-') || name.includes('endo') || name.includes('conducto') || name.includes('pulpar');
+}
+
+function itemMatchesToothAndExtraction(item, toothNum) {
+    const itemTooth = extractToothNumber(item);
+    if (String(itemTooth) !== String(toothNum)) return false;
+    const code = (item.serviceCode || item.code || '').toLowerCase();
+    const name = (item.name || '').toLowerCase();
+    return code.includes('cx-') || code.includes('ex-') || name.includes('extrac') || name.includes('exodoncia') || name.includes('cirug');
+}
+
 function reconcileOdontogramAndBudget(rawItems = [], rawOdData = {}, baremoList = []) {
-    let items = Array.isArray(rawItems) ? [...rawItems] : [];
+    let items = Array.isArray(rawItems) ? deduplicateBudgetItems(rawItems) : [];
     let odData = { ...(rawOdData || {}) };
 
     const faceNameMap = {
@@ -757,7 +828,7 @@ function reconcileOdontogramAndBudget(rawItems = [], rawOdData = {}, baremoList 
     const defaultExt = findBaremoProc(['cx-01', 'exodoncia', 'extraccion', 'cirugia'], 'Exodoncia / Extracción Simple', 30.00, 'CX-01');
     const defaultCrown = findBaremoProc(['pr-01', 'corona', 'protesis', 'incrustacion'], 'Corona / Prótesis Fija', 180.00, 'PR-01');
 
-    // PASS 1: Odontogram Marks (odData) -> Budget Items
+    // PASS 1: Odontogram Marks (odData) -> Budget Items ONLY IF tooth/face has 0 treatments
     Object.keys(odData).forEach(key => {
         const val = odData[key];
         if (!val || val === 'clear') return;
@@ -769,14 +840,7 @@ function reconcileOdontogramAndBudget(rawItems = [], rawOdData = {}, baremoList 
             const faceId = faceMatch[2];
             const faceSpan = faceNameMap[faceId] || faceId;
 
-            const hasItem = items.some(i => {
-                const iTooth = extractToothNumber(i);
-                if (String(iTooth) !== String(toothNum)) return false;
-                if (i.face === faceId) return true;
-                const iName = (i.name || '').toLowerCase();
-                if (iName.includes(faceSpan.toLowerCase()) || iName.includes(faceId)) return true;
-                return false;
-            });
+            const hasItem = items.some(i => itemMatchesToothAndFace(i, toothNum, faceId));
 
             if (!hasItem) {
                 if (val === 'patology' || val === 'proposed' || val === 'crown') {
@@ -800,13 +864,7 @@ function reconcileOdontogramAndBudget(rawItems = [], rawOdData = {}, baremoList 
         if (endoMatch) {
             const toothNum = endoMatch[1];
             if (val === 'por_hacer' || val === 'rehacer') {
-                const hasEndoItem = items.some(i => {
-                    const iTooth = extractToothNumber(i);
-                    if (String(iTooth) !== String(toothNum)) return false;
-                    const iCode = (i.serviceCode || i.code || '').toLowerCase();
-                    const iName = (i.name || '').toLowerCase();
-                    return iCode.includes('en-') || iName.includes('endo') || iName.includes('conducto');
-                });
+                const hasEndoItem = items.some(i => itemMatchesToothAndEndo(i, toothNum));
 
                 if (!hasEndoItem) {
                     const proc = (val === 'rehacer') ? defaultEndoMulti : defaultEndoSingle;
@@ -828,13 +886,7 @@ function reconcileOdontogramAndBudget(rawItems = [], rawOdData = {}, baremoList 
         const extMatch = key.match(/^(\d{1,2})-extraction$/);
         if (extMatch && val === 'extraction') {
             const toothNum = extMatch[1];
-            const hasExtItem = items.some(i => {
-                const iTooth = extractToothNumber(i);
-                if (String(iTooth) !== String(toothNum)) return false;
-                const iCode = (i.serviceCode || i.code || '').toLowerCase();
-                const iName = (i.name || '').toLowerCase();
-                return iCode.includes('cx-') || iCode.includes('ex-') || iName.includes('extrac') || iName.includes('exodoncia') || iName.includes('cirug');
-            });
+            const hasExtItem = items.some(i => itemMatchesToothAndExtraction(i, toothNum));
 
             if (!hasExtItem) {
                 items.push({
@@ -850,7 +902,7 @@ function reconcileOdontogramAndBudget(rawItems = [], rawOdData = {}, baremoList 
         }
     });
 
-    // PASS 2: Budget Items -> Odontogram Marks
+    // PASS 2: Budget Items -> Odontogram Marks (Preserve all existing item details, ensure diagram has faces painted)
     items.forEach(item => {
         if (!item) return;
         const toothNum = extractToothNumber(item);
@@ -858,7 +910,7 @@ function reconcileOdontogramAndBudget(rawItems = [], rawOdData = {}, baremoList 
 
         const iCode = (item.serviceCode || item.code || '').toLowerCase();
         const iName = (item.name || '').toLowerCase();
-        const iFace = item.face || 'center';
+        const iFace = String(item.face || '').toLowerCase().trim();
 
         // Check Extraction
         if (iCode.includes('cx-') || iCode.includes('ex-') || iName.includes('extrac') || iName.includes('exodoncia') || iName.includes('cirug') || (item.key && item.key.includes('extraction'))) {
@@ -884,20 +936,20 @@ function reconcileOdontogramAndBudget(rawItems = [], rawOdData = {}, baremoList 
             return;
         }
 
-        // Check Crown / Protesis
+        // Check Crown / Protesis / Incrustacion
         if (iCode.includes('pr-') || iName.includes('corona') || iName.includes('prótesis') || iName.includes('protesis') || iName.includes('incrustaci')) {
-            const faceKey = (iFace && iFace !== 'Gnl' && iFace !== 'all') ? iFace : 'center';
+            const faceKey = (iFace && iFace !== 'gnl' && iFace !== 'all' && ['top','bottom','left','right','center'].includes(iFace)) ? iFace : 'center';
             odData[`${toothNum}-${faceKey}`] = 'crown';
             return;
         }
 
         // General Restorative / Cavity / Resina
-        let detectedFace = (iFace && iFace !== 'Gnl' && iFace !== 'all') ? iFace : null;
+        let detectedFace = (iFace && iFace !== 'gnl' && iFace !== 'all' && ['top','bottom','left','right','center'].includes(iFace)) ? iFace : null;
         if (!detectedFace) {
-            if (iName.includes('vestibular')) detectedFace = 'top';
-            else if (iName.includes('lingual') || iName.includes('palatino')) detectedFace = 'bottom';
-            else if (iName.includes('mesial')) detectedFace = 'left';
-            else if (iName.includes('distal')) detectedFace = 'right';
+            if (iName.includes('vestibular') || iName.includes('(top)')) detectedFace = 'top';
+            else if (iName.includes('lingual') || iName.includes('palatino') || iName.includes('(bottom)')) detectedFace = 'bottom';
+            else if (iName.includes('mesial') || iName.includes('(left)')) detectedFace = 'left';
+            else if (iName.includes('distal') || iName.includes('(right)')) detectedFace = 'right';
             else detectedFace = 'center';
         }
 
