@@ -725,16 +725,14 @@ function deduplicateBudgetItems(items) {
         const tooth = extractToothNumber(item);
         const code = (item.serviceCode || item.code || '').trim().toLowerCase();
         const normName = normalizeProcedureName(item.name || item.procedure || '');
-        const face = String(item.face || '').toLowerCase().trim();
 
-        // Unique signature combining tooth, code/normalized name, and face if face-specific
         let key = '';
-        if (code && code !== 'srv' && code !== 'op-01' && code !== 'general') {
+        if (code && code !== 'srv' && code !== 'op-01' && code !== 'general' && code !== 'undefined' && !code.startsWith('proc-') && !code.startsWith('custom-')) {
             key = `${tooth}_code_${code}`;
         } else if (normName) {
-            key = `${tooth}_name_${normName}_face_${face || 'gnl'}`;
+            key = `${tooth}_name_${normName}`;
         } else {
-            key = `${tooth}_face_${face || 'gnl'}_price_${item.price || 0}`;
+            key = `${tooth}_price_${item.price || 0}`;
         }
 
         if (seen.has(key)) return false;
@@ -3272,6 +3270,7 @@ async function getDoctorsList() {
 }
 
 async function renderBudgetTable() {
+    currentBudgetItems = deduplicateBudgetItems(currentBudgetItems);
     const tbody = document.getElementById('budget-table-body');
     if (!tbody) return;
 
