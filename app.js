@@ -3246,7 +3246,14 @@ function addProcedureToBudget(toothKeyObj, procedure) {
     renderBudgetTable();
 }
 
+let cachedDoctorsList = null;
+let lastDoctorsFetchTime = 0;
+
 async function getDoctorsList() {
+    const now = Date.now();
+    if (cachedDoctorsList && (now - lastDoctorsFetchTime < 60000)) {
+        return cachedDoctorsList;
+    }
     try {
         const users = await SupabaseDataService.getUsers();
         const doctors = users.filter(u => {
@@ -3261,163 +3268,185 @@ async function getDoctorsList() {
                 const r = (u.role || '').toLowerCase();
                 return !r.includes('admin') && !r.includes('super') && !r.includes('asistente') && !r.includes('recep');
             });
-            return fallback.length > 0 ? fallback : [{ fullname: 'Dr. Alejandro Silva', role: 'Odontólogo Principal' }];
+            cachedDoctorsList = fallback.length > 0 ? fallback : [{ fullname: 'Dr. Alejandro Silva', role: 'Odontólogo Principal' }];
+        } else {
+            cachedDoctorsList = doctors;
         }
-        return doctors;
+        lastDoctorsFetchTime = now;
+        return cachedDoctorsList;
     } catch (err) {
         console.error('Error in getDoctorsList:', err);
         return [{ fullname: 'Dr. Alejandro Silva', role: 'Odontólogo Principal' }];
     }
 }
 
+let isRenderingBudgetTable = false;
+let pendingRenderBudgetTable = false;
+
 async function renderBudgetTable() {
-    currentBudgetItems = deduplicateBudgetItems(currentBudgetItems);
-    const tbody = document.getElementById('budget-table-body');
-    if (!tbody) return;
-
-    tbody.innerHTML = '';
-    const rate = getExchangeRate();
-    const doctors = await getDoctorsList();
-
-    const activeCurrency = localStorage.getItem('dental_exchange_currency') || 'USD';
-    const curSymbol = activeCurrency === 'EUR' ? '€' : '$';
-    const curLabel = activeCurrency === 'EUR' ? 'EUR' : 'USD';
-
-    // Update labels in index.html to show correct reference currency
-    const refTitleLabel = document.getElementById('ref-title-label');
-    if (refTitleLabel) {
-        refTitleLabel.innerText = activeCurrency === 'EUR' 
-            ? 'Total Final en Euros (€):' 
-            : 'Total Final en Dólares ($):';
-    }
-    const customPriceLabel = document.getElementById('custom-price-label');
-    if (customPriceLabel) {
-        customPriceLabel.innerText = `Precio (${curSymbol} ${curLabel})`;
-    }
-    const budgetPriceHeader = document.getElementById('budget-price-header');
-    if (budgetPriceHeader) {
-        budgetPriceHeader.innerText = `Precio (${curSymbol} ${curLabel})`;
-    }
-
-    // Setup global discount & form listeners once
-    const discInput = document.getElementById('budget-discount-input');
-    if (discInput && !discInput.dataset.hasListener) {
-        discInput.dataset.hasListener = 'true';
-        discInput.addEventListener('input', async () => {
-            await autoSaveActivePatientOdontogram();
-            renderBudgetTable();
-        });
-    }
-
-    const notesInput = document.getElementById('budget-notes');
-    if (notesInput && !notesInput.dataset.hasListener) {
-        notesInput.dataset.hasListener = 'true';
-        notesInput.addEventListener('input', async () => {
-            await autoSaveActivePatientOdontogram();
-        });
-    }
-
-    const termsInput = document.getElementById('payment-mode-select');
-    if (termsInput && !termsInput.dataset.hasListener) {
-        termsInput.dataset.hasListener = 'true';
-        termsInput.addEventListener('change', async () => {
-            await autoSaveActivePatientOdontogram();
-        });
-    }
-
-    const consentInput = document.getElementById('budget-consent-text');
-    if (consentInput && !consentInput.dataset.hasListener) {
-        consentInput.dataset.hasListener = 'true';
-        consentInput.addEventListener('input', async () => {
-            await autoSaveActivePatientOdontogram();
-        });
-    }
-
-    if (currentBudgetItems.length === 0) {
-        tbody.innerHTML = `<tr class="empty-row"><td colspan="6" class="text-center text-muted">Haga clic en el odontodiagrama o en "+ Agregar Item" para armar el presupuesto.</td></tr>`;
-        document.getElementById('budget-subtotal').innerText = `${curSymbol}0.00`;
-        document.getElementById('budget-subtotal-bs').innerText = 'Bs. 0.00';
-        document.getElementById('budget-discount-amount').innerText = `${curSymbol}0.00`;
-        document.getElementById('budget-discount-ves').innerText = 'Bs. 0.00';
-        document.getElementById('budget-total-amount').innerText = `${curSymbol}0.00`;
-        document.getElementById('budget-total-ves').innerText = 'Bs. 0.00';
+    if (isRenderingBudgetTable) {
+        pendingRenderBudgetTable = true;
         return;
     }
+    isRenderingBudgetTable = true;
 
-    let subtotalUSD = 0;
-    const currentUser = getCurrentUser();
-    const loggedInDoctor = currentUser && doctors.find(d => d.fullname === currentUser.fullname);
+    try {
+        currentBudgetItems = deduplicateBudgetItems(currentBudgetItems);
+        const tbody = document.getElementById('budget-table-body');
+        if (!tbody) return;
 
-    currentBudgetItems.forEach((item, index) => {
-        if (item.price === undefined) item.price = 0;
-        if (!item.specialist || !doctors.some(d => d.fullname === item.specialist)) {
-            item.specialist = loggedInDoctor ? loggedInDoctor.fullname : (doctors[0] ? doctors[0].fullname : 'Dr. Alejandro Silva');
+        const rate = getExchangeRate();
+        const doctors = await getDoctorsList();
+
+        // Clear tbody AFTER all asynchronous calls finish to prevent race-condition duplications
+        tbody.innerHTML = '';
+
+        const activeCurrency = localStorage.getItem('dental_exchange_currency') || 'USD';
+        const curSymbol = activeCurrency === 'EUR' ? '€' : '$';
+        const curLabel = activeCurrency === 'EUR' ? 'EUR' : 'USD';
+
+        // Update labels in index.html to show correct reference currency
+        const refTitleLabel = document.getElementById('ref-title-label');
+        if (refTitleLabel) {
+            refTitleLabel.innerText = activeCurrency === 'EUR' 
+                ? 'Total Final en Euros (€):' 
+                : 'Total Final en Dólares ($):';
+        }
+        const customPriceLabel = document.getElementById('custom-price-label');
+        if (customPriceLabel) {
+            customPriceLabel.innerText = `Precio (${curSymbol} ${curLabel})`;
+        }
+        const budgetPriceHeader = document.getElementById('budget-price-header');
+        if (budgetPriceHeader) {
+            budgetPriceHeader.innerText = `Precio (${curSymbol} ${curLabel})`;
         }
 
-        subtotalUSD += item.price;
+        // Setup global discount & form listeners once
+        const discInput = document.getElementById('budget-discount-input');
+        if (discInput && !discInput.dataset.hasListener) {
+            discInput.dataset.hasListener = 'true';
+            discInput.addEventListener('input', async () => {
+                await autoSaveActivePatientOdontogram();
+                renderBudgetTable();
+            });
+        }
 
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td><strong>#${item.tooth || '-'}</strong></td>
-            <td><strong>${item.name}</strong></td>
-            <td>
-                <select class="form-control btn-xs srv-specialist-select" style="width: 160px; font-size: 0.82rem; padding: 4px 8px; border-radius: 6px;" data-idx="${index}">
-                    ${doctors.map(doc => `<option value="${doc.fullname}" ${item.specialist === doc.fullname ? 'selected' : ''}>${doc.fullname}</option>`).join('')}
-                </select>
-            </td>
-            <td>
-                <div style="display: flex; align-items: center; gap: 4px; font-weight: 600;">
-                    ${curSymbol} <input type="number" class="form-control btn-xs srv-price-input" style="width: 70px; padding: 4px 6px; height: auto; text-align: center; border-radius: 4px;" value="${item.price}" step="0.01" data-idx="${index}"> ${curLabel}
-                </div>
-            </td>
-            <td style="font-weight: 700; color: #1e3a8a;">${(item.price * rate).toFixed(2)} Bs</td>
-            <td>
-                <button class="btn btn-xs btn-outline text-red" style="border-radius: 6px; padding: 4px 8px;" onclick="removeBudgetItem(${index})"><i class="fa-solid fa-trash"></i></button>
-            </td>
-        `;
+        const notesInput = document.getElementById('budget-notes');
+        if (notesInput && !notesInput.dataset.hasListener) {
+            notesInput.dataset.hasListener = 'true';
+            notesInput.addEventListener('input', async () => {
+                await autoSaveActivePatientOdontogram();
+            });
+        }
 
-        // Handle specialist select change
-        const specSelect = tr.querySelector('.srv-specialist-select');
-        specSelect.addEventListener('change', async (e) => {
-            const selectedDoc = e.target.value;
-            currentBudgetItems[index].specialist = selectedDoc;
-            await autoLoadDoctorSignatureInBudget(selectedDoc);
-            await autoSaveActivePatientOdontogram();
+        const termsInput = document.getElementById('payment-mode-select');
+        if (termsInput && !termsInput.dataset.hasListener) {
+            termsInput.dataset.hasListener = 'true';
+            termsInput.addEventListener('change', async () => {
+                await autoSaveActivePatientOdontogram();
+            });
+        }
+
+        const consentInput = document.getElementById('budget-consent-text');
+        if (consentInput && !consentInput.dataset.hasListener) {
+            consentInput.dataset.hasListener = 'true';
+            consentInput.addEventListener('input', async () => {
+                await autoSaveActivePatientOdontogram();
+            });
+        }
+
+        if (currentBudgetItems.length === 0) {
+            tbody.innerHTML = `<tr class="empty-row"><td colspan="6" class="text-center text-muted">Haga clic en el odontodiagrama o en "+ Agregar Item" para armar el presupuesto.</td></tr>`;
+            document.getElementById('budget-subtotal').innerText = `${curSymbol}0.00`;
+            document.getElementById('budget-subtotal-bs').innerText = 'Bs. 0.00';
+            document.getElementById('budget-discount-amount').innerText = `${curSymbol}0.00`;
+            document.getElementById('budget-discount-ves').innerText = 'Bs. 0.00';
+            document.getElementById('budget-total-amount').innerText = `${curSymbol}0.00`;
+            document.getElementById('budget-total-ves').innerText = 'Bs. 0.00';
+            return;
+        }
+
+        let subtotalUSD = 0;
+        const currentUser = getCurrentUser();
+        const loggedInDoctor = currentUser && doctors.find(d => d.fullname === currentUser.fullname);
+
+        currentBudgetItems.forEach((item, index) => {
+            if (item.price === undefined) item.price = 0;
+            if (!item.specialist || !doctors.some(d => d.fullname === item.specialist)) {
+                item.specialist = loggedInDoctor ? loggedInDoctor.fullname : (doctors[0] ? doctors[0].fullname : 'Dr. Alejandro Silva');
+            }
+
+            subtotalUSD += item.price;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>#${item.tooth || '-'}</strong></td>
+                <td><strong>${item.name}</strong></td>
+                <td>
+                    <select class="form-control btn-xs srv-specialist-select" style="width: 160px; font-size: 0.82rem; padding: 4px 8px; border-radius: 6px;" data-idx="${index}">
+                        ${doctors.map(doc => `<option value="${doc.fullname}" ${item.specialist === doc.fullname ? 'selected' : ''}>${doc.fullname}</option>`).join('')}
+                    </select>
+                </td>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 4px; font-weight: 600;">
+                        ${curSymbol} <input type="number" class="form-control btn-xs srv-price-input" style="width: 70px; padding: 4px 6px; height: auto; text-align: center; border-radius: 4px;" value="${item.price}" step="0.01" data-idx="${index}"> ${curLabel}
+                    </div>
+                </td>
+                <td style="font-weight: 700; color: #1e3a8a;">${(item.price * rate).toFixed(2)} Bs</td>
+                <td>
+                    <button class="btn btn-xs btn-outline text-red" style="border-radius: 6px; padding: 4px 8px;" onclick="removeBudgetItem(${index})"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            `;
+
+            // Handle specialist select change
+            const specSelect = tr.querySelector('.srv-specialist-select');
+            specSelect.addEventListener('change', async (e) => {
+                const selectedDoc = e.target.value;
+                currentBudgetItems[index].specialist = selectedDoc;
+                await autoLoadDoctorSignatureInBudget(selectedDoc);
+                await autoSaveActivePatientOdontogram();
+            });
+
+            // Handle price input edit
+            const priceIn = tr.querySelector('.srv-price-input');
+            priceIn.addEventListener('change', async (e) => {
+                const val = parseFloat(e.target.value) || 0;
+                currentBudgetItems[index].price = Math.max(0, val);
+                await autoSaveActivePatientOdontogram();
+                renderBudgetTable();
+            });
+
+            tbody.appendChild(tr);
         });
 
-        // Handle price input edit
-        const priceIn = tr.querySelector('.srv-price-input');
-        priceIn.addEventListener('change', async (e) => {
-            const val = parseFloat(e.target.value) || 0;
-            currentBudgetItems[index].price = Math.max(0, val);
-            await autoSaveActivePatientOdontogram();
+        const discountPct = parseFloat(document.getElementById('budget-discount-input').value) || 0;
+        const discountAmountUSD = subtotalUSD * (discountPct / 100);
+        const totalUSD = subtotalUSD - discountAmountUSD;
+
+        const subtotalVES = (subtotalUSD * rate).toFixed(2);
+        const discountVES = (discountAmountUSD * rate).toFixed(2);
+        const totalVES = (totalUSD * rate).toFixed(2);
+
+        // Update labels and values
+        document.getElementById('budget-subtotal').innerText = `${curSymbol}${subtotalUSD.toFixed(2)}`;
+        document.getElementById('budget-subtotal-bs').innerText = `Bs. ${subtotalVES}`;
+        document.getElementById('budget-discount-amount').innerText = `${curSymbol}${discountAmountUSD.toFixed(2)}`;
+        document.getElementById('budget-discount-ves').innerText = `Bs. ${discountVES}`;
+        
+        document.getElementById('budget-total-amount').innerText = `${curSymbol}${totalUSD.toFixed(2)} ${curLabel}`;
+        document.getElementById('budget-total-ves').innerText = `${totalVES} Bs`;
+        
+        const vesTitleLabel = document.getElementById('ves-title-label');
+        if (vesTitleLabel) {
+            const activeCurrency = localStorage.getItem('dental_exchange_currency') || 'USD';
+            vesTitleLabel.innerText = `Total Final en Bolívares (Tasa BCV ${activeCurrency} ${rate.toFixed(2)}):`;
+        }
+    } finally {
+        isRenderingBudgetTable = false;
+        if (pendingRenderBudgetTable) {
+            pendingRenderBudgetTable = false;
             renderBudgetTable();
-        });
-
-        tbody.appendChild(tr);
-    });
-
-    const discountPct = parseFloat(document.getElementById('budget-discount-input').value) || 0;
-    const discountAmountUSD = subtotalUSD * (discountPct / 100);
-    const totalUSD = subtotalUSD - discountAmountUSD;
-
-    const subtotalVES = (subtotalUSD * rate).toFixed(2);
-    const discountVES = (discountAmountUSD * rate).toFixed(2);
-    const totalVES = (totalUSD * rate).toFixed(2);
-
-    // Update labels and values
-    document.getElementById('budget-subtotal').innerText = `${curSymbol}${subtotalUSD.toFixed(2)}`;
-    document.getElementById('budget-subtotal-bs').innerText = `Bs. ${subtotalVES}`;
-    document.getElementById('budget-discount-amount').innerText = `${curSymbol}${discountAmountUSD.toFixed(2)}`;
-    document.getElementById('budget-discount-ves').innerText = `Bs. ${discountVES}`;
-    
-    document.getElementById('budget-total-amount').innerText = `${curSymbol}${totalUSD.toFixed(2)} ${curLabel}`;
-    document.getElementById('budget-total-ves').innerText = `${totalVES} Bs`;
-    
-    const vesTitleLabel = document.getElementById('ves-title-label');
-    if (vesTitleLabel) {
-        const activeCurrency = localStorage.getItem('dental_exchange_currency') || 'USD';
-        vesTitleLabel.innerText = `Total Final en Bolívares (Tasa BCV ${activeCurrency} ${rate.toFixed(2)}):`;
+        }
     }
 }
 
