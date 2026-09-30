@@ -826,7 +826,7 @@ function reconcileOdontogramAndBudget(rawItems = [], rawOdData = {}, baremoList 
     const defaultExt = findBaremoProc(['cx-01', 'exodoncia', 'extraccion', 'cirugia'], 'Exodoncia / Extracción Simple', 30.00, 'CX-01');
     const defaultCrown = findBaremoProc(['pr-01', 'corona', 'protesis', 'incrustacion'], 'Corona / Prótesis Fija', 180.00, 'PR-01');
 
-    // PASS 1: Odontogram Marks (odData) -> Budget Items ONLY IF tooth/face has 0 treatments
+    // PASS 1: Odontogram Marks (odData) -> Budget Items (ONLY IF tooth has 0 treatments in table)
     Object.keys(odData).forEach(key => {
         const val = odData[key];
         if (!val || val === 'clear') return;
@@ -838,9 +838,10 @@ function reconcileOdontogramAndBudget(rawItems = [], rawOdData = {}, baremoList 
             const faceId = faceMatch[2];
             const faceSpan = faceNameMap[faceId] || faceId;
 
-            const hasItem = items.some(i => itemMatchesToothAndFace(i, toothNum, faceId));
+            // Check if this tooth already has ANY procedure in the budget table
+            const toothHasAnyItem = items.some(i => String(extractToothNumber(i)) === String(toothNum));
 
-            if (!hasItem) {
+            if (!toothHasAnyItem) {
                 if (val === 'patology' || val === 'proposed' || val === 'crown') {
                     const proc = (val === 'crown') ? defaultCrown : defaultResina;
                     items.push({
