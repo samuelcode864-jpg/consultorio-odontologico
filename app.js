@@ -3852,6 +3852,10 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                 }
             }
 
+            window.activeEHRPatient = activePatient;
+            window.currentEhrApprovedBudgets = approvedBudgets;
+            window.currentEhrTreatmentsList = treatmentsList;
+
             // 4. Odontodiagrama Tab (Comparación Diagnóstico Inicial vs Evolución Actual de Presupuestos Aprobados)
             const initialWrapper = document.getElementById('ehr-od-initial-view');
             const currentWrapper = document.getElementById('ehr-od-current-view');
@@ -4131,15 +4135,9 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
             // Bind sessions add button
             const addSessBtn = document.getElementById('btn-add-session');
             if (addSessBtn) {
-                addSessBtn.onclick = async () => {
-                    let nextSuggestedNum = 1;
-                    for (let n = 1; n <= totalSessions + 1; n++) {
-                        if (!patientSessions.some(ps => ps.sessionNum === n)) {
-                            nextSuggestedNum = n;
-                            break;
-                        }
-                    }
-                    await window.openSessionModalForPatient(activePatient.id, nextSuggestedNum, '');
+                addSessBtn.onclick = (e) => {
+                    if (e) e.preventDefault();
+                    window.registerNewSessionForCurrentPatient();
                 };
             }
 
@@ -5562,7 +5560,7 @@ window.openAppointmentModalForPatient = async function(patientId, sessionNum, tr
     }
 };
 
-window.populateSessionNumberSelect = function(patient, targetSessionNum = null) {
+window.populateSessionNumberSelect = function(patient, targetSessionNum = null, customTreatments = null) {
     const sNumSelect = document.getElementById('s-num');
     if (!sNumSelect || !patient) return;
 
@@ -5570,7 +5568,10 @@ window.populateSessionNumberSelect = function(patient, targetSessionNum = null) 
     const completedSessionNums = new Set((patient.sessions || []).map(s => parseInt(s.sessionNum)));
 
     const meta = patient.metadata || {};
-    const treatments = meta.treatments || [];
+    let treatments = (customTreatments && customTreatments.length > 0) 
+        ? customTreatments 
+        : (meta.treatments && meta.treatments.length > 0 ? meta.treatments : (window.currentEhrTreatmentsList || []));
+
     const totalSessions = Math.max(treatments.length, 4, (patient.sessions || []).length);
 
     const pendingGroup = document.createElement('optgroup');
@@ -5584,7 +5585,10 @@ window.populateSessionNumberSelect = function(patient, targetSessionNum = null) 
     for (let i = 1; i <= totalSessions + 1; i++) {
         const isDone = completedSessionNums.has(i);
         const trt = treatments.find(t => parseInt(t.sessionNum) === i) || treatments[i - 1];
-        const trtName = trt ? trt.name : (i <= totalSessions ? `Tratamiento Sesión #${i}` : `Sesión Extra #${i}`);
+        let trtName = trt ? trt.name : (i <= totalSessions ? `Tratamiento Sesión #${i}` : `Sesión Extra #${i}`);
+        if (trt && trt.tooth && trt.tooth !== 'General' && trt.tooth !== 'Gnl' && !trtName.includes(String(trt.tooth))) {
+            trtName += ` (Pieza ${trt.tooth})`;
+        }
 
         const opt = document.createElement('option');
         opt.value = i;
@@ -5634,29 +5638,104 @@ window.populateSessionNumberSelect = function(patient, targetSessionNum = null) 
     };
 };
 
+window.registerNewSessionForCurrentPatient = async function() {
+    let patientId = getActivePatientId();
+    if (!patientId && window.activeEHRPatient) {
+        patientId = window.activeEHRPatient.id;
+    }
+    if (!patientId) {
+        try {
+            const patients = await SupabaseDataService.getPatients();
+            if (patients && patients.length > 0) {
+                patientId = patients[0].id;
+            }
+        } catch(e) {}
+    }
+
+    if (!patientId) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Paciente no seleccionado',
+            text: 'Por favor seleccione o abra un paciente en el Historial Clínico para registrar su sesión.'
+        });
+        return;
+    }
+
+    let nextSuggestedNum = 1;
+    if (window.activeEHRPatient && window.activeEHRPatient.sessions) {
+        const pSessions = window.activeEHRPatient.sessions;
+        while (pSessions.some(ps => parseInt(ps.sessionNum) === nextSuggestedNum)) {
+            nextSuggestedNum++;
+        }
+    }
+
+    await window.openSessionModalForPatient(patientId, nextSuggestedNum, '');
+};
+
 window.openSessionModalForPatient = async function(patientId, sessionNum, procedureName) {
     try {
-        setActivePatientId(patientId);
+        const targetId = patientId || getActivePatientId() || (window.activeEHRPatient ? window.activeEHRPatient.id : null);
+        if (targetId) setActivePatientId(targetId);
+
         const patients = await SupabaseDataService.getPatients();
-        const patient = patients.find(p => p.id === patientId);
+        let patient = patients.find(p => String(p.id) === String(targetId)) || window.activeEHRPatient;
+        if (!patient && patients.length > 0) {
+            patient = patients[0];
+            setActivePatientId(patient.id);
+        }
+
         if (!patient) {
-            Swal.fire({ icon: 'error', title: 'Error', text: 'No se encontró el paciente.' });
+            Swal.fire({ icon: 'error', title: 'Error', text: 'No se encontró el paciente activo.' });
             return;
         }
 
-        populateSessionNumberSelect(patient, sessionNum);
-        
-        document.getElementById('s-datetime').value = new Date().toISOString().slice(0, 16);
-        const initialProc = procedureName || (document.getElementById('s-num').options[document.getElementById('s-num').selectedIndex] ? document.getElementById('s-num').options[document.getElementById('s-num').selectedIndex].dataset.procedure : '');
-        document.getElementById('s-procedure').value = initialProc || `Sesión N° ${sessionNum || 1}`;
-        document.getElementById('s-next-notes').value = '';
+        // Gather treatments from metadata or active approved budget
+        let treatments = (patient.metadata && Array.isArray(patient.metadata.treatments) && patient.metadata.treatments.length > 0) 
+            ? patient.metadata.treatments 
+            : (window.currentEhrTreatmentsList || []);
+
+        if (treatments.length === 0) {
+            try {
+                const invoices = await SupabaseDataService.getInvoices();
+                const approved = invoices.filter(inv => String(inv.patientId) === String(patient.id) && (String(inv.status).toLowerCase() === 'aprobado' || String(inv.status).toLowerCase() === 'borrador'));
+                approved.forEach(b => {
+                    if (b.items && Array.isArray(b.items)) {
+                        b.items.forEach((it, idx) => {
+                            treatments.push({
+                                sessionNum: idx + 1,
+                                name: it.name,
+                                tooth: it.tooth || 'Gnl',
+                                price: it.price || 0,
+                                specialist: it.specialist || '',
+                                status: 'Planificado'
+                            });
+                        });
+                    }
+                });
+            } catch(e) {
+                console.warn("Could not fetch invoices for treatments list:", e);
+            }
+        }
+
+        populateSessionNumberSelect(patient, sessionNum, treatments);
+
+        const dtInput = document.getElementById('s-datetime');
+        if (dtInput) dtInput.value = new Date().toISOString().slice(0, 16);
+
+        const sNumEl = document.getElementById('s-num');
+        const selOpt = (sNumEl && sNumEl.selectedIndex >= 0) ? sNumEl.options[sNumEl.selectedIndex] : null;
+        const initialProc = procedureName || (selOpt ? selOpt.dataset.procedure : '') || `Sesión N° ${sessionNum || 1}`;
+        const procInput = document.getElementById('s-procedure');
+        if (procInput) procInput.value = initialProc;
+
+        const notesInput = document.getElementById('s-next-notes');
+        if (notesInput) notesInput.value = '';
 
         // Populate planned treatments selector
         const trtSelect = document.getElementById('s-planned-treatment-select');
         if (trtSelect) {
             trtSelect.innerHTML = '<option value="">-- Selección manual / Tratamiento libre --</option>';
-            const trts = (patient.metadata && patient.metadata.treatments) || [];
-            trts.forEach((t, idx) => {
+            treatments.forEach((t, idx) => {
                 const opt = document.createElement('option');
                 const tNum = t.sessionNum || (idx + 1);
                 const toothNum = extractToothNumber(t);
@@ -5675,14 +5754,13 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
             trtSelect.onchange = () => {
                 const chosenNum = trtSelect.value;
                 if (chosenNum) {
-                    if (numInput) numInput.value = chosenNum;
-                    const selOpt = trtSelect.options[trtSelect.selectedIndex];
-                    const procName = selOpt ? selOpt.dataset.name : '';
-                    const toothName = selOpt ? selOpt.dataset.tooth : '';
+                    if (sNumEl) sNumEl.value = chosenNum;
+                    const selectedOption = trtSelect.options[trtSelect.selectedIndex];
+                    const procName = selectedOption ? selectedOption.dataset.name : '';
+                    const toothName = selectedOption ? selectedOption.dataset.tooth : '';
                     const toothLabel = (toothName && toothName !== 'General' && toothName !== 'Gnl') ? ` (Pieza ${toothName})` : '';
                     const newProcText = (procName && procName.includes(`Pieza ${toothName}`)) ? procName : `${procName}${toothLabel}`.trim();
 
-                    const procInput = document.getElementById('s-procedure');
                     if (procInput) {
                         const currentVal = procInput.value.trim();
                         if (currentVal && !currentVal.includes(newProcText)) {
@@ -5695,14 +5773,30 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
             };
         }
 
-        const inventory = await SupabaseDataService.getInventory();
-        const container = document.getElementById('session-materials-container');
-        renderSessionMaterialsList(inventory, container);
+        try {
+            const inventory = await SupabaseDataService.getInventory();
+            const container = document.getElementById('session-materials-container');
+            if (container && typeof renderSessionMaterialsList === 'function') {
+                renderSessionMaterialsList(inventory, container);
+            }
+        } catch(e) {
+            console.warn("Could not load inventory for session:", e);
+        }
 
-        window.sessionSigPad = setupSignaturePad('session-signature-canvas', 'btn-clear-session-signature');
+        try {
+            window.sessionSigPad = setupSignaturePad('session-signature-canvas', 'btn-clear-session-signature');
+        } catch(e) {
+            console.warn("Could not setup session signature pad:", e);
+        }
+
         openModal('modal-session');
     } catch(e) {
         console.error("Error opening session modal for patient:", e);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error al abrir sesión',
+            text: 'Ocurrió un error inesperado al preparar la sesión: ' + (e.message || e)
+        });
     }
 };
 
