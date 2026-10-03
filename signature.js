@@ -141,7 +141,7 @@ class SignaturePad {
         if (this.canvas.id === 'doctor-sig-canvas') {
             const noticeEl = document.getElementById('doctor-sig-empty-notice');
             if (noticeEl) noticeEl.classList.add('hidden');
-            this.canvas.style.display = 'block';
+            this.canvas.style.display = 'none';
             const doctorBadge = document.getElementById('doctor-sig-badge');
             if (doctorBadge) {
                 doctorBadge.className = 'badge-tag green';
@@ -167,7 +167,7 @@ class SignaturePad {
             if (this.canvas.id === 'doctor-sig-canvas') {
                 const noticeEl = document.getElementById('doctor-sig-empty-notice');
                 if (noticeEl) noticeEl.classList.add('hidden');
-                this.canvas.style.display = 'block';
+                this.canvas.style.display = 'none';
                 const doctorBadge = document.getElementById('doctor-sig-badge');
                 if (doctorBadge) {
                     doctorBadge.className = 'badge-tag green';
