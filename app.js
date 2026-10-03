@@ -773,7 +773,7 @@ function reconcileOdontogramAndBudget(rawItems = [], rawOdData = {}, baremoList 
         return { name: defaultName, priceUSD: defaultPrice, code: defaultCode };
     }
 
-    const defaultResina = findBaremoProc(['op-01', 'resina', 'restauracion', 'obturacion'], 'Restauración Resina Fotocurado', 35.00, 'OP-01');
+    const defaultResina = findBaremoProc(['op-01', 'resina simple', 'restauracion resina', 'obturacion'], 'Restauración Resina Fotocurado', 35.00, 'OP-01');
     const defaultEndoSingle = findBaremoProc(['en-01', 'unirradicular', 'conducto'], 'Tratamiento de Conducto Unirradicular', 120.00, 'EN-01');
     const defaultEndoMulti = findBaremoProc(['en-02', 'multirradicular', 'molar', 'retratamiento'], 'Tratamiento de Conducto Multirradicular', 180.00, 'EN-02');
     const defaultExt = findBaremoProc(['cx-01', 'exodoncia', 'extraccion', 'cirugia'], 'Exodoncia / Extracción Simple', 30.00, 'CX-01');
@@ -790,6 +790,9 @@ function reconcileOdontogramAndBudget(rawItems = [], rawOdData = {}, baremoList 
             const toothNum = faceMatch[1];
             const faceId = faceMatch[2];
             const faceSpan = faceNameMap[faceId] || faceId;
+
+            // If user is currently choosing a procedure in modal for this tooth, do not auto-generate
+            if (window.pendingToothFaceKey && String(window.pendingToothFaceKey.toothNumber) === String(toothNum)) return;
 
             // Check if this tooth already has ANY procedure in the budget table
             const toothHasAnyItem = items.some(i => String(extractToothNumber(i)) === String(toothNum));
@@ -3124,12 +3127,6 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
     }
 
     pendingToothFaceKey = { toothNumber, faceId, mode, key };
-    
-    // Inmediatamente persistir el trazo/marca del odontograma para que actualizar la página nunca lo borre
-    await autoSaveActivePatientOdontogram();
-    if (typeof renderBudgetTable === 'function') {
-        renderBudgetTable();
-    }
 
     document.getElementById('modal-tooth-id').innerText = toothNumber;
     document.getElementById('modal-face-id').innerText = mode === 'extraction' ? 'Extracción / Cirugía' : faceId;
@@ -3203,7 +3200,15 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
 function addProcedureToBudget(toothKeyObj, procedure) {
     if (!toothKeyObj) return;
     const toothNum = toothKeyObj.toothNumber || 'General';
-    const faceLabel = toothKeyObj.faceId && toothKeyObj.faceId !== 'Gnl' && toothKeyObj.faceId !== 'all' ? ` (${toothKeyObj.faceId})` : '';
+    const faceNameMap = {
+        'top': 'Vestibular',
+        'bottom': 'Lingual / Palatino',
+        'left': 'Mesial',
+        'right': 'Distal',
+        'center': 'Oclusal'
+    };
+    const faceSpan = faceNameMap[toothKeyObj.faceId] || (toothKeyObj.faceId && toothKeyObj.faceId !== 'Gnl' && toothKeyObj.faceId !== 'all' ? toothKeyObj.faceId : '');
+    const faceLabel = faceSpan ? ` (${faceSpan})` : '';
     let itemName = procedure.name;
     if (!itemName.includes(`Pieza ${toothNum}`) && !itemName.includes(`Pza ${toothNum}`) && toothNum !== 'General') {
         itemName = `${procedure.name} (Pieza ${toothNum}${faceLabel})`;
@@ -3215,23 +3220,32 @@ function addProcedureToBudget(toothKeyObj, procedure) {
         key: uniqueItemKey,
         tooth: toothNum,
         face: toothKeyObj.faceId || 'Gnl',
+        surface: faceSpan || '',
         serviceCode: procedure.code || '',
         name: itemName,
         price: procedure.priceUSD !== undefined ? procedure.priceUSD : (procedure.price || 0),
         discount: 0
     };
 
-    // Check if the exact same procedure already exists for this tooth and face
+    // Strict 1:1 relation (Rule 1): Replace any existing procedure for this exact tooth and face to prevent duplicates
     const existingIdx = currentBudgetItems.findIndex(i => 
         String(extractToothNumber(i)) === String(toothNum) && 
-        i.face === newItem.face && 
-        ((newItem.serviceCode && i.serviceCode === newItem.serviceCode) || i.name.trim().toLowerCase() === itemName.trim().toLowerCase())
+        String(i.face || 'Gnl').toLowerCase() === String(toothKeyObj.faceId || 'Gnl').toLowerCase()
     );
 
     if (existingIdx >= 0) {
         currentBudgetItems[existingIdx] = { ...currentBudgetItems[existingIdx], ...newItem };
     } else {
-        currentBudgetItems.push(newItem);
+        // Also check if tooth only has a generic procedure and replace it
+        const toothGenIdx = currentBudgetItems.findIndex(i => 
+            String(extractToothNumber(i)) === String(toothNum) && 
+            (i.face === 'Gnl' || !i.face)
+        );
+        if (toothGenIdx >= 0) {
+            currentBudgetItems[toothGenIdx] = { ...currentBudgetItems[toothGenIdx], ...newItem };
+        } else {
+            currentBudgetItems.push(newItem);
+        }
     }
 
     renderBudgetTable();
