@@ -1,0 +1,36 @@
+name: Daily Supabase Database Backup
+
+on:
+  schedule:
+    # Se ejecuta todos los dias a las 04:00 UTC (12:00 AM Medianoche Venezuela)
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run Database Backup
+        env:
+          SUPABASE_URL: https://tudymiytiwcyrjtptfvi.supabase.co
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR1ZHltaXl0aXdjeXJqdHB0ZnZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzMjMxNzQsImV4cCI6MjEwMTg5OTE3NH0.wP-vsBmc7ezIx8Uq_hTqye44Gxl75jkGZSxDDg-3Aj8' }}
+        run: node scripts/backup_database.js
+
+      - name: Commit and Push Backup to GitHub
+        run: |
+          git config --global user.name "DentalCare Backup Bot"
+          git config --global user.email "bot@dentalcare.com"
+          git add backups/
+          git diff --quiet && git diff --staged --quiet || (git commit -m "📦 Automated Database Backup" && git push)
