@@ -3685,7 +3685,7 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
     }
 
     if (activeId) {
-        const activePatient = allPatients.find(p => p.id === activeId);
+        const activePatient = allPatients.find(p => String(p.id) === String(activeId)) || window.activeEHRPatient;
         if (activePatient) {
             let regEhrDisplay = '-';
             if (activePatient.createdAt) {
@@ -3929,9 +3929,14 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                 }
             }
 
-            // Cálculo dinámico del total de sesiones requeridas (Solo para presupuestos aprobados)
+            // Cálculo dinámico del total de sesiones requeridas y progreso
+            const patientSessions = (activePatient.sessions && activePatient.sessions.length > 0) 
+                ? activePatient.sessions 
+                : ((activePatient.metadata && activePatient.metadata.sessions) || []);
+            activePatient.sessions = patientSessions;
+
+            const completedSessions = patientSessions.length;
             let totalSessions = 0;
-            const completedSessions = activePatient.sessions ? activePatient.sessions.length : 0;
             let pct = 0;
             let treatmentTitle = 'Sin tratamiento activo';
 
@@ -3951,6 +3956,10 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                         treatmentTitle = 'Tratamiento Odontológico Integral';
                     }
                 }
+            } else if (completedSessions > 0) {
+                totalSessions = completedSessions;
+                pct = 100;
+                treatmentTitle = 'Evolución Clínica y Sesiones Realizadas';
             }
 
             // Actualizar encabezado del progreso
@@ -3959,8 +3968,10 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
 
             const pctDisplayEl = document.getElementById('ehr-sessions-percent-display');
             if (pctDisplayEl) {
-                if (approvedBudgets.length === 0) {
+                if (approvedBudgets.length === 0 && completedSessions === 0) {
                     pctDisplayEl.innerHTML = `0% (0 sesiones) <span class="badge-tag" style="margin-left:8px; background:#f1f5f9; color:#64748b;"><i class="fa-solid fa-hourglass-start"></i> Pendiente de Aprobación</span>`;
+                } else if (approvedBudgets.length === 0 && completedSessions > 0) {
+                    pctDisplayEl.innerHTML = `${completedSessions} sesión(es) registrada(s) <span class="badge-tag green" style="margin-left:8px;"><i class="fa-solid fa-circle-check"></i> En Atención Clínica</span>`;
                 } else {
                     let statusBadge = '';
                     if (pct >= 100) {
@@ -3983,17 +3994,62 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
             const timeline = document.getElementById('ehr-sessions-timeline');
             timeline.innerHTML = '';
 
-            if (approvedBudgets.length === 0) {
+            // Función auxiliar unificada para renderizar la tarjeta de una sesión realizada
+            function createCompletedSessionCard(s) {
+                let matsHtml = '';
+                if (s.materials && s.materials.length > 0) {
+                    matsHtml = '<div style="margin-top:8px; font-size:0.75rem; color:#64748b;"><strong>Insumos descargados:</strong> ';
+                    matsHtml += s.materials.map(m => `${m.name} (x${m.qty})`).join(', ');
+                    matsHtml += '</div>';
+                }
+
+                const deleteSessionBtn = isAssistant ? '' : `<button class="btn btn-xs btn-outline text-red" style="margin-left:4px;" onclick="deleteSessionFromPatient('${activePatient.id}', ${s.sessionNum})" title="Eliminar Sesión"><i class="fa-solid fa-trash"></i></button>`;
+
+                let payInfoHtml = '';
+                if (s.paymentUSD > 0) {
+                    payInfoHtml = `<div style="margin-top: 6px; font-size: 0.8rem; color: #15803d; font-weight: 600;"><i class="fa-solid fa-money-bill-wave"></i> Cobrado en sesión: $${s.paymentUSD.toFixed(2)} USD (${s.paymentMethodLabel || 'Efectivo'})</div>`;
+                }
+
+                const safeProcedureEscaped = (s.procedure || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+                const div = document.createElement('div');
+                div.className = 'timeline-item timeline-item-completed';
+                div.innerHTML = `
+                    <div class="timeline-meta" style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 6px;">
+                        <span><strong style="color:#10b981;"><i class="fa-solid fa-circle-check"></i> Sesión N° ${s.sessionNum}</strong> — <i class="fa-solid fa-clock"></i> ${s.datetime}</span>
+                        <div style="display: flex; gap: 4px; align-items: center;">
+                            <button class="btn btn-xs btn-outline" style="border-color:#10b981; color:#10b981; font-weight:600;" onclick="window.openRecipesModalForSession('${activePatient.id}', ${s.sessionNum}, '${safeProcedureEscaped}')" title="Ver / Crear Récipe e Indicaciones"><i class="fa-solid fa-pills"></i> Récipes</button>
+                            <button class="btn btn-xs btn-outline" style="color: #15803d; border-color: #22c55e;" onclick="sendSessionReceiptWhatsApp('${activePatient.id}', ${s.sessionNum})" title="Enviar Recibo por WhatsApp"><i class="fa-brands fa-whatsapp"></i> Recibo</button>
+                            <button class="btn btn-xs btn-outline" onclick="downloadSessionReceiptPDFById('${activePatient.id}', ${s.sessionNum})" title="Descargar Recibo en PDF"><i class="fa-solid fa-file-pdf text-blue"></i> PDF</button>
+                            <span class="badge-tag green">✓ Realizada</span>
+                            ${deleteSessionBtn}
+                        </div>
+                    </div>
+                    <p style="margin:8px 0; font-size:0.88rem; color:var(--text-heading); font-weight:500;">${s.procedure}</p>
+                    ${s.indications ? `<p style="margin:4px 0; font-size:0.8rem; color:#0284c7;"><strong>Indicaciones Médicas:</strong> ${s.indications}</p>` : ''}
+                    ${payInfoHtml}
+                    ${matsHtml}
+                    ${s.signatureData ? `
+                    <div style="margin-top:10px; display:flex; align-items:center; gap:10px;">
+                        <span style="font-size:0.75rem; color:#64748b;">Firma de conformidad del paciente:</span>
+                        <img src="${s.signatureData}" style="max-height: 45px; border:1px solid var(--border-color); border-radius:4px; padding:2px; background:#fff;" alt="Firma del paciente">
+                    </div>` : ''}
+                `;
+                return div;
+            }
+
+            // Si no hay presupuestos aprobados NI sesiones registradas, mostrar estado vacío
+            if (approvedBudgets.length === 0 && completedSessions === 0) {
                 timeline.innerHTML = `
                     <div style="padding: 35px 20px; text-align: center; color: var(--text-muted); background: var(--bg-card); border: 1px dashed var(--border-color); border-radius: 8px;">
                         <i class="fa-solid fa-clipboard-list" style="font-size: 2.2rem; display: block; margin-bottom: 12px; color: #94a3b8;"></i>
                         <strong style="font-size: 1rem; color: var(--text-main); display: block;">Sin tratamientos ni sesiones asignadas</strong>
-                        <p style="margin: 8px auto 0 auto; max-width: 450px; font-size: 0.85rem; line-height: 1.4;">Los tratamientos, sesiones y cronograma de citas se activarán automáticamente en esta sección una vez que se apruebe formalmente un presupuesto para el paciente.</p>
+                        <p style="margin: 8px auto 0 auto; max-width: 450px; font-size: 0.85rem; line-height: 1.4;">Puede registrar una sesión clínica directamente con el botón <strong>"+ Registrar Nueva Sesión"</strong> o aprobar formalmente un presupuesto para activar el cronograma completo de tratamientos.</p>
                     </div>
                 `;
             } else {
-                // 1. Mostrar tabla de Tratamientos / Presupuesto si existen ítems
-                if (treatmentsList.length > 0) {
+                // 1. Mostrar tabla de Tratamientos Planificados si hay presupuesto aprobado y tratamientos
+                if (approvedBudgets.length > 0 && treatmentsList.length > 0) {
                     const trtSection = document.createElement('div');
                     trtSection.style.marginBottom = '20px';
                     trtSection.style.padding = '12px 16px';
@@ -4041,95 +4097,53 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                     timeline.appendChild(trtSection);
                 }
 
-                // 2. Renderizar Línea de Tiempo de Sesiones (1 a Total)
-                const patientSessions = activePatient.sessions || [];
+                // Caso A: Hay presupuestos aprobados -> Renderizar sesiones 1 a totalSessions y pendientes
+                if (approvedBudgets.length > 0) {
+                    for (let sNum = 1; sNum <= totalSessions; sNum++) {
+                        const s = patientSessions.find(sess => sess.sessionNum === sNum);
+                        const trtItem = treatmentsList[sNum - 1];
 
-                for (let sNum = 1; sNum <= totalSessions; sNum++) {
-                    const s = patientSessions.find(sess => sess.sessionNum === sNum);
-                    const trtItem = treatmentsList[sNum - 1];
+                        if (s) {
+                            timeline.appendChild(createCompletedSessionCard(s));
+                        } else {
+                            // Sesión pendiente planificada
+                            const procHint = trtItem ? `Procedimiento asignado: <strong>${trtItem.name}</strong> (Pieza ${trtItem.tooth || 'Gnl'})` : 'Continuación del plan de tratamiento';
+                            const defaultProcName = trtItem ? trtItem.name : `Sesión #${sNum}`;
+                            const safeProcNameEscaped = defaultProcName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
-                    if (s) {
-                        // SESIÓN REALIZADA
-                        let matsHtml = '';
-                        if (s.materials && s.materials.length > 0) {
-                            matsHtml = '<div style="margin-top:8px; font-size:0.75rem; color:#64748b;"><strong>Insumos descargados:</strong> ';
-                            matsHtml += s.materials.map(m => `${m.name} (x${m.qty})`).join(', ');
-                            matsHtml += '</div>';
-                        }
-
-                        const deleteSessionBtn = isAssistant ? '' : `<button class="btn btn-xs btn-outline text-red" style="margin-left:4px;" onclick="deleteSessionFromPatient('${activePatient.id}', ${s.sessionNum})" title="Eliminar Sesión"><i class="fa-solid fa-trash"></i></button>`;
-
-                        let payInfoHtml = '';
-                        if (s.paymentUSD > 0) {
-                            payInfoHtml = `<div style="margin-top: 6px; font-size: 0.8rem; color: #15803d; font-weight: 600;"><i class="fa-solid fa-money-bill-wave"></i> Cobrado en sesión: $${s.paymentUSD.toFixed(2)} USD (${s.paymentMethodLabel || 'Efectivo'})</div>`;
-                        }
-
-                        const div = document.createElement('div');
-                        div.className = 'timeline-item timeline-item-completed';
-                        div.innerHTML = `
-                            <div class="timeline-meta" style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 6px;">
-                                <span><strong style="color:#10b981;"><i class="fa-solid fa-circle-check"></i> Sesión N° ${s.sessionNum}</strong> — <i class="fa-solid fa-clock"></i> ${s.datetime}</span>
-                                <div style="display: flex; gap: 4px; align-items: center;">
-                                    <button class="btn btn-xs btn-outline" style="border-color:#10b981; color:#10b981; font-weight:600;" onclick="window.openRecipesModalForSession('${activePatient.id}', ${s.sessionNum}, '${s.procedure}')" title="Ver / Crear Récipe e Indicaciones"><i class="fa-solid fa-pills"></i> Récipes</button>
-                                    <button class="btn btn-xs btn-outline" style="color: #15803d; border-color: #22c55e;" onclick="sendSessionReceiptWhatsApp('${activePatient.id}', ${s.sessionNum})" title="Enviar Recibo por WhatsApp"><i class="fa-brands fa-whatsapp"></i> Recibo</button>
-                                    <button class="btn btn-xs btn-outline" onclick="downloadSessionReceiptPDFById('${activePatient.id}', ${s.sessionNum})" title="Descargar Recibo en PDF"><i class="fa-solid fa-file-pdf text-blue"></i> PDF</button>
-                                    <span class="badge-tag green">✓ Realizada</span>
-                                    ${deleteSessionBtn}
+                            const pendingDiv = document.createElement('div');
+                            pendingDiv.className = 'timeline-item timeline-item-pending';
+                            pendingDiv.innerHTML = `
+                                <div class="timeline-meta" style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 6px;">
+                                    <span><strong style="color:#f59e0b;"><i class="fa-solid fa-hourglass-half"></i> Sesión N° ${sNum}</strong> — <span class="badge-tag amber">⏳ Pendiente</span></span>
+                                    <div style="display: flex; gap: 6px; align-items: center;">
+                                        <button class="btn btn-xs btn-outline" style="border-color:#10b981; color:#10b981; font-weight:600;" onclick="window.openRecipesModalForSession('${activePatient.id}', ${sNum}, '${safeProcNameEscaped}')" title="Ver / Crear Récipe e Indicaciones"><i class="fa-solid fa-pills"></i> Récipes</button>
+                                        <button class="btn btn-xs btn-outline" style="border-color:var(--primary-cyan); color:var(--primary-cyan);" onclick="window.openAppointmentModalForPatient('${activePatient.id}', ${sNum}, '${safeProcNameEscaped}')" title="Agendar esta sesión en la Agenda">
+                                            <i class="fa-solid fa-calendar-plus"></i> Agendar
+                                        </button>
+                                        <button class="btn btn-xs btn-primary" style="background-color:var(--primary-cyan) !important; color:white !important;" onclick="window.openSessionModalForPatient('${activePatient.id}', ${sNum}, '${safeProcNameEscaped}')" title="Atender esta sesión ahora">
+                                            <i class="fa-solid fa-stethoscope"></i> Atender Sesión N° ${sNum}
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                            <p style="margin:8px 0; font-size:0.88rem; color:var(--text-heading); font-weight:500;">${s.procedure}</p>
-                            ${s.indications ? `<p style="margin:4px 0; font-size:0.8rem; color:#0284c7;"><strong>Indicaciones Médicas:</strong> ${s.indications}</p>` : ''}
-                            ${payInfoHtml}
-                            ${matsHtml}
-                            ${s.signatureData ? `
-                            <div style="margin-top:10px; display:flex; align-items:center; gap:10px;">
-                                <span style="font-size:0.75rem; color:#64748b;">Firma de conformidad:</span>
-                                <img src="${s.signatureData}" style="max-height: 40px; border:1px solid var(--border-color); border-radius:4px; padding:2px; background:#fff;" alt="Firma de conformidad del paciente">
-                            </div>` : ''}
-                        `;
-                        timeline.appendChild(div);
-                    } else {
-                        // SESIÓN PENDIENTE POR ATENDER
-                        const procHint = trtItem ? `Procedimiento asignado: <strong>${trtItem.name}</strong> (Pieza ${trtItem.tooth || 'Gnl'})` : 'Continuación del plan de tratamiento';
-                        const defaultProcName = trtItem ? trtItem.name : `Sesión #${sNum}`;
-
-                        const pendingDiv = document.createElement('div');
-                        pendingDiv.className = 'timeline-item timeline-item-pending';
-                        pendingDiv.innerHTML = `
-                            <div class="timeline-meta" style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 6px;">
-                                <span><strong style="color:#f59e0b;"><i class="fa-solid fa-hourglass-half"></i> Sesión N° ${sNum}</strong> — <span class="badge-tag amber">⏳ Pendiente</span></span>
-                                <div style="display: flex; gap: 6px; align-items: center;">
-                                    <button class="btn btn-xs btn-outline" style="border-color:#10b981; color:#10b981; font-weight:600;" onclick="window.openRecipesModalForSession('${activePatient.id}', ${sNum}, '${defaultProcName}')" title="Ver / Crear Récipe e Indicaciones"><i class="fa-solid fa-pills"></i> Récipes</button>
-                                    <button class="btn btn-xs btn-outline" style="border-color:var(--primary-cyan); color:var(--primary-cyan);" onclick="window.openAppointmentModalForPatient('${activePatient.id}', ${sNum}, '${defaultProcName}')" title="Agendar esta sesión en la Agenda">
-                                        <i class="fa-solid fa-calendar-plus"></i> Agendar
-                                    </button>
-                                    <button class="btn btn-xs btn-primary" style="background-color:var(--primary-cyan) !important; color:white !important;" onclick="window.openSessionModalForPatient('${activePatient.id}', ${sNum}, '${defaultProcName}')" title="Atender esta sesión ahora">
-                                        <i class="fa-solid fa-stethoscope"></i> Atender Sesión N° ${sNum}
-                                    </button>
-                                </div>
-                            </div>
-                            <p style="margin:6px 0 0 0; font-size:0.84rem; color:var(--text-muted);">${procHint}</p>
-                        `;
-                        timeline.appendChild(pendingDiv);
+                                <p style="margin:6px 0 0 0; font-size:0.84rem; color:var(--text-muted);">${procHint}</p>
+                            `;
+                            timeline.appendChild(pendingDiv);
+                        }
                     }
-                }
 
-                // 3. Renderizar Sesiones adicionales fuera del plan (si hubiere)
-                const extraSessions = patientSessions.filter(sess => sess.sessionNum > totalSessions);
-                extraSessions.forEach(s => {
-                    const div = document.createElement('div');
-                    div.className = 'timeline-item timeline-item-completed';
-                    div.innerHTML = `
-                        <div class="timeline-meta" style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 6px;">
-                            <span><strong style="color:#10b981;"><i class="fa-solid fa-circle-check"></i> Sesión Extra N° ${s.sessionNum}</strong> — <i class="fa-solid fa-clock"></i> ${s.datetime}</span>
-                            <div style="display: flex; gap: 4px; align-items: center;">
-                                <span class="badge-tag green">✓ Realizada</span>
-                            </div>
-                        </div>
-                        <p style="margin:8px 0; font-size:0.88rem; color:var(--text-heading);">${s.procedure}</p>
-                    `;
-                    timeline.appendChild(div);
-                });
+                    // Sesiones extras realizadas más allá del plan presupuestado
+                    const extraSessions = patientSessions.filter(sess => sess.sessionNum > totalSessions);
+                    extraSessions.forEach(s => {
+                        timeline.appendChild(createCompletedSessionCard(s));
+                    });
+                } else {
+                    // Caso B: No hay presupuesto aprobado, pero sí hay sesiones registradas -> Renderizarlas todas ordenadas
+                    const sortedSessions = [...patientSessions].sort((a, b) => (a.sessionNum || 0) - (b.sessionNum || 0));
+                    sortedSessions.forEach(s => {
+                        timeline.appendChild(createCompletedSessionCard(s));
+                    });
+                }
             }
 
             // Bind sessions add button
@@ -4599,10 +4613,17 @@ window.deleteSessionFromPatient = async function(patientId, sessionNum) {
     }).then(async (result) => {
         if (result.isConfirmed) {
             const patients = await SupabaseDataService.getPatients();
-            const p = patients.find(pat => pat.id === patientId);
+            const p = patients.find(pat => String(pat.id) === String(patientId)) || window.activeEHRPatient;
             if (p && p.sessions) {
                 p.sessions = p.sessions.filter(s => s.sessionNum !== sessionNum);
+                if (p.clinicalNotes) {
+                    p.clinicalNotes = p.clinicalNotes.filter(n => !n.content || !n.content.startsWith(`[Sesión N° ${sessionNum}]`));
+                }
+                if (p.metadata) {
+                    p.metadata.sessions = p.sessions;
+                }
                 await SupabaseDataService.savePatient(p);
+                window.activeEHRPatient = p;
                 await renderEHRView();
                 Swal.fire({ icon: 'success', title: 'Sesión eliminada', timer: 1500, showConfirmButton: false });
             }
@@ -4612,14 +4633,14 @@ window.deleteSessionFromPatient = async function(patientId, sessionNum) {
 
 // PDF EXPORT ENGINE FOR CLINICAL HISTORY
 async function exportEHRToPDF() {
-    const activeId = getActivePatientId();
+    const activeId = getActivePatientId() || (window.activeEHRPatient && window.activeEHRPatient.id);
     if (!activeId) {
         Swal.fire({ icon: 'info', title: 'Seleccione un paciente', text: 'Por favor active un paciente para exportar su Historia Clínica en PDF.' });
         return;
     }
 
     const patients = await SupabaseDataService.getPatients();
-    const patient = patients.find(p => p.id === activeId);
+    const patient = patients.find(p => String(p.id) === String(activeId)) || window.activeEHRPatient;
     if (!patient) return;
 
     Swal.fire({
@@ -6482,8 +6503,11 @@ function initGlobalEvents() {
     }
 
     async function processSaveSession(sendWhatsApp = false) {
-        const activeId = getActivePatientId();
-        if (!activeId) return;
+        const activeId = getActivePatientId() || (window.activeEHRPatient && window.activeEHRPatient.id);
+        if (!activeId) {
+            Swal.fire({ icon: 'warning', title: 'Paciente no seleccionado', text: 'Por favor seleccione o active un paciente antes de registrar una sesión.' });
+            return;
+        }
 
         const sessionNum = parseInt(document.getElementById('s-num').value);
         const datetime = document.getElementById('s-datetime').value.replace('T', ' ');
@@ -6533,10 +6557,14 @@ function initGlobalEvents() {
         try {
             // Fetch active patient
             const patients = await SupabaseDataService.getPatients();
-            const patient = patients.find(p => p.id === activeId);
-            if (!patient) return;
+            let patient = patients.find(p => String(p.id) === String(activeId)) || window.activeEHRPatient;
+            if (!patient) {
+                Swal.fire({ icon: 'error', title: 'Paciente no encontrado', text: 'No se pudo localizar el registro del paciente en el sistema.' });
+                return;
+            }
 
             if (!patient.sessions) patient.sessions = [];
+            if (!patient.metadata) patient.metadata = {};
             
             // Construct new session
             const sessionObj = {
@@ -6559,27 +6587,31 @@ function initGlobalEvents() {
             const isNewSession = existingIdx < 0;
 
             // Deduct materials from stock only if recording a new session (prevents double deductions on edit)
-            const inventory = await SupabaseDataService.getInventory();
-            for (const m of materials) {
-                const item = inventory.find(inv => inv.code === m.code);
-                if (item) {
-                    const portionsPerUnit = parsePortions(item.unit);
-                    if (isNewSession) {
-                        const qtyToDeduct = portionsPerUnit ? (m.qty / portionsPerUnit) : m.qty;
-                        const newStock = Math.max(0, item.currentStock - qtyToDeduct);
-                        item.currentStock = newStock;
+            try {
+                const inventory = await SupabaseDataService.getInventory();
+                for (const m of materials) {
+                    const item = inventory.find(inv => inv.code === m.code);
+                    if (item) {
+                        const portionsPerUnit = parsePortions(item.unit);
+                        if (isNewSession) {
+                            const qtyToDeduct = portionsPerUnit ? (m.qty / portionsPerUnit) : m.qty;
+                            const newStock = Math.max(0, item.currentStock - qtyToDeduct);
+                            item.currentStock = newStock;
+                            
+                            // Update stock locally and in cloud
+                            await SupabaseDataService.saveInventoryItem(item);
+                        }
                         
-                        // Update stock locally and in cloud
-                        await SupabaseDataService.saveInventoryItem(item);
+                        sessionObj.materials.push({
+                            code: m.code,
+                            name: item.name,
+                            qty: m.qty,
+                            unit: portionsPerUnit ? 'porciones' : item.unit
+                        });
                     }
-                    
-                    sessionObj.materials.push({
-                        code: m.code,
-                        name: item.name,
-                        qty: m.qty,
-                        unit: portionsPerUnit ? 'porciones' : item.unit
-                    });
                 }
+            } catch(invErr) {
+                console.warn("Error deducting inventory in session:", invErr);
             }
 
             if (existingIdx >= 0) {
@@ -6587,6 +6619,25 @@ function initGlobalEvents() {
             } else {
                 patient.sessions.push(sessionObj);
             }
+
+            // Also keep clinicalNotes synced for medical history and printable reports
+            if (!patient.clinicalNotes) patient.clinicalNotes = [];
+            const noteContent = `[Sesión N° ${sessionNum}] ${procedure}${indications ? '\nIndicaciones: ' + indications : ''}`;
+            const existingNoteIdx = patient.clinicalNotes.findIndex(n => n.content && n.content.startsWith(`[Sesión N° ${sessionNum}]`));
+            const noteObj = {
+                id: 'note-sess-' + sessionNum + '-' + Date.now(),
+                datetime: datetime,
+                content: noteContent,
+                paymentUSD: paymentUSD
+            };
+            if (existingNoteIdx >= 0) {
+                patient.clinicalNotes[existingNoteIdx] = noteObj;
+            } else {
+                patient.clinicalNotes.unshift(noteObj);
+            }
+
+            // Sync metadata
+            patient.metadata.sessions = patient.sessions;
 
             // Update treatments plan in metadata & Odontogram
             if (patient.metadata && patient.metadata.treatments && patient.metadata.treatments.length > 0) {
@@ -6605,7 +6656,6 @@ function initGlobalEvents() {
             }
 
             // Registrar fecha de actualización del odontodiagrama
-            if (!patient.metadata) patient.metadata = {};
             patient.metadata.odontogramLastUpdated = datetime || new Date().toISOString().replace('T', ' ').substring(0, 16);
 
             // Record payment in patient payments history if any
@@ -6627,6 +6677,9 @@ function initGlobalEvents() {
             }
 
             await SupabaseDataService.savePatient(patient);
+            window.activeEHRPatient = patient;
+            localStorage.setItem('dental_ehr_subtab', 'sessions');
+            window.currentEHRSubtab = 'sessions';
 
             let apptUpdated = false;
             if (window.activeAttendingAppointmentId) {
@@ -6646,6 +6699,11 @@ function initGlobalEvents() {
 
             closeModal('modal-session');
             await renderEHRView();
+            // Force activate sessions subtab so user directly sees the newly saved session
+            const sessSubtabBtn = document.querySelector('#view-ehr .subtab-btn[data-subtab="sessions"]');
+            if (sessSubtabBtn) {
+                sessSubtabBtn.click();
+            }
             await renderInventoryTable();
             await renderDashboard();
             await renderCashFlow();

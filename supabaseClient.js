@@ -412,7 +412,7 @@ class SupabaseDataService {
         }
 
         let localPatients = JSON.parse(localStorage.getItem('dental_patients')) || [];
-        const idx = localPatients.findIndex(p => p.id === patientObj.id);
+        const idx = localPatients.findIndex(p => String(p.id) === String(patientObj.id));
         if (idx >= 0) localPatients[idx] = patientObj;
         else localPatients.push(patientObj);
         localStorage.setItem('dental_patients', JSON.stringify(localPatients));
