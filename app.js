@@ -587,12 +587,13 @@ async function autoSaveActivePatientOdontogram() {
         odontogramData: odData
     };
 
-    // Always save fallback copy to localStorage so reloading before selecting a patient loses NOTHING!
-    localStorage.setItem('dental_anonymous_odontogram_data', JSON.stringify(odData));
-    localStorage.setItem('dental_anonymous_draft_budget', JSON.stringify(draft));
-
     const activeId = getActivePatientId();
-    if (!activeId) return;
+    if (!activeId) {
+        // Only save anonymous draft if no patient is active
+        localStorage.setItem('dental_anonymous_odontogram_data', JSON.stringify(odData));
+        localStorage.setItem('dental_anonymous_draft_budget', JSON.stringify(draft));
+        return;
+    }
 
     // Instant synchronous patient draft storage in localStorage
     localStorage.setItem('dental_draft_odontogram_' + activeId, JSON.stringify(odData));
@@ -9193,11 +9194,80 @@ function initGlobalEvents() {
         };
     }
 
+    window.startNewBudgetClean = async function() {
+        window.isOpeningNewBudget = true;
+        try {
+            // 1. Limpiar memoria de tratamientos y estados activos
+            currentBudgetItems = [];
+            window.currentPlannerBudgetItems = null;
+            activeEditingBudgetId = null;
+
+            // 2. Eliminar borradores anónimos residuales y limpiar paciente activo
+            localStorage.removeItem('dental_anonymous_odontogram_data');
+            localStorage.removeItem('dental_anonymous_draft_budget');
+            localStorage.removeItem('dental_budget_split_data');
+            setActivePatientId(null);
+
+            // 3. Limpiar odontograma y firmas
+            if (window.odontogram) {
+                window.odontogram.setData({});
+            }
+            if (window.patientSigPad) {
+                window.patientSigPad.clear();
+            }
+
+            // 4. Cambiar a subvista de editor y navegar al odontograma
+            localStorage.setItem('dental_odontogram_subview', 'editor');
+            document.documentElement.setAttribute('data-odontogram-subview', 'editor');
+            const listContainer = document.getElementById('odontogram-list-container');
+            const editorContainer = document.getElementById('odontogram-editor-container');
+            if (listContainer) listContainer.classList.add('hidden');
+            if (editorContainer) editorContainer.classList.remove('hidden');
+
+            const navOdontogram = document.querySelector('.nav-item[data-tab="odontogram"]') || document.getElementById('mob-nav-odontogram');
+            if (navOdontogram && !navOdontogram.classList.contains('active')) {
+                navOdontogram.click();
+            }
+
+            // 5. Resetear campos de texto y selector de paciente a estado vacío
+            const searchInput = document.getElementById('od-patient-search-input');
+            if (searchInput) searchInput.value = '';
+
+            const discInput = document.getElementById('budget-discount-input');
+            if (discInput) discInput.value = '0';
+            const notesInput = document.getElementById('budget-notes');
+            if (notesInput) notesInput.value = '';
+
+            const alertBanner = document.getElementById('od-medical-header-banner');
+            if (alertBanner) alertBanner.classList.add('hidden');
+
+            document.getElementById('info-patient-name').innerText = 'Paciente';
+            document.getElementById('info-patient-cedula').innerText = 'V-00000000';
+            document.getElementById('info-patient-category').innerText = 'Privado';
+
+            const currentUser = getCurrentUser();
+            const docName = currentUser?.fullname || 'Dr. Rodrigo Navas';
+            document.getElementById('info-patient-doctor').innerText = docName;
+            await autoLoadDoctorSignatureInBudget(docName);
+
+            await updateActivePatientUI('');
+            const odSelect = document.getElementById('od-patient-select');
+            if (odSelect) odSelect.value = '';
+
+            if (window.odontogram) {
+                window.odontogram.setData({});
+            }
+            renderBudgetTable();
+        } finally {
+            window.isOpeningNewBudget = false;
+        }
+    };
+
     // Historial y Listado de Presupuestos Buttons
     const btnNewBudget = document.getElementById('btn-new-budget');
     if (btnNewBudget) {
         btnNewBudget.onclick = async () => {
-            await window.selectPatientAndLoadApprovedBudget(null);
+            await window.startNewBudgetClean();
         };
     }
 
