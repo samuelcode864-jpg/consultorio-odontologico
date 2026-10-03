@@ -583,7 +583,8 @@ async function autoSaveActivePatientOdontogram() {
         paymentMethod: payMethodSelect ? payMethodSelect.value : 'pagomovil',
         consentText: consentInput ? (consentInput.value || consentInput.innerText) : '',
         doctorSignature: docSig,
-        patientSignature: patSig
+        patientSignature: patSig,
+        odontogramData: odData
     };
 
     // Always save fallback copy to localStorage so reloading before selecting a patient loses NOTHING!
@@ -593,12 +594,31 @@ async function autoSaveActivePatientOdontogram() {
     const activeId = getActivePatientId();
     if (!activeId) return;
 
+    // Instant synchronous patient draft storage in localStorage
+    localStorage.setItem('dental_draft_odontogram_' + activeId, JSON.stringify(odData));
+    localStorage.setItem('dental_draft_budget_' + activeId, JSON.stringify(draft));
+
+    try {
+        let localPatients = JSON.parse(localStorage.getItem('dental_patients') || '[]');
+        const pIdx = localPatients.findIndex(p => String(p.id) === String(activeId));
+        if (pIdx >= 0) {
+            if (!localPatients[pIdx].metadata) localPatients[pIdx].metadata = {};
+            localPatients[pIdx].odontogramData = odData;
+            localPatients[pIdx].metadata.draftOdontogramData = odData;
+            localPatients[pIdx].metadata.draftBudget = draft;
+            if (patSig) localPatients[pIdx].metadata.patientSignature = patSig;
+            localStorage.setItem('dental_patients', JSON.stringify(localPatients));
+        }
+    } catch(e) {
+        console.warn("Error updating local patient cache:", e);
+    }
+
     try {
         const patients = await SupabaseDataService.getPatients();
         const patient = patients.find(p => String(p.id) === String(activeId));
         if (patient) {
             if (!patient.metadata) patient.metadata = {};
-            draft.odontogramData = odData;
+            patient.odontogramData = odData;
             patient.metadata.draftOdontogramData = odData;
             patient.metadata.draftBudget = draft;
             if (patSig) {
@@ -2629,35 +2649,56 @@ async function renderOdontogramView() {
                 }
             } else {
                 // Presupuesto en curso para este paciente:
-                // 1. Si ya tenemos tratamientos en memoria, mantener el odontograma actual o cargar el borrador
-                if (currentBudgetItems && currentBudgetItems.length > 0) {
-                    const currentOd = window.odontogram ? window.odontogram.getData() : {};
-                    if (!currentOd || Object.keys(currentOd).length === 0) {
-                        const draftOd = (patient.metadata && patient.metadata.draftOdontogramData) || patient.odontogramData || {};
-                        if (window.odontogram && Object.keys(draftOd).length > 0) {
-                            window.odontogram.setData(draftOd);
+                // Prioridad 1: Verificar si hay un borrador en curso en localStorage o en metadatos del paciente
+                const localDraftOd = JSON.parse(localStorage.getItem('dental_draft_odontogram_' + activeId) || 'null');
+                const localDraftBudget = JSON.parse(localStorage.getItem('dental_draft_budget_' + activeId) || 'null');
+                const patDraftOd = (patient.metadata && patient.metadata.draftOdontogramData) || (patient.odontogramData && Object.keys(patient.odontogramData).length > 0 ? patient.odontogramData : null);
+                const patDraftBudget = (patient.metadata && patient.metadata.draftBudget) || null;
+
+                const hasLocalOd = localDraftOd && Object.keys(localDraftOd).length > 0;
+                const hasLocalBudget = localDraftBudget && localDraftBudget.items && localDraftBudget.items.length > 0;
+                const hasPatOd = patDraftOd && Object.keys(patDraftOd).length > 0;
+                const hasPatBudget = patDraftBudget && patDraftBudget.items && patDraftBudget.items.length > 0;
+                const hasMemoryItems = currentBudgetItems && currentBudgetItems.length > 0;
+
+                if (hasMemoryItems || hasLocalOd || hasLocalBudget || hasPatOd || hasPatBudget) {
+                    const odToSet = (window.odontogram && Object.keys(window.odontogram.getData()).length > 0)
+                        ? window.odontogram.getData()
+                        : (hasLocalOd ? localDraftOd : (patDraftOd || {}));
+                    
+                    if (window.odontogram && Object.keys(odToSet).length > 0) {
+                        window.odontogram.setData(odToSet);
+                    }
+
+                    if (!hasMemoryItems) {
+                        const budgetToRestore = hasLocalBudget ? localDraftBudget : patDraftBudget;
+                        if (budgetToRestore) {
+                            restoreDraftBudgetUI(budgetToRestore);
                         }
                     }
-                    if (patient.metadata?.patientSignature && window.patientSigPad && window.patientSigPad.isEmpty()) {
-                        window.patientSigPad.loadFromDataURL(patient.metadata.patientSignature);
+                    if (typeof renderBudgetTable === 'function') {
+                        renderBudgetTable();
+                    }
+
+                    const sigToLoad = patient.metadata?.patientSignature || localDraftBudget?.patientSignature;
+                    if (sigToLoad && window.patientSigPad && window.patientSigPad.isEmpty()) {
+                        window.patientSigPad.loadFromDataURL(sigToLoad);
                     }
                 } else {
-                    // Consultar si este paciente tiene un presupuesto Aprobado oficial o un borrador
+                    // Si no hay borrador en curso, consultar si este paciente tiene un presupuesto Aprobado oficial
                     const invoices = await SupabaseDataService.getInvoices();
                     const approvedBudget = invoices.find(inv => String(inv.patientId) === String(activeId) && (String(inv.status).toLowerCase() === 'aprobado' || String(inv.status).toLowerCase() === 'approved' || String(inv.status).toLowerCase() === 'completada' || String(inv.status).toLowerCase() === 'finalizado'));
                     if (approvedBudget && window.loadBudgetIntoEditor) {
                         await window.loadBudgetIntoEditor(approvedBudget.id);
                         return;
                     } else {
-                        const latestDraft = invoices.filter(inv => String(inv.patientId) === String(activeId)).sort((a, b) => new Date(b.invoiceDate || b.createdAt || 0) - new Date(a.invoiceDate || a.createdAt || 0))[0];
-                        if (latestDraft && window.loadBudgetIntoEditor) {
-                            await window.loadBudgetIntoEditor(latestDraft.id);
-                            return;
-                        } else {
-                            const odToSet = (patient.metadata && patient.metadata.draftOdontogramData) || patient.odontogramData || {};
-                            if (window.odontogram) {
-                                window.odontogram.setData(odToSet);
-                            }
+                        const odToSet = (patient.metadata && patient.metadata.draftOdontogramData) || patient.odontogramData || {};
+                        if (window.odontogram) {
+                            window.odontogram.setData(odToSet);
+                        }
+                        currentBudgetItems = [];
+                        if (typeof renderBudgetTable === 'function') {
+                            renderBudgetTable();
                         }
                     }
                 }
@@ -2720,6 +2761,9 @@ async function renderOdontogramView() {
         // Cargar respaldo de odontograma y presupuesto anónimo si no se ha seleccionado paciente aún
         if (currentBudgetItems && currentBudgetItems.length > 0) {
             // Mantener items en memoria para trabajo anónimo
+            if (typeof renderBudgetTable === 'function') {
+                renderBudgetTable();
+            }
         } else {
             const anonOdData = JSON.parse(localStorage.getItem('dental_anonymous_odontogram_data') || '{}');
             const anonDraft = JSON.parse(localStorage.getItem('dental_anonymous_draft_budget') || 'null');
@@ -2730,6 +2774,9 @@ async function renderOdontogramView() {
 
             if (anonDraft) {
                 restoreDraftBudgetUI(anonDraft);
+            }
+            if (typeof renderBudgetTable === 'function') {
+                renderBudgetTable();
             }
         }
 
@@ -2846,6 +2893,10 @@ async function renderOdontogramView() {
                 localStorage.removeItem('dental_anonymous_odontogram_data');
                 localStorage.removeItem('dental_anonymous_draft_budget');
                 localStorage.removeItem('dental_budget_split_data');
+                if (activeId) {
+                    localStorage.removeItem('dental_draft_odontogram_' + activeId);
+                    localStorage.removeItem('dental_draft_budget_' + activeId);
+                }
 
                 // 7. Dismiss floating budget bubble and refresh table
                 if (window.dismissFloatingBudgetBubble) window.dismissFloatingBudgetBubble();
@@ -3074,6 +3125,12 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
 
     pendingToothFaceKey = { toothNumber, faceId, mode, key };
     
+    // Inmediatamente persistir el trazo/marca del odontograma para que actualizar la página nunca lo borre
+    await autoSaveActivePatientOdontogram();
+    if (typeof renderBudgetTable === 'function') {
+        renderBudgetTable();
+    }
+
     document.getElementById('modal-tooth-id').innerText = toothNumber;
     document.getElementById('modal-face-id').innerText = mode === 'extraction' ? 'Extracción / Cirugía' : faceId;
 
@@ -8156,6 +8213,8 @@ function initGlobalEvents() {
             if (isBrandNew) {
                 currentBudgetItems = [];
                 window.currentPlannerBudgetItems = null;
+                localStorage.removeItem('dental_draft_odontogram_' + patientId);
+                localStorage.removeItem('dental_draft_budget_' + patientId);
                 if (patient && patient.metadata) {
                     patient.metadata.draftBudget = { items: [] };
                     patient.metadata.draftOdontogramData = {};
@@ -8498,6 +8557,8 @@ function initGlobalEvents() {
                 };
             }
 
+            localStorage.removeItem('dental_draft_odontogram_' + id);
+            localStorage.removeItem('dental_draft_budget_' + id);
             await SupabaseDataService.savePatient(patientToSave);
             window.editingPatientId = null;
             
@@ -8923,6 +8984,10 @@ function initGlobalEvents() {
                     delete patient.metadata.draftBudget;
                     delete patient.metadata.draftOdontogramData;
                 }
+                localStorage.removeItem('dental_draft_odontogram_' + patient.id);
+                localStorage.removeItem('dental_draft_budget_' + patient.id);
+                localStorage.removeItem('dental_anonymous_odontogram_data');
+                localStorage.removeItem('dental_anonymous_draft_budget');
                 await SupabaseDataService.savePatient(patient);
 
                 // Auto-schedule and activate appointments for approved budget sessions
