@@ -3611,7 +3611,7 @@ async function renderPatientsTable(filter = 'all', searchQuery = '') {
                 <small class="text-muted" style="display:block;">${p.birthdate}</small>
             </td>
             <td>
-                <a href="https://wa.me/${p.phone.replace(/[^0-9]/g,'')}" target="_blank" class="whatsapp-pill-link">
+                <a href="https://wa.me/${(typeof WhatsAppService !== 'undefined' && WhatsAppService.normalizePhoneNumber) ? WhatsAppService.normalizePhoneNumber(p.phone) : p.phone.replace(/[^0-9]/g,'')}" target="_blank" class="whatsapp-pill-link">
                     <i class="fa-brands fa-whatsapp"></i> ${p.phone}
                 </a>
             </td>
@@ -13687,7 +13687,7 @@ async function renderReceivables() {
                     <td><strong class="badge-tag blue">${p.id}</strong></td>
                     <td><strong>${p.fullname}</strong></td>
                     <td>
-                        <a href="https://wa.me/${p.phone.replace(/[^0-9]/g,'')}" target="_blank" class="whatsapp-pill-link">
+                        <a href="https://wa.me/${(typeof WhatsAppService !== 'undefined' && WhatsAppService.normalizePhoneNumber) ? WhatsAppService.normalizePhoneNumber(p.phone) : p.phone.replace(/[^0-9]/g,'')}" target="_blank" class="whatsapp-pill-link">
                             <i class="fa-brands fa-whatsapp"></i> ${p.phone}
                         </a>
                     </td>

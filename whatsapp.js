@@ -178,9 +178,37 @@ class WhatsAppService {
         return msg;
     }
 
+    static normalizePhoneNumber(phone) {
+        if (!phone) return '';
+        let clean = String(phone).replace(/[^0-9]/g, '');
+        if (!clean) return '';
+
+        // Remove international double zero prefix (e.g. 0058 -> 58)
+        if (clean.startsWith('00')) {
+            clean = clean.substring(2);
+        }
+
+        // Standard Venezuelan mobile numbers:
+        // Case 1: 11 digits starting with 0 (e.g. 0412..., 0414..., 0424..., 0416..., 0426...)
+        if (clean.length === 11 && clean.startsWith('0')) {
+            clean = '58' + clean.substring(1);
+        }
+        // Case 2: 10 digits starting with 4 (e.g. 412..., 414..., 424..., 416..., 426...)
+        else if (clean.length === 10 && (clean.startsWith('412') || clean.startsWith('414') || clean.startsWith('424') || clean.startsWith('416') || clean.startsWith('426') || clean.startsWith('4'))) {
+            clean = '58' + clean;
+        }
+        // Case 3: 13 digits starting with 580 (e.g. 580412..., 580424...)
+        else if (clean.startsWith('580') && clean.length === 13) {
+            clean = '58' + clean.substring(3);
+        }
+
+        return clean;
+    }
+
     static sendToPatient(phone, message) {
         if (!phone) return;
-        const cleanPhone = phone.replace(/[^0-9]/g, '');
+        const cleanPhone = this.normalizePhoneNumber(phone);
+        if (!cleanPhone) return;
         const url = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`;
         window.open(url, '_blank');
     }
