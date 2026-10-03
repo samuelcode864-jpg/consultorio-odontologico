@@ -6795,7 +6795,11 @@ function initGlobalEvents() {
             if (searchInput) searchInput.value = '';
             
             if (val === 'new') {
-                openModal('modal-patient');
+                if (typeof window.openPatientModalForNew === 'function') {
+                    window.openPatientModalForNew();
+                } else {
+                    openModal('modal-patient');
+                }
             } else if (val) {
                 await window.selectPatientAndLoadApprovedBudget(val);
             } else {
@@ -8101,7 +8105,7 @@ function initGlobalEvents() {
         };
     }
 
-    window.openBudgetForNewPatient = async function(patientId) {
+    window.openBudgetForNewPatient = async function(patientId, isBrandNew = false) {
         setActivePatientId(patientId);
 
         // Forzar cambio al editor
@@ -8118,21 +8122,43 @@ function initGlobalEvents() {
         const patients = await SupabaseDataService.getPatients();
         const patient = patients.find(p => String(p.id) === String(patientId));
 
-        // Si ya hay ítems de presupuesto en memoria (por ejemplo, recién seleccionados en el odontograma), NO los borramos.
-        // Si no hay en memoria, intentamos recuperarlos del borrador guardado en metadata.draftBudget.items del paciente.
-        if (!currentBudgetItems || currentBudgetItems.length === 0) {
+        // Para un paciente nuevo o recién registrado, iniciar SIEMPRE con presupuesto y odontograma 100% limpios
+        if (isBrandNew) {
+            currentBudgetItems = [];
+            window.currentPlannerBudgetItems = null;
+            if (patient && patient.metadata) {
+                patient.metadata.draftBudget = { items: [] };
+                patient.metadata.draftOdontogramData = {};
+                patient.odontogramData = {};
+                try {
+                    await SupabaseDataService.savePatient(patient);
+                } catch(e) {
+                    console.warn("Could not clean patient draft metadata:", e);
+                }
+            }
+            if (window.odontogram) {
+                window.odontogram.setData({});
+            }
+        } else {
+            // Si ya tiene un borrador guardado este paciente específico, cargarlo; si no, dejar vacío
             if (patient && patient.metadata && patient.metadata.draftBudget && Array.isArray(patient.metadata.draftBudget.items) && patient.metadata.draftBudget.items.length > 0) {
                 currentBudgetItems = [...patient.metadata.draftBudget.items];
+            } else {
+                currentBudgetItems = [];
+            }
+            window.currentPlannerBudgetItems = null;
+
+            const patOdData = (patient && patient.odontogramData && Object.keys(patient.odontogramData).length > 0)
+                ? { ...patient.odontogramData }
+                : ((patient && patient.metadata && patient.metadata.draftOdontogramData) ? { ...patient.metadata.draftOdontogramData } : {});
+
+            if (window.odontogram) {
+                window.odontogram.setData(patOdData);
             }
         }
 
-        // De igual forma con el odontograma: si ya tiene marcas en memoria, preservarlas. Si no, cargar del paciente.
-        if (window.odontogram) {
-            const currentOdData = window.odontogram.getData();
-            const hasCurrentOdData = currentOdData && Object.keys(currentOdData).length > 0;
-            if (!hasCurrentOdData && patient && patient.odontogramData && Object.keys(patient.odontogramData).length > 0) {
-                window.odontogram.setData(patient.odontogramData);
-            }
+        if (window.patientSigPad) {
+            window.patientSigPad.clear();
         }
 
         if (window.doctorSigPad) {
@@ -8421,10 +8447,10 @@ function initGlobalEvents() {
                             totalSessions: parseInt(getVal('p-init-treatment-sessions')) || 2,
                             interval: getVal('p-init-treatment-interval') || 'Quincenal'
                         },
-                        sessionsPlan: sessionsData,
-                        draftOdontogramData: (window.odontogram && Object.keys(window.odontogram.getData() || {}).length > 0) ? window.odontogram.getData() : {},
+                        sessionsPlan: [],
+                        draftOdontogramData: {},
                         draftBudget: {
-                            items: (currentBudgetItems && currentBudgetItems.length > 0) ? currentBudgetItems : []
+                            items: []
                         }
                     }
                 };
@@ -8481,7 +8507,7 @@ function initGlobalEvents() {
             await renderAgendaView();
 
             if (redirectToBudget) {
-                await window.openBudgetForNewPatient(id);
+                await window.openBudgetForNewPatient(id, true);
                 Swal.fire({
                     icon: 'success',
                     title: '¡Paciente Guardado!',
