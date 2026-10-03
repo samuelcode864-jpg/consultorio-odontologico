@@ -18,13 +18,13 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=263">
+    <link rel="stylesheet" href="styles.css?v=279">
 
     <!-- Anti-Flash Instant Auth & Tab Guard -->
     <script>
         (function() {
             var urlParams = new URLSearchParams(window.location.search);
-            var isPublic = (urlParams.get('view') === 'budget' || urlParams.get('view') === 'receipt') && urlParams.get('patientId');
+            var isPublic = (urlParams.get('view') === 'budget' || urlParams.get('view') === 'receipt' || urlParams.get('view') === 'recipe') && urlParams.get('patientId');
             var session = sessionStorage.getItem('dental_current_user') || localStorage.getItem('dental_current_user');
             if (session || isPublic) {
                 document.documentElement.classList.add('has-auth-session');
@@ -3758,13 +3758,13 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=278"></script>
-    <script src="supabaseClient.js?v=278"></script>
-    <script src="odontogram.js?v=278"></script>
-    <script src="signature.js?v=278"></script>
-    <script src="whatsapp.js?v=278"></script>
-    <script src="kardex.js?v=278"></script>
-    <script src="app.js?v=278"></script>
-    <script src="tutorial.js?v=278"></script>
+    <script src="seededData.js?v=279"></script>
+    <script src="supabaseClient.js?v=279"></script>
+    <script src="odontogram.js?v=279"></script>
+    <script src="signature.js?v=279"></script>
+    <script src="whatsapp.js?v=279"></script>
+    <script src="kardex.js?v=279"></script>
+    <script src="app.js?v=279"></script>
+    <script src="tutorial.js?v=279"></script>
 </body>
 </html>

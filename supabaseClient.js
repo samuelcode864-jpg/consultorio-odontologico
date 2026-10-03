@@ -325,7 +325,7 @@ class SupabaseDataService {
         }
 
         if (this._patientsPromise && !forceRefresh) {
-            return local;
+            return local.length > 0 ? local : await this._patientsPromise;
         }
 
         this._patientsPromise = (async () => {
@@ -386,7 +386,7 @@ class SupabaseDataService {
             }
         })();
 
-        if (forceRefresh) {
+        if (forceRefresh || !this._patientsCacheTime || local.length === 0) {
             return await this._patientsPromise;
         }
 
@@ -717,7 +717,7 @@ class SupabaseDataService {
         }
 
         if (this._invoicesPromise && !forceRefresh) {
-            return local;
+            return local.length > 0 ? local : await this._invoicesPromise;
         }
 
         this._invoicesPromise = (async () => {
@@ -809,7 +809,7 @@ class SupabaseDataService {
             return cloudInvoices;
         })();
 
-        if (forceRefresh) return await this._invoicesPromise;
+        if (forceRefresh || !this._invoicesCacheTime || local.length === 0) return await this._invoicesPromise;
         return local;
     }
 

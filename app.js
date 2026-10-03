@@ -14552,15 +14552,120 @@ async function renderPublicBudgetView() {
     publicContent.innerHTML = '<div style="padding:40px; text-align:center;"><i class="fa-solid fa-arrows-rotate fa-spin" style="font-size:2rem; color:var(--primary-cyan);"></i><br><br>Cargando presupuesto...</div>';
 
     try {
-        const patients = await SupabaseDataService.getPatients();
-        const patient = patients.find(p => p.id === patientId);
+        const cleanId = (id) => String(id || '').trim().replace(/^V-?/i, '');
+        const patients = await SupabaseDataService.getPatients(true);
+        let patient = patients.find(p => cleanId(p.id) === cleanId(patientId) || String(p.id).trim() === String(patientId).trim() || String(p.phone).trim() === String(patientId).trim());
+        
+        // Fallback: direct cloud query for patient if not found in cache
+        if (!patient && SupabaseDataService.isCloudConnected() && typeof supabaseClient !== 'undefined' && supabaseClient) {
+            try {
+                const { data: pDirect } = await supabaseClient.from('patients').select('*').or(`id.eq.${patientId},id.eq.V-${patientId},phone.eq.${patientId}`).limit(1);
+                if (pDirect && pDirect.length > 0) {
+                    const p = pDirect[0];
+                    const od = p.odontogram_data || {};
+                    patient = {
+                        id: p.id,
+                        fullname: p.fullname,
+                        phone: p.phone,
+                        metadata: p.metadata || od.metadata || {}
+                    };
+                }
+            } catch (pErr) {
+                console.warn("Direct patient fetch fallback error:", pErr);
+            }
+        }
+
         if (!patient) {
             publicContent.innerHTML = '<div class="text-center text-red" style="padding:40px;"><i class="fa-solid fa-circle-xmark" style="font-size:2rem;"></i><br><br>No se encontró el paciente en el sistema.</div>';
             return;
         }
 
-        const invoices = await SupabaseDataService.getInvoices();
-        const budget = invoices.find(inv => inv.id === budgetId || (inv.patientId === patientId && inv.id.startsWith('PRE-')));
+        const invoices = await SupabaseDataService.getInvoices(true);
+        let budget = null;
+        if (budgetId) {
+            budget = invoices.find(inv => String(inv.id).trim().toLowerCase() === String(budgetId).trim().toLowerCase());
+        }
+        if (!budget && patient) {
+            budget = invoices.find(inv => (cleanId(inv.patientId) === cleanId(patient.id) || String(inv.patientId) === String(patient.id)) && String(inv.id).startsWith('PRE-'));
+        }
+
+        // Fallback 1: Direct cloud query for budget in invoices table
+        if (!budget && budgetId && SupabaseDataService.isCloudConnected() && typeof supabaseClient !== 'undefined' && supabaseClient) {
+            try {
+                const { data: invRow } = await supabaseClient.from('invoices').select('*').eq('id', budgetId).maybeSingle();
+                if (invRow) {
+                    budget = {
+                        id: invRow.id,
+                        patientId: invRow.patient_id,
+                        invoiceDate: invRow.invoice_date,
+                        createdAt: invRow.created_at,
+                        paymentMethod: invRow.payment_method,
+                        paymentTerms: invRow.payment_terms,
+                        currency: invRow.currency,
+                        items: invRow.items || [],
+                        totalRef: parseFloat(invRow.total_ref || 0),
+                        totalBcv: parseFloat(invRow.total_bcv || 0),
+                        status: invRow.status || 'Emitida',
+                        doctorSignature: invRow.doctor_signature || (invRow.metadata && invRow.metadata.doctorSignature) || '',
+                        patientSignature: invRow.patient_signature || (invRow.metadata && invRow.metadata.patientSignature) || '',
+                        footerText: invRow.footer_text || '',
+                        metadata: invRow.metadata || {}
+                    };
+                }
+            } catch (invErr) {
+                console.warn("Direct invoice cloud query error:", invErr);
+            }
+        }
+
+        // Fallback 2: Direct cloud query in patients table (where invoices/budgets are stored with id=PRE-...)
+        if (!budget && budgetId && SupabaseDataService.isCloudConnected() && typeof supabaseClient !== 'undefined' && supabaseClient) {
+            try {
+                const { data: patRow } = await supabaseClient.from('patients').select('*').eq('id', budgetId).maybeSingle();
+                if (patRow && patRow.odontogram_data) {
+                    const od = patRow.odontogram_data;
+                    budget = {
+                        id: od.id || patRow.id,
+                        patientId: od.patientId || patRow.phone,
+                        invoiceDate: od.invoiceDate || patRow.birthdate,
+                        createdAt: patRow.created_at || od.createdAt,
+                        paymentMethod: od.paymentMethod || 'Efectivo USD',
+                        paymentTerms: od.paymentTerms || 'Contado',
+                        currency: od.currency || 'REF',
+                        items: od.items || [],
+                        totalRef: parseFloat(od.totalRef || 0),
+                        totalBcv: parseFloat(od.totalBcv || 0),
+                        status: od.status || patRow.status || 'Emitida',
+                        doctorSignature: od.doctorSignature || (od.metadata && od.metadata.doctorSignature) || '',
+                        patientSignature: od.patientSignature || (od.metadata && od.metadata.patientSignature) || '',
+                        footerText: od.footerText || '',
+                        metadata: od.metadata || {}
+                    };
+                }
+            } catch (patBudgetErr) {
+                console.warn("Direct patients table budget query error:", patBudgetErr);
+            }
+        }
+
+        // Fallback 3: Patient's clinical metadata (draftBudget or treatments)
+        if (!budget && patient && patient.metadata) {
+            const meta = patient.metadata;
+            const draft = meta.draftBudget || {};
+            const items = (draft.items && draft.items.length > 0) ? draft.items : (meta.treatments || []);
+            if (items && items.length > 0) {
+                budget = {
+                    id: budgetId || 'PRE-ONLINE',
+                    patientId: patient.id,
+                    invoiceDate: draft.invoiceDate || new Date().toISOString().split('T')[0],
+                    items: items,
+                    totalRef: draft.totalRef || 0,
+                    totalBcv: draft.totalBcv || 0,
+                    doctorSignature: meta.doctorSignature || window.DEFAULT_DOCTOR_SIGNATURE,
+                    patientSignature: meta.patientSignature || '',
+                    footerText: draft.footerText || 'Presupuesto odontológico activo.',
+                    metadata: draft.metadata || meta
+                };
+            }
+        }
         
         if (!budget) {
             publicContent.innerHTML = '<div class="text-center text-red" style="padding:40px;"><i class="fa-solid fa-circle-xmark" style="font-size:2rem;"></i><br><br>No se encontró ningún presupuesto activo para este paciente.</div>';
@@ -14578,10 +14683,21 @@ async function renderPublicBudgetView() {
             }
         }
 
-        const rate = parseFloat(localStorage.getItem('dental_exchange_rate')) || 36.5;
+        let rate = parseFloat(localStorage.getItem('dental_exchange_rate')) || 36.5;
+        if (budget.totalBcv && budget.totalRef && budget.totalRef > 0) {
+            const calculatedRate = budget.totalBcv / budget.totalRef;
+            if (calculatedRate > 1) {
+                rate = calculatedRate;
+            }
+        }
+
+        let rawItems = budget.items || [];
+        if (typeof rawItems === 'string') {
+            try { rawItems = JSON.parse(rawItems); } catch(e) { rawItems = []; }
+        }
 
         let subtotalUSD = 0;
-        budget.items.forEach(item => subtotalUSD += item.price || 0);
+        rawItems.forEach(item => subtotalUSD += (item.price || item.priceUSD || 0));
 
         const discountPct = budget.metadata && budget.metadata.discountPct ? parseFloat(budget.metadata.discountPct) : 0;
         const discountAmountUSD = subtotalUSD * (discountPct / 100);
@@ -14592,14 +14708,15 @@ async function renderPublicBudgetView() {
         const totalVES = (totalUSD * rate).toFixed(2);
 
         let itemsHtml = '';
-        budget.items.forEach(item => {
+        rawItems.forEach(item => {
+            const pPrice = item.price || item.priceUSD || 0;
             itemsHtml += `
                 <tr style="border-bottom: 1px dashed #e2e8f0; font-size: 0.82rem;">
                     <td style="padding: 8px 6px; vertical-align: top; color: #334155; white-space: nowrap;">Pieza ${item.tooth || 'Gnl'}<br><small style="color:#64748b;">(${item.face || 'Gnl'})</small></td>
                     <td style="padding: 8px 6px; vertical-align: top; color: #0f172a; word-break: break-word;"><strong>${item.name}</strong></td>
                     <td style="padding: 8px 6px; vertical-align: top; color: #475569; font-size: 0.78rem;">${item.specialist || '-'}</td>
-                    <td style="padding: 8px 6px; vertical-align: top; font-weight: 600; color: #0f172a; white-space: nowrap;">$${(item.price || 0).toFixed(2)} USD</td>
-                    <td style="padding: 8px 6px; vertical-align: top; text-align: right; font-weight: 600; color: #0891b2; white-space: nowrap;">Bs. ${((item.price || 0) * rate).toFixed(2)}</td>
+                    <td style="padding: 8px 6px; vertical-align: top; font-weight: 600; color: #0f172a; white-space: nowrap;">$${pPrice.toFixed(2)} USD</td>
+                    <td style="padding: 8px 6px; vertical-align: top; text-align: right; font-weight: 600; color: #0891b2; white-space: nowrap;">Bs. ${(pPrice * rate).toFixed(2)}</td>
                 </tr>
             `;
         });
@@ -14829,8 +14946,29 @@ async function renderPublicSessionReceiptView() {
     publicContent.innerHTML = '<div style="padding:40px; text-align:center;"><i class="fa-solid fa-arrows-rotate fa-spin" style="font-size:2rem; color:var(--primary-cyan);"></i><br><br>Cargando recibo de atención...</div>';
 
     try {
-        const patients = await SupabaseDataService.getPatients();
-        const patient = patients.find(p => p.id === patientId);
+        const cleanId = (id) => String(id || '').trim().replace(/^V-?/i, '');
+        const patients = await SupabaseDataService.getPatients(true);
+        let patient = patients.find(p => cleanId(p.id) === cleanId(patientId) || String(p.id).trim() === String(patientId).trim() || String(p.phone).trim() === String(patientId).trim());
+        
+        if (!patient && SupabaseDataService.isCloudConnected() && typeof supabaseClient !== 'undefined' && supabaseClient) {
+            try {
+                const { data: pDirect } = await supabaseClient.from('patients').select('*').or(`id.eq.${patientId},id.eq.V-${patientId},phone.eq.${patientId}`).limit(1);
+                if (pDirect && pDirect.length > 0) {
+                    const p = pDirect[0];
+                    const od = p.odontogram_data || {};
+                    const ext = od._app_extended || {};
+                    patient = {
+                        id: p.id,
+                        fullname: p.fullname,
+                        phone: p.phone,
+                        sessions: ext.sessions || ext.clinicalNotes || p.clinical_notes || [],
+                        clinicalNotes: p.clinical_notes || ext.clinicalNotes || [],
+                        metadata: p.metadata || od.metadata || {}
+                    };
+                }
+            } catch(e) {}
+        }
+
         if (!patient || !patient.sessions) {
             publicContent.innerHTML = '<div class="text-center text-red" style="padding:40px;"><i class="fa-solid fa-circle-xmark" style="font-size:2rem;"></i><br><br>No se encontró el paciente o su registro clínico.</div>';
             return;
@@ -15004,8 +15142,26 @@ async function renderPublicRecipeView() {
     publicContent.innerHTML = '<div style="padding:40px; text-align:center;"><i class="fa-solid fa-arrows-rotate fa-spin" style="font-size:2rem; color:var(--primary-cyan);"></i><br><br>Cargando prescripción médica y récipe...</div>';
 
     try {
-        const patients = await SupabaseDataService.getPatients();
-        const patient = patients.find(p => p.id === patientId);
+        const cleanId = (id) => String(id || '').trim().replace(/^V-?/i, '');
+        const patients = await SupabaseDataService.getPatients(true);
+        let patient = patients.find(p => cleanId(p.id) === cleanId(patientId) || String(p.id).trim() === String(patientId).trim() || String(p.phone).trim() === String(patientId).trim());
+        
+        if (!patient && SupabaseDataService.isCloudConnected() && typeof supabaseClient !== 'undefined' && supabaseClient) {
+            try {
+                const { data: pDirect } = await supabaseClient.from('patients').select('*').or(`id.eq.${patientId},id.eq.V-${patientId},phone.eq.${patientId}`).limit(1);
+                if (pDirect && pDirect.length > 0) {
+                    const p = pDirect[0];
+                    const od = p.odontogram_data || {};
+                    patient = {
+                        id: p.id,
+                        fullname: p.fullname,
+                        phone: p.phone,
+                        metadata: p.metadata || od.metadata || {}
+                    };
+                }
+            } catch(e) {}
+        }
+
         if (!patient) {
             publicContent.innerHTML = '<div class="text-center text-red" style="padding:40px;"><i class="fa-solid fa-circle-xmark" style="font-size:2rem;"></i><br><br>No se encontró el expediente del paciente.</div>';
             return;
