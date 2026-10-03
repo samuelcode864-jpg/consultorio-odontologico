@@ -12046,13 +12046,13 @@ function getClinicBusData(config) {
     let busData = {
         name: 'Consultorio Odontológico',
         doctor: 'Dr. Rodrigo Navas',
-        phone: '+58 (412) 555-0192',
+        phone: '0424-2214818',
         email: 'contacto@dentalcare.com',
         rif: 'J-12345678-9',
-        address: 'Av. Principal de Las Mercedes, Torre Consultorios, Piso 4, Caracas',
+        address: 'Av libertador Torre Maracaibo piso 10 oficina G',
         logoUrl: '',
         footer: 'Gracias por su confianza. Todo tratamiento dental requiere control periódico cada 6 meses.',
-        bankInfo: 'Banco Banesco - Cuenta Corriente | N°: 0134-0000-00-0000000000<br>A nombre de: Consultorio Odontológico<br>Pago Móvil: C.I. 12.345.678 / Tlf: 0412-5550192'
+        bankInfo: 'Banco: 0172 - Bancamiga Banco Universal | Cuenta Corriente Amiga<br>N° de Cuenta: 01720112321126247822<br>Titular: RODRIGO JOSUE, NAVAS FLORES | C.I. V-23812435<br>Pago Móvil: Bancamiga (0172) | C.I. V23812435 | Teléfono: 0424-2214818'
     };
 
     if (config) {
@@ -12075,6 +12075,7 @@ function getClinicBusData(config) {
         }
         if (config.logo_url || config.logoUrl) busData.logoUrl = config.logo_url || config.logoUrl;
         if (config.footer_text || config.footerText) busData.footer = config.footer_text || config.footerText;
+        if (config.bank_info || config.bankInfo) busData.bankInfo = (config.bank_info || config.bankInfo).replace(/\n/g, '<br>');
     }
 
     const savedName = localStorage.getItem('dental_clinic_name');
@@ -12083,6 +12084,8 @@ function getClinicBusData(config) {
     if (savedAddr && savedAddr.trim()) busData.address = savedAddr.trim();
     const savedPhone = localStorage.getItem('dental_clinic_phone');
     if (savedPhone && savedPhone.trim()) busData.phone = savedPhone.trim();
+    const savedBank = localStorage.getItem('dental_clinic_bank_info');
+    if (savedBank && savedBank.trim()) busData.bankInfo = savedBank.trim().replace(/\n/g, '<br>');
 
     return busData;
 }
@@ -12135,7 +12138,7 @@ function buildMedicalDocumentHTML(opts) {
         approvedAmountUSD = 0,
         
         paymentTerms = 'Contado / Pago inmediato al momento de la consulta.',
-        bankingDetails = 'Banco Banesco - Cuenta Corriente | N°: 0134-0000-00-0000000000<br>A nombre de: Consultorio Odontológico<br>Pago Móvil: C.I. 12.345.678 / Tlf: 0412-5550192',
+        bankingDetails = 'Banco: 0172 - Bancamiga Banco Universal | Cuenta Corriente Amiga<br>N° de Cuenta: 01720112321126247822<br>Titular: RODRIGO JOSUE, NAVAS FLORES | C.I. V-23812435<br>Pago Móvil: Bancamiga (0172) | C.I. V23812435 | Teléfono: 0424-2214818',
         observations = 'El paciente presenta evolución favorable. Se recomienda mantener tratamiento y esquema preventivo indicado, evitar esfuerzos intensos durante las próximas 48 horas y acudir a control preventivo en 30 días.',
         consentText = 'Por medio de la presente, el paciente declara haber recibido explicación clara y detallada acerca de los procedimientos diagnosticados y realizados en esta consulta, aceptando de manera voluntaria la atención prestada y expresando su conformidad con los cobros administrativos y honorarios detallados en este documento.',
         footerNote = ''
@@ -13918,6 +13921,12 @@ async function renderStationeryView() {
         recipeFooterTextarea.value = config.recipeFooterText || '';
     }
 
+    const bankInfoTextarea = document.getElementById('stat-bank-info');
+    if (bankInfoTextarea) {
+        const currentBank = config.bankInfo || config.bank_info || localStorage.getItem('dental_clinic_bank_info') || 'Banco: 0172 - Bancamiga Banco Universal | Cuenta Corriente Amiga\nN° de Cuenta: 01720112321126247822\nTitular: RODRIGO JOSUE, NAVAS FLORES | C.I. V-23812435\nPago Móvil: Bancamiga (0172) | C.I. V23812435 | Teléfono: 0424-2214818';
+        bankInfoTextarea.value = currentBank.replace(/<br\s*[\/]?>/gi, '\n');
+    }
+
     const previewImg = document.getElementById('stat-logo-preview-img');
     const previewContainer = document.getElementById('stat-logo-preview-img-container');
     if (config.logoUrl) {
@@ -13953,6 +13962,7 @@ async function renderStationeryView() {
         const headerText = headerTextarea.value.trim();
         const footerText = footerTextarea.value.trim();
         const recipeFooterText = recipeFooterTextarea ? recipeFooterTextarea.value.trim() : '';
+        const bankInfo = bankInfoTextarea ? bankInfoTextarea.value.trim() : '';
         const logoUrl = previewImg ? (previewImg.src || '') : '';
 
         await SupabaseDataService.saveStationeryConfig({
@@ -13960,6 +13970,7 @@ async function renderStationeryView() {
             headerText,
             footerText,
             recipeFooterText,
+            bankInfo,
             logoUrl
         });
 
@@ -13972,7 +13983,7 @@ async function renderStationeryView() {
 
         renderBudgetTable();
 
-        Swal.fire({ icon: 'success', title: 'Configuración guardada', text: 'Se actualizaron el logo, membretes y récipes e indicaciones en el sistema.', timer: 2000, showConfirmButton: false });
+        Swal.fire({ icon: 'success', title: 'Configuración guardada', text: 'Se actualizaron los datos bancarios, logo, membretes y papelería en el sistema.', timer: 2000, showConfirmButton: false });
     };
 }
 
@@ -13982,6 +13993,7 @@ async function handleStationeryAction(templateType, action) {
         const headerText = document.getElementById('stat-header-text') ? document.getElementById('stat-header-text').value : (stationery.headerText || stationery.header_text || '');
         const footerText = document.getElementById('stat-footer-text') ? document.getElementById('stat-footer-text').value : (stationery.footerText || stationery.footer_text || '');
         const recipeFooterText = document.getElementById('stat-recipe-footer-text') ? document.getElementById('stat-recipe-footer-text').value : (stationery.recipeFooterText || '');
+        const bankInfoText = document.getElementById('stat-bank-info') ? document.getElementById('stat-bank-info').value : (stationery.bankInfo || stationery.bank_info || '');
         
         const previewImg = document.getElementById('stat-logo-preview-img');
         const rawLogoSrc = (previewImg && previewImg.getAttribute('src')) ? previewImg.getAttribute('src') : '';
@@ -13990,7 +14002,8 @@ async function handleStationeryAction(templateType, action) {
         const busData = getClinicBusData({ 
             header_text: headerText || stationery.headerText || stationery.header_text, 
             logo_url: logoSrc || stationery.logoUrl || stationery.logo_url, 
-            footer_text: footerText || stationery.footerText || stationery.footer_text 
+            footer_text: footerText || stationery.footerText || stationery.footer_text,
+            bank_info: bankInfoText || stationery.bankInfo || stationery.bank_info
         });
 
         let logoBase64 = '';

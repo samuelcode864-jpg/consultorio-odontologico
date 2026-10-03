@@ -1050,6 +1050,7 @@ class SupabaseDataService {
     // 8. CLINIC BRANDING, LOGO, HEADER & FOOTER
     // ==========================================
     static async getStationeryConfig() {
+        const defaultBankInfo = 'Banco: 0172 - Bancamiga Banco Universal | Cuenta Corriente Amiga\nN° de Cuenta: 01720112321126247822\nTitular: RODRIGO JOSUE, NAVAS FLORES | C.I. V-23812435\nPago Móvil: Bancamiga (0172) | C.I. V23812435 | Teléfono: 0424-2214818';
         const defaultDoc = {
             id: 'default',
             headerText: 'DentalCare Pro - Clínica Odontológica Especializada\nDr. Alejandro Silva - C.O.V-14920\nAv. Principal, Mérida - WhatsApp: +584141234567',
@@ -1058,6 +1059,8 @@ class SupabaseDataService {
             footer_text: 'Gracias por su confianza. Todo tratamiento dental requiere control periódico cada 6 meses.',
             recipeFooterText: 'Documento Clínico Oficial de Prescripción Médica y Recomendaciones para el Paciente.',
             recipe_footer_text: 'Documento Clínico Oficial de Prescripción Médica y Recomendaciones para el Paciente.',
+            bankInfo: defaultBankInfo,
+            bank_info: defaultBankInfo,
             logoUrl: '',
             logo_url: ''
         };
@@ -1081,6 +1084,8 @@ class SupabaseDataService {
                     footer_text: od.footerText !== undefined ? od.footerText : (od.footer_text !== undefined ? od.footer_text : (localSaved ? localSaved.footerText : defaultDoc.footerText)),
                     recipeFooterText: od.recipeFooterText !== undefined ? od.recipeFooterText : (od.recipe_footer_text !== undefined ? od.recipe_footer_text : (localSaved ? localSaved.recipeFooterText : defaultDoc.recipeFooterText)),
                     recipe_footer_text: od.recipeFooterText !== undefined ? od.recipeFooterText : (od.recipe_footer_text !== undefined ? od.recipe_footer_text : (localSaved ? localSaved.recipeFooterText : defaultDoc.recipeFooterText)),
+                    bankInfo: od.bankInfo !== undefined ? od.bankInfo : (od.bank_info !== undefined ? od.bank_info : (localSaved ? localSaved.bankInfo : defaultBankInfo)),
+                    bank_info: od.bankInfo !== undefined ? od.bankInfo : (od.bank_info !== undefined ? od.bank_info : (localSaved ? localSaved.bankInfo : defaultBankInfo)),
                     logoUrl: od.logoUrl !== undefined ? od.logoUrl : (od.logo_url !== undefined ? od.logo_url : (localSaved ? localSaved.logoUrl : '')),
                     logo_url: od.logoUrl !== undefined ? od.logoUrl : (od.logo_url !== undefined ? od.logo_url : (localSaved ? localSaved.logoUrl : '')),
                     doctorSignature: od.doctorSignature !== undefined ? od.doctorSignature : (od.doctor_signature !== undefined ? od.doctor_signature : (localSaved ? localSaved.doctorSignature : '')),
@@ -1102,6 +1107,8 @@ class SupabaseDataService {
                     footer_text: (row.footer_text !== null && row.footer_text !== undefined) ? row.footer_text : (localSaved ? localSaved.footerText : defaultDoc.footerText),
                     recipeFooterText: (row.recipe_footer_text !== null && row.recipe_footer_text !== undefined) ? row.recipe_footer_text : (localSaved ? localSaved.recipeFooterText : defaultDoc.recipeFooterText),
                     recipe_footer_text: (row.recipe_footer_text !== null && row.recipe_footer_text !== undefined) ? row.recipe_footer_text : (localSaved ? localSaved.recipeFooterText : defaultDoc.recipeFooterText),
+                    bankInfo: (row.bank_info !== null && row.bank_info !== undefined) ? row.bank_info : (localSaved ? localSaved.bankInfo : defaultBankInfo),
+                    bank_info: (row.bank_info !== null && row.bank_info !== undefined) ? row.bank_info : (localSaved ? localSaved.bankInfo : defaultBankInfo),
                     logoUrl: row.logo_url || (localSaved ? localSaved.logoUrl : ''),
                     logo_url: row.logo_url || (localSaved ? localSaved.logoUrl : ''),
                     doctorSignature: localSaved ? (localSaved.doctorSignature || localSaved.doctor_signature || '') : '',
@@ -1122,6 +1129,7 @@ class SupabaseDataService {
         const headerText = configObj.headerText !== undefined ? configObj.headerText : (configObj.header_text !== undefined ? configObj.header_text : '');
         const footerText = configObj.footerText !== undefined ? configObj.footerText : (configObj.footer_text !== undefined ? configObj.footer_text : '');
         const recipeFooterText = configObj.recipeFooterText !== undefined ? configObj.recipeFooterText : (configObj.recipe_footer_text !== undefined ? configObj.recipe_footer_text : '');
+        const bankInfo = configObj.bankInfo !== undefined ? configObj.bankInfo : (configObj.bank_info !== undefined ? configObj.bank_info : (localStorage.getItem('dental_clinic_bank_info') || 'Banco: 0172 - Bancamiga Banco Universal | Cuenta Corriente Amiga\nN° de Cuenta: 01720112321126247822\nTitular: RODRIGO JOSUE, NAVAS FLORES | C.I. V-23812435\nPago Móvil: Bancamiga (0172) | C.I. V23812435 | Teléfono: 0424-2214818'));
         const logoUrl = configObj.logoUrl !== undefined ? configObj.logoUrl : (configObj.logo_url !== undefined ? configObj.logo_url : '');
         const localSaved = JSON.parse(localStorage.getItem('dental_stationery_config') || 'null');
         const doctorSignature = configObj.doctorSignature !== undefined ? configObj.doctorSignature : (configObj.doctor_signature !== undefined ? configObj.doctor_signature : (localSaved ? (localSaved.doctorSignature || localSaved.doctor_signature || '') : ''));
@@ -1134,6 +1142,8 @@ class SupabaseDataService {
             footer_text: footerText,
             recipeFooterText: recipeFooterText,
             recipe_footer_text: recipeFooterText,
+            bankInfo: bankInfo,
+            bank_info: bankInfo,
             logoUrl: logoUrl,
             logo_url: logoUrl,
             doctorSignature: doctorSignature,
@@ -1141,6 +1151,7 @@ class SupabaseDataService {
         };
 
         localStorage.setItem('dental_stationery_config', JSON.stringify(normalized));
+        localStorage.setItem('dental_clinic_bank_info', bankInfo);
 
         if (this.isCloudConnected()) {
             try {
@@ -1159,6 +1170,8 @@ class SupabaseDataService {
                         footer_text: footerText,
                         recipeFooterText: recipeFooterText,
                         recipe_footer_text: recipeFooterText,
+                        bankInfo: bankInfo,
+                        bank_info: bankInfo,
                         logoUrl: logoUrl,
                         logo_url: logoUrl,
                         doctorSignature: doctorSignature,
