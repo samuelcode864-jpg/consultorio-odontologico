@@ -549,6 +549,9 @@ function getExchangeRate() {
 
 // Helper: Persist Active Patient's Odontogram & Draft Budget Changes (With Anonymous Fallback)
 async function autoSaveActivePatientOdontogram() {
+    if (window.isOpeningNewBudget || window.isCreatingNewPatient || window.isSwitchingPatient) {
+        return;
+    }
     let odData = window.odontogram ? window.odontogram.getData() : {};
     
     // Reconciliar de forma estricta para que nunca haya datos huérfanos en borradores
@@ -2608,7 +2611,7 @@ async function renderOdontogramView() {
 
     if (activeId) {
         const patients = await SupabaseDataService.getPatients();
-        const patient = patients.find(p => p.id === activeId);
+        const patient = patients.find(p => String(p.id) === String(activeId)) || window.activeEHRPatient;
         if (patient) {
             if (activeEditingBudgetId) {
                 // Modo edición de presupuesto archivado / histórico / borrador
@@ -8106,71 +8109,110 @@ function initGlobalEvents() {
     }
 
     window.openBudgetForNewPatient = async function(patientId, isBrandNew = false) {
-        setActivePatientId(patientId);
+        window.isOpeningNewBudget = true;
+        try {
+            setActivePatientId(patientId);
 
-        // Forzar cambio al editor
-        localStorage.setItem('dental_odontogram_subview', 'editor');
-        document.documentElement.setAttribute('data-odontogram-subview', 'editor');
-        const listContainer = document.getElementById('odontogram-list-container');
-        const editorContainer = document.getElementById('odontogram-editor-container');
-        if (listContainer) listContainer.classList.add('hidden');
-        if (editorContainer) editorContainer.classList.remove('hidden');
-
-        const navOdontogram = document.querySelector('.nav-item[data-tab="odontogram"]') || document.getElementById('mob-nav-odontogram');
-        if (navOdontogram) navOdontogram.click();
-
-        const patients = await SupabaseDataService.getPatients();
-        const patient = patients.find(p => String(p.id) === String(patientId));
-
-        // Para un paciente nuevo o recién registrado, iniciar SIEMPRE con presupuesto y odontograma 100% limpios
-        if (isBrandNew) {
+            // Clean active memory immediately
             currentBudgetItems = [];
             window.currentPlannerBudgetItems = null;
-            if (patient && patient.metadata) {
-                patient.metadata.draftBudget = { items: [] };
-                patient.metadata.draftOdontogramData = {};
-                patient.odontogramData = {};
-                try {
-                    await SupabaseDataService.savePatient(patient);
-                } catch(e) {
-                    console.warn("Could not clean patient draft metadata:", e);
-                }
-            }
             if (window.odontogram) {
                 window.odontogram.setData({});
             }
-        } else {
-            // Si ya tiene un borrador guardado este paciente específico, cargarlo; si no, dejar vacío
-            if (patient && patient.metadata && patient.metadata.draftBudget && Array.isArray(patient.metadata.draftBudget.items) && patient.metadata.draftBudget.items.length > 0) {
-                currentBudgetItems = [...patient.metadata.draftBudget.items];
-            } else {
+            if (window.patientSigPad) {
+                window.patientSigPad.clear();
+            }
+
+            // Direct view switch without triggering autoSave on previous patient
+            localStorage.setItem('dental_odontogram_subview', 'editor');
+            document.documentElement.setAttribute('data-odontogram-subview', 'editor');
+            localStorage.setItem('dental_active_tab', 'odontogram');
+            document.documentElement.setAttribute('data-active-tab', 'odontogram');
+
+            const navItems = document.querySelectorAll('.nav-item');
+            navItems.forEach(n => {
+                if (n.dataset.tab === 'odontogram') n.classList.add('active');
+                else n.classList.remove('active');
+            });
+            const mobNavBtns = document.querySelectorAll('.mobile-nav-btn');
+            mobNavBtns.forEach(m => {
+                if (m.dataset.tab === 'odontogram') m.classList.add('active');
+                else m.classList.remove('active');
+            });
+            const tabViews = document.querySelectorAll('.tab-view');
+            tabViews.forEach(v => v.classList.remove('active'));
+            const targetView = document.getElementById('view-odontogram');
+            if (targetView) targetView.classList.add('active');
+
+            const listContainer = document.getElementById('odontogram-list-container');
+            const editorContainer = document.getElementById('odontogram-editor-container');
+            if (listContainer) listContainer.classList.add('hidden');
+            if (editorContainer) editorContainer.classList.remove('hidden');
+
+            const patients = await SupabaseDataService.getPatients();
+            const patient = patients.find(p => String(p.id) === String(patientId)) || window.activeEHRPatient;
+
+            // Para un paciente nuevo o recién registrado, iniciar SIEMPRE con presupuesto y odontograma 100% limpios
+            if (isBrandNew) {
                 currentBudgetItems = [];
+                window.currentPlannerBudgetItems = null;
+                if (patient && patient.metadata) {
+                    patient.metadata.draftBudget = { items: [] };
+                    patient.metadata.draftOdontogramData = {};
+                    patient.odontogramData = {};
+                    try {
+                        await SupabaseDataService.savePatient(patient);
+                    } catch(e) {
+                        console.warn("Could not clean patient draft metadata:", e);
+                    }
+                }
+                if (window.odontogram) {
+                    window.odontogram.setData({});
+                }
+            } else {
+                // Si ya tiene un borrador guardado este paciente específico, cargarlo; si no, dejar vacío
+                if (patient && patient.metadata && patient.metadata.draftBudget && Array.isArray(patient.metadata.draftBudget.items) && patient.metadata.draftBudget.items.length > 0) {
+                    currentBudgetItems = [...patient.metadata.draftBudget.items];
+                } else {
+                    currentBudgetItems = [];
+                }
+                window.currentPlannerBudgetItems = null;
+
+                const patOdData = (patient && patient.odontogramData && Object.keys(patient.odontogramData).length > 0)
+                    ? { ...patient.odontogramData }
+                    : ((patient && patient.metadata && patient.metadata.draftOdontogramData) ? { ...patient.metadata.draftOdontogramData } : {});
+
+                if (window.odontogram) {
+                    window.odontogram.setData(patOdData);
+                }
             }
-            window.currentPlannerBudgetItems = null;
 
-            const patOdData = (patient && patient.odontogramData && Object.keys(patient.odontogramData).length > 0)
-                ? { ...patient.odontogramData }
-                : ((patient && patient.metadata && patient.metadata.draftOdontogramData) ? { ...patient.metadata.draftOdontogramData } : {});
-
-            if (window.odontogram) {
-                window.odontogram.setData(patOdData);
+            if (window.patientSigPad) {
+                window.patientSigPad.clear();
             }
+
+            if (window.doctorSigPad) {
+                await autoLoadDoctorSignatureInBudget(patient ? patient.assignedDoctor : null);
+            }
+
+            if (patient) {
+                const pName = document.getElementById('info-patient-name');
+                if (pName) pName.innerText = patient.fullname || 'Paciente';
+                const pCedula = document.getElementById('info-patient-cedula');
+                if (pCedula) pCedula.innerText = patient.id || 'V-00000000';
+                const pDoc = document.getElementById('info-patient-doctor');
+                if (pDoc) pDoc.innerText = patient.assignedDoctor || 'Dr. Rodrigo Navas';
+            }
+
+            const searchInput = document.getElementById('od-patient-search-input');
+            if (searchInput) searchInput.value = patient ? (patient.fullname || '') : '';
+
+            renderBudgetTable();
+            if (window.updateFloatingBudgetBubble) window.updateFloatingBudgetBubble();
+        } finally {
+            window.isOpeningNewBudget = false;
+            window.isCreatingNewPatient = false;
         }
-
-        if (window.patientSigPad) {
-            window.patientSigPad.clear();
-        }
-
-        if (window.doctorSigPad) {
-            await autoLoadDoctorSignatureInBudget(patient ? patient.assignedDoctor : null);
-        }
-
-        await renderOdontogramView();
-
-        const searchInput = document.getElementById('od-patient-search-input');
-        if (searchInput) searchInput.value = patient ? (patient.fullname || '') : '';
-
-        renderBudgetTable();
     };
 
     window.savePatientRecord = async function(redirectToBudget = false) {
