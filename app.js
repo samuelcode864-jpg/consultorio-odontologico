@@ -52,6 +52,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     window.doctorSigPad = new SignaturePad('doctor-sig-canvas');
     window.patientSigPad = new SignaturePad('patient-sig-canvas');
+    if (window.doctorSigPad && window.DEFAULT_DOCTOR_SIGNATURE) {
+        window.doctorSigPad.loadFromDataURL(window.DEFAULT_DOCTOR_SIGNATURE);
+    }
 
     // Helper to refresh visual badges on signature boxes
     window.refreshSignatureBoxBadges = function() {
@@ -73,7 +76,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const noticeEl = document.getElementById('doctor-sig-empty-notice');
         const canvasEl = document.getElementById('doctor-sig-canvas');
         const doctorBadge = document.getElementById('doctor-sig-badge');
-        const hasDocSig = window.doctorSigPad && !window.doctorSigPad.isEmpty();
+        const hasDocSig = (window.doctorSigPad && !window.doctorSigPad.isEmpty()) || !!window.DEFAULT_DOCTOR_SIGNATURE;
+
+        if (window.doctorSigPad && window.doctorSigPad.isEmpty() && window.DEFAULT_DOCTOR_SIGNATURE) {
+            window.doctorSigPad.loadFromDataURL(window.DEFAULT_DOCTOR_SIGNATURE);
+        }
 
         if (noticeEl && canvasEl) {
             if (hasDocSig) {
@@ -499,11 +506,20 @@ async function autoLoadDoctorSignatureInBudget(targetDoctorName = null) {
             } catch(e) {}
         }
 
+        // 5. Fallback to global official doctor signature
+        if (!sig) {
+            sig = window.DEFAULT_DOCTOR_SIGNATURE || localStorage.getItem('dental_clinic_doctor_signature') || null;
+        }
+
         const noticeEl = document.getElementById('doctor-sig-empty-notice');
         const canvasEl = document.getElementById('doctor-sig-canvas');
 
         if (sig && window.doctorSigPad) {
             window.doctorSigPad.loadFromDataURL(sig);
+            if (noticeEl) noticeEl.classList.add('hidden');
+            if (canvasEl) canvasEl.style.display = 'block';
+        } else if (window.DEFAULT_DOCTOR_SIGNATURE && window.doctorSigPad) {
+            window.doctorSigPad.loadFromDataURL(window.DEFAULT_DOCTOR_SIGNATURE);
             if (noticeEl) noticeEl.classList.add('hidden');
             if (canvasEl) canvasEl.style.display = 'block';
         } else {
@@ -542,6 +558,21 @@ function initStorage() {
     }
     if (!localStorage.getItem('dental_exchange_rate')) {
         localStorage.setItem('dental_exchange_rate', DEFAULT_EXCHANGE_RATE.toString());
+    }
+    if (window.DEFAULT_DOCTOR_SIGNATURE) {
+        localStorage.setItem('dental_clinic_doctor_signature', window.DEFAULT_DOCTOR_SIGNATURE);
+        try {
+            const curUser = getCurrentUser();
+            if (curUser) {
+                if (!curUser.doctorProfile) curUser.doctorProfile = {};
+                if (!curUser.doctorProfile.signature) {
+                    curUser.doctorProfile.signature = window.DEFAULT_DOCTOR_SIGNATURE;
+                    curUser.doctor_profile = curUser.doctorProfile;
+                    localStorage.setItem('dental_current_user', JSON.stringify(curUser));
+                    sessionStorage.setItem('dental_current_user', JSON.stringify(curUser));
+                }
+            }
+        } catch(e) {}
     }
 }
 
@@ -2614,8 +2645,9 @@ window.loadBudgetIntoEditor = async function(budgetId) {
     // Load Signatures if present or auto-load doctor profile signature
     if (window.doctorSigPad) {
         window.doctorSigPad.clear();
-        if (budget.doctorSignature) {
-            window.doctorSigPad.loadFromDataURL(budget.doctorSignature);
+        const docSigToLoad = budget.doctorSignature || window.DEFAULT_DOCTOR_SIGNATURE;
+        if (docSigToLoad) {
+            window.doctorSigPad.loadFromDataURL(docSigToLoad);
         } else {
             await autoLoadDoctorSignatureInBudget(pat ? pat.assignedDoctor : null);
         }
@@ -12928,6 +12960,9 @@ async function generateInvoicePreviewHTML(invoice, patient, assistant) {
             docSig = (u.doctorProfile && u.doctorProfile.signature) || (u.doctor_profile && u.doctor_profile.signature) || '';
         }
     }
+    if (!docSig) {
+        docSig = window.DEFAULT_DOCTOR_SIGNATURE || '';
+    }
 
     let patSig = invoice.patientSignature || (patient && patient.metadata && patient.metadata.patientSignature) || '';
     if (!patSig && window.patientSigPad && !window.patientSigPad.isEmpty()) {
@@ -14325,7 +14360,7 @@ async function renderPublicBudgetView() {
         let patientFiliation = `Cédula / ID: ${patient.id}`;
         if (patient.phone) patientFiliation += ` | Tel: ${patient.phone}`;
 
-        const resolvedDocSig = budget.doctorSignature || budget.doctor_signature || (budget.metadata && (budget.metadata.doctorSig || budget.metadata.doctorSignature)) || (patient && patient.metadata && patient.metadata.doctorSignature);
+        const resolvedDocSig = budget.doctorSignature || budget.doctor_signature || (budget.metadata && (budget.metadata.doctorSig || budget.metadata.doctorSignature)) || (patient && patient.metadata && patient.metadata.doctorSignature) || window.DEFAULT_DOCTOR_SIGNATURE;
         let docSignatureHtml = '';
         if (resolvedDocSig) {
             docSignatureHtml = `<img src="${resolvedDocSig}" style="max-height: 60px; max-width: 100%; border-bottom: 1px solid #94a3b8; display:block; margin:0 auto 4px auto;" alt="Firma Odontólogo"><span style="font-size:0.75rem; color:#64748b;">Firma Odontólogo</span>`;
@@ -14753,6 +14788,9 @@ async function renderPublicRecipeView() {
         }
         if (!docSignature && stationery && (stationery.doctorSignature || stationery.doctor_signature)) {
             docSignature = stationery.doctorSignature || stationery.doctor_signature;
+        }
+        if (!docSignature) {
+            docSignature = window.DEFAULT_DOCTOR_SIGNATURE || '';
         }
 
         const clinicBusData = getClinicBusData(stationery);
@@ -15291,6 +15329,9 @@ window.printSingleRecipePDF = async function(patientId, recipeId = null) {
     }
     if (!docSignature && config && (config.doctorSignature || config.doctor_signature)) {
         docSignature = config.doctorSignature || config.doctor_signature;
+    }
+    if (!docSignature) {
+        docSignature = window.DEFAULT_DOCTOR_SIGNATURE || '';
     }
 
     const clinicBusData = getClinicBusData(config);
