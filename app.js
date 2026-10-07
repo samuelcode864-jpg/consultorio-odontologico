@@ -5827,6 +5827,16 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
         const notesInput = document.getElementById('s-next-notes');
         if (notesInput) notesInput.value = '';
 
+        // Clean & reset payment fields to prevent carrying over previous patient's data
+        const payAmtInput = document.getElementById('s-payment-amount');
+        if (payAmtInput) payAmtInput.value = '0.00';
+        const payMethodSelect = document.getElementById('s-payment-method');
+        if (payMethodSelect) payMethodSelect.value = 'cash';
+        const payBankInput = document.getElementById('s-payment-bank');
+        if (payBankInput) payBankInput.value = '';
+        const payRefInput = document.getElementById('s-payment-reference');
+        if (payRefInput) payRefInput.value = '';
+
         // Populate planned treatments selector
         const trtSelect = document.getElementById('s-planned-treatment-select');
         if (trtSelect) {
@@ -5849,14 +5859,17 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
                 trtSelect.appendChild(opt);
             });
 
-            // If an option is selected initially, auto-fill price if field is empty or 0
+            // Set price directly from the matching treatment of this patient
+            let currentPrice = 0;
             if (trtSelect.selectedIndex > 0) {
                 const initOpt = trtSelect.options[trtSelect.selectedIndex];
-                const initPrice = parseFloat(initOpt.dataset.price) || 0;
-                const payAmtInput = document.getElementById('s-payment-amount');
-                if (payAmtInput && (!payAmtInput.value || parseFloat(payAmtInput.value) === 0) && initPrice > 0) {
-                    payAmtInput.value = initPrice.toFixed(2);
-                }
+                currentPrice = parseFloat(initOpt.dataset.price) || 0;
+            } else if (treatments && treatments.length > 0) {
+                const matchT = treatments.find(t => parseInt(t.sessionNum) === parseInt(sessionNum)) || treatments[0];
+                if (matchT && matchT.price) currentPrice = parseFloat(matchT.price) || 0;
+            }
+            if (payAmtInput && currentPrice > 0) {
+                payAmtInput.value = currentPrice.toFixed(2);
             }
 
             trtSelect.onchange = () => {
@@ -5879,13 +5892,9 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
                         }
                     }
 
-                    // Auto-fill payment amount if currently 0 or empty
-                    const payAmtInput = document.getElementById('s-payment-amount');
+                    // Auto-fill price of newly selected treatment
                     if (payAmtInput && optPrice > 0) {
-                        const curAmt = parseFloat(payAmtInput.value) || 0;
-                        if (curAmt === 0) {
-                            payAmtInput.value = optPrice.toFixed(2);
-                        }
+                        payAmtInput.value = optPrice.toFixed(2);
                     }
                 }
             };
