@@ -5641,13 +5641,13 @@ window.viewAttendedSessionForPatient = async function(patientId) {
 
 window.openAppointmentModalForPatient = async function(patientId, sessionNum, treatmentName) {
     try {
-        await window.openNewAppointmentModal();
-        const sel = document.getElementById('appt-patient-select');
-        if (sel) {
+        await window.openNewAppointmentModal(patientId, treatmentName ? `Sesión #${sessionNum}: ${treatmentName}` : '');
+        const sel = document.getElementById('app-patient-select');
+        if (sel && patientId) {
             sel.value = patientId;
             sel.dispatchEvent(new Event('change'));
         }
-        const trtInput = document.getElementById('appt-treatment');
+        const trtInput = document.getElementById('app-treatment');
         if (trtInput && treatmentName) {
             trtInput.value = `Sesión #${sessionNum}: ${treatmentName}`;
         }
@@ -7737,7 +7737,7 @@ function initGlobalEvents() {
     }
 
     // Modal Cita Helpers: New & Edit
-    window.openNewAppointmentModal = async function() {
+    window.openNewAppointmentModal = async function(defaultPatientId = null, defaultTreatment = '') {
         await populateAppointmentPatientSelect();
 
         const titleEl = document.getElementById('modal-appointment-title');
@@ -7753,7 +7753,14 @@ function initGlobalEvents() {
         if (timeInput) timeInput.value = '';
 
         const treatmentInput = document.getElementById('app-treatment');
-        if (treatmentInput) treatmentInput.value = '';
+        if (treatmentInput) treatmentInput.value = defaultTreatment || '';
+
+        const pSelect = document.getElementById('app-patient-select');
+        const targetPatId = defaultPatientId || getActivePatientId();
+        if (pSelect && targetPatId) {
+            pSelect.value = targetPatId;
+            pSelect.dispatchEvent(new Event('change'));
+        }
 
         const statusSelect = document.getElementById('app-status');
         if (statusSelect) statusSelect.value = 'Programada';
