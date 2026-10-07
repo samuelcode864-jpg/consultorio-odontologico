@@ -12441,28 +12441,28 @@ function buildMedicalDocumentHTML(opts) {
             </div>
 
             <!-- 7. Dual Signature Section (Guaranteed Side-by-Side) -->
-            <table style="width: 100%; border-collapse: collapse; margin-top: 2px; table-layout: fixed; page-break-inside: avoid; break-inside: avoid;">
+            <table style="width: 100%; border-collapse: collapse; margin-top: 6px; table-layout: fixed; page-break-inside: avoid; break-inside: avoid;">
                 <tr>
                     <td style="width: 50%; text-align: center; vertical-align: bottom; padding: 0 14px 0 0;">
                         ${doctorSig ? `
-                            <img src="${doctorSig}" style="max-height: 26px; max-width: 110px; object-fit: contain; margin: 0 auto 1px auto; display: block;" alt="Firma Médico">
-                        ` : `<div style="height: 18px;"></div>`}
-                        <div style="border-top: 1px solid #94a3b8; padding-top: 1px; font-size: 0.65rem; font-weight: 700; color: #0f172a;">Firma / Sello del Médico Tratante</div>
-                        <div style="font-size: 0.59rem; color: #64748b;">${doctorName} — M.P.P.S. / C.O.V.</div>
+                            <img src="${doctorSig}" style="max-height: 55px; max-width: 160px; object-fit: contain; margin: 0 auto 3px auto; display: block;" alt="Firma Médico">
+                        ` : `<div style="height: 38px;"></div>`}
+                        <div style="border-top: 1.5px solid #64748b; padding-top: 3px; font-size: 0.68rem; font-weight: 700; color: #0f172a;">Firma / Sello del Médico Tratante</div>
+                        <div style="font-size: 0.62rem; color: #64748b; margin-top: 1px;">${doctorName} — M.P.P.S. / C.O.V.</div>
                     </td>
 
                     <td style="width: 50%; text-align: center; vertical-align: bottom; padding: 0 0 0 14px;">
                         ${patientSig ? `
-                            <img src="${patientSig}" style="max-height: 26px; max-width: 110px; object-fit: contain; margin: 0 auto 1px auto; display: block;" alt="Firma Paciente">
-                        ` : `<div style="height: 18px;"></div>`}
-                        <div style="border-top: 1px solid #94a3b8; padding-top: 1px; font-size: 0.65rem; font-weight: 700; color: #0f172a;">Firma del Paciente / Representante</div>
-                        <div style="font-size: 0.59rem; color: #64748b;">C.I.: ${patientId}</div>
+                            <img src="${patientSig}" style="max-height: 55px; max-width: 160px; object-fit: contain; margin: 0 auto 3px auto; display: block;" alt="Firma Paciente">
+                        ` : `<div style="height: 38px;"></div>`}
+                        <div style="border-top: 1.5px solid #64748b; padding-top: 3px; font-size: 0.68rem; font-weight: 700; color: #0f172a;">Firma del Paciente / Representante</div>
+                        <div style="font-size: 0.62rem; color: #64748b; margin-top: 1px;">C.I.: ${patientId}</div>
                     </td>
                 </tr>
             </table>
 
-            ${footerNote ? `
-                <div style="text-align: center; margin-top: 2px; padding-top: 1.5px; border-top: 1px dashed #cbd5e1; font-size: 0.56rem; color: #94a3b8; page-break-inside: avoid; break-inside: avoid;">
+            ${(footerNote && String(footerNote).trim() !== String(observations).trim()) ? `
+                <div style="text-align: center; margin-top: 6px; padding-top: 4px; border-top: 1px dashed #cbd5e1; font-size: 0.58rem; color: #94a3b8; page-break-inside: avoid; break-inside: avoid; line-height: 1.2;">
                     ${footerNote}
                 </div>
             ` : ''}
@@ -12609,8 +12609,8 @@ function buildRecipeDocumentHTML(opts) {
             <div style="display: flex; justify-content: flex-end; margin-top: 12px; padding-top: 4px; padding-right: 15px; page-break-inside: avoid; break-inside: avoid;">
                 <div style="width: 290px; text-align: center;">
                     ${doctorSig ? `
-                        <img src="${doctorSig}" style="max-height: 42px; max-width: 170px; object-fit: contain; margin: 0 auto 2px auto; display: block;" alt="Firma Odontólogo">
-                    ` : `<div style="height: 32px;"></div>`}
+                        <img src="${doctorSig}" style="max-height: 55px; max-width: 180px; object-fit: contain; margin: 0 auto 3px auto; display: block;" alt="Firma Odontólogo">
+                    ` : `<div style="height: 38px;"></div>`}
                     <div style="border-top: 1px solid #334155; padding-top: 3px; font-size: 0.76rem; font-weight: 700; color: #0f172a;">
                         ${doctorName.startsWith('Dr') ? doctorName : `Dr(a). ${doctorName}`}
                     </div>
