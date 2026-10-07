@@ -5838,14 +5838,26 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
                 opt.value = tNum;
                 opt.dataset.name = t.name;
                 opt.dataset.tooth = toothNum;
+                opt.dataset.price = t.price || 0;
                 const toothText = toothNum === 'General' ? 'Pieza General' : `Pieza ${toothNum}`;
                 const statusTag = t.status === 'Completado' ? '✓ Atendido' : '⏳ Planificado';
-                opt.innerText = `Sesión ${tNum}: ${t.name} (${toothText}) — ${statusTag}`;
+                const priceText = t.price ? ` ($${parseFloat(t.price).toFixed(2)})` : '';
+                opt.innerText = `Sesión ${tNum}: ${t.name} (${toothText})${priceText} — ${statusTag}`;
                 if (parseInt(tNum) === parseInt(sessionNum)) {
                     opt.selected = true;
                 }
                 trtSelect.appendChild(opt);
             });
+
+            // If an option is selected initially, auto-fill price if field is empty or 0
+            if (trtSelect.selectedIndex > 0) {
+                const initOpt = trtSelect.options[trtSelect.selectedIndex];
+                const initPrice = parseFloat(initOpt.dataset.price) || 0;
+                const payAmtInput = document.getElementById('s-payment-amount');
+                if (payAmtInput && (!payAmtInput.value || parseFloat(payAmtInput.value) === 0) && initPrice > 0) {
+                    payAmtInput.value = initPrice.toFixed(2);
+                }
+            }
 
             trtSelect.onchange = () => {
                 const chosenNum = trtSelect.value;
@@ -5854,6 +5866,7 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
                     const selectedOption = trtSelect.options[trtSelect.selectedIndex];
                     const procName = selectedOption ? selectedOption.dataset.name : '';
                     const toothName = selectedOption ? selectedOption.dataset.tooth : '';
+                    const optPrice = parseFloat(selectedOption ? selectedOption.dataset.price : 0) || 0;
                     const toothLabel = (toothName && toothName !== 'General' && toothName !== 'Gnl') ? ` (Pieza ${toothName})` : '';
                     const newProcText = (procName && procName.includes(`Pieza ${toothName}`)) ? procName : `${procName}${toothLabel}`.trim();
 
@@ -5863,6 +5876,15 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
                             procInput.value = `${currentVal}\n• ${newProcText}`;
                         } else {
                             procInput.value = newProcText;
+                        }
+                    }
+
+                    // Auto-fill payment amount if currently 0 or empty
+                    const payAmtInput = document.getElementById('s-payment-amount');
+                    if (payAmtInput && optPrice > 0) {
+                        const curAmt = parseFloat(payAmtInput.value) || 0;
+                        if (curAmt === 0) {
+                            payAmtInput.value = optPrice.toFixed(2);
                         }
                     }
                 }
@@ -11952,6 +11974,72 @@ function initSettingsEvents() {
             }
         };
     }
+
+    const downloadBackupBtn = document.getElementById('btn-download-live-backup');
+    if (downloadBackupBtn) {
+        downloadBackupBtn.onclick = async () => {
+            const origHtml = downloadBackupBtn.innerHTML;
+            downloadBackupBtn.disabled = true;
+            downloadBackupBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generando Respaldo...';
+
+            try {
+                const now = new Date();
+                const dateStr = now.toISOString().split('T')[0];
+
+                const [patients, baremo, invoices, users, stationery, auditLogs] = await Promise.all([
+                    SupabaseDataService.getPatients(true),
+                    SupabaseDataService.getBaremo(true),
+                    SupabaseDataService.getInvoices(true),
+                    SupabaseDataService.getUsers(true),
+                    SupabaseDataService.getStationeryConfig(),
+                    SupabaseDataService.getAuditLogs()
+                ]);
+
+                const backupData = {
+                    meta: {
+                        system: 'DentalCare Pro',
+                        version: '2.0.0',
+                        backupDate: now.toISOString(),
+                        dateFormatted: dateStr,
+                        exportedBy: (getCurrentUser() && getCurrentUser().fullname) || 'Administrador',
+                        totalPatients: patients.length,
+                        totalInvoices: invoices.length,
+                        totalBaremo: baremo.length
+                    },
+                    database: {
+                        patients: patients,
+                        baremo_services: baremo,
+                        invoices: invoices,
+                        users: users,
+                        stationery_config: stationery,
+                        audit_logs: auditLogs
+                    }
+                };
+
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+                const downloadAnchor = document.createElement('a');
+                downloadAnchor.setAttribute("href", dataStr);
+                downloadAnchor.setAttribute("download", `backup_dentalcare_${dateStr}.json`);
+                document.body.appendChild(downloadAnchor);
+                downloadAnchor.click();
+                downloadAnchor.remove();
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Respaldo Generado con Éxito',
+                    text: `Se descargó el archivo backup_dentalcare_${dateStr}.json con ${patients.length} pacientes y todos los registros clínicos del consultorio.`,
+                    timer: 3500,
+                    showConfirmButton: true
+                });
+            } catch (err) {
+                console.error("Error generating backup:", err);
+                Swal.fire({ icon: 'error', title: 'Error al Generar Respaldo', text: err.message || err });
+            } finally {
+                downloadBackupBtn.disabled = false;
+                downloadBackupBtn.innerHTML = origHtml;
+            }
+        };
+    }
 }
 
 async function renderHelpView() {
@@ -14338,7 +14426,46 @@ async function generatePDFFromElement(element, filename) {
 
 window.generateSessionReceiptHTML = (patient, sessionObj, busData) => {
     const rate = parseFloat(localStorage.getItem('dental_exchange_rate')) || 36.5;
-    const totalUSD = sessionObj.paymentUSD || 0;
+    let totalUSD = sessionObj.paymentUSD || 0;
+
+    // Smart fallback: if sessionObj.paymentUSD is 0, check patient treatments or payments
+    if (!totalUSD || totalUSD === 0) {
+        // 1. Check patient approved odontograms / treatments
+        const treatments = (patient.metadata && patient.metadata.treatments) || [];
+        const matchTrt = treatments.find(t => 
+            t.sessionNum === sessionObj.sessionNum || 
+            (sessionObj.procedure && t.name && sessionObj.procedure.toLowerCase().includes(t.name.toLowerCase()))
+        );
+        if (matchTrt && matchTrt.price > 0) {
+            totalUSD = parseFloat(matchTrt.price);
+        } else if (patient.metadata && patient.metadata.approvedOdontograms) {
+            patient.metadata.approvedOdontograms.forEach(appO => {
+                if (appO.treatments && Array.isArray(appO.treatments)) {
+                    const found = appO.treatments.find(t => 
+                        sessionObj.procedure && t.name && sessionObj.procedure.toLowerCase().includes(t.name.toLowerCase())
+                    );
+                    if (found && found.price > 0) {
+                        totalUSD = parseFloat(found.price);
+                    }
+                }
+            });
+        }
+        
+        // 2. Check patient payments if still 0
+        if (!totalUSD && patient.payments && patient.payments.length > 0) {
+            const payMatch = patient.payments.find(p => 
+                (p.paidUSD > 0 || p.totalUSD > 0) &&
+                (p.concept && sessionObj.procedure && (
+                    p.concept.toLowerCase().includes(sessionObj.procedure.toLowerCase()) ||
+                    p.concept.includes(`Sesión #${sessionObj.sessionNum}`)
+                ))
+            );
+            if (payMatch) {
+                totalUSD = parseFloat(payMatch.paidUSD || payMatch.totalUSD);
+            }
+        }
+    }
+
     const totalVES = totalUSD > 0 ? `Bs. ${(totalUSD * rate).toFixed(2)}` : '';
 
     let paymentDetail = sessionObj.paymentMethodLabel || 'Efectivo';

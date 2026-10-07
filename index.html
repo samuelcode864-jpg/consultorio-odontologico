@@ -18,7 +18,7 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=281">
+    <link rel="stylesheet" href="styles.css?v=282">
 
     <!-- Anti-Flash Instant Auth & Tab Guard -->
     <script>
@@ -1856,6 +1856,10 @@
                                 <i class="fa-solid fa-clock-rotate-left text-cyan"></i>
                                 <span>Historial de Acciones</span>
                             </button>
+                            <button class="settings-nav-btn" data-pane="backup" id="btn-pane-backup">
+                                <i class="fa-solid fa-cloud-arrow-down text-emerald"></i>
+                                <span>Respaldo y Seguridad</span>
+                            </button>
                         </div>
 
                         <!-- Panel de Contenido -->
@@ -2122,6 +2126,58 @@
                                                 <!-- Dynamic audit logs loaded via app.js -->
                                             </tbody>
                                         </table>
+                                    </div>
+                            <!-- PANE 6: Respaldo y Seguridad de Base de Datos -->
+                            <div class="settings-pane" id="pane-backup">
+                                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:15px;">
+                                    <h3 style="margin:0; color:var(--text-heading); font-weight:700;">
+                                        <i class="fa-solid fa-cloud-arrow-down text-emerald"></i> Respaldo y Seguridad de la Base de Datos
+                                    </h3>
+                                    <span class="badge-tag green" style="font-size:0.75rem; font-weight:700;"><i class="fa-solid fa-circle-check"></i> Supabase Cloud Conectado</span>
+                                </div>
+
+                                <p class="text-muted" style="font-size:0.85rem; margin-bottom:20px;">
+                                    Gestión de copias de seguridad de la clínica: descargue un respaldo completo en formato JSON de todos los pacientes, presupuestos, historias clínicas, baremo de precios y auditoría.
+                                </p>
+
+                                <div class="grid-2-col" style="gap:20px; margin-bottom:25px;">
+                                    <!-- Card 1: Respaldo Manual Inmediato -->
+                                    <div class="card" style="border:1px solid rgba(16, 185, 129, 0.3); background:rgba(16, 185, 129, 0.03); padding:20px; border-radius:10px;">
+                                        <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+                                            <div style="width:42px; height:42px; border-radius:50%; background:rgba(16,185,129,0.15); display:flex; align-items:center; justify-content:center; color:#10b981; font-size:1.3rem;">
+                                                <i class="fa-solid fa-download"></i>
+                                            </div>
+                                            <div>
+                                                <h4 style="margin:0; font-size:1rem; color:var(--text-heading);">Descarga Directa Inmediata</h4>
+                                                <small class="text-muted">Guarda una copia de seguridad en tu computadora</small>
+                                            </div>
+                                        </div>
+                                        <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:16px;">
+                                            Genera un archivo JSON con todos los pacientes, presupuestos, expedientes clínicos, inventario Kardex y usuarios del consultorio.
+                                        </p>
+                                        <button type="button" class="btn btn-primary" id="btn-download-live-backup" style="background:#10b981 !important; border:none; width:100%; justify-content:center; gap:8px; font-weight:700;">
+                                            <i class="fa-solid fa-file-arrow-down"></i> Descargar Respaldo JSON Ahora
+                                        </button>
+                                    </div>
+
+                                    <!-- Card 2: Respaldo Automático GitHub Actions -->
+                                    <div class="card" style="border:1px solid rgba(8, 145, 178, 0.3); background:rgba(8, 145, 178, 0.03); padding:20px; border-radius:10px;">
+                                        <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+                                            <div style="width:42px; height:42px; border-radius:50%; background:rgba(8,145,178,0.15); display:flex; align-items:center; justify-content:center; color:#0891b2; font-size:1.3rem;">
+                                                <i class="fa-solid fa-clock-rotate-left"></i>
+                                            </div>
+                                            <div>
+                                                <h4 style="margin:0; font-size:1rem; color:var(--text-heading);">Respaldo Automático Diario</h4>
+                                                <small class="text-muted">Ejecución automática programada</small>
+                                            </div>
+                                        </div>
+                                        <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:16px;">
+                                            Programado diariamente a las <strong>12:00 AM (Medianoche Venezuela)</strong> para guardar automáticamente una copia versionada en la carpeta <code>backups/</code> de su repositorio.
+                                        </p>
+                                        <div style="background:var(--bg-main); border:1px solid var(--border-color); border-radius:6px; padding:10px; font-size:0.75rem; color:var(--text-muted);">
+                                            <strong>Frecuencia:</strong> Diario (Cron <code>0 4 * * *</code>)<br>
+                                            <strong>Destino:</strong> Repositorio GitHub <code>/backups/latest_backup.json</code>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -3763,13 +3819,13 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=281"></script>
-    <script src="supabaseClient.js?v=281"></script>
-    <script src="odontogram.js?v=281"></script>
-    <script src="signature.js?v=281"></script>
-    <script src="whatsapp.js?v=281"></script>
-    <script src="kardex.js?v=281"></script>
-    <script src="app.js?v=281"></script>
-    <script src="tutorial.js?v=281"></script>
+    <script src="seededData.js?v=283"></script>
+    <script src="supabaseClient.js?v=283"></script>
+    <script src="odontogram.js?v=283"></script>
+    <script src="signature.js?v=283"></script>
+    <script src="whatsapp.js?v=283"></script>
+    <script src="kardex.js?v=283"></script>
+    <script src="app.js?v=283"></script>
+    <script src="tutorial.js?v=283"></script>
 </body>
 </html>
