@@ -595,6 +595,11 @@ async function autoSaveActivePatientOdontogram() {
         return;
     }
 
+    if (activeEditingBudgetId) {
+        localStorage.setItem('dental_active_editing_budget_id_' + activeId, activeEditingBudgetId);
+        draft.id = activeEditingBudgetId;
+    }
+
     // Instant synchronous patient draft storage in localStorage
     localStorage.setItem('dental_draft_odontogram_' + activeId, JSON.stringify(odData));
     localStorage.setItem('dental_draft_budget_' + activeId, JSON.stringify(draft));
@@ -626,6 +631,18 @@ async function autoSaveActivePatientOdontogram() {
                 patient.metadata.patientSignature = patSig;
             }
             await SupabaseDataService.savePatient(patient);
+        }
+
+        // If editing an existing invoice in draft mode, also update its items immediately
+        if (activeEditingBudgetId) {
+            const invoices = await SupabaseDataService.getInvoices();
+            const inv = invoices.find(i => String(i.id) === String(activeEditingBudgetId));
+            if (inv && String(inv.status).toLowerCase() === 'borrador') {
+                inv.items = currentBudgetItems || [];
+                inv.odontogramData = odData;
+                inv.footerText = notesInput ? notesInput.value : '';
+                await SupabaseDataService.saveInvoice(inv);
+            }
         }
     } catch(e) {
         console.error("Error in autoSaveActivePatientOdontogram:", e);
@@ -679,14 +696,15 @@ function deduplicateBudgetItems(items) {
         const tooth = extractToothNumber(item);
         const code = (item.serviceCode || item.code || '').trim().toLowerCase();
         const normName = normalizeProcedureName(item.name || item.procedure || '');
+        const face = String(item.face || 'Gnl').trim().toLowerCase();
 
         let key = '';
         if (code && code !== 'srv' && code !== 'op-01' && code !== 'general' && code !== 'undefined' && !code.startsWith('proc-') && !code.startsWith('custom-')) {
-            key = `${tooth}_code_${code}`;
+            key = `${tooth}_code_${code}_${face}`;
         } else if (normName) {
-            key = `${tooth}_name_${normName}`;
+            key = `${tooth}_name_${normName}_${face}`;
         } else {
-            key = `${tooth}_price_${item.price || 0}`;
+            key = `${tooth}_${item.key || (item.name || '')}_${item.price || 0}`;
         }
 
         if (seen.has(key)) return false;
@@ -2470,6 +2488,7 @@ window.loadBudgetIntoEditor = async function(budgetId) {
     if (!budget) return;
 
     activeEditingBudgetId = budget.id;
+    localStorage.setItem('dental_active_editing_budget_id_' + budget.patientId, budget.id);
 
     // Load active patient ID
     setActivePatientId(budget.patientId);
@@ -2692,6 +2711,9 @@ window.startNewEpisodeForPatient = async function(patientId, confirmPrompt = tru
 
     // 1. Limpiar ID de presupuesto activo para crear uno nuevo limpio
     activeEditingBudgetId = null;
+    localStorage.removeItem('dental_active_editing_budget_id_' + patient.id);
+    localStorage.removeItem('dental_draft_budget_' + patient.id);
+    localStorage.removeItem('dental_draft_odontogram_' + patient.id);
     currentBudgetItems = [];
 
     // 2. Establecer el odontograma evolutivo:
@@ -2755,8 +2777,50 @@ async function renderOdontogramView() {
         const patients = await SupabaseDataService.getPatients();
         const patient = patients.find(p => String(p.id) === String(activeId)) || window.activeEHRPatient;
         if (patient) {
-            if (activeEditingBudgetId) {
-                // Modo edición de presupuesto archivado / histórico / borrador
+            if (!activeEditingBudgetId) {
+                const savedActiveBudgetId = localStorage.getItem('dental_active_editing_budget_id_' + activeId);
+                if (savedActiveBudgetId) {
+                    activeEditingBudgetId = savedActiveBudgetId;
+                }
+            }
+
+            // Prioridad 1: Verificar si hay un borrador en curso en localStorage o en metadatos del paciente
+            const localDraftOd = JSON.parse(localStorage.getItem('dental_draft_odontogram_' + activeId) || 'null');
+            const localDraftBudget = JSON.parse(localStorage.getItem('dental_draft_budget_' + activeId) || 'null');
+            const patDraftOd = (patient.metadata && patient.metadata.draftOdontogramData) || (patient.odontogramData && Object.keys(patient.odontogramData).length > 0 ? patient.odontogramData : null);
+            const patDraftBudget = (patient.metadata && patient.metadata.draftBudget) || null;
+
+            const hasLocalOd = localDraftOd && Object.keys(localDraftOd).length > 0;
+            const hasLocalBudget = localDraftBudget && localDraftBudget.items && Array.isArray(localDraftBudget.items);
+            const hasPatOd = patDraftOd && Object.keys(patDraftOd).length > 0;
+            const hasPatBudget = patDraftBudget && patDraftBudget.items && Array.isArray(patDraftBudget.items);
+            const hasMemoryItems = currentBudgetItems && currentBudgetItems.length > 0;
+
+            if (hasMemoryItems || hasLocalBudget || hasPatBudget || hasLocalOd || hasPatOd) {
+                const odToSet = (window.odontogram && Object.keys(window.odontogram.getData()).length > 0)
+                    ? window.odontogram.getData()
+                    : (hasLocalOd ? localDraftOd : (patDraftOd || {}));
+                
+                if (window.odontogram && Object.keys(odToSet).length > 0) {
+                    window.odontogram.setData(odToSet);
+                }
+
+                if (!hasMemoryItems) {
+                    const budgetToRestore = hasLocalBudget ? localDraftBudget : patDraftBudget;
+                    if (budgetToRestore) {
+                        restoreDraftBudgetUI(budgetToRestore);
+                    }
+                }
+                if (typeof renderBudgetTable === 'function') {
+                    renderBudgetTable();
+                }
+
+                const sigToLoad = patient.metadata?.patientSignature || localDraftBudget?.patientSignature;
+                if (sigToLoad && window.patientSigPad && window.patientSigPad.isEmpty()) {
+                    window.patientSigPad.loadFromDataURL(sigToLoad);
+                }
+            } else if (activeEditingBudgetId) {
+                // Modo edición de presupuesto archivado / histórico
                 const currentOdData = window.odontogram ? window.odontogram.getData() : {};
                 if (!currentOdData || Object.keys(currentOdData).length === 0) {
                     const invoices = await SupabaseDataService.getInvoices();
@@ -2770,58 +2834,20 @@ async function renderOdontogramView() {
                     window.patientSigPad.loadFromDataURL(patient.metadata.patientSignature);
                 }
             } else {
-                // Presupuesto en curso para este paciente:
-                // Prioridad 1: Verificar si hay un borrador en curso en localStorage o en metadatos del paciente
-                const localDraftOd = JSON.parse(localStorage.getItem('dental_draft_odontogram_' + activeId) || 'null');
-                const localDraftBudget = JSON.parse(localStorage.getItem('dental_draft_budget_' + activeId) || 'null');
-                const patDraftOd = (patient.metadata && patient.metadata.draftOdontogramData) || (patient.odontogramData && Object.keys(patient.odontogramData).length > 0 ? patient.odontogramData : null);
-                const patDraftBudget = (patient.metadata && patient.metadata.draftBudget) || null;
-
-                const hasLocalOd = localDraftOd && Object.keys(localDraftOd).length > 0;
-                const hasLocalBudget = localDraftBudget && localDraftBudget.items && localDraftBudget.items.length > 0;
-                const hasPatOd = patDraftOd && Object.keys(patDraftOd).length > 0;
-                const hasPatBudget = patDraftBudget && patDraftBudget.items && patDraftBudget.items.length > 0;
-                const hasMemoryItems = currentBudgetItems && currentBudgetItems.length > 0;
-
-                if (hasMemoryItems || hasLocalOd || hasLocalBudget || hasPatOd || hasPatBudget) {
-                    const odToSet = (window.odontogram && Object.keys(window.odontogram.getData()).length > 0)
-                        ? window.odontogram.getData()
-                        : (hasLocalOd ? localDraftOd : (patDraftOd || {}));
-                    
-                    if (window.odontogram && Object.keys(odToSet).length > 0) {
+                // Si no hay borrador en curso, consultar si este paciente tiene un presupuesto Aprobado oficial
+                const invoices = await SupabaseDataService.getInvoices();
+                const approvedBudget = invoices.find(inv => String(inv.patientId) === String(activeId) && (String(inv.status).toLowerCase() === 'aprobado' || String(inv.status).toLowerCase() === 'approved' || String(inv.status).toLowerCase() === 'completada' || String(inv.status).toLowerCase() === 'finalizado'));
+                if (approvedBudget && window.loadBudgetIntoEditor) {
+                    await window.loadBudgetIntoEditor(approvedBudget.id);
+                    return;
+                } else {
+                    const odToSet = (patient.metadata && patient.metadata.draftOdontogramData) || patient.odontogramData || {};
+                    if (window.odontogram) {
                         window.odontogram.setData(odToSet);
                     }
-
-                    if (!hasMemoryItems) {
-                        const budgetToRestore = hasLocalBudget ? localDraftBudget : patDraftBudget;
-                        if (budgetToRestore) {
-                            restoreDraftBudgetUI(budgetToRestore);
-                        }
-                    }
+                    currentBudgetItems = [];
                     if (typeof renderBudgetTable === 'function') {
                         renderBudgetTable();
-                    }
-
-                    const sigToLoad = patient.metadata?.patientSignature || localDraftBudget?.patientSignature;
-                    if (sigToLoad && window.patientSigPad && window.patientSigPad.isEmpty()) {
-                        window.patientSigPad.loadFromDataURL(sigToLoad);
-                    }
-                } else {
-                    // Si no hay borrador en curso, consultar si este paciente tiene un presupuesto Aprobado oficial
-                    const invoices = await SupabaseDataService.getInvoices();
-                    const approvedBudget = invoices.find(inv => String(inv.patientId) === String(activeId) && (String(inv.status).toLowerCase() === 'aprobado' || String(inv.status).toLowerCase() === 'approved' || String(inv.status).toLowerCase() === 'completada' || String(inv.status).toLowerCase() === 'finalizado'));
-                    if (approvedBudget && window.loadBudgetIntoEditor) {
-                        await window.loadBudgetIntoEditor(approvedBudget.id);
-                        return;
-                    } else {
-                        const odToSet = (patient.metadata && patient.metadata.draftOdontogramData) || patient.odontogramData || {};
-                        if (window.odontogram) {
-                            window.odontogram.setData(odToSet);
-                        }
-                        currentBudgetItems = [];
-                        if (typeof renderBudgetTable === 'function') {
-                            renderBudgetTable();
-                        }
                     }
                 }
             }
@@ -3351,25 +3377,29 @@ function addProcedureToBudget(toothKeyObj, procedure) {
         discount: 0
     };
 
-    // Strict 1:1 relation (Rule 1): Replace any existing procedure for this exact tooth and face to prevent duplicates
-    const existingIdx = currentBudgetItems.findIndex(i => 
-        String(extractToothNumber(i)) === String(toothNum) && 
-        String(i.face || 'Gnl').toLowerCase() === String(toothKeyObj.faceId || 'Gnl').toLowerCase()
-    );
+    // Replace existing procedure only if it's the exact same procedure on the exact same face/tooth
+    const targetCode = (procedure.code || '').trim().toLowerCase();
+    const targetNormName = normalizeProcedureName(procedure.name || '');
+    const targetFace = String(toothKeyObj.faceId || 'Gnl').toLowerCase();
+
+    const existingIdx = currentBudgetItems.findIndex(i => {
+        if (String(extractToothNumber(i)) !== String(toothNum)) return false;
+        const iFace = String(i.face || 'Gnl').toLowerCase();
+        if (iFace !== targetFace) return false;
+
+        const iCode = (i.serviceCode || i.code || '').trim().toLowerCase();
+        const iNormName = normalizeProcedureName(i.name || '');
+
+        if (targetCode && targetCode !== 'srv' && targetCode !== 'general' && iCode && iCode !== 'srv' && iCode !== 'general') {
+            return iCode === targetCode;
+        }
+        return iNormName === targetNormName;
+    });
 
     if (existingIdx >= 0) {
         currentBudgetItems[existingIdx] = { ...currentBudgetItems[existingIdx], ...newItem };
     } else {
-        // Also check if tooth only has a generic procedure and replace it
-        const toothGenIdx = currentBudgetItems.findIndex(i => 
-            String(extractToothNumber(i)) === String(toothNum) && 
-            (i.face === 'Gnl' || !i.face)
-        );
-        if (toothGenIdx >= 0) {
-            currentBudgetItems[toothGenIdx] = { ...currentBudgetItems[toothGenIdx], ...newItem };
-        } else {
-            currentBudgetItems.push(newItem);
-        }
+        currentBudgetItems.push(newItem);
     }
 
     renderBudgetTable();
