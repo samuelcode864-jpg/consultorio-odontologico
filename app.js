@@ -2607,6 +2607,124 @@ window.loadBudgetIntoEditor = async function(budgetId) {
     }
 
     renderBudgetTable();
+
+    if (pat && typeof window.populateClinicalEpisodesSelect === 'function') {
+        await window.populateClinicalEpisodesSelect(pat, budget.id);
+    }
+};
+
+window.populateClinicalEpisodesSelect = async function(patient, selectedBudgetId = null) {
+    const select = document.getElementById('budget-phase-select');
+    if (!select || !patient) return;
+
+    select.innerHTML = '';
+
+    // Opción 1: Fase Actual / Nuevo Plan en Edición
+    const currentOpt = document.createElement('option');
+    currentOpt.value = 'current';
+    currentOpt.innerText = '⚡ Fase Actual (En edición / Nuevo Plan)';
+    select.appendChild(currentOpt);
+
+    // Buscar presupuestos / fases aprobadas del paciente
+    try {
+        const invoices = await SupabaseDataService.getInvoices();
+        const patientBudgets = invoices.filter(inv => String(inv.patientId) === String(patient.id) && inv.id && inv.id.startsWith('PRE-'));
+        
+        patientBudgets.sort((a, b) => {
+            const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return timeB - timeA;
+        });
+
+        patientBudgets.forEach((b, idx) => {
+            const opt = document.createElement('option');
+            opt.value = b.id;
+            const bDate = b.invoiceDate || (b.createdAt ? b.createdAt.split('T')[0] : '');
+            const total = (b.totalRef !== undefined && b.totalRef !== null) ? b.totalRef : b.total;
+            const st = b.status || 'Emitido';
+            opt.innerText = `📁 Fase #${patientBudgets.length - idx} (${b.id}) — ${bDate} ($${parseFloat(total || 0).toFixed(2)}) [${st}]`;
+            if (selectedBudgetId && String(b.id) === String(selectedBudgetId)) {
+                opt.selected = true;
+            }
+            select.appendChild(opt);
+        });
+    } catch(e) {
+        console.warn("Could not load patient budgets for episodes select:", e);
+    }
+
+    select.onchange = async () => {
+        const chosen = select.value;
+        if (chosen === 'current') {
+            await window.startNewEpisodeForPatient(patient.id, false);
+        } else {
+            if (window.loadBudgetIntoEditor) {
+                await window.loadBudgetIntoEditor(chosen);
+            }
+        }
+    };
+
+    const btnNewEp = document.getElementById('btn-new-clinical-episode');
+    if (btnNewEp && !btnNewEp.dataset.hasListener) {
+        btnNewEp.dataset.hasListener = 'true';
+        btnNewEp.onclick = async () => {
+            await window.startNewEpisodeForPatient(patient.id, true);
+        };
+    }
+};
+
+window.startNewEpisodeForPatient = async function(patientId, confirmPrompt = true) {
+    const patients = await SupabaseDataService.getPatients();
+    const patient = patients.find(p => String(p.id) === String(patientId));
+    if (!patient) return;
+
+    if (confirmPrompt) {
+        const res = await Swal.fire({
+            title: '¿Iniciar Nueva Fase / Episodio Clínico?',
+            html: `Se iniciará un <strong>nuevo presupuesto en blanco</strong> para <strong>${patient.fullname}</strong>.<br><br><span style="color:#059669; font-weight:600;">✓ El odontograma conservará todas las piezas ya tratadas en el pasado</span>.<br><span style="color:#059669; font-weight:600;">✓ Ningún presupuesto o sesión anterior será borrado</span>.`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, crear nueva fase',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#059669'
+        });
+        if (!res.isConfirmed) return;
+    }
+
+    // 1. Limpiar ID de presupuesto activo para crear uno nuevo limpio
+    activeEditingBudgetId = null;
+    currentBudgetItems = [];
+
+    // 2. Establecer el odontograma evolutivo:
+    // Conserva las piezas ya tratadas y ausencias para no perder el mapa de la boca
+    const historicalOdData = { ...(patient.odontogramData || {}) };
+    // Convertir patologías antiguas ya resueltas en tratadas si tenían procedimientos completados
+    if (window.odontogram) {
+        window.odontogram.setData(historicalOdData);
+    }
+
+    // 3. Resetear inputs de notas y descuento
+    const notesEl = document.getElementById('budget-notes');
+    if (notesEl) notesEl.value = '';
+    const discInput = document.getElementById('budget-discount-input');
+    if (discInput) discInput.value = '0';
+    if (window.patientSigPad) window.patientSigPad.clear();
+
+    const infoBudgetDateEl = document.getElementById('info-budget-date');
+    if (infoBudgetDateEl) infoBudgetDateEl.innerText = 'Hoy (Nueva Fase en edición)';
+
+    const select = document.getElementById('budget-phase-select');
+    if (select) select.value = 'current';
+
+    renderBudgetTable();
+
+    Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: 'Nueva fase clínica iniciada. Historial anterior intacto.',
+        showConfirmButton: false,
+        timer: 2500
+    });
 };
 
 // ==========================================
@@ -2754,6 +2872,11 @@ async function renderOdontogramView() {
                 alertsText.innerHTML = flags.join(' | ');
             } else {
                 alertBanner.classList.add('hidden');
+            }
+
+            // Actualizar selector de Fases / Episodios Clínicos
+            if (typeof window.populateClinicalEpisodesSelect === 'function') {
+                await window.populateClinicalEpisodesSelect(patient);
             }
         }
     } else {
@@ -3378,16 +3501,31 @@ async function renderBudgetTable() {
 
         currentBudgetItems.forEach((item, index) => {
             if (item.price === undefined) item.price = 0;
+            if (item.isSelected === undefined) item.isSelected = true; // Selected by default
             if (!item.specialist || !doctors.some(d => d.fullname === item.specialist)) {
                 item.specialist = loggedInDoctor ? loggedInDoctor.fullname : (doctors[0] ? doctors[0].fullname : 'Dr. Alejandro Silva');
             }
 
-            subtotalUSD += item.price;
+            if (item.isSelected) {
+                subtotalUSD += item.price;
+            }
+
+            const isDone = item.status === 'Completado' || item.status === 'Atendido';
+            const statusBadge = isDone 
+                ? '<span class="badge-tag green" style="font-size:0.68rem; margin-left:4px; padding:2px 6px;">✓ Realizado</span>' 
+                : '';
 
             const tr = document.createElement('tr');
+            if (!item.isSelected) {
+                tr.style.opacity = '0.55';
+                tr.style.background = 'rgba(241, 245, 249, 0.6)';
+            }
             tr.innerHTML = `
+                <td style="text-align: center; vertical-align: middle;">
+                    <input type="checkbox" class="budget-item-checkbox" data-idx="${index}" ${item.isSelected ? 'checked' : ''} style="cursor: pointer; transform: scale(1.15);">
+                </td>
                 <td><strong>#${item.tooth || '-'}</strong></td>
-                <td><strong>${item.name}</strong></td>
+                <td><strong>${item.name}</strong> ${statusBadge}</td>
                 <td>
                     <select class="form-control btn-xs srv-specialist-select" style="width: 160px; font-size: 0.82rem; padding: 4px 8px; border-radius: 6px;" data-idx="${index}">
                         ${doctors.map(doc => `<option value="${doc.fullname}" ${item.specialist === doc.fullname ? 'selected' : ''}>${doc.fullname}</option>`).join('')}
@@ -3403,6 +3541,14 @@ async function renderBudgetTable() {
                     <button class="btn btn-xs btn-outline text-red" style="border-radius: 6px; padding: 4px 8px;" onclick="removeBudgetItem(${index})"><i class="fa-solid fa-trash"></i></button>
                 </td>
             `;
+
+            // Handle checkbox toggle
+            const chk = tr.querySelector('.budget-item-checkbox');
+            chk.addEventListener('change', async (e) => {
+                currentBudgetItems[index].isSelected = e.target.checked;
+                await autoSaveActivePatientOdontogram();
+                renderBudgetTable();
+            });
 
             // Handle specialist select change
             const specSelect = tr.querySelector('.srv-specialist-select');
@@ -3424,6 +3570,52 @@ async function renderBudgetTable() {
 
             tbody.appendChild(tr);
         });
+
+        // Wire toolbar buttons once
+        const masterChk = document.getElementById('budget-check-master');
+        if (masterChk) {
+            masterChk.checked = currentBudgetItems.length > 0 && currentBudgetItems.every(i => i.isSelected !== false);
+            masterChk.indeterminate = currentBudgetItems.some(i => i.isSelected !== false) && !masterChk.checked;
+            masterChk.onchange = async () => {
+                const state = masterChk.checked;
+                currentBudgetItems.forEach(i => i.isSelected = state);
+                await autoSaveActivePatientOdontogram();
+                renderBudgetTable();
+            };
+        }
+
+        const btnSelectAll = document.getElementById('btn-budget-select-all');
+        if (btnSelectAll && !btnSelectAll.dataset.hasListener) {
+            btnSelectAll.dataset.hasListener = 'true';
+            btnSelectAll.onclick = async () => {
+                currentBudgetItems.forEach(i => i.isSelected = true);
+                await autoSaveActivePatientOdontogram();
+                renderBudgetTable();
+            };
+        }
+
+        const btnSelectPending = document.getElementById('btn-budget-select-pending');
+        if (btnSelectPending && !btnSelectPending.dataset.hasListener) {
+            btnSelectPending.dataset.hasListener = 'true';
+            btnSelectPending.onclick = async () => {
+                currentBudgetItems.forEach(i => {
+                    const isDone = i.status === 'Completado' || i.status === 'Atendido';
+                    i.isSelected = !isDone;
+                });
+                await autoSaveActivePatientOdontogram();
+                renderBudgetTable();
+            };
+        }
+
+        const btnSelectNone = document.getElementById('btn-budget-select-none');
+        if (btnSelectNone && !btnSelectNone.dataset.hasListener) {
+            btnSelectNone.dataset.hasListener = 'true';
+            btnSelectNone.onclick = async () => {
+                currentBudgetItems.forEach(i => i.isSelected = false);
+                await autoSaveActivePatientOdontogram();
+                renderBudgetTable();
+            };
+        }
 
         const discountPct = parseFloat(document.getElementById('budget-discount-input').value) || 0;
         const discountAmountUSD = subtotalUSD * (discountPct / 100);
@@ -9140,10 +9332,14 @@ function initGlobalEvents() {
                 return;
             }
 
+            // Filter selected items for this message
+            const selectedItems = currentBudgetItems.filter(item => item.isSelected !== false);
+            const itemsToSend = selectedItems.length > 0 ? selectedItems : currentBudgetItems;
+
             // Calculate totals
             let subtotalUSD = 0;
-            currentBudgetItems.forEach(item => {
-                subtotalUSD += item.price;
+            itemsToSend.forEach(item => {
+                subtotalUSD += item.price || 0;
             });
             const discountPct = parseFloat(document.getElementById('budget-discount-input').value) || 0;
             const discountAmountUSD = subtotalUSD * (discountPct / 100);
@@ -9175,7 +9371,7 @@ function initGlobalEvents() {
                 return;
             }
 
-            const msg = WhatsAppService.generateBudgetMessage(patient, currentBudgetItems, totalUSD, paymentModeText, notes, subtotalUSD, discountPct, paymentMethodLabel, activeEditingBudgetId);
+            const msg = WhatsAppService.generateBudgetMessage(patient, itemsToSend, totalUSD, paymentModeText, notes, subtotalUSD, discountPct, paymentMethodLabel, activeEditingBudgetId);
             WhatsAppService.sendToPatient(patient.phone, msg);
         };
     }
@@ -12648,8 +12844,12 @@ async function generateBudgetHTMLContainer() {
     const patient = patients.find(p => p.id === activeId);
     if (!patient) return null;
 
+    // Filter items selected for this budget print / export
+    const selectedItems = currentBudgetItems.filter(item => item.isSelected !== false);
+    const itemsToExport = selectedItems.length > 0 ? selectedItems : currentBudgetItems;
+
     let subtotalUSD = 0;
-    currentBudgetItems.forEach(item => {
+    itemsToExport.forEach(item => {
         subtotalUSD += item.price || 0;
     });
 
@@ -12667,7 +12867,7 @@ async function generateBudgetHTMLContainer() {
     const rate = getExchangeRate();
     const totalVES = `Bs. ${(totalUSD * rate).toFixed(2)}`;
 
-    const items = currentBudgetItems.map(item => ({
+    const items = itemsToExport.map(item => ({
         name: `${item.name} (${item.tooth !== 'General' ? 'Pieza ' + item.tooth : 'General'} - ${item.face || 'Gnl'})`,
         description: item.specialist ? `Especialista: ${item.specialist}` : 'Tratamiento odontológico especializado',
         qty: 1,

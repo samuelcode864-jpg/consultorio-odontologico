@@ -652,7 +652,18 @@
                                 <div style="font-size: 0.85rem; color: var(--text-main); display: flex; flex-direction: column; gap: 4px; line-height: 1.4;">
                                     <div>Cédula: <strong id="info-patient-cedula">V-00000000</strong> • Registrado: <span id="info-patient-created" style="font-weight: 600; color: #0d9488;">-</span></div>
                                     <div>Categoría: <span id="info-patient-category" style="font-weight: 700; color: #0d9488;">Privado</span> • Especialista: <span id="info-patient-doctor" style="font-weight: 700; color: var(--text-main);">Dr. Rodrigo Navas</span></div>
-                                    <div style="margin-top: 2px; padding-top: 4px; border-top: 1px dashed rgba(5, 150, 105, 0.2); font-size: 0.8rem; color: var(--text-muted);"><i class="fa-regular fa-clock text-cyan"></i> Fecha Presupuesto: <strong id="info-budget-date" style="color: #0f766e; font-weight: 700;">Hoy (En edición)</strong></div>
+                                    <div style="margin-top: 4px; padding-top: 6px; border-top: 1px dashed rgba(5, 150, 105, 0.2); font-size: 0.8rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 4px;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+                                            <span><i class="fa-solid fa-folder-tree text-cyan"></i> <strong>Fase / Episodio:</strong></span>
+                                            <button type="button" class="btn btn-xs btn-outline" id="btn-new-clinical-episode" style="font-size: 0.72rem; padding: 2px 8px; border-color: #059669; color: #059669; font-weight: 700;" title="Iniciar nueva fase o nuevo tratamiento sin borrar tratamientos ni odontograma pasados">
+                                                <i class="fa-solid fa-plus"></i> Nueva Fase
+                                            </button>
+                                        </div>
+                                        <select id="budget-phase-select" class="form-control" style="width: 100%; font-size: 0.8rem; height: 32px; padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(5, 150, 105, 0.3); background: #ffffff;">
+                                            <option value="current">⚡ Fase Actual (En edición / Nuevo Plan)</option>
+                                        </select>
+                                    </div>
+                                    <div style="font-size: 0.78rem; color: var(--text-muted);"><i class="fa-regular fa-clock text-cyan"></i> Fecha Presupuesto: <strong id="info-budget-date" style="color: #0f766e; font-weight: 700;">Hoy (En edición)</strong></div>
                                 </div>
                             </div>
                         </div>
@@ -724,20 +735,39 @@
                             </div>
 
                             <div class="card-body p-0">
+                                <!-- Selective Budget Filter Toolbar -->
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: #f8fafc; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; gap: 8px;">
+                                    <div style="font-size: 0.8rem; font-weight: 700; color: #334155; display: flex; align-items: center; gap: 6px;">
+                                        <i class="fa-solid fa-list-check text-cyan"></i> Selección para Presupuesto / Impresión:
+                                    </div>
+                                    <div style="display: flex; gap: 6px; align-items: center;">
+                                        <button type="button" class="btn btn-xs btn-outline" id="btn-budget-select-all" style="font-weight: 600; padding: 4px 10px; font-size: 0.78rem;">
+                                            <i class="fa-solid fa-check-double text-blue"></i> Todos
+                                        </button>
+                                        <button type="button" class="btn btn-xs btn-outline" id="btn-budget-select-pending" style="font-weight: 600; padding: 4px 10px; font-size: 0.78rem; border-color: #f59e0b; color: #b45309;">
+                                            <i class="fa-solid fa-hourglass-half"></i> Solo Pendientes
+                                        </button>
+                                        <button type="button" class="btn btn-xs btn-outline" id="btn-budget-select-none" style="font-weight: 600; padding: 4px 10px; font-size: 0.78rem; color: #64748b;">
+                                            Deseleccionar
+                                        </button>
+                                    </div>
+                                </div>
+
                                 <div class="table-container">
                                     <table class="table table-compact" id="budget-table">
                                         <thead>
                                             <tr>
+                                                <th style="width: 5%; text-align: center;" title="Incluir en presupuesto"><input type="checkbox" id="budget-check-master" checked title="Seleccionar todos"></th>
                                                 <th style="width: 10%;">Pieza</th>
-                                                <th style="width: 35%;">Procedimiento / Tratamiento</th>
-                                                <th style="width: 20%;">Médico Tratante</th>
+                                                <th style="width: 32%;">Procedimiento / Tratamiento</th>
+                                                <th style="width: 18%;">Médico Tratante</th>
                                                 <th id="budget-price-header" style="width: 15%;">Precio ($ USD)</th>
                                                 <th style="width: 15%;">Equivalente (Bs BCV)</th>
                                                 <th style="width: 5%;">Acción</th>
                                             </tr>
                                         </thead>
                                         <tbody id="budget-table-body">
-                                            <tr class="empty-row"><td colspan="6" class="text-center text-muted">Haga clic en el odontodiagrama o en el formulario de arriba para agregar tratamientos.</td></tr>
+                                            <tr class="empty-row"><td colspan="7" class="text-center text-muted">Haga clic en el odontodiagrama o en el formulario de arriba para agregar tratamientos.</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -3819,13 +3849,13 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=286"></script>
-    <script src="supabaseClient.js?v=286"></script>
-    <script src="odontogram.js?v=286"></script>
-    <script src="signature.js?v=286"></script>
-    <script src="whatsapp.js?v=286"></script>
-    <script src="kardex.js?v=286"></script>
-    <script src="app.js?v=286"></script>
-    <script src="tutorial.js?v=286"></script>
+    <script src="seededData.js?v=287"></script>
+    <script src="supabaseClient.js?v=287"></script>
+    <script src="odontogram.js?v=287"></script>
+    <script src="signature.js?v=287"></script>
+    <script src="whatsapp.js?v=287"></script>
+    <script src="kardex.js?v=287"></script>
+    <script src="app.js?v=287"></script>
+    <script src="tutorial.js?v=287"></script>
 </body>
 </html>
