@@ -2121,133 +2121,158 @@ async function renderBudgetListView(forceRefresh = false) {
     const tableBody = document.getElementById('budget-list-table-body');
     if (!tableBody) return;
 
-    const invoices = await SupabaseDataService.getInvoices(true);
-    const patients = await SupabaseDataService.getPatients(true);
-    let budgets = invoices.filter(inv => inv.id && inv.id.startsWith('PRE-'));
+    try {
+        // Cargar primero datos locales o rápidos para que la interfaz responda al instante (0 ms)
+        let invoices = (typeof SupabaseDataService !== 'undefined') ? await SupabaseDataService.getInvoices(false) : [];
+        let patients = (typeof SupabaseDataService !== 'undefined') ? await SupabaseDataService.getPatients(false) : [];
 
-    // Asegurar que cualquier presupuesto aprobado registrado en expedientes de pacientes esté en la lista
-    patients.forEach(p => {
-        const approvedList = (p.odontogram_data?._app_extended?.metadata?.approvedOdontograms) || (p.metadata?.approvedOdontograms) || [];
-        approvedList.forEach(app => {
-            if (app && app.id && !budgets.some(b => String(b.id) === String(app.id))) {
-                budgets.push({
-                    id: app.id,
-                    patientId: p.id,
-                    invoiceDate: app.date || p.birthdate || new Date().toISOString().split('T')[0],
-                    createdAt: app.date ? `${app.date}T12:00:00.000Z` : (p.created_at || new Date().toISOString()),
-                    paymentMethod: 'Efectivo USD',
-                    paymentTerms: 'Contado',
-                    currency: 'REF',
-                    items: app.treatments || p.metadata?.treatments || [],
-                    totalRef: parseFloat(app.totalUSD || 0),
-                    status: 'Aprobado'
+        function buildBudgetsList(invList, patList) {
+            let bList = (invList || []).filter(inv => inv && inv.id && String(inv.id).startsWith('PRE-'));
+            (patList || []).forEach(p => {
+                const approvedList = (p.odontogram_data?._app_extended?.metadata?.approvedOdontograms) || (p.metadata?.approvedOdontograms) || [];
+                approvedList.forEach(app => {
+                    if (app && app.id && !bList.some(b => String(b.id) === String(app.id))) {
+                        bList.push({
+                            id: app.id,
+                            patientId: p.id,
+                            invoiceDate: app.date || p.birthdate || new Date().toISOString().split('T')[0],
+                            createdAt: app.date ? `${app.date}T12:00:00.000Z` : (p.created_at || new Date().toISOString()),
+                            paymentMethod: 'Efectivo USD',
+                            paymentTerms: 'Contado',
+                            currency: 'REF',
+                            items: app.treatments || p.metadata?.treatments || [],
+                            totalRef: parseFloat(app.totalUSD || 0) || 0,
+                            status: 'Aprobado'
+                        });
+                    }
+                });
+            });
+
+            bList.sort((a, b) => {
+                const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                if (timeA !== timeB) return timeB - timeA;
+
+                const dateA = a.invoiceDate ? new Date(a.invoiceDate).getTime() : 0;
+                const dateB = b.invoiceDate ? new Date(b.invoiceDate).getTime() : 0;
+                if (dateA !== dateB) return dateB - dateA;
+
+                const idNumA = parseInt(String(a.id).replace(/[^0-9]/g, '')) || 0;
+                const idNumB = parseInt(String(b.id).replace(/[^0-9]/g, '')) || 0;
+                return idNumB - idNumA;
+            });
+            return bList;
+        }
+
+        let budgets = buildBudgetsList(invoices, patients);
+
+        const findPatientForBudget = (b, patList) => {
+            const list = patList || patients;
+            let pat = list.find(p => String(p.id).trim() === String(b.patientId).trim());
+            if (!pat) {
+                pat = list.find(p => {
+                    const approvedList = (p.odontogram_data?._app_extended?.metadata?.approvedOdontograms) || (p.metadata?.approvedOdontograms) || [];
+                    return approvedList.some(a => String(a.id) === String(b.id));
                 });
             }
-        });
-    });
+            return pat;
+        };
 
-    const findPatientForBudget = (b) => {
-        let pat = patients.find(p => String(p.id).trim() === String(b.patientId).trim());
-        if (!pat) {
-            pat = patients.find(p => {
-                const approvedList = (p.odontogram_data?._app_extended?.metadata?.approvedOdontograms) || (p.metadata?.approvedOdontograms) || [];
-                return approvedList.some(a => String(a.id) === String(b.id));
+        function drawTable() {
+            const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+            const status = statusFilter ? statusFilter.value : 'all';
+
+            const filtered = budgets.filter(b => {
+                const patient = findPatientForBudget(b, patients);
+                const patientName = patient && patient.fullname ? String(patient.fullname).toLowerCase() : '';
+                const patientCedula = patient && patient.id ? String(patient.id).toLowerCase() : '';
+                const spec = b.items && b.items[0] && b.items[0].specialist ? String(b.items[0].specialist).toLowerCase() : '';
+                const matchText = String(b.id).toLowerCase().includes(query) || patientName.includes(query) || patientCedula.includes(query) || spec.includes(query);
+
+                if (status === 'all') return matchText;
+                if (status === 'Presupuesto') return matchText && b.status !== 'Aprobado';
+                if (status === 'Aprobado') return matchText && b.status === 'Aprobado';
+                return matchText;
             });
-        }
-        return pat;
-    };
 
-    // Ordenar por orden de llegada: El último creado SIEMPRE de primero
-    budgets.sort((a, b) => {
-        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        if (timeA !== timeB) return timeB - timeA;
-
-        const dateA = a.invoiceDate ? new Date(a.invoiceDate).getTime() : 0;
-        const dateB = b.invoiceDate ? new Date(b.invoiceDate).getTime() : 0;
-        if (dateA !== dateB) return dateB - dateA;
-
-        const idNumA = parseInt(String(a.id).replace(/[^0-9]/g, '')) || 0;
-        const idNumB = parseInt(String(b.id).replace(/[^0-9]/g, '')) || 0;
-        return idNumB - idNumA;
-    });
-
-    if (searchInput && !searchInput.oninput) {
-        searchInput.oninput = () => drawTable();
-    }
-    if (statusFilter && !statusFilter.onchange) {
-        statusFilter.onchange = () => drawTable();
-    }
-
-    drawTable();
-
-    async function drawTable() {
-        const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
-        const status = statusFilter ? statusFilter.value : 'all';
-
-        const filtered = budgets.filter(b => {
-            const patient = findPatientForBudget(b);
-            const patientName = patient ? patient.fullname.toLowerCase() : '';
-            const patientCedula = patient ? String(patient.id).toLowerCase() : '';
-            const spec = b.items && b.items[0] && b.items[0].specialist ? b.items[0].specialist.toLowerCase() : '';
-            const matchText = b.id.toLowerCase().includes(query) || patientName.includes(query) || patientCedula.includes(query) || spec.includes(query);
-
-            if (status === 'all') return matchText;
-            if (status === 'Presupuesto') return matchText && b.status !== 'Aprobado';
-            if (status === 'Aprobado') return matchText && b.status === 'Aprobado';
-            return matchText;
-        });
-
-        tableBody.innerHTML = '';
-        if (filtered.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No se encontraron presupuestos.</td></tr>';
-            return;
-        }
-
-        filtered.forEach(b => {
-            const patient = findPatientForBudget(b);
-            const patientName = patient ? patient.fullname : (b.patientId ? `Paciente (${b.patientId})` : 'Desconocido');
-            const spec = b.items && b.items[0] && b.items[0].specialist ? b.items[0].specialist : 'Varios';
-            
-            const isApproved = b.status === 'Aprobado';
-            const isFacturado = b.status === 'Facturado';
-            const badgeClass = isFacturado ? 'badge-tag blue' : (isApproved ? 'badge-tag green' : 'badge-tag orange');
-            const statusLabel = isFacturado ? 'Finalizado' : (isApproved ? 'Aprobado' : 'Borrador');
-
-            let budgetDateDisplay = b.invoiceDate || '-';
-            let budgetTimeDisplay = '';
-            if (b.createdAt) {
-                try {
-                    const dt = new Date(b.createdAt);
-                    if (!isNaN(dt.getTime())) {
-                        budgetDateDisplay = dt.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                        budgetTimeDisplay = dt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true });
-                    }
-                } catch(e){}
+            tableBody.innerHTML = '';
+            if (filtered.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No se encontraron presupuestos.</td></tr>';
+                return;
             }
 
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><strong>${b.id}</strong></td>
-                <td>${patientName}</td>
-                <td>
-                    <div style="font-size:0.82rem; font-weight:600; color:var(--text-main); white-space:nowrap;"><i class="fa-regular fa-calendar text-cyan" style="font-size:0.75rem; margin-right:3px;"></i>${budgetDateDisplay}</div>
-                    ${budgetTimeDisplay ? `<small class="text-muted" style="display:block; font-size:0.72rem; margin-top:1px;"><i class="fa-regular fa-clock" style="font-size:0.68rem; margin-right:2px;"></i>${budgetTimeDisplay}</small>` : ''}
-                </td>
-                <td>$${b.totalRef.toFixed(2)}</td>
-                <td>${spec}</td>
-                <td><span class="${badgeClass}" style="font-size:0.75rem; text-transform:none; padding: 2px 6px;">${statusLabel}</span></td>
-                <td style="text-align: center;">
-                    <div style="display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;">
-                        <button class="btn btn-xs btn-outline" onclick="loadBudgetIntoEditor('${b.id}')" style="padding: 4px 8px; font-weight:600; border-radius:4px; cursor: pointer;" title="Abrir y Editar Presupuesto"><i class="fa-solid fa-folder-open"></i> Abrir</button>
-                        <button class="btn btn-xs btn-success" onclick="window.sendBudgetWhatsApp('${b.id}')" style="padding: 4px 8px; font-weight:600; border-radius:4px; cursor: pointer; background:#25D366; border:none; color:#fff;" title="Enviar Presupuesto por WhatsApp"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
-                        ${isApproved ? `<button class="btn btn-xs btn-success" onclick="window.finalizeBudgetDirect('${b.id}')" style="padding: 4px 8px; font-weight:600; border-radius:4px; cursor: pointer; background:#10b981; border:none; color:#fff;" title="Finalizar Tratamiento / Presupuesto"><i class="fa-solid fa-circle-check"></i> Finalizar</button>` : ''}
-                        <button class="btn btn-xs btn-outline text-red" onclick="window.deleteBudget('${b.id}')" style="padding: 4px 8px; font-weight:600; border-radius:4px; cursor: pointer; border-color: #ef4444; color: #ef4444;" title="Eliminar Presupuesto (Enviar a Papelera)"><i class="fa-solid fa-trash-can"></i></button>
-                    </div>
-                </td>
-            `;
-            tableBody.appendChild(tr);
+            filtered.forEach(b => {
+                const patient = findPatientForBudget(b, patients);
+                const patientName = patient ? patient.fullname : (b.patientId ? `Paciente (${b.patientId})` : 'Desconocido');
+                const spec = b.items && b.items[0] && b.items[0].specialist ? b.items[0].specialist : 'Varios';
+                
+                const isApproved = String(b.status).toLowerCase() === 'aprobado';
+                const isFacturado = String(b.status).toLowerCase() === 'facturado';
+                const badgeClass = isFacturado ? 'badge-tag blue' : (isApproved ? 'badge-tag green' : 'badge-tag orange');
+                const statusLabel = isFacturado ? 'Finalizado' : (isApproved ? 'Aprobado' : 'Borrador');
+
+                let budgetDateDisplay = b.invoiceDate || '-';
+                let budgetTimeDisplay = '';
+                if (b.createdAt) {
+                    try {
+                        const dt = new Date(b.createdAt);
+                        if (!isNaN(dt.getTime())) {
+                            budgetDateDisplay = dt.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                            budgetTimeDisplay = dt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true });
+                        }
+                    } catch(e){}
+                }
+
+                const totalRefNum = parseFloat(b.totalRef !== undefined && b.totalRef !== null ? b.totalRef : (b.totalUSD || b.total || 0)) || 0;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${b.id}</strong></td>
+                    <td>${patientName}</td>
+                    <td>
+                        <div style="font-size:0.82rem; font-weight:600; color:var(--text-main); white-space:nowrap;"><i class="fa-regular fa-calendar text-cyan" style="font-size:0.75rem; margin-right:3px;"></i>${budgetDateDisplay}</div>
+                        ${budgetTimeDisplay ? `<small class="text-muted" style="display:block; font-size:0.72rem; margin-top:1px;"><i class="fa-regular fa-clock" style="font-size:0.68rem; margin-right:2px;"></i>${budgetTimeDisplay}</small>` : ''}
+                    </td>
+                    <td>$${totalRefNum.toFixed(2)}</td>
+                    <td>${spec}</td>
+                    <td><span class="${badgeClass}" style="font-size:0.75rem; text-transform:none; padding: 2px 6px;">${statusLabel}</span></td>
+                    <td style="text-align: center;">
+                        <div style="display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;">
+                            <button class="btn btn-xs btn-outline" onclick="loadBudgetIntoEditor('${b.id}')" style="padding: 4px 8px; font-weight:600; border-radius:4px; cursor: pointer;" title="Abrir y Editar Presupuesto"><i class="fa-solid fa-folder-open"></i> Abrir</button>
+                            <button class="btn btn-xs btn-success" onclick="window.sendBudgetWhatsApp('${b.id}')" style="padding: 4px 8px; font-weight:600; border-radius:4px; cursor: pointer; background:#25D366; border:none; color:#fff;" title="Enviar Presupuesto por WhatsApp"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
+                            ${isApproved ? `<button class="btn btn-xs btn-success" onclick="window.finalizeBudgetDirect('${b.id}')" style="padding: 4px 8px; font-weight:600; border-radius:4px; cursor: pointer; background:#10b981; border:none; color:#fff;" title="Finalizar Tratamiento / Presupuesto"><i class="fa-solid fa-circle-check"></i> Finalizar</button>` : ''}
+                            <button class="btn btn-xs btn-outline text-red" onclick="window.deleteBudget('${b.id}')" style="padding: 4px 8px; font-weight:600; border-radius:4px; cursor: pointer; border-color: #ef4444; color: #ef4444;" title="Eliminar Presupuesto (Enviar a Papelera)"><i class="fa-solid fa-trash-can"></i></button>
+                        </div>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+
+        if (searchInput) searchInput.oninput = () => drawTable();
+        if (statusFilter) statusFilter.onchange = () => drawTable();
+
+        // 1. Renderizar de inmediato para no dejar la pantalla en "Cargando..."
+        drawTable();
+
+        // 2. En segundo plano sincronizar en vivo con la nube y re-renderizar
+        Promise.all([
+            SupabaseDataService.getInvoices(true),
+            SupabaseDataService.getPatients(true)
+        ]).then(([freshInvoices, freshPatients]) => {
+            if (freshInvoices && freshPatients) {
+                invoices = freshInvoices;
+                patients = freshPatients;
+                budgets = buildBudgetsList(freshInvoices, freshPatients);
+                drawTable();
+            }
+        }).catch(err => {
+            console.warn('Background budget list refresh warn:', err);
         });
+
+    } catch (err) {
+        console.error('Error rendering budget list view:', err);
+        tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Error al cargar presupuestos. Por favor recargue.</td></tr>';
     }
 }
 
