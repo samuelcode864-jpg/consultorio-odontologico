@@ -2128,6 +2128,19 @@ async function renderBudgetListView(forceRefresh = false) {
 
         function buildBudgetsList(invList, patList) {
             let bList = (invList || []).filter(inv => inv && inv.id && String(inv.id).startsWith('PRE-'));
+
+            // Auto-corrección inmediata: alinear cualquier presupuesto con el paciente que lo tiene en su historia clínica
+            bList.forEach(b => {
+                const owner = (patList || []).find(p => {
+                    const approvedList = (p.odontogram_data?._app_extended?.metadata?.approvedOdontograms) || (p.metadata?.approvedOdontograms) || [];
+                    return approvedList.some(a => String(a.id) === String(b.id));
+                });
+                if (owner) {
+                    b.patientId = owner.id;
+                    b.status = 'Aprobado';
+                }
+            });
+
             (patList || []).forEach(p => {
                 const approvedList = (p.odontogram_data?._app_extended?.metadata?.approvedOdontograms) || (p.metadata?.approvedOdontograms) || [];
                 approvedList.forEach(app => {
@@ -2161,6 +2174,11 @@ async function renderBudgetListView(forceRefresh = false) {
                 const idNumB = parseInt(String(b.id).replace(/[^0-9]/g, '')) || 0;
                 return idNumB - idNumA;
             });
+
+            try {
+                localStorage.setItem('dental_invoices', JSON.stringify(bList));
+            } catch(e){}
+
             return bList;
         }
 
@@ -2168,12 +2186,14 @@ async function renderBudgetListView(forceRefresh = false) {
 
         const findPatientForBudget = (b, patList) => {
             const list = patList || patients;
-            let pat = list.find(p => String(p.id).trim() === String(b.patientId).trim());
+            // 1. Prioridad: ¿Qué paciente tiene este presupuesto en su historial clínico oficial?
+            let pat = list.find(p => {
+                const approvedList = (p.odontogram_data?._app_extended?.metadata?.approvedOdontograms) || (p.metadata?.approvedOdontograms) || [];
+                return approvedList.some(a => String(a.id) === String(b.id));
+            });
+            // 2. Si ningún paciente lo tiene en historial oficial, buscar por ID de paciente
             if (!pat) {
-                pat = list.find(p => {
-                    const approvedList = (p.odontogram_data?._app_extended?.metadata?.approvedOdontograms) || (p.metadata?.approvedOdontograms) || [];
-                    return approvedList.some(a => String(a.id) === String(b.id));
-                });
+                pat = list.find(p => String(p.id).trim() === String(b.patientId).trim());
             }
             return pat;
         };
