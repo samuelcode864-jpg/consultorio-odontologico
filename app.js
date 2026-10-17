@@ -1877,7 +1877,21 @@ async function saveCurrentBudgetAsDraft(patientIdToSave) {
         const totalUSD = Math.max(0, subtotalUSD - discountAmountUSD);
         const rate = typeof getExchangeRate === 'function' ? getExchangeRate() : 1;
 
-        const budgetId = activeEditingBudgetId || `PRE-${Date.now().toString().slice(-6)}`;
+        const invoices = await SupabaseDataService.getInvoices();
+        let budgetId = activeEditingBudgetId;
+        if (budgetId) {
+            const existingInv = invoices.find(i => String(i.id) === String(budgetId));
+            if (existingInv && existingInv.patientId && String(existingInv.patientId) !== String(patientIdToSave)) {
+                budgetId = null;
+            }
+        }
+        if (!budgetId) {
+            budgetId = `PRE-${Date.now().toString().slice(-6)}`;
+        }
+
+        const existingInv = invoices.find(i => String(i.id) === String(budgetId));
+        const isAlreadyApproved = existingInv && (String(existingInv.status).toLowerCase() === 'aprobado' || String(existingInv.status).toLowerCase() === 'approved' || String(existingInv.status).toLowerCase() === 'completada' || String(existingInv.status).toLowerCase() === 'finalizado');
+        const draftStatus = isAlreadyApproved ? 'Aprobado' : 'Borrador';
 
         const budgetObj = {
             id: budgetId,
@@ -1900,7 +1914,7 @@ async function saveCurrentBudgetAsDraft(patientIdToSave) {
             totalRef: totalUSD,
             totalUSD: totalUSD,
             totalBcv: totalUSD * rate,
-            status: 'Borrador',
+            status: draftStatus,
             footerText: notes,
             doctorSignature: docSig,
             patientSignature: patSig,
@@ -2033,20 +2047,43 @@ window.selectPatientAndLoadApprovedBudget = async function(patientId) {
 
     // 1. Consultar si este paciente tiene un presupuesto en invoices (Aprobado o Borrador)
     const invoices = await SupabaseDataService.getInvoices();
-    const patientInvoices = invoices.filter(inv => String(inv.patientId) === String(patientId));
+    let patientInvoices = invoices.filter(inv => String(inv.patientId) === String(patientId));
+
+    // Si no se encontró por inv.patientId, buscar si el paciente tiene presupuestos aprobados en sus metadatos
+    const patients = await SupabaseDataService.getPatients();
+    const p = patients.find(pat => String(pat.id) === String(patientId));
+    const pApprovedList = (p?.odontogram_data?._app_extended?.metadata?.approvedOdontograms) || (p?.metadata?.approvedOdontograms) || [];
+
+    if (patientInvoices.length === 0 && pApprovedList.length > 0) {
+        const approvedIds = pApprovedList.map(a => String(a.id));
+        patientInvoices = invoices.filter(inv => approvedIds.includes(String(inv.id)));
+    }
+
     const approvedBudget = patientInvoices.find(inv => (String(inv.status).toLowerCase() === 'aprobado' || String(inv.status).toLowerCase() === 'approved' || String(inv.status).toLowerCase() === 'completada' || String(inv.status).toLowerCase() === 'finalizado'));
     const latestBudget = approvedBudget || patientInvoices.sort((a, b) => new Date(b.invoiceDate || b.createdAt || 0) - new Date(a.invoiceDate || a.createdAt || 0))[0];
 
     if (latestBudget && window.loadBudgetIntoEditor) {
         await window.loadBudgetIntoEditor(latestBudget.id);
+    } else if (pApprovedList.length > 0 && window.loadBudgetIntoEditor) {
+        const latestApprovedEntry = pApprovedList[pApprovedList.length - 1];
+        await window.loadBudgetIntoEditor(latestApprovedEntry.id);
     } else {
-        // Si no tiene presupuesto registrado en invoices: cargar borrador en metadata si existe
-        const patients = await SupabaseDataService.getPatients();
-        const p = patients.find(pat => String(pat.id) === String(patientId));
+        // Si no tiene presupuesto registrado en invoices: cargar borrador en metadata o tratamientos planificados
         activeEditingBudgetId = (p?.metadata?.draftBudget && p.metadata.draftBudget.id) || null;
-        const rawDraftItems = (p?.metadata?.draftBudget && Array.isArray(p.metadata.draftBudget.items))
+        let rawDraftItems = (p?.metadata?.draftBudget && Array.isArray(p.metadata.draftBudget.items))
             ? [...p.metadata.draftBudget.items]
             : [];
+
+        if (rawDraftItems.length === 0 && p?.metadata?.treatments && Array.isArray(p.metadata.treatments) && p.metadata.treatments.length > 0) {
+            rawDraftItems = p.metadata.treatments.map(t => ({
+                tooth: t.tooth || 'Gnl',
+                face: t.face || 'Gnl',
+                serviceCode: t.serviceCode || '',
+                name: t.name,
+                price: parseFloat(t.price) || 0,
+                specialist: t.specialist || p.assignedDoctor || 'Dr. Rodrigo Navas'
+            }));
+        }
         const rawDraftOd = (p?.metadata && p.metadata.draftOdontogramData) || (p?.odontogramData) || {};
 
         const baremo = await SupabaseDataService.getBaremo();
@@ -2484,17 +2521,56 @@ window.loadBudgetIntoEditor = async function(budgetId) {
     if (editorContainer) editorContainer.classList.remove('hidden');
 
     const invoices = await SupabaseDataService.getInvoices();
-    const budget = invoices.find(inv => String(inv.id) === String(budgetId));
-    if (!budget) return;
-
-    activeEditingBudgetId = budget.id;
-    localStorage.setItem('dental_active_editing_budget_id_' + budget.patientId, budget.id);
-
-    // Load active patient ID
-    setActivePatientId(budget.patientId);
+    let budget = invoices.find(inv => String(inv.id) === String(budgetId));
 
     const patients = await SupabaseDataService.getPatients();
-    const pat = patients.find(p => String(p.id) === String(budget.patientId));
+    let pat = budget ? patients.find(p => String(p.id) === String(budget.patientId)) : null;
+
+    if (!budget) {
+        // Fallback: buscar en approvedOdontograms de todos los pacientes
+        for (const p of patients) {
+            const approvedList = (p.odontogram_data?._app_extended?.metadata?.approvedOdontograms) || (p.metadata?.approvedOdontograms) || [];
+            const foundEntry = approvedList.find(a => String(a.id) === String(budgetId));
+            if (foundEntry) {
+                pat = p;
+                const trts = foundEntry.treatments || p.metadata?.treatments || [];
+                budget = {
+                    id: foundEntry.id,
+                    patientId: p.id,
+                    invoiceDate: foundEntry.date || p.birthdate || new Date().toISOString().split('T')[0],
+                    paymentMethod: 'Efectivo USD',
+                    paymentTerms: 'Contado',
+                    currency: 'REF',
+                    items: trts,
+                    totalRef: foundEntry.totalUSD || 0,
+                    status: 'Aprobado',
+                    doctorSignature: p.metadata?.doctorSignature || '',
+                    patientSignature: p.metadata?.patientSignature || '',
+                    odontogramData: foundEntry.odontogramData || p.odontogramData || {}
+                };
+                break;
+            }
+        }
+    }
+    if (!budget) return;
+
+    // Si el budget no tiene items o están vacíos, buscar en el paciente
+    if ((!budget.items || budget.items.length === 0) && pat) {
+        const approvedList = (pat.odontogram_data?._app_extended?.metadata?.approvedOdontograms) || (pat.metadata?.approvedOdontograms) || [];
+        const appEntry = approvedList.find(a => String(a.id) === String(budget.id));
+        if (appEntry && appEntry.treatments && appEntry.treatments.length > 0) {
+            budget.items = appEntry.treatments;
+        } else if (pat.metadata?.treatments && pat.metadata.treatments.length > 0) {
+            budget.items = pat.metadata.treatments;
+        }
+    }
+
+    activeEditingBudgetId = budget.id;
+    if (budget.patientId) {
+        localStorage.setItem('dental_active_editing_budget_id_' + budget.patientId, budget.id);
+        setActivePatientId(budget.patientId);
+        if (!pat) pat = patients.find(p => String(p.id) === String(budget.patientId));
+    }
 
     // Clear memory FIRST before loading to prevent duplicate stacking
     currentBudgetItems = [];
@@ -2836,10 +2912,43 @@ async function renderOdontogramView() {
             } else {
                 // Si no hay borrador en curso, consultar si este paciente tiene un presupuesto Aprobado oficial
                 const invoices = await SupabaseDataService.getInvoices();
-                const approvedBudget = invoices.find(inv => String(inv.patientId) === String(activeId) && (String(inv.status).toLowerCase() === 'aprobado' || String(inv.status).toLowerCase() === 'approved' || String(inv.status).toLowerCase() === 'completada' || String(inv.status).toLowerCase() === 'finalizado'));
+                let approvedBudget = invoices.find(inv => String(inv.patientId) === String(activeId) && (String(inv.status).toLowerCase() === 'aprobado' || String(inv.status).toLowerCase() === 'approved' || String(inv.status).toLowerCase() === 'completada' || String(inv.status).toLowerCase() === 'finalizado'));
+
+                // Si no se encuentra por patientId, buscar en approvedOdontograms del paciente
+                const pApprovedList = (patient.odontogram_data?._app_extended?.metadata?.approvedOdontograms) || (patient.metadata?.approvedOdontograms) || [];
+                if (!approvedBudget && pApprovedList.length > 0) {
+                    const latestApprovedEntry = pApprovedList[pApprovedList.length - 1];
+                    approvedBudget = invoices.find(inv => String(inv.id) === String(latestApprovedEntry.id));
+                    if (!approvedBudget && latestApprovedEntry.id) {
+                        if (window.loadBudgetIntoEditor) {
+                            await window.loadBudgetIntoEditor(latestApprovedEntry.id);
+                            return;
+                        }
+                    }
+                }
+
                 if (approvedBudget && window.loadBudgetIntoEditor) {
                     await window.loadBudgetIntoEditor(approvedBudget.id);
                     return;
+                } else if (patient.metadata?.treatments && patient.metadata.treatments.length > 0) {
+                    // Si el paciente tiene tratamientos clínicos registrados en su historial, restaurarlos en pantalla
+                    currentBudgetItems = patient.metadata.treatments.map((t, idx) => ({
+                        key: `proc-ehr-${idx}-${Date.now()}`,
+                        tooth: t.tooth || 'Gnl',
+                        face: t.face || 'Gnl',
+                        surface: t.surface || '',
+                        serviceCode: t.serviceCode || '',
+                        name: t.name,
+                        price: parseFloat(t.price) || 0,
+                        specialist: t.specialist || patient.assignedDoctor || 'Dr. Rodrigo Navas'
+                    }));
+                    const odToSet = (patient.metadata && patient.metadata.draftOdontogramData) || patient.odontogramData || {};
+                    if (window.odontogram) {
+                        window.odontogram.setData(odToSet);
+                    }
+                    if (typeof renderBudgetTable === 'function') {
+                        renderBudgetTable();
+                    }
                 } else {
                     const odToSet = (patient.metadata && patient.metadata.draftOdontogramData) || patient.odontogramData || {};
                     if (window.odontogram) {
@@ -9138,7 +9247,17 @@ function initGlobalEvents() {
                 }
 
                 // Generate or load budget invoice record ID
-                const invoiceId = activeEditingBudgetId || `PRE-${Date.now().toString().slice(-6)}`;
+                let invoiceId = activeEditingBudgetId;
+                if (invoiceId) {
+                    const invoices = await SupabaseDataService.getInvoices();
+                    const existingInv = invoices.find(i => String(i.id) === String(invoiceId));
+                    if (existingInv && existingInv.patientId && String(existingInv.patientId) !== String(patient.id)) {
+                        invoiceId = null;
+                    }
+                }
+                if (!invoiceId) {
+                    invoiceId = `PRE-${Date.now().toString().slice(-6)}`;
+                }
                 const approvedOdData = (window.odontogram ? window.odontogram.getData() : {});
 
                 const invoiceObj = {
@@ -9204,13 +9323,19 @@ function initGlobalEvents() {
 
                 // Update cumulative official odontogram and push evolution snapshot
                 patient.odontogramData = { ...(patient.odontogramData || {}), ...approvedOdData };
-                patient.metadata.approvedOdontograms.push({
+                const appPayload = {
                     id: invoiceObj.id,
                     date: invoiceObj.invoiceDate,
                     totalUSD: totalUSD,
                     odontogramData: { ...approvedOdData },
                     treatments: deduplicateBudgetItems(currentBudgetItems)
-                });
+                };
+                const existingAppIdx = patient.metadata.approvedOdontograms.findIndex(a => String(a.id) === String(invoiceObj.id));
+                if (existingAppIdx >= 0) {
+                    patient.metadata.approvedOdontograms[existingAppIdx] = appPayload;
+                } else {
+                    patient.metadata.approvedOdontograms.push(appPayload);
+                }
                 patient.metadata.odontogramLastUpdated = invoiceObj.invoiceDate;
 
                 // Set treatment plan overview
@@ -9759,7 +9884,21 @@ function initGlobalEvents() {
                 patSig = window.patientSigPad.toDataURL();
             }
 
-            const budgetId = activeEditingBudgetId || `PRE-${Date.now().toString().slice(-6)}`;
+            const invoices = await SupabaseDataService.getInvoices();
+            let budgetId = activeEditingBudgetId;
+            if (budgetId) {
+                const existingInv = invoices.find(i => String(i.id) === String(budgetId));
+                if (existingInv && existingInv.patientId && String(existingInv.patientId) !== String(activeId)) {
+                    budgetId = null;
+                }
+            }
+            if (!budgetId) {
+                budgetId = `PRE-${Date.now().toString().slice(-6)}`;
+            }
+
+            const existingInv = invoices.find(i => String(i.id) === String(budgetId));
+            const isAlreadyApproved = existingInv && (String(existingInv.status).toLowerCase() === 'aprobado' || String(existingInv.status).toLowerCase() === 'approved' || String(existingInv.status).toLowerCase() === 'completada' || String(existingInv.status).toLowerCase() === 'finalizado');
+            const finalStatus = isAlreadyApproved ? 'Aprobado' : (existingInv ? (existingInv.status || 'Borrador') : 'Borrador');
             
             const budgetObj = {
                 id: budgetId,
@@ -9783,7 +9922,7 @@ function initGlobalEvents() {
                 totalRef: totalUSD,
                 totalUSD: totalUSD,
                 totalBcv: parseFloat(totalVES),
-                status: 'Borrador',
+                status: finalStatus,
                 doctorSignature: docSig,
                 patientSignature: patSig,
                 footerText: notes,
@@ -9825,6 +9964,36 @@ function initGlobalEvents() {
                         doctorSignature: docSig,
                         patientSignature: patSig
                     };
+
+                    if (finalStatus === 'Aprobado') {
+                        if (!patient.metadata.approvedOdontograms) patient.metadata.approvedOdontograms = [];
+                        const appPayload = {
+                            id: budgetId,
+                            date: budgetObj.invoiceDate,
+                            totalUSD: totalUSD,
+                            odontogramData: { ...odData },
+                            treatments: deduplicateBudgetItems(currentBudgetItems)
+                        };
+                        const existingAppIdx = patient.metadata.approvedOdontograms.findIndex(a => String(a.id) === String(budgetId));
+                        if (existingAppIdx >= 0) {
+                            patient.metadata.approvedOdontograms[existingAppIdx] = appPayload;
+                        } else {
+                            patient.metadata.approvedOdontograms.push(appPayload);
+                        }
+                        patient.metadata.treatments = deduplicateBudgetItems(currentBudgetItems).map((item, idx) => ({
+                            id: 'trt-' + (idx + 1),
+                            serviceCode: item.serviceCode || '',
+                            name: item.name,
+                            tooth: extractToothNumber(item),
+                            face: item.face || 'Gnl',
+                            price: item.price,
+                            specialist: item.specialist || '',
+                            status: 'Planificado',
+                            sessionNum: item.sessionNum || (idx + 1)
+                        }));
+                        patient.odontogramData = { ...(patient.odontogramData || {}), ...odData };
+                    }
+
                     await SupabaseDataService.savePatient(patient);
                 }
                 

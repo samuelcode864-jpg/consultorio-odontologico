@@ -760,6 +760,71 @@ class SupabaseDataService {
                             }
                         });
                     });
+
+                    // Sincronización bidireccional y auto-recuperación de presupuestos aprobados desde los pacientes
+                    const regularPatients = pData.filter(p => !budgetRows.some(b => String(b.id) === String(p.id)));
+                    regularPatients.forEach(p => {
+                        const pExt = p.odontogram_data?._app_extended;
+                        const approvedList = (pExt?.metadata?.approvedOdontograms) || (p.metadata?.approvedOdontograms) || [];
+                        if (Array.isArray(approvedList) && approvedList.length > 0) {
+                            approvedList.forEach(app => {
+                                if (!app || !app.id) return;
+                                const existingIdx = cloudInvoices.findIndex(c => String(c.id) === String(app.id));
+                                if (existingIdx >= 0) {
+                                    // Corregir paciente si venía desalineado por sesión previa
+                                    if (!cloudInvoices[existingIdx].patientId || String(cloudInvoices[existingIdx].patientId) !== String(p.id)) {
+                                        cloudInvoices[existingIdx].patientId = String(p.id);
+                                    }
+                                    if ((!cloudInvoices[existingIdx].items || cloudInvoices[existingIdx].items.length === 0) && app.treatments && app.treatments.length > 0) {
+                                        cloudInvoices[existingIdx].items = app.treatments;
+                                    }
+                                    if (app.totalUSD && (!cloudInvoices[existingIdx].totalRef || cloudInvoices[existingIdx].totalRef === 0)) {
+                                        cloudInvoices[existingIdx].totalRef = parseFloat(app.totalUSD);
+                                    }
+                                    if (String(cloudInvoices[existingIdx].status).toLowerCase() === 'borrador') {
+                                        cloudInvoices[existingIdx].status = 'Aprobado';
+                                    }
+                                } else {
+                                    // Reconstruir presupuesto aprobado si no tenía fila propia separada
+                                    const trts = Array.isArray(app.treatments) ? app.treatments : [];
+                                    const rowCreatedAt = app.date ? `${app.date}T12:00:00.000Z` : (p.created_at || new Date().toISOString());
+                                    const docSig = pExt?.metadata?.doctorSignature || p.metadata?.doctorSignature || '';
+                                    const patSig = pExt?.metadata?.patientSignature || p.metadata?.patientSignature || '';
+                                    cloudInvoices.push({
+                                        id: app.id,
+                                        patientId: String(p.id),
+                                        invoiceDate: app.date || (p.birthdate ? p.birthdate : new Date().toISOString().split('T')[0]),
+                                        createdAt: rowCreatedAt,
+                                        paymentMethod: 'Efectivo USD',
+                                        paymentTerms: 'Contado',
+                                        currency: 'REF',
+                                        items: trts.map(t => ({
+                                            tooth: t.tooth || 'Gnl',
+                                            face: t.face || 'Gnl',
+                                            serviceCode: t.serviceCode || t.code || '',
+                                            name: t.name || 'Tratamiento',
+                                            price: parseFloat(t.price || 0),
+                                            specialist: t.specialist || p.assignedDoctor || 'Dr. Rodrigo Navas'
+                                        })),
+                                        totalRef: parseFloat(app.totalUSD || 0),
+                                        totalBcv: parseFloat(app.totalUSD || 0) * (typeof getExchangeRate === 'function' ? getExchangeRate() : 1),
+                                        status: 'Aprobado',
+                                        doctorSignature: docSig,
+                                        patientSignature: patSig,
+                                        footerText: '',
+                                        odontogramData: app.odontogramData || p.odontogramData || {},
+                                        metadata: {
+                                            createdAt: rowCreatedAt,
+                                            doctorSignature: docSig,
+                                            patientSignature: patSig,
+                                            odontogramData: app.odontogramData || p.odontogramData || {},
+                                            treatments: trts
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    });
                 }
 
                 const { data: invData, error: invErr } = await supabaseClient.from('invoices').select('*');
