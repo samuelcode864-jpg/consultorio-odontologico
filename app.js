@@ -2121,8 +2121,41 @@ async function renderBudgetListView(forceRefresh = false) {
     const tableBody = document.getElementById('budget-list-table-body');
     if (!tableBody) return;
 
-    const invoices = await SupabaseDataService.getInvoices(forceRefresh);
+    const invoices = await SupabaseDataService.getInvoices(true);
+    const patients = await SupabaseDataService.getPatients(true);
     let budgets = invoices.filter(inv => inv.id && inv.id.startsWith('PRE-'));
+
+    // Asegurar que cualquier presupuesto aprobado registrado en expedientes de pacientes esté en la lista
+    patients.forEach(p => {
+        const approvedList = (p.odontogram_data?._app_extended?.metadata?.approvedOdontograms) || (p.metadata?.approvedOdontograms) || [];
+        approvedList.forEach(app => {
+            if (app && app.id && !budgets.some(b => String(b.id) === String(app.id))) {
+                budgets.push({
+                    id: app.id,
+                    patientId: p.id,
+                    invoiceDate: app.date || p.birthdate || new Date().toISOString().split('T')[0],
+                    createdAt: app.date ? `${app.date}T12:00:00.000Z` : (p.created_at || new Date().toISOString()),
+                    paymentMethod: 'Efectivo USD',
+                    paymentTerms: 'Contado',
+                    currency: 'REF',
+                    items: app.treatments || p.metadata?.treatments || [],
+                    totalRef: parseFloat(app.totalUSD || 0),
+                    status: 'Aprobado'
+                });
+            }
+        });
+    });
+
+    const findPatientForBudget = (b) => {
+        let pat = patients.find(p => String(p.id).trim() === String(b.patientId).trim());
+        if (!pat) {
+            pat = patients.find(p => {
+                const approvedList = (p.odontogram_data?._app_extended?.metadata?.approvedOdontograms) || (p.metadata?.approvedOdontograms) || [];
+                return approvedList.some(a => String(a.id) === String(b.id));
+            });
+        }
+        return pat;
+    };
 
     // Ordenar por orden de llegada: El último creado SIEMPRE de primero
     budgets.sort((a, b) => {
@@ -2152,13 +2185,12 @@ async function renderBudgetListView(forceRefresh = false) {
         const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
         const status = statusFilter ? statusFilter.value : 'all';
 
-        const patients = await SupabaseDataService.getPatients();
-
         const filtered = budgets.filter(b => {
-            const patient = patients.find(p => p.id === b.patientId);
+            const patient = findPatientForBudget(b);
             const patientName = patient ? patient.fullname.toLowerCase() : '';
+            const patientCedula = patient ? String(patient.id).toLowerCase() : '';
             const spec = b.items && b.items[0] && b.items[0].specialist ? b.items[0].specialist.toLowerCase() : '';
-            const matchText = b.id.toLowerCase().includes(query) || patientName.includes(query) || spec.includes(query);
+            const matchText = b.id.toLowerCase().includes(query) || patientName.includes(query) || patientCedula.includes(query) || spec.includes(query);
 
             if (status === 'all') return matchText;
             if (status === 'Presupuesto') return matchText && b.status !== 'Aprobado';
@@ -2173,8 +2205,8 @@ async function renderBudgetListView(forceRefresh = false) {
         }
 
         filtered.forEach(b => {
-            const patient = patients.find(p => p.id === b.patientId);
-            const patientName = patient ? patient.fullname : 'Desconocido';
+            const patient = findPatientForBudget(b);
+            const patientName = patient ? patient.fullname : (b.patientId ? `Paciente (${b.patientId})` : 'Desconocido');
             const spec = b.items && b.items[0] && b.items[0].specialist ? b.items[0].specialist : 'Varios';
             
             const isApproved = b.status === 'Aprobado';
