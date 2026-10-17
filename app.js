@@ -560,10 +560,17 @@ function getActivePatientId() {
 }
 
 function setActivePatientId(id) {
+    const prevId = localStorage.getItem('dental_active_patient_id');
     if (id) {
         localStorage.setItem('dental_active_patient_id', id);
+        if (prevId && String(prevId) !== String(id)) {
+            // Patient switched! Reset active editing budget unless explicitly recorded for this patient
+            const savedBudgetForNewPat = localStorage.getItem('dental_active_editing_budget_id_' + id);
+            activeEditingBudgetId = savedBudgetForNewPat || null;
+        }
     } else {
         localStorage.removeItem('dental_active_patient_id');
+        activeEditingBudgetId = null;
     }
     updateActivePatientUI();
 }
@@ -1911,7 +1918,7 @@ async function saveCurrentBudgetAsDraft(patientIdToSave) {
             }
         }
         if (!budgetId) {
-            budgetId = `PRE-${Date.now().toString().slice(-6)}`;
+            budgetId = SupabaseDataService.generateUniqueBudgetId('PRE', patientIdToSave);
         }
 
         const existingInv = invoices.find(i => String(i.id) === String(budgetId));
@@ -9392,7 +9399,7 @@ function initGlobalEvents() {
                     }
                 }
                 if (!invoiceId) {
-                    invoiceId = `PRE-${Date.now().toString().slice(-6)}`;
+                    invoiceId = SupabaseDataService.generateUniqueBudgetId('PRE', patient.id);
                 }
                 const approvedOdData = (window.odontogram ? window.odontogram.getData() : {});
 
@@ -10029,7 +10036,7 @@ function initGlobalEvents() {
                 }
             }
             if (!budgetId) {
-                budgetId = `PRE-${Date.now().toString().slice(-6)}`;
+                budgetId = SupabaseDataService.generateUniqueBudgetId('PRE', activeId);
             }
 
             const existingInv = invoices.find(i => String(i.id) === String(budgetId));
@@ -13579,7 +13586,7 @@ async function renderBillingView() {
         }
 
         // Generate invoice ID
-        const invoiceId = 'FAC-' + Date.now().toString().slice(-6);
+        const invoiceId = SupabaseDataService.generateUniqueBudgetId('FAC', activePatient ? activePatient.id : '');
 
         let docSig = (window.doctorSigPad && !window.doctorSigPad.isEmpty()) ? window.doctorSigPad.toDataURL() : '';
         if (!docSig) {
@@ -13871,7 +13878,7 @@ async function generateInvoicePreviewHTML(invoice, patient, assistant) {
         docType: 'factura',
         docTitle: 'Factura Digital',
         emissionDate: invoice.invoiceDate || new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }),
-        controlNumber: invoice.id || `FC-2026-${Date.now().toString().slice(-6)}`,
+        controlNumber: invoice.id || `FC-2026-${Date.now().toString(36).toUpperCase()}`,
         paymentMethod: `${invoice.paymentTerms || 'Contado'} / ${getPaymentMethodLabel(invoice.paymentMethod)}`,
         
         clinicName: busData.name,
@@ -13944,7 +13951,7 @@ async function renderFinanceView() {
             return;
         }
 
-        const billId = activePayableId || 'BILL-' + Date.now().toString().slice(-6);
+        const billId = activePayableId || SupabaseDataService.generateUniqueBudgetId('BILL');
 
         await SupabaseDataService.saveProviderBill({
             id: billId,
@@ -15050,7 +15057,7 @@ window.generateSessionReceiptHTML = (patient, sessionObj, busData) => {
         docType: 'recibo',
         docTitle: 'Recibo de Atención Clínica',
         emissionDate: sessionObj.datetime ? sessionObj.datetime.split('T')[0] : new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }),
-        controlNumber: `SESS-${sessionObj.sessionNum}-${Date.now().toString().slice(-6)}`,
+        controlNumber: `SESS-${sessionObj.sessionNum}-${Date.now().toString(36).toUpperCase()}`,
         paymentMethod: paymentDetail,
         
         clinicName: busData.name || 'Consultorio Odontológico',
@@ -16195,7 +16202,7 @@ window.saveInterconsultationFull = async function() {
         if (!p.metadata.interconsultations) p.metadata.interconsultations = [];
 
         const record = {
-            id: 'IC-' + Date.now().toString().slice(-6),
+            id: SupabaseDataService.generateUniqueBudgetId('IC', activeId),
             date: new Date().toISOString().split('T')[0],
             studyName: window.selectedInterconsultaStudyKey,
             studies: [{ name: window.selectedInterconsultaStudyKey, note: studyNote }],
@@ -16274,7 +16281,7 @@ window.saveRecipeAndIndicationsFinal = async function() {
         if (!p.metadata.recipes) p.metadata.recipes = [];
 
         const recipeRecord = {
-            id: 'REC-' + Date.now().toString().slice(-6),
+            id: SupabaseDataService.generateUniqueBudgetId('REC', activeId),
             date: new Date().toISOString().split('T')[0],
             treatmentLinked,
             doctorId: selectedDoctorId,
@@ -16391,7 +16398,7 @@ window.printSingleRecipePDF = async function(patientId, recipeId = null) {
         }
 
         recipe = {
-            id: 'REC-' + Date.now().toString().slice(-6),
+            id: SupabaseDataService.generateUniqueBudgetId('REC', patientId),
             date: new Date().toISOString().split('T')[0],
             treatmentLinked,
             doctorName: selDocName,
@@ -16493,7 +16500,7 @@ window.sendRecipeWhatsApp = async function(patientId, recipeId = null) {
         const indications = document.getElementById('recipe-clinical-indications') ? document.getElementById('recipe-clinical-indications').value.trim() : '';
 
         recipe = {
-            id: 'REC-' + Date.now().toString().slice(-6),
+            id: SupabaseDataService.generateUniqueBudgetId('REC', patientId),
             date: new Date().toISOString().split('T')[0],
             treatmentLinked,
             medicines,

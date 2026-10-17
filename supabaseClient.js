@@ -880,7 +880,27 @@ class SupabaseDataService {
         return local;
     }
 
+    static generateUniqueBudgetId(prefix = 'PRE', patientId = '') {
+        const cleanPat = patientId ? String(patientId).replace(/\D/g, '').slice(-4) : '';
+        const timePart = Date.now().toString(36).toUpperCase();
+        const randPart = Math.random().toString(36).substr(2, 4).toUpperCase();
+        const patPart = cleanPat ? `-${cleanPat}` : '';
+        return `${prefix}-${timePart}${patPart}-${randPart}`;
+    }
+
     static async saveInvoice(invoiceObj) {
+        if (!invoiceObj.id) {
+            invoiceObj.id = this.generateUniqueBudgetId(invoiceObj.is_invoice ? 'FAC' : 'PRE', invoiceObj.patientId);
+        }
+
+        // STRICT IDENTITY SHIELD: Verify this ID does not belong to another patient in local or cloud
+        let localInvs = JSON.parse(localStorage.getItem('dental_invoices')) || [];
+        const conflict = localInvs.find(i => String(i.id) === String(invoiceObj.id) && i.patientId && String(i.patientId) !== String(invoiceObj.patientId));
+        if (conflict) {
+            console.warn(`[IDENTITY SHIELD] Prevented budget collision! ${invoiceObj.id} belongs to ${conflict.patientId}, generating fresh ID for ${invoiceObj.patientId}`);
+            invoiceObj.id = this.generateUniqueBudgetId(invoiceObj.id.startsWith('FAC-') ? 'FAC' : 'PRE', invoiceObj.patientId);
+        }
+
         if (!invoiceObj.createdAt) {
             invoiceObj.createdAt = new Date().toISOString();
         }
@@ -896,7 +916,6 @@ class SupabaseDataService {
             invoiceObj.metadata.patientSig = patSig;
         }
 
-        let localInvs = JSON.parse(localStorage.getItem('dental_invoices')) || [];
         const idx = localInvs.findIndex(i => i.id === invoiceObj.id);
         if (idx >= 0) localInvs[idx] = invoiceObj;
         else localInvs.push(invoiceObj);
