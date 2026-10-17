@@ -771,18 +771,20 @@ class SupabaseDataService {
                                 if (!app || !app.id) return;
                                 const existingIdx = cloudInvoices.findIndex(c => String(c.id) === String(app.id));
                                 if (existingIdx >= 0) {
-                                    // Corregir paciente si venía desalineado por sesión previa
-                                    if (!cloudInvoices[existingIdx].patientId || String(cloudInvoices[existingIdx].patientId) !== String(p.id)) {
-                                        cloudInvoices[existingIdx].patientId = String(p.id);
+                                    const inv = cloudInvoices[existingIdx];
+                                    const totalMatches = !app.totalUSD || !inv.totalRef || Math.abs(parseFloat(inv.totalRef) - parseFloat(app.totalUSD)) < 1;
+                                    // Corregir paciente si venía desalineado o vacío únicamente si el monto total coincide
+                                    if (!inv.patientId || (String(inv.patientId) !== String(p.id) && totalMatches)) {
+                                        inv.patientId = String(p.id);
                                     }
-                                    if ((!cloudInvoices[existingIdx].items || cloudInvoices[existingIdx].items.length === 0) && app.treatments && app.treatments.length > 0) {
-                                        cloudInvoices[existingIdx].items = app.treatments;
+                                    if ((!inv.items || inv.items.length === 0) && app.treatments && app.treatments.length > 0) {
+                                        inv.items = app.treatments;
                                     }
-                                    if (app.totalUSD && (!cloudInvoices[existingIdx].totalRef || cloudInvoices[existingIdx].totalRef === 0)) {
-                                        cloudInvoices[existingIdx].totalRef = parseFloat(app.totalUSD);
+                                    if (app.totalUSD && (!inv.totalRef || inv.totalRef === 0)) {
+                                        inv.totalRef = parseFloat(app.totalUSD);
                                     }
-                                    if (String(cloudInvoices[existingIdx].status).toLowerCase() === 'borrador') {
-                                        cloudInvoices[existingIdx].status = 'Aprobado';
+                                    if (String(inv.status).toLowerCase() === 'borrador') {
+                                        inv.status = 'Aprobado';
                                     }
                                 } else {
                                     // Reconstruir presupuesto aprobado si no tenía fila propia separada

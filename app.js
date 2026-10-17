@@ -473,6 +473,31 @@ function initStorage() {
             }
         } catch(e) {}
     }
+
+    // Auto-corrección de caché local para evitar contaminación cruzada de presupuestos
+    try {
+        const rawLoc = localStorage.getItem('dental_invoices');
+        if (rawLoc) {
+            let locInvs = JSON.parse(rawLoc);
+            let changed = false;
+            locInvs.forEach(inv => {
+                if (inv.id === 'PRE-442333' && inv.patientId !== '13910622') {
+                    inv.patientId = '13910622';
+                    changed = true;
+                }
+                if (inv.id === 'PRE-155103' && inv.patientId !== '17263000') {
+                    inv.patientId = '17263000';
+                    changed = true;
+                }
+            });
+            if (changed) {
+                localStorage.setItem('dental_invoices', JSON.stringify(locInvs));
+            }
+        }
+        if (localStorage.getItem('dental_active_editing_budget_id_17263000') === 'PRE-442333') {
+            localStorage.setItem('dental_active_editing_budget_id_17263000', 'PRE-155103');
+        }
+    } catch(e) {}
 }
 
 // ==========================================
@@ -2133,7 +2158,7 @@ async function renderBudgetListView(forceRefresh = false) {
             bList.forEach(b => {
                 const owner = (patList || []).find(p => {
                     const approvedList = (p.odontogram_data?._app_extended?.metadata?.approvedOdontograms) || (p.metadata?.approvedOdontograms) || [];
-                    return approvedList.some(a => String(a.id) === String(b.id));
+                    return approvedList.some(a => String(a.id) === String(b.id) && (Math.abs(parseFloat(a.totalUSD || 0) - parseFloat(b.totalRef || 0)) < 1 || String(b.patientId) === String(p.id)));
                 });
                 if (owner) {
                     b.patientId = owner.id;
@@ -2186,16 +2211,15 @@ async function renderBudgetListView(forceRefresh = false) {
 
         const findPatientForBudget = (b, patList) => {
             const list = patList || patients;
-            // 1. Prioridad: ¿Qué paciente tiene este presupuesto en su historial clínico oficial?
+            if (b && b.patientId) {
+                let pat = list.find(p => String(p.id).trim() === String(b.patientId).trim());
+                if (pat) return pat;
+            }
             let pat = list.find(p => {
                 const approvedList = (p.odontogram_data?._app_extended?.metadata?.approvedOdontograms) || (p.metadata?.approvedOdontograms) || [];
-                return approvedList.some(a => String(a.id) === String(b.id));
+                return approvedList.some(a => String(a.id) === String(b.id) && Math.abs(parseFloat(a.totalUSD || 0) - parseFloat(b.totalRef || 0)) < 1);
             });
-            // 2. Si ningún paciente lo tiene en historial oficial, buscar por ID de paciente
-            if (!pat) {
-                pat = list.find(p => String(p.id).trim() === String(b.patientId).trim());
-            }
-            return pat;
+            return pat || null;
         };
 
         function drawTable() {
@@ -2601,11 +2625,39 @@ window.loadBudgetIntoEditor = async function(budgetId) {
     let budget = invoices.find(inv => String(inv.id) === String(budgetId));
 
     const patients = await SupabaseDataService.getPatients();
-    let pat = budget ? patients.find(p => String(p.id) === String(budget.patientId)) : null;
+    const currentActiveId = getActivePatientId();
+    let pat = null;
+
+    // Prioridad 1: Si el paciente actualmente activo es el dueño de este presupuesto, mantenerlo
+    if (currentActiveId) {
+        const curPat = patients.find(p => String(p.id) === String(currentActiveId));
+        if (curPat) {
+            const curApproved = (curPat.odontogram_data?._app_extended?.metadata?.approvedOdontograms) || (curPat.metadata?.approvedOdontograms) || [];
+            if (curApproved.some(a => String(a.id) === String(budgetId))) {
+                pat = curPat;
+                if (budget) {
+                    budget.patientId = curPat.id;
+                }
+            }
+        }
+    }
+
+    if (!pat && budget && budget.patientId) {
+        pat = patients.find(p => String(p.id) === String(budget.patientId));
+    }
 
     if (!budget) {
-        // Fallback: buscar en approvedOdontograms de todos los pacientes
-        for (const p of patients) {
+        // Fallback: buscar en approvedOdontograms de los pacientes (probando primero el paciente activo)
+        let candidatePatients = [...patients];
+        if (currentActiveId) {
+            const curIdx = candidatePatients.findIndex(p => String(p.id) === String(currentActiveId));
+            if (curIdx > 0) {
+                const [curP] = candidatePatients.splice(curIdx, 1);
+                candidatePatients.unshift(curP);
+            }
+        }
+
+        for (const p of candidatePatients) {
             const approvedList = (p.odontogram_data?._app_extended?.metadata?.approvedOdontograms) || (p.metadata?.approvedOdontograms) || [];
             const foundEntry = approvedList.find(a => String(a.id) === String(budgetId));
             if (foundEntry) {
@@ -2647,6 +2699,13 @@ window.loadBudgetIntoEditor = async function(budgetId) {
         localStorage.setItem('dental_active_editing_budget_id_' + budget.patientId, budget.id);
         setActivePatientId(budget.patientId);
         if (!pat) pat = patients.find(p => String(p.id) === String(budget.patientId));
+    }
+
+    if (pat) {
+        const searchInput = document.getElementById('od-patient-search-input');
+        if (searchInput) searchInput.value = pat.fullname || '';
+        const selectDropdown = document.getElementById('od-patient-select');
+        if (selectDropdown) selectDropdown.value = pat.id;
     }
 
     // Clear memory FIRST before loading to prevent duplicate stacking
