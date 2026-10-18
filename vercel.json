@@ -2,6 +2,12 @@
   "version": 2,
   "name": "dentalcare-pro-erp",
   "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/supabase-api/:path*",
+      "destination": "https://tudymiytiwcyrjtptfvi.supabase.co/:path*"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",

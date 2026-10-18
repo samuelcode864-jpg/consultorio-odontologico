@@ -16,8 +16,13 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <!-- SheetJS (xlsx.full.min.js) for Excel import/export -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <!-- Supabase JS Client CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Supabase JS Client Local Bundle with Multi-CDN Fallback -->
+    <script src="supabase.min.js?v=295"></script>
+    <script>
+    if (typeof supabase === 'undefined') {
+        document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"><\/script>');
+    }
+    </script>
     <link rel="stylesheet" href="styles.css?v=282">
 
     <!-- Anti-Flash Instant Auth & Tab Guard -->
@@ -3849,13 +3854,13 @@
     </div>
 
     <!-- Application JavaScript Bundles -->
-    <script src="seededData.js?v=294"></script>
-    <script src="supabaseClient.js?v=294"></script>
-    <script src="odontogram.js?v=294"></script>
-    <script src="signature.js?v=294"></script>
-    <script src="whatsapp.js?v=294"></script>
-    <script src="kardex.js?v=294"></script>
-    <script src="app.js?v=294"></script>
-    <script src="tutorial.js?v=294"></script>
+    <script src="seededData.js?v=295"></script>
+    <script src="supabaseClient.js?v=295"></script>
+    <script src="odontogram.js?v=295"></script>
+    <script src="signature.js?v=295"></script>
+    <script src="whatsapp.js?v=295"></script>
+    <script src="kardex.js?v=295"></script>
+    <script src="app.js?v=295"></script>
+    <script src="tutorial.js?v=295"></script>
 </body>
 </html>

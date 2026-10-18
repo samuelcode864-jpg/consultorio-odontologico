@@ -5,23 +5,45 @@
    Logos, Digital Signatures, Appointments and Inventory across Desktop & Mobile.
    ========================================================================== */
 
-const SUPABASE_URL = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url) || 'https://tudymiytiwcyrjtptfvi.supabase.co';
+const DIRECT_SUPABASE_URL = 'https://tudymiytiwcyrjtptfvi.supabase.co';
+const PROXY_SUPABASE_URL = (typeof window !== 'undefined' && window.location && window.location.origin && !window.location.origin.includes('localhost') && !window.location.origin.includes('127.0.0.1'))
+    ? window.location.origin + '/supabase-api'
+    : DIRECT_SUPABASE_URL;
+
+let currentSupabaseUrl = DIRECT_SUPABASE_URL;
 const SUPABASE_ANON_KEY = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.key) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR1ZHltaXl0aXdjeXJqdHB0ZnZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzMjMxNzQsImV4cCI6MjEwMTg5OTE3NH0.wP-vsBmc7ezIx8Uq_hTqye44Gxl75jkGZSxDDg-3Aj8';
 
 let supabaseClient = null;
 
-if (typeof supabase !== 'undefined') {
-    try {
-        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('✅ Supabase Universal Cloud Database Connected! Project: tudymiytiwcyrjtptfvi');
-    } catch (e) {
-        console.warn('⚠️ Supabase connection warning:', e);
+function initSupabaseClient(urlToUse) {
+    if (typeof supabase !== 'undefined') {
+        try {
+            currentSupabaseUrl = urlToUse || DIRECT_SUPABASE_URL;
+            supabaseClient = supabase.createClient(currentSupabaseUrl, SUPABASE_ANON_KEY);
+            console.log('✅ Supabase Universal Cloud Database Connected via:', currentSupabaseUrl);
+        } catch (e) {
+            console.warn('⚠️ Supabase connection warning:', e);
+        }
     }
 }
+initSupabaseClient(DIRECT_SUPABASE_URL);
 
 class SupabaseDataService {
     static isCloudConnected() {
         return supabaseClient !== null;
+    }
+
+    static getClient() {
+        return supabaseClient;
+    }
+
+    static switchToProxy() {
+        if (currentSupabaseUrl !== PROXY_SUPABASE_URL && PROXY_SUPABASE_URL !== DIRECT_SUPABASE_URL) {
+            console.warn('⚡ Switching to Vercel Anti-Block Reverse Proxy:', PROXY_SUPABASE_URL);
+            initSupabaseClient(PROXY_SUPABASE_URL);
+            return true;
+        }
+        return false;
     }
 
     // ==========================================

@@ -1240,7 +1240,7 @@ function applyRolePermissionsUI(role) {
     const permissions = {
         admin: ['dashboard', 'patients', 'agenda', 'odontogram', 'ehr', 'inventory', 'pricing', 'users', 'billing', 'finance', 'stationery', 'settings', 'help'],
         doctor: ['dashboard', 'patients', 'agenda', 'odontogram', 'ehr', 'pricing', 'settings', 'help'],
-        assistant: ['dashboard', 'patients', 'agenda', 'billing', 'finance', 'pricing', 'settings', 'help']
+        assistant: ['dashboard', 'patients', 'agenda', 'odontogram', 'ehr', 'billing', 'finance', 'pricing', 'settings', 'help']
     };
 
     const allowedTabs = permissions[roleType] || permissions.assistant;
@@ -1532,7 +1532,7 @@ window.navigateToTab = async function(tabName) {
         const allowedTabs = {
             admin: ['dashboard', 'patients', 'agenda', 'odontogram', 'ehr', 'inventory', 'pricing', 'users', 'billing', 'finance', 'stationery', 'settings', 'help'],
             doctor: ['dashboard', 'patients', 'agenda', 'odontogram', 'ehr', 'pricing', 'settings', 'help'],
-            assistant: ['dashboard', 'patients', 'agenda', 'billing', 'finance', 'pricing', 'settings', 'help']
+            assistant: ['dashboard', 'patients', 'agenda', 'odontogram', 'ehr', 'billing', 'finance', 'pricing', 'settings', 'help']
         }[roleType] || ['dashboard', 'help'];
 
         if (!allowedTabs.includes(tabName)) {
@@ -1563,12 +1563,13 @@ window.navigateToTab = async function(tabName) {
     document.documentElement.setAttribute('data-active-tab', tabName);
 
     if (tabName === 'odontogram') {
-        const subview = localStorage.getItem('dental_odontogram_subview') || 'editor';
+        const subview = localStorage.getItem('dental_odontogram_subview') || 'list';
         const activeId = getActivePatientId();
         const editorContainer = document.getElementById('odontogram-editor-container');
         const listContainer = document.getElementById('odontogram-list-container');
 
-        if (subview === 'editor' || activeId) {
+        // Si hay un paciente activo y se eligió el editor, mostrar editor. Si no hay paciente, SIEMPRE mostrar lista completa de presupuestos!
+        if (activeId && subview === 'editor') {
             localStorage.setItem('dental_odontogram_subview', 'editor');
             document.documentElement.setAttribute('data-odontogram-subview', 'editor');
             if (listContainer) listContainer.classList.add('hidden');
