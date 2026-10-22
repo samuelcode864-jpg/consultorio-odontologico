@@ -371,6 +371,30 @@ class SupabaseDataService {
                             if (!k.startsWith('_')) toothStates[k] = od[k];
                         });
 
+                        let allergiesArr = [];
+                        if (Array.isArray(p.allergies)) {
+                            allergiesArr = p.allergies;
+                        } else if (typeof p.allergies === 'string' && p.allergies.trim()) {
+                            try {
+                                const parsed = JSON.parse(p.allergies);
+                                allergiesArr = Array.isArray(parsed) ? parsed : [p.allergies];
+                            } catch(e) {
+                                allergiesArr = [p.allergies];
+                            }
+                        }
+
+                        let systemicArr = [];
+                        if (Array.isArray(p.systemic)) {
+                            systemicArr = p.systemic;
+                        } else if (typeof p.systemic === 'string' && p.systemic.trim()) {
+                            try {
+                                const parsed = JSON.parse(p.systemic);
+                                systemicArr = Array.isArray(parsed) ? parsed : [p.systemic];
+                            } catch(e) {
+                                systemicArr = [p.systemic];
+                            }
+                        }
+
                         return {
                             id: p.id,
                             fullname: p.fullname,
@@ -378,8 +402,8 @@ class SupabaseDataService {
                             phone: p.phone,
                             email: p.email || '',
                             occupation: p.occupation || '',
-                            allergies: p.allergies || [],
-                            systemic: p.systemic || [],
+                            allergies: allergiesArr,
+                            systemic: systemicArr,
                             medication: p.medication || '',
                             emergencyContact: p.emergency_contact || '',
                             status: p.status || 'Activo',

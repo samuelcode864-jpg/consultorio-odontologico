@@ -4049,13 +4049,26 @@ async function renderPatientsTable(filter = 'all', searchQuery = '') {
         }
 
         let alertsHtml = '';
-        if (p.allergies && p.allergies.length > 0) {
-            p.allergies.forEach(a => {
+        let allergiesList = [];
+        if (Array.isArray(p.allergies)) allergiesList = p.allergies;
+        else if (typeof p.allergies === 'string' && p.allergies.trim()) {
+            try { const parsed = JSON.parse(p.allergies); allergiesList = Array.isArray(parsed) ? parsed : [p.allergies]; }
+            catch(e) { allergiesList = [p.allergies]; }
+        }
+        if (allergiesList.length > 0) {
+            allergiesList.forEach(a => {
                 alertsHtml += `<span class="badge-tag red"><i class="fa-solid fa-triangle-exclamation"></i> Alergia: ${a}</span> `;
             });
         }
-        if (p.systemic && p.systemic.length > 0) {
-            p.systemic.forEach(s => {
+
+        let systemicList = [];
+        if (Array.isArray(p.systemic)) systemicList = p.systemic;
+        else if (typeof p.systemic === 'string' && p.systemic.trim()) {
+            try { const parsed = JSON.parse(p.systemic); systemicList = Array.isArray(parsed) ? parsed : [p.systemic]; }
+            catch(e) { systemicList = [p.systemic]; }
+        }
+        if (systemicList.length > 0) {
+            systemicList.forEach(s => {
                 alertsHtml += `<span class="badge-tag amber"><i class="fa-solid fa-heart-pulse"></i> ${s}</span> `;
             });
         }
