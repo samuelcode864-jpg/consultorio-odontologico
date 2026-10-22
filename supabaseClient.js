@@ -11,7 +11,7 @@ const PROXY_SUPABASE_URL = (typeof window !== 'undefined' && window.location && 
     : DIRECT_SUPABASE_URL;
 
 let currentSupabaseUrl = DIRECT_SUPABASE_URL;
-const SUPABASE_ANON_KEY = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.key) || 'sb_publishable_umzgyof481TMiByUNGffpw_7J4YRCWt';
+const SUPABASE_ANON_KEY = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.key) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ2dWtoZHB1bmZsYnVxaHNvaGhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2OTQxNjUsImV4cCI6MjEwODI3MDE2NX0.06ze2n9pAu0H7EcYSwnrjpa41SorBKfZgPWZ6inpxAU';
 
 let supabaseClient = null;
 
