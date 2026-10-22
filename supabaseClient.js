@@ -5,13 +5,13 @@
    Logos, Digital Signatures, Appointments and Inventory across Desktop & Mobile.
    ========================================================================== */
 
-const DIRECT_SUPABASE_URL = 'https://tudymiytiwcyrjtptfvi.supabase.co';
+const DIRECT_SUPABASE_URL = 'https://vvukhdpunflbuqhsohhf.supabase.co';
 const PROXY_SUPABASE_URL = (typeof window !== 'undefined' && window.location && window.location.origin && !window.location.origin.includes('localhost') && !window.location.origin.includes('127.0.0.1'))
     ? window.location.origin + '/supabase-api'
     : DIRECT_SUPABASE_URL;
 
 let currentSupabaseUrl = DIRECT_SUPABASE_URL;
-const SUPABASE_ANON_KEY = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.key) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR1ZHltaXl0aXdjeXJqdHB0ZnZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzMjMxNzQsImV4cCI6MjEwMTg5OTE3NH0.wP-vsBmc7ezIx8Uq_hTqye44Gxl75jkGZSxDDg-3Aj8';
+const SUPABASE_ANON_KEY = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.key) || 'sb_publishable_umzgyof481TMiByUNGffpw_7J4YRCWt';
 
 let supabaseClient = null;
 

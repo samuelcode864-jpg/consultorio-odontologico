@@ -5,7 +5,7 @@
   "rewrites": [
     {
       "source": "/supabase-api/:path*",
-      "destination": "https://tudymiytiwcyrjtptfvi.supabase.co/:path*"
+      "destination": "https://vvukhdpunflbuqhsohhf.supabase.co/:path*"
     }
   ],
   "headers": [
