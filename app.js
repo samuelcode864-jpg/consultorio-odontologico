@@ -3996,8 +3996,8 @@ async function renderPatientsTable(filter = 'all', searchQuery = '') {
     const tbody = document.getElementById('patients-table-body');
     if (!tbody) return;
 
+    let patients = await SupabaseDataService.getPatients(false);
     tbody.innerHTML = '';
-    let patients = await SupabaseDataService.getPatients();
     const currentUser = getCurrentUser();
     const isAssistant = currentUser && currentUser.role.toLowerCase().includes('asistente');
 
