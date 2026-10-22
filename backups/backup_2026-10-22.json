@@ -1,0 +1,19 @@
+{
+  "meta": {
+    "system": "DentalCare Pro",
+    "version": "2.0.0",
+    "backupDate": "2026-10-22T09:14:39.536Z",
+    "dateFormatted": "2026-10-22",
+    "tablesCount": 8
+  },
+  "database": {
+    "users": [],
+    "patients": [],
+    "baremo_services": [],
+    "appointments": [],
+    "inventory": [],
+    "stationery_config": [],
+    "invoices": [],
+    "provider_bills": []
+  }
+}
