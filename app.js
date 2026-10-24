@@ -13303,12 +13303,7 @@ async function downloadBudgetPDF() {
             return;
         }
 
-        Swal.fire({
-            title: 'Generando PDF...',
-            text: 'Preparando el documento con membrete y firmas...',
-            allowOutsideClick: false,
-            didOpen: () => { Swal.showLoading(); }
-        });
+        // Preparar documento para vista nativa de impresion/PDF
 
         const container = await generateBudgetHTMLContainer();
         if (!container) {
@@ -13318,7 +13313,6 @@ async function downloadBudgetPDF() {
 
         const filename = `Presupuesto_${patient.id}_${(patient.fullname || 'Paciente').replace(/\s+/g, '_')}.pdf`;
         await generatePDFFromElement(container, filename);
-        Swal.close();
     } catch(err) {
         console.error("Error al exportar PDF:", err);
         Swal.fire({ icon: 'error', title: 'Error al exportar PDF', text: err.message || 'Ocurrió un error inesperado al generar el PDF.' });
@@ -14962,45 +14956,17 @@ function getPaymentMethodLabel(method) {
 async function generatePDFFromElement(element, filename) {
     if (!element) return;
 
-    // Si la librería html2pdf está disponible, generar descarga directa de PDF de alta resolución
-    if (typeof html2pdf !== 'undefined') {
-        const clone = element.cloneNode(true);
-        clone.style.width = '794px';
-        clone.style.maxWidth = '794px';
-        clone.style.margin = '0 auto';
-        clone.style.padding = '10px';
-        clone.style.background = '#ffffff';
-        clone.style.color = '#000000';
-        clone.style.position = 'fixed';
-        clone.style.left = '-9999px';
-        clone.style.top = '0';
-        clone.style.zIndex = '-9999';
-        document.body.appendChild(clone);
-        const opt = {
-            margin: [8, 8, 8, 8],
-            filename: filename || 'documento.pdf',
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, logging: false },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
-        try {
-            await html2pdf().set(opt).from(clone).save();
-            return;
-        } catch(pdfErr) {
-            console.warn("html2pdf directo falló, usando ventana de impresión:", pdfErr);
-        } finally {
-            if (clone && clone.parentNode) {
-                clone.parentNode.removeChild(clone);
-            }
-        }
+    if (typeof Swal !== 'undefined' && Swal.isVisible()) {
+        Swal.close();
     }
 
-    // Fallback: Modo de impresión del navegador
+    // Clean up any existing print sections
     document.querySelectorAll('.print-section').forEach(el => el.remove());
+
     const htmlContent = element.innerHTML || element.outerHTML || '';
     const printSection = document.createElement('div');
     printSection.className = 'print-section';
+    printSection.id = 'print-section';
     printSection.innerHTML = htmlContent;
 
     printSection.querySelectorAll('*').forEach(el => {
@@ -15029,13 +14995,13 @@ async function generatePDFFromElement(element, filename) {
     if (filename) document.title = filename.replace(/\.pdf$/i, '');
 
     try {
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, 250));
         window.print();
     } finally {
         setTimeout(() => {
             document.title = originalTitle;
             if (printSection && printSection.parentNode) printSection.remove();
-        }, 1000);
+        }, 1500);
     }
 }
 
