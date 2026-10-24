@@ -143,6 +143,46 @@ class WhatsAppService {
         return msg;
     }
 
+    static generateConsolidatedReceiptMessage(patient, sessionsList, totalUSD, paymentMethodLabel, receiptUrl = '') {
+        const exchangeRate = parseFloat(localStorage.getItem('dental_exchange_rate')) || 36.5;
+        const totalVES = (totalUSD * exchangeRate).toFixed(2);
+        const clinica = this.getClinicName();
+
+        let procsText = '';
+        sessionsList.forEach((s, idx) => {
+            const pNum = s.sessionNum || (idx + 1);
+            const pName = s.procedure || 'Atención Odontológica';
+            const pPrice = parseFloat(s.paymentUSD || s.price || 0);
+            const priceTag = pPrice > 0 ? (' - $' + pPrice.toFixed(2) + ' USD') : '';
+            procsText += '• *Sesión #' + pNum + ':* ' + pName + priceTag + '\n';
+        });
+
+        const firstSess = sessionsList[0] || {};
+        const dateStr = firstSess.datetime ? firstSess.datetime.replace('T', ' ') : new Date().toLocaleDateString('es-ES');
+
+        let msg = '🦷 *' + clinica + ' - RECIBO CONSOLIDADO DE JORNADA*\n\n' +
+                  'Estimado(a) *' + patient.fullname + '*,\n' +
+                  'Adjuntamos la constancia oficial y comprobante de las atenciones clínicas efectuadas en esta jornada:\n\n' +
+                  '📅 *Fecha:* ' + dateStr + '\n' +
+                  '📋 *Procedimientos Realizados (' + sessionsList.length + '):*\n' +
+                  procsText + '\n' +
+                  '💵 *Total Abonado:* *$' + parseFloat(totalUSD).toFixed(2) + ' USD* / *(Bs. ' + totalVES + ')*\n' +
+                  '💳 *Forma de Pago:* ' + (paymentMethodLabel || 'Efectivo / Pago Móvil') + '\n\n';
+
+        if (firstSess.indications) {
+            msg += '💊 *Indicaciones Clínicas:* ' + firstSess.indications + '\n\n';
+        }
+
+        if (receiptUrl) {
+            msg += '📄 *Ver Comprobante Digital:* ' + receiptUrl + '\n\n';
+        }
+
+        msg += '✅ _Tratamientos registrados a conformidad del paciente._\n' +
+               '¡Muchas gracias por su confianza!';
+
+        return msg;
+    }
+
     static generateRecipeMessage(patient, recipe, recipeUrl) {
         const clinica = this.getClinicName();
 
@@ -206,33 +246,11 @@ class WhatsAppService {
     }
 
     static sendToPatient(phone, message) {
-        if (!phone) {
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({ icon: 'warning', title: 'Sin teléfono', text: 'El paciente no tiene un número de teléfono o WhatsApp registrado.' });
-            } else {
-                alert('El paciente no tiene un número de teléfono registrado.');
-            }
-            return;
-        }
+        if (!phone) return;
         const cleanPhone = this.normalizePhoneNumber(phone);
-        if (!cleanPhone) {
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({ icon: 'warning', title: 'Número no válido', text: `El teléfono "${phone}" no tiene formato válido para WhatsApp.` });
-            } else {
-                alert(`El teléfono "${phone}" no es válido.`);
-            }
-            return;
-        }
+        if (!cleanPhone) return;
         const url = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`;
-        
-        // Disparar apertura segura mediante enlace para evitar bloqueo de popups del navegador
-        const a = document.createElement('a');
-        a.href = url;
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => a.remove(), 500);
+        window.open(url, '_blank');
     }
 }
 

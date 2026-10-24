@@ -1077,6 +1077,8 @@
 
                                     <!-- SUBTAB 4: Tratamientos & Sesiones (Progreso, Timeline, Nueva Sesión) -->
                                     <div id="subtab-sessions" class="subtab-content">
+                                        <!-- Selector y Filtro de Fases / Planes de Tratamiento Múltiples -->
+                                        <div id="ehr-phase-navigation-container" style="margin-bottom: 15px;"></div>
                                         <div class="sessions-progress-wrapper" id="ehr-sessions-progress-container">
                                             <div class="sessions-progress-header">
                                                 <span>Progreso del Tratamiento: <span id="ehr-treatment-name-display">-</span></span>
@@ -1090,6 +1092,27 @@
                                             <h3 style="margin:0;"><i class="fa-solid fa-timeline"></i> Historial de Evolución y Sesiones</h3>
                                             <button class="btn btn-sm btn-primary" id="btn-add-session" onclick="window.registerNewSessionForCurrentPatient ? window.registerNewSessionForCurrentPatient() : null">+ Registrar Nueva Sesión</button>
                                         </div>
+                                        <!-- Barra de Selección Múltiple para Atenciones Agrupadas y Recibos Consolidados -->
+                                        <div id="ehr-bulk-sessions-bar" style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                                            <div style="display: flex; align-items: center; gap: 10px;">
+                                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.82rem; font-weight: 700; color: #334155; margin: 0;">
+                                                    <input type="checkbox" id="ehr-bulk-check-all" style="cursor: pointer; transform: scale(1.15);"> Seleccionar Todo
+                                                </label>
+                                                <span id="ehr-bulk-selected-count" class="badge-tag blue" style="font-size: 0.75rem; font-weight: 600;">0 seleccionadas</span>
+                                            </div>
+                                            <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;" id="ehr-bulk-actions-buttons">
+                                                <button type="button" class="btn btn-xs btn-primary" id="btn-bulk-attend-sessions" style="background: #0d9488 !important; border: none; color: #fff !important; font-weight: 700; padding: 5px 12px; border-radius: 6px; display: none;">
+                                                    <i class="fa-solid fa-stethoscope"></i> Atender y Cobrar en Grupo
+                                                </button>
+                                                <button type="button" class="btn btn-xs btn-success" id="btn-bulk-receipt-whatsapp" style="background: #25D366 !important; color: #fff !important; border: none; font-weight: 700; padding: 5px 12px; border-radius: 6px; display: none;">
+                                                    <i class="fa-brands fa-whatsapp"></i> Recibo Consolidado WhatsApp
+                                                </button>
+                                                <button type="button" class="btn btn-xs btn-outline" id="btn-bulk-receipt-pdf" style="border-color: #0284c7; color: #0284c7; font-weight: 700; padding: 5px 12px; border-radius: 6px; display: none;">
+                                                    <i class="fa-solid fa-file-pdf text-red"></i> PDF Consolidado
+                                                </button>
+                                            </div>
+                                        </div>
+
                                         <div class="clinical-timeline" id="ehr-sessions-timeline">
                                             <!-- Dynamic list of treatment sessions -->
                                         </div>
@@ -3514,6 +3537,130 @@
         </div>
     </div>
 
+    <!-- MODAL: ATENCIÓN Y COBRO AGRUPADO (MÚLTIPLES SESIONES / JORNADA) -->
+    <div class="modal-overlay hidden" id="modal-bulk-sessions">
+        <div class="modal-dialog" style="max-width: 650px; width: 100%;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #0d9488 0%, #0891b2 100%); color: #fff;">
+                <h3 style="color: #fff; margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-layer-group"></i> Atención y Cobro Agrupado de Sesiones
+                </h3>
+                <button class="modal-close" data-close="modal-bulk-sessions" style="color: #fff; font-size: 1.5rem; background: transparent; border: none; cursor: pointer;">&times;</button>
+            </div>
+            <div class="modal-body" style="max-height: 72vh; overflow-y: auto;">
+                <div style="background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 8px; padding: 12px; margin-bottom: 15px;">
+                    <strong style="color: #0f766e; font-size: 0.85rem; display: block; margin-bottom: 6px;">
+                        <i class="fa-solid fa-clipboard-check"></i> Sesiones y Procedimientos Seleccionados para esta Jornada:
+                    </strong>
+                    <div id="bulk-selected-procedures-list" style="display: flex; flex-direction: column; gap: 6px;">
+                        <!-- Llenado dinámico -->
+                    </div>
+                </div>
+
+                <form id="form-bulk-sessions">
+                    <div class="grid-form" style="grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div class="form-group">
+                            <label>Fecha y Hora de la Jornada *</label>
+                            <input type="datetime-local" id="bulk-datetime" class="form-input" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Odontólogo Tratante</label>
+                            <select id="bulk-doctor-select" class="form-input"></select>
+                        </div>
+                    </div>
+
+                    <div class="form-group mb-15">
+                        <label>Indicaciones Médicas Generales / Próxima Cita</label>
+                        <input type="text" id="bulk-indications" class="form-input" placeholder="ej: Mantener higiene, control en 15 días...">
+                    </div>
+
+                    <!-- Payment details -->
+                    <div style="background: rgba(37, 99, 235, 0.04); border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px; margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <strong style="color: #1e40af; font-size: 0.9rem;">
+                                <i class="fa-solid fa-money-bill-wave text-green"></i> Cobro Consolidado de la Jornada
+                            </strong>
+                            <span id="bulk-bcv-rate-hint" style="font-size: 0.78rem; color: #64748b; font-weight: 600;"></span>
+                        </div>
+                        <div class="grid-form" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
+                            <div>
+                                <label style="font-size: 0.8rem; font-weight: 600;">Total Cobrado ($ USD) *</label>
+                                <input type="number" id="bulk-payment-amount" class="form-input" min="0" step="0.01" style="font-weight: 700; color: #15803d; font-size: 1.05rem;" required>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.8rem; font-weight: 600;">Total en Bs. (BCV)</label>
+                                <input type="text" id="bulk-payment-ves" class="form-input" readonly style="background: #f8fafc; font-weight: 700; color: #1e3a8a;">
+                            </div>
+                        </div>
+                        <div class="grid-form" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
+                            <div>
+                                <label style="font-size: 0.8rem; font-weight: 600;">Método de Pago</label>
+                                <select id="bulk-payment-method" class="form-input">
+                                    <option value="cash">Efectivo / Cash ($ USD / Bs.)</option>
+                                    <option value="pagomovil">Pago Móvil / Transferencia</option>
+                                    <option value="zelle">Zelle</option>
+                                    <option value="binance">Binance (USDT)</option>
+                                    <option value="punto">Punto de Venta / Tarjeta</option>
+                                    <option value="split">✨ Pago Mixto (Varios Métodos)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.8rem; font-weight: 600;">Banco / Destino</label>
+                                <input type="text" id="bulk-payment-bank" class="form-input" list="bank-datalist" placeholder="ej: Banesco, Bancamiga, Zelle...">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size: 0.8rem; font-weight: 600;">N° Referencia de Pago</label>
+                            <input type="text" id="bulk-payment-reference" class="form-input" placeholder="ej: REF-884920">
+                        </div>
+
+                        <!-- Split Payment Container -->
+                        <div id="bulk-split-payment-container" class="hidden" style="margin-top: 10px; padding: 10px; background: #ffffff; border-radius: 6px; border: 1px dashed #93c5fd;">
+                            <div style="font-size: 0.75rem; font-weight: 700; color: #1e3a8a; margin-bottom: 6px;">Desglose de Pago Mixto:</div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.8rem;">
+                                <div>
+                                    <label style="font-size: 0.75rem; color: #64748b;">Efectivo ($ USD):</label>
+                                    <input type="number" class="bulk-split-input form-input" data-method="cash" step="0.01" value="0.00" style="padding: 4px 8px; font-size: 0.8rem;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; color: #64748b;">Pago Móvil ($ USD eq.):</label>
+                                    <input type="number" class="bulk-split-input form-input" data-method="pagomovil" step="0.01" value="0.00" style="padding: 4px 8px; font-size: 0.8rem;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; color: #64748b;">Zelle ($ USD):</label>
+                                    <input type="number" class="bulk-split-input form-input" data-method="zelle" step="0.01" value="0.00" style="padding: 4px 8px; font-size: 0.8rem;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; color: #64748b;">Binance USDT ($ USD):</label>
+                                    <input type="number" class="bulk-split-input form-input" data-method="binance" step="0.01" value="0.00" style="padding: 4px 8px; font-size: 0.8rem;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; color: #64748b;">Punto de Venta ($ USD):</label>
+                                    <input type="number" class="bulk-split-input form-input" data-method="punto" step="0.01" value="0.00" style="padding: 4px 8px; font-size: 0.8rem;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Digital Signature Pad -->
+                    <div class="form-group mb-15">
+                        <label><strong>Firma Digital de Conformidad del Paciente *</strong></label>
+                        <p class="text-muted" style="font-size:0.75rem; margin-bottom:6px;">El paciente firma una sola vez por todas las atenciones recibidas en esta jornada.</p>
+                        <div style="border: 1px dashed #cbd5e1; border-radius: 8px; background: #fff; padding: 5px; position: relative;">
+                            <canvas id="bulk-session-signature-canvas" width="550" height="140" style="width: 100%; height: 140px; display: block; cursor: crosshair; background:#ffffff;"></canvas>
+                            <button type="button" class="btn btn-xs btn-outline text-red" id="btn-clear-bulk-signature" style="position: absolute; right: 10px; bottom: 10px;">Limpiar</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap;">
+                <button class="btn btn-outline" data-close="modal-bulk-sessions">Cancelar</button>
+                <button class="btn btn-primary" id="btn-confirm-bulk-sessions" style="background: #0d9488 !important; border: none; font-weight: 700; padding: 8px 18px;">
+                    <i class="fa-solid fa-check-double"></i> Registrar Atención y Cobro Agrupado
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL: PACIENTES ATENDIDOS DEL DÍA -->
     <div class="modal-overlay hidden" id="modal-attended-details">
         <div class="modal-dialog modal-xl" style="max-width: 1180px; width: 95vw;">
@@ -3858,9 +4005,9 @@
     <script src="supabaseClient.js?v=303"></script>
     <script src="odontogram.js?v=295"></script>
     <script src="signature.js?v=295"></script>
-    <script src="whatsapp.js?v=308"></script>
+    <script src="whatsapp.js?v=309"></script>
     <script src="kardex.js?v=295"></script>
-    <script src="app.js?v=308"></script>
+    <script src="app.js?v=309"></script>
     <script src="tutorial.js?v=295"></script>
 </body>
 </html>

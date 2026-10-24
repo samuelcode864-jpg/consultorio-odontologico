@@ -2698,7 +2698,10 @@ window.loadBudgetIntoEditor = async function(budgetId) {
         if (appEntry && appEntry.treatments && appEntry.treatments.length > 0) {
             budget.items = appEntry.treatments;
         } else if (pat.metadata?.treatments && pat.metadata.treatments.length > 0) {
-            budget.items = pat.metadata.treatments;
+            const approvedList = (pat.odontogram_data?._app_extended?.metadata?.approvedOdontograms) || (pat.metadata?.approvedOdontograms) || [];
+            if (approvedList.length <= 1) {
+                budget.items = pat.metadata.treatments;
+            }
         }
     }
 
@@ -4221,6 +4224,338 @@ window.openEHRForPatient = function(patientId) {
 // ==========================================
 // HISTORIA CLÍNICA (EHR) VIEW WITH PDF EXPORT
 // ==========================================
+
+// ==========================================================================
+// FUNCIONES DE RECIBO CONSOLIDADO Y ATENCIÓN AGRUPADA MULTISESIÓN
+// ==========================================================================
+
+window.generateConsolidatedSessionReceiptHTML = function(patient, selectedSessions, busData) {
+    const rate = parseFloat(localStorage.getItem('dental_exchange_rate')) || 36.5;
+    let totalUSD = 0;
+    
+    const items = selectedSessions.map(s => {
+        let amt = parseFloat(s.paymentUSD || 0);
+        if (!amt || amt === 0) {
+            const trt = (patient.metadata && Array.isArray(patient.metadata.treatments)) 
+                ? patient.metadata.treatments.find(t => t.sessionNum === s.sessionNum || (s.procedure && t.name && s.procedure.includes(t.name))) 
+                : null;
+            if (trt && trt.price > 0) amt = parseFloat(trt.price);
+        }
+        totalUSD += amt;
+        return {
+            name: `Sesión #${s.sessionNum}: ${s.procedure || 'Atención Clínica'}`,
+            description: s.indications ? `Indicaciones: ${s.indications}` : 'Procedimiento odontológico realizado en jornada',
+            qty: 1,
+            price: amt,
+            total: amt
+        };
+    });
+
+    const totalVES = totalUSD > 0 ? `Bs. ${(totalUSD * rate).toFixed(2)}` : 'Bs. 0.00';
+    const firstSess = selectedSessions[0] || {};
+    let paymentDetail = firstSess.paymentMethodLabel || 'Efectivo / Pago Móvil';
+
+    let docSig = '';
+    const u = getCurrentUser();
+    if (u) {
+        docSig = (u.doctorProfile && u.doctorProfile.signature) || (u.doctor_profile && u.doctor_profile.signature) || '';
+    }
+
+    const patientSig = selectedSessions.find(s => s.signatureData && s.signatureData.length > 50)?.signatureData || 
+        (patient.metadata && patient.metadata.patientSignature) || '';
+
+    const sessionNumsStr = selectedSessions.map(s => s.sessionNum).join(', #');
+    const emissionDate = firstSess.datetime ? firstSess.datetime.split('T')[0] : new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
+
+    return buildMedicalDocumentHTML({
+        docType: 'recibo',
+        docTitle: 'Recibo Consolidado de Atenciones Clínicas',
+        emissionDate: emissionDate,
+        controlNumber: `REC-CONS-${Date.now().toString(36).toUpperCase()}`,
+        paymentMethod: paymentDetail,
+        
+        clinicName: busData.name || 'Consultorio Odontológico',
+        clinicPhone: busData.phone || '+58 (412) 555-0192',
+        clinicAddress: busData.address || 'Av. Principal, Torre Consultorios, Caracas',
+        logoUrl: busData.logoUrl || '',
+        
+        doctorName: (getCurrentUser() && getCurrentUser().fullname) || busData.doctor || 'Dr. Rodrigo Navas',
+        doctorSpecialty: 'Odontología General / Especializada',
+        doctorPhone: (getCurrentUser() && getCurrentUser().phone) || busData.phone,
+        doctorSig: docSig,
+        
+        patientName: patient.fullname,
+        patientId: patient.id,
+        patientPhone: patient.phone,
+        patientSig: patientSig,
+        
+        items: items,
+        subtotalUSD: totalUSD,
+        discountPct: 0,
+        discountUSD: 0,
+        taxUSD: 0,
+        totalUSD: totalUSD,
+        totalVES: totalVES,
+        approvedAmountUSD: totalUSD,
+        
+        paymentTerms: `Atenciones consolidadas en jornada (Sesiones #${sessionNumsStr}). Comprobante oficial de atención y pago.`,
+        bankingDetails: busData.bankInfo,
+        observations: `Se efectuaron ${selectedSessions.length} procedimientos clínicos agrupados en una sola jornada bajo estricto protocolo odontológico.`,
+        consentText: 'Por medio de la presente, el paciente declara haber recibido a entera conformidad las atenciones odontológicas detalladas en este recibo consolidado y autoriza el registro en su historia clínica.',
+        footerNote: busData.footer
+    });
+};
+
+window.downloadConsolidatedReceiptPDF = async function(patientId, sessionNums) {
+    try {
+        const patients = await SupabaseDataService.getPatients();
+        const patient = patients.find(p => String(p.id) === String(patientId));
+        if (!patient || !patient.sessions) return;
+
+        const nums = sessionNums.map(Number);
+        const sessionsList = patient.sessions.filter(s => nums.includes(Number(s.sessionNum)));
+        if (sessionsList.length === 0) {
+            Swal.fire({ icon: 'warning', title: 'Sin sesiones', text: 'No se encontraron las sesiones seleccionadas.' });
+            return;
+        }
+
+        const config = await SupabaseDataService.getStationeryConfig();
+        const busData = getClinicBusData(config);
+
+        const html = window.generateConsolidatedSessionReceiptHTML(patient, sessionsList, busData);
+        const container = document.createElement('div');
+        container.innerHTML = html;
+
+        const filename = `Recibo_Consolidado_${patient.id}_Sesiones_${sessionNums.join('-')}.pdf`;
+        await generatePDFFromElement(container, filename);
+    } catch(err) {
+        console.error("Error generating consolidated PDF:", err);
+        Swal.fire({ icon: 'error', title: 'Error al exportar recibo', text: err.message });
+    }
+};
+
+window.sendConsolidatedReceiptWhatsApp = async function(patientId, sessionNums) {
+    try {
+        const patients = await SupabaseDataService.getPatients();
+        const patient = patients.find(p => String(p.id) === String(patientId));
+        if (!patient || !patient.sessions) return;
+
+        if (!patient.phone) {
+            Swal.fire({ icon: 'warning', title: 'Sin Teléfono', text: 'El paciente no tiene un número telefónico registrado.' });
+            return;
+        }
+
+        const nums = sessionNums.map(Number);
+        const sessionsList = patient.sessions.filter(s => nums.includes(Number(s.sessionNum)));
+        if (sessionsList.length === 0) return;
+
+        let totalUSD = 0;
+        sessionsList.forEach(s => {
+            let amt = parseFloat(s.paymentUSD || 0);
+            if (!amt || amt === 0) {
+                const trt = (patient.metadata && Array.isArray(patient.metadata.treatments)) 
+                    ? patient.metadata.treatments.find(t => t.sessionNum === s.sessionNum || (s.procedure && t.name && s.procedure.includes(t.name))) 
+                    : null;
+                if (trt && trt.price > 0) amt = parseFloat(trt.price);
+            }
+            totalUSD += amt;
+        });
+
+        const firstSess = sessionsList[0] || {};
+        const methodLabel = firstSess.paymentMethodLabel || 'Efectivo / Pago Móvil';
+
+        const msg = WhatsAppService.generateConsolidatedReceiptMessage(patient, sessionsList, totalUSD, methodLabel);
+        WhatsAppService.sendToPatient(patient.phone, msg);
+    } catch(err) {
+        console.error("Error sending consolidated WhatsApp:", err);
+    }
+};
+
+window.openBulkSessionsAttendanceModal = async function(patientId, selectedSessionNums) {
+    try {
+        const patients = await SupabaseDataService.getPatients();
+        const patient = patients.find(p => String(p.id) === String(patientId));
+        if (!patient) return;
+
+        const modal = document.getElementById('modal-bulk-sessions');
+        if (!modal) return;
+
+        // Collect doctors
+        const doctors = await getDoctorsList();
+        const docSelect = document.getElementById('bulk-doctor-select');
+        if (docSelect) {
+            docSelect.innerHTML = doctors.map(d => `<option value="${d.fullname}">${d.fullname} (${d.role || 'Odontólogo'})</option>`).join('');
+        }
+
+        const dtInput = document.getElementById('bulk-datetime');
+        if (dtInput) dtInput.value = new Date().toISOString().slice(0, 16);
+
+        // Map selected sessions from treatments or pending items
+        const treatments = (patient.metadata && Array.isArray(patient.metadata.treatments)) ? patient.metadata.treatments : (window.currentEhrTreatmentsList || []);
+        const proceduresListContainer = document.getElementById('bulk-selected-procedures-list');
+        
+        let sumTotal = 0;
+        let procsHtml = '';
+        const itemsToProcess = [];
+
+        selectedSessionNums.forEach(num => {
+            const trt = treatments.find(t => Number(t.sessionNum) === Number(num)) || treatments[num - 1];
+            const pName = trt ? trt.name : `Sesión #${num}`;
+            const pTooth = trt ? (trt.tooth || 'Gnl') : 'Gnl';
+            const pPrice = trt ? parseFloat(trt.price || 0) : 0;
+            sumTotal += pPrice;
+            itemsToProcess.push({ sessionNum: num, name: pName, tooth: pTooth, price: pPrice });
+
+            procsHtml += `
+                <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:6px 10px; border-radius:6px; border:1px solid #ccfbf1; font-size:0.82rem;">
+                    <div><strong>Sesión #${num}:</strong> ${pName} <span class="badge-tag" style="background:#e0f2fe; color:#0369a1; font-size:0.7rem; margin-left:4px;">Pieza ${pTooth}</span></div>
+                    <strong style="color:#0f766e;">${pPrice.toFixed(2)} USD</strong>
+                </div>
+            `;
+        });
+
+        if (proceduresListContainer) proceduresListContainer.innerHTML = procsHtml;
+
+        const rate = parseFloat(localStorage.getItem('dental_exchange_rate')) || 36.5;
+        const amtInput = document.getElementById('bulk-payment-amount');
+        const vesInput = document.getElementById('bulk-payment-ves');
+        const bcvHint = document.getElementById('bulk-bcv-rate-hint');
+        if (bcvHint) bcvHint.innerText = `Tasa BCV: Bs. ${rate.toFixed(2)} / USD`;
+
+        if (amtInput) {
+            amtInput.value = sumTotal.toFixed(2);
+            if (vesInput) vesInput.value = `Bs. ${(sumTotal * rate).toFixed(2)}`;
+            amtInput.oninput = () => {
+                const val = parseFloat(amtInput.value) || 0;
+                if (vesInput) vesInput.value = `Bs. ${(val * rate).toFixed(2)}`;
+            };
+        }
+
+        // Setup bulk signature pad
+        window.bulkSigPad = setupSignaturePad('bulk-session-signature-canvas', 'btn-clear-bulk-signature');
+
+        modal.classList.remove('hidden');
+
+        // Confirm button action
+        const confirmBtn = document.getElementById('btn-confirm-bulk-sessions');
+        if (confirmBtn) {
+            confirmBtn.onclick = async (e) => {
+                e.preventDefault();
+                confirmBtn.disabled = true;
+                confirmBtn.innerText = 'Guardando atenciones...';
+
+                try {
+                    const dt = dtInput ? dtInput.value : new Date().toISOString();
+                    const docName = docSelect ? docSelect.value : 'Dr. Rodrigo Navas';
+                    const indications = document.getElementById('bulk-indications') ? document.getElementById('bulk-indications').value.trim() : '';
+                    const totalPaidUSD = parseFloat(amtInput.value) || 0;
+                    const method = document.getElementById('bulk-payment-method') ? document.getElementById('bulk-payment-method').value : 'cash';
+                    const bank = document.getElementById('bulk-payment-bank') ? document.getElementById('bulk-payment-bank').value.trim() : '';
+                    const ref = document.getElementById('bulk-payment-reference') ? document.getElementById('bulk-payment-reference').value.trim() : '';
+                    const sigData = (window.bulkSigPad && !window.bulkSigPad.isEmpty()) ? window.bulkSigPad.toDataURL() : '';
+
+                    if (!patient.sessions) patient.sessions = [];
+                    if (!patient.metadata) patient.metadata = {};
+                    if (!patient.metadata.treatments) patient.metadata.treatments = [];
+
+                    const numItems = itemsToProcess.length || 1;
+                    const perItemPayment = totalPaidUSD / numItems;
+
+                    itemsToProcess.forEach(item => {
+                        const sessObj = {
+                            sessionNum: item.sessionNum,
+                            datetime: dt,
+                            procedure: item.name,
+                            indications: indications,
+                            signatureData: sigData,
+                            paymentUSD: perItemPayment,
+                            paymentMethod: method,
+                            paymentMethodLabel: getPaymentMethodLabel(method),
+                            paymentBank: bank || (method === 'cash' ? 'Efectivo en Mano' : 'No especificado'),
+                            paymentReference: ref || 'N/A',
+                            doctorName: docName,
+                            isBulk: true
+                        };
+
+                        const exIdx = patient.sessions.findIndex(s => Number(s.sessionNum) === Number(item.sessionNum));
+                        if (exIdx >= 0) {
+                            patient.sessions[exIdx] = sessObj;
+                        } else {
+                            patient.sessions.push(sessObj);
+                        }
+
+                        // Mark treatment completed
+                        const matchTrt = patient.metadata.treatments.find(t => Number(t.sessionNum) === Number(item.sessionNum) || (t.name && t.name === item.name));
+                        if (matchTrt) {
+                            matchTrt.status = 'Completado';
+                            matchTrt.completedDate = dt;
+                        }
+
+                        // Update odontogram for tooth
+                        if (item.tooth && item.tooth !== 'Gnl' && !isNaN(parseInt(item.tooth))) {
+                            if (!patient.odontogramData) patient.odontogramData = {};
+                            patient.odontogramData[`${item.tooth}-center`] = 'restoration';
+                        }
+                    });
+
+                    // Record consolidated payment in patient history
+                    if (totalPaidUSD > 0) {
+                        if (!patient.payments) patient.payments = [];
+                        patient.payments.unshift({
+                            id: 'pay-bulk-' + Date.now(),
+                            date: dt.split('T')[0],
+                            concept: `Cobro Consolidado de Jornada (Sesiones #${selectedSessionNums.join(', #')})`,
+                            method: method,
+                            bank: bank || (method === 'cash' ? 'Efectivo en Mano' : 'No especificado'),
+                            reference: ref || 'N/A',
+                            totalUSD: totalPaidUSD,
+                            paidUSD: totalPaidUSD,
+                            balanceUSD: 0,
+                            status: 'Pagado'
+                        });
+                    }
+
+                    patient.metadata.sessions = patient.sessions;
+                    await SupabaseDataService.savePatient(patient);
+
+                    modal.classList.add('hidden');
+                    await renderEHRView();
+
+                    // Prompt to export or send consolidated receipt
+                    Swal.fire({
+                        title: '¡Jornada Registrada con Éxito!',
+                        html: `Se registraron <strong>${itemsToProcess.length} sesiones</strong> y el cobro consolidado de <strong>${totalPaidUSD.toFixed(2)} USD</strong>.<br><br>¿Desea generar el <strong>Recibo Consolidado</strong> ahora?`,
+                        icon: 'success',
+                        showCancelButton: true,
+                        showDenyButton: true,
+                        confirmButtonText: '<i class="fa-solid fa-file-pdf"></i> Descargar PDF',
+                        denyButtonText: '<i class="fa-brands fa-whatsapp"></i> Enviar WhatsApp',
+                        cancelButtonText: 'Cerrar',
+                        confirmButtonColor: '#0284c7',
+                        denyButtonColor: '#25D366'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            window.downloadConsolidatedReceiptPDF(patient.id, selectedSessionNums);
+                        } else if (result.isDenied) {
+                            window.sendConsolidatedReceiptWhatsApp(patient.id, selectedSessionNums);
+                        }
+                    });
+
+                } catch(err) {
+                    console.error("Error saving bulk sessions:", err);
+                    Swal.fire({ icon: 'error', title: 'Error al registrar', text: err.message });
+                } finally {
+                    confirmBtn.disabled = false;
+                    confirmBtn.innerText = 'Registrar Atención y Cobro Agrupado';
+                }
+            };
+        }
+
+    } catch(err) {
+        console.error("Error opening bulk modal:", err);
+    }
+};
+
 async function renderEHRView(filter = 'all', searchQuery = '') {
     const listGroup = document.getElementById('ehr-patient-list');
     if (!listGroup) return;
@@ -4279,6 +4614,7 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
             item.onclick = async (e) => {
                 e.preventDefault();
                 setActivePatientId(p.id);
+                window.currentActiveEHRPhaseId = 'all';
                 // Keep the current filters when reloading EHR view on selection
                 const actF = document.querySelector('#view-ehr .filter-btn.active');
                 const filterVal = actF ? actF.dataset.filter : 'all';
@@ -4432,28 +4768,141 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                 String(b.status).toLowerCase() === 'completada' || 
                 String(b.status).toLowerCase() === 'finalizado'
             );
-            // Ordenar de más antiguo a más reciente
+
+            // Garantizar que todos los presupuestos/fases en approvedOdontograms estén incluidos
+            const pApprovedList = (activePatient.odontogram_data?._app_extended?.metadata?.approvedOdontograms) || (activePatient.metadata?.approvedOdontograms) || [];
+            pApprovedList.forEach(app => {
+                if (app && app.id && !approvedBudgets.some(b => String(b.id) === String(app.id))) {
+                    approvedBudgets.push({
+                        id: app.id,
+                        patientId: activePatient.id,
+                        invoiceDate: app.date || new Date().toISOString().split('T')[0],
+                        date: app.date || new Date().toISOString().split('T')[0],
+                        totalRef: app.totalUSD || 0,
+                        status: 'Aprobado',
+                        items: app.treatments || [],
+                        odontogramData: app.odontogramData || {}
+                    });
+                }
+            });
+
+            // Ordenar cronológicamente (Fase 1, Fase 2, Fase 3...)
             approvedBudgets.sort((a, b) => new Date(a.invoiceDate || a.date || a.createdAt || 0) - new Date(b.invoiceDate || b.date || b.createdAt || 0));
 
-            const activeApprovedBudget = approvedBudgets.length > 0 ? approvedBudgets[approvedBudgets.length - 1] : null;
+            // Tag each budget with phase metadata
+            approvedBudgets.forEach((b, idx) => {
+                b.phaseIndex = idx + 1;
+                b.phaseTitle = `Fase #${idx + 1}`;
+                // If items are empty in invoice, hydrate from approvedOdontograms
+                if (!b.items || b.items.length === 0) {
+                    const matchApp = pApprovedList.find(a => String(a.id) === String(b.id));
+                    if (matchApp && matchApp.treatments && matchApp.treatments.length > 0) {
+                        b.items = matchApp.treatments;
+                    }
+                }
+            });
 
-            // Tratamientos SOLO si hay presupuesto aprobado oficial
+            // Render Phase Navigation Chips in #ehr-phase-navigation-container
+            const phaseNavContainer = document.getElementById('ehr-phase-navigation-container');
+            if (phaseNavContainer) {
+                if (approvedBudgets.length > 0) {
+                    phaseNavContainer.style.display = 'block';
+                    const activePhase = window.currentActiveEHRPhaseId || 'all';
+
+                    let chipsHtml = `
+                        <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                            <div style="font-size: 0.85rem; font-weight: 700; color: #334155; display: flex; align-items: center; gap: 6px;">
+                                <i class="fa-solid fa-folder-tree text-cyan"></i> Planes de Tratamiento / Fases del Paciente:
+                            </div>
+                            <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                                <button type="button" class="btn btn-xs ${activePhase === 'all' ? 'btn-primary' : 'btn-outline'} ehr-phase-chip" data-phase="all" style="font-weight: 600; padding: 4px 10px; border-radius: 6px;">
+                                    <i class="fa-solid fa-globe"></i> Todas las Fases (${approvedBudgets.length})
+                                </button>
+                    `;
+
+                    approvedBudgets.forEach((b, idx) => {
+                        const isChipActive = String(activePhase) === String(b.id);
+                        const bTotal = parseFloat(b.totalRef || b.totalUSD || 0).toFixed(2);
+                        chipsHtml += `
+                            <button type="button" class="btn btn-xs ${isChipActive ? 'btn-primary' : 'btn-outline'} ehr-phase-chip" data-phase="${b.id}" style="font-weight: 600; padding: 4px 10px; border-radius: 6px;">
+                                <i class="fa-solid fa-folder"></i> Fase #${idx + 1} (${b.id}) - $${bTotal}
+                            </button>
+                        `;
+                    });
+
+                    chipsHtml += `
+                            </div>
+                        </div>
+                    `;
+                    phaseNavContainer.innerHTML = chipsHtml;
+
+                    phaseNavContainer.querySelectorAll('.ehr-phase-chip').forEach(btn => {
+                        btn.onclick = async () => {
+                            window.currentActiveEHRPhaseId = btn.dataset.phase;
+                            await renderEHRView();
+                        };
+                    });
+                } else {
+                    phaseNavContainer.style.display = 'none';
+                    phaseNavContainer.innerHTML = '';
+                }
+            }
+
+            // Determine active phase budget & treatments list
+            let activeApprovedBudget = null;
             let treatmentsList = [];
-            if (activeApprovedBudget) {
-                if (activePatient.metadata && Array.isArray(activePatient.metadata.treatments) && activePatient.metadata.treatments.length > 0) {
-                    treatmentsList = activePatient.metadata.treatments;
-                } else if (activeApprovedBudget.items && activeApprovedBudget.items.length > 0) {
+            const selectedPhaseId = window.currentActiveEHRPhaseId || 'all';
+
+            if (selectedPhaseId !== 'all') {
+                activeApprovedBudget = approvedBudgets.find(b => String(b.id) === String(selectedPhaseId)) || approvedBudgets[0];
+            } else {
+                activeApprovedBudget = approvedBudgets.length > 0 ? approvedBudgets[approvedBudgets.length - 1] : null;
+            }
+
+            if (selectedPhaseId !== 'all' && activeApprovedBudget) {
+                // Strict isolation: only treatments belonging to this exact phase
+                if (Array.isArray(activeApprovedBudget.items) && activeApprovedBudget.items.length > 0) {
                     treatmentsList = activeApprovedBudget.items.map((it, idx) => ({
-                        id: 'trt-' + (idx + 1),
-                        serviceCode: it.code || '',
+                        id: it.id || ('trt-ph-' + activeApprovedBudget.id + '-' + (idx + 1)),
+                        serviceCode: it.code || it.serviceCode || '',
                         name: it.name || 'Procedimiento',
-                        tooth: it.tooth || 'Gnl',
+                        tooth: it.tooth || extractToothNumber(it) || 'Gnl',
                         face: it.face || '',
                         price: it.price || it.priceUSD || 0,
                         specialist: it.specialist || '',
-                        status: (activePatient.sessions && activePatient.sessions.length > idx) ? 'Completado' : 'Planificado',
-                        sessionNum: idx + 1
+                        status: it.status || 'Planificado',
+                        sessionNum: idx + 1,
+                        budgetId: activeApprovedBudget.id,
+                        phaseTitle: activeApprovedBudget.phaseTitle
                     }));
+                }
+            } else {
+                // Mode 'all': Gather treatments across all approved phases with phase tags
+                if (approvedBudgets.length > 0) {
+                    let globalSessNum = 1;
+                    approvedBudgets.forEach(b => {
+                        if (Array.isArray(b.items) && b.items.length > 0) {
+                            b.items.forEach(it => {
+                                treatmentsList.push({
+                                    id: it.id || ('trt-ph-' + b.id + '-' + globalSessNum),
+                                    serviceCode: it.code || it.serviceCode || '',
+                                    name: it.name || 'Procedimiento',
+                                    tooth: it.tooth || extractToothNumber(it) || 'Gnl',
+                                    face: it.face || '',
+                                    price: it.price || it.priceUSD || 0,
+                                    specialist: it.specialist || '',
+                                    status: it.status || 'Planificado',
+                                    sessionNum: globalSessNum++,
+                                    budgetId: b.id,
+                                    phaseTitle: b.phaseTitle
+                                });
+                            });
+                        }
+                    });
+                }
+                // Fallback to activePatient.metadata.treatments if approvedBudgets.items were empty
+                if (treatmentsList.length === 0 && activePatient.metadata && Array.isArray(activePatient.metadata.treatments)) {
+                    treatmentsList = activePatient.metadata.treatments;
                 }
             }
 
@@ -4621,7 +5070,12 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                 div.className = 'timeline-item timeline-item-completed';
                 div.innerHTML = `
                     <div class="timeline-meta" style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 6px;">
-                        <span><strong style="color:#10b981;"><i class="fa-solid fa-circle-check"></i> Sesión N° ${s.sessionNum}</strong> — <i class="fa-solid fa-clock"></i> ${s.datetime}</span>
+                        <span>
+                            <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; margin:0;">
+                                <input type="checkbox" class="ehr-session-checkbox" data-session-num="${s.sessionNum}" data-is-completed="true" data-procedure="${safeProcedureEscaped}" data-price="${s.paymentUSD || 0}" style="cursor:pointer; transform:scale(1.2);">
+                                <strong style="color:#10b981;"><i class="fa-solid fa-circle-check"></i> Sesión Nº ${s.sessionNum}</strong>
+                            </label> — <i class="fa-solid fa-clock"></i> ${s.datetime}
+                        </span>
                         <div style="display: flex; gap: 4px; align-items: center;">
                             <button class="btn btn-xs btn-outline" style="border-color:#10b981; color:#10b981; font-weight:600;" onclick="window.openRecipesModalForSession('${activePatient.id}', ${s.sessionNum}, '${safeProcedureEscaped}')" title="Ver / Crear Récipe e Indicaciones"><i class="fa-solid fa-pills"></i> Récipes</button>
                             <button class="btn btn-xs btn-outline" style="color: #15803d; border-color: #22c55e;" onclick="sendSessionReceiptWhatsApp('${activePatient.id}', ${s.sessionNum})" title="Enviar Recibo por WhatsApp"><i class="fa-brands fa-whatsapp"></i> Recibo</button>
@@ -4720,7 +5174,12 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                             pendingDiv.className = 'timeline-item timeline-item-pending';
                             pendingDiv.innerHTML = `
                                 <div class="timeline-meta" style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 6px;">
-                                    <span><strong style="color:#f59e0b;"><i class="fa-solid fa-hourglass-half"></i> Sesión N° ${sNum}</strong> — <span class="badge-tag amber">⏳ Pendiente</span></span>
+                                    <span>
+                                        <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; margin:0;">
+                                            <input type="checkbox" class="ehr-session-checkbox" data-session-num="${sNum}" data-is-completed="false" data-procedure="${safeProcNameEscaped}" data-tooth="${trtItem ? trtItem.tooth : 'Gnl'}" data-price="${trtItem ? trtItem.price : 0}" style="cursor:pointer; transform:scale(1.2);">
+                                            <strong style="color:#f59e0b;"><i class="fa-solid fa-hourglass-half"></i> Sesión Nº ${sNum}</strong>
+                                        </label> — <span class="badge-tag amber">⏳ Pendiente</span>
+                                    </span>
                                     <div style="display: flex; gap: 6px; align-items: center;">
                                         <button class="btn btn-xs btn-outline" style="border-color:#10b981; color:#10b981; font-weight:600;" onclick="window.openRecipesModalForSession('${activePatient.id}', ${sNum}, '${safeProcNameEscaped}')" title="Ver / Crear Récipe e Indicaciones"><i class="fa-solid fa-pills"></i> Récipes</button>
                                         <button class="btn btn-xs btn-outline" style="border-color:var(--primary-cyan); color:var(--primary-cyan);" onclick="window.openAppointmentModalForPatient('${activePatient.id}', ${sNum}, '${safeProcNameEscaped}')" title="Agendar esta sesión en la Agenda">
@@ -4759,6 +5218,77 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                     window.registerNewSessionForCurrentPatient();
                 };
             }
+
+            
+            // Wire Bulk Selection Handler for Sessions in EHR
+            function updateBulkSessionsUI() {
+                const checkedBoxes = Array.from(document.querySelectorAll('.ehr-session-checkbox:checked'));
+                const countBadge = document.getElementById('ehr-bulk-selected-count');
+                const btnAttendBulk = document.getElementById('btn-bulk-attend-sessions');
+                const btnReceiptWp = document.getElementById('btn-bulk-receipt-whatsapp');
+                const btnReceiptPdf = document.getElementById('btn-bulk-receipt-pdf');
+                const masterCheck = document.getElementById('ehr-bulk-check-all');
+
+                const totalChecked = checkedBoxes.length;
+                if (countBadge) {
+                    countBadge.innerText = `${totalChecked} seleccionada(s)`;
+                    countBadge.className = totalChecked > 0 ? 'badge-tag green' : 'badge-tag blue';
+                }
+
+                const pendingChecked = checkedBoxes.filter(c => c.dataset.isCompleted === 'false');
+                const completedChecked = checkedBoxes.filter(c => c.dataset.isCompleted === 'true');
+
+                if (btnAttendBulk) {
+                    btnAttendBulk.style.display = pendingChecked.length > 0 ? 'inline-flex' : 'none';
+                    btnAttendBulk.innerHTML = `<i class="fa-solid fa-stethoscope"></i> Atender y Cobrar en Grupo (${pendingChecked.length})`;
+                    btnAttendBulk.onclick = () => {
+                        const nums = pendingChecked.map(c => Number(c.dataset.sessionNum));
+                        window.openBulkSessionsAttendanceModal(activePatient.id, nums);
+                    };
+                }
+
+                if (btnReceiptWp) {
+                    btnReceiptWp.style.display = completedChecked.length > 0 ? 'inline-flex' : 'none';
+                    btnReceiptWp.innerHTML = `<i class="fa-brands fa-whatsapp"></i> Recibo Consolidado (${completedChecked.length})`;
+                    btnReceiptWp.onclick = () => {
+                        const nums = completedChecked.map(c => Number(c.dataset.sessionNum));
+                        window.sendConsolidatedReceiptWhatsApp(activePatient.id, nums);
+                    };
+                }
+
+                if (btnReceiptPdf) {
+                    btnReceiptPdf.style.display = completedChecked.length > 0 ? 'inline-flex' : 'none';
+                    btnReceiptPdf.innerHTML = `<i class="fa-solid fa-file-pdf text-red"></i> PDF Consolidado (${completedChecked.length})`;
+                    btnReceiptPdf.onclick = () => {
+                        const nums = completedChecked.map(c => Number(c.dataset.sessionNum));
+                        window.downloadConsolidatedReceiptPDF(activePatient.id, nums);
+                    };
+                }
+
+                const allBoxes = document.querySelectorAll('.ehr-session-checkbox');
+                if (masterCheck) {
+                    masterCheck.checked = allBoxes.length > 0 && totalChecked === allBoxes.length;
+                    masterCheck.indeterminate = totalChecked > 0 && totalChecked < allBoxes.length;
+                }
+            }
+
+            document.querySelectorAll('.ehr-session-checkbox').forEach(chk => {
+                chk.onchange = () => updateBulkSessionsUI();
+            });
+
+            const masterCheckEl = document.getElementById('ehr-bulk-check-all');
+            if (masterCheckEl) {
+                masterCheckEl.checked = false;
+                masterCheckEl.indeterminate = false;
+                masterCheckEl.onchange = () => {
+                    const st = masterCheckEl.checked;
+                    document.querySelectorAll('.ehr-session-checkbox').forEach(chk => {
+                        chk.checked = st;
+                    });
+                    updateBulkSessionsUI();
+                };
+            }
+            updateBulkSessionsUI();
 
             // 5. Pagos Tab (Balance Financiero 360° del Paciente - SOLO APROBADOS)
             const payTbody = document.getElementById('ehr-payments-table-body');
@@ -10671,6 +11201,35 @@ function initGlobalEvents() {
                 let total = 0;
                 sessionSplitInputs.forEach(i => total += parseFloat(i.value) || 0);
                 sessionPayAmount.value = total.toFixed(2);
+            };
+        });
+    }
+
+    // Bulk Session Modal Payment Method Toggle
+    const bulkPayMethod = document.getElementById('bulk-payment-method');
+    const bulkSplitContainer = document.getElementById('bulk-split-payment-container');
+    const bulkSplitInputs = document.querySelectorAll('.bulk-split-input');
+    const bulkPayAmount = document.getElementById('bulk-payment-amount');
+
+    if (bulkPayMethod && bulkSplitContainer) {
+        bulkPayMethod.onchange = (e) => {
+            if (e.target.value === 'split') {
+                bulkSplitContainer.classList.remove('hidden');
+            } else {
+                bulkSplitContainer.classList.add('hidden');
+            }
+        };
+    }
+
+    if (bulkSplitInputs && bulkPayAmount) {
+        bulkSplitInputs.forEach(inp => {
+            inp.oninput = () => {
+                let total = 0;
+                bulkSplitInputs.forEach(i => total += parseFloat(i.value) || 0);
+                bulkPayAmount.value = total.toFixed(2);
+                const rate = parseFloat(localStorage.getItem('dental_exchange_rate')) || 36.5;
+                const bulkVes = document.getElementById('bulk-payment-ves');
+                if (bulkVes) bulkVes.value = `Bs. ${(total * rate).toFixed(2)}`;
             };
         });
     }
