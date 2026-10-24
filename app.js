@@ -791,6 +791,170 @@ function itemMatchesToothAndExtraction(item, toothNum) {
     return code.includes('cx-') || code.includes('ex-') || name.includes('extrac') || name.includes('exodoncia') || name.includes('cirug');
 }
 
+function doesSessionMatchTreatment(session, treatment) {
+    if (!session || !treatment) return false;
+
+    // 1. Explicit ID / Key match
+    if (session.treatmentId && treatment.id && String(session.treatmentId) === String(treatment.id)) {
+        return true;
+    }
+    if (session.treatmentKey && treatment.key && String(session.treatmentKey) === String(treatment.key)) {
+        return true;
+    }
+
+    // 2. Tooth Comparison
+    const sessTooth = extractToothNumber(session);
+    const trtTooth = extractToothNumber(treatment);
+
+    // If both specify a distinct tooth (neither is General) and they differ: CANNOT match
+    if (sessTooth !== 'General' && trtTooth !== 'General' && String(sessTooth) !== String(trtTooth)) {
+        return false;
+    }
+
+    // 3. Normalized Procedure Names
+    const sessProc = (session.procedure || session.treatmentName || '').toLowerCase();
+    const trtName = (treatment.name || treatment.procedure || '').toLowerCase();
+    const sessNorm = normalizeProcedureName(sessProc);
+    const trtNorm = normalizeProcedureName(trtName);
+
+    // If both have the same tooth (e.g. 17 === 17)
+    if (sessTooth !== 'General' && trtTooth !== 'General' && String(sessTooth) === String(trtTooth)) {
+        // If procedure keywords or sub-strings match
+        if (sessNorm && trtNorm && (sessNorm.includes(trtNorm) || trtNorm.includes(sessNorm))) {
+            return true;
+        }
+
+        // Shared dental keyword categories
+        const keywords = ['resina', 'obturacion', 'restauracion', 'conducto', 'endo', 'extrac', 'exodoncia', 'cirug', 'corona', 'protesis', 'incrustaci', 'limpieza', 'tartrec', 'profilaxis', 'blanqueamiento'];
+        for (const kw of keywords) {
+            if (sessProc.includes(kw) && trtName.includes(kw)) {
+                return true;
+            }
+        }
+
+        // If sessionNum matches and tooth matches
+        if (session.sessionNum && treatment.sessionNum && Number(session.sessionNum) === Number(treatment.sessionNum)) {
+            return true;
+        }
+
+        // If session procedure explicitly mentions this tooth number
+        if (sessProc.includes(String(trtTooth))) {
+            return true;
+        }
+
+        return false;
+    }
+
+    // 4. If either or both are 'General' (e.g. Limpieza General, Consulta, etc.)
+    if (sessNorm && trtNorm && (sessNorm.includes(trtNorm) || trtNorm.includes(sessNorm))) {
+        return true;
+    }
+
+    const generalKeywords = ['limpieza', 'profilaxis', 'tartrectomia', 'blanqueamiento', 'fluor', 'diagnostico', 'consulta', 'panoramica'];
+    for (const kw of generalKeywords) {
+        if (sessProc.includes(kw) && trtName.includes(kw)) {
+            return true;
+        }
+    }
+
+    if (session.sessionNum && treatment.sessionNum && Number(session.sessionNum) === Number(treatment.sessionNum)) {
+        return true;
+    }
+
+    return false;
+}
+window.doesSessionMatchTreatment = doesSessionMatchTreatment;
+
+async function syncPatientTreatmentsAndSessions(patient, optionalInvoices = null) {
+    if (!patient) return;
+    const sessions = Array.isArray(patient.sessions) ? patient.sessions : ((patient.metadata && Array.isArray(patient.metadata.sessions)) ? patient.metadata.sessions : []);
+    patient.sessions = sessions;
+
+    // 1. Sync patient.metadata.treatments
+    if (patient.metadata && Array.isArray(patient.metadata.treatments)) {
+        patient.metadata.treatments.forEach(t => {
+            const matchSess = sessions.find(s => doesSessionMatchTreatment(s, t));
+            if (matchSess) {
+                t.status = 'Completado';
+                t.completedDate = matchSess.datetime;
+                t.completedSessionNum = matchSess.sessionNum;
+            } else {
+                t.status = 'Planificado';
+                delete t.completedDate;
+                delete t.completedSessionNum;
+            }
+        });
+    }
+
+    // 2. Sync approvedOdontograms phases
+    if (patient.metadata && Array.isArray(patient.metadata.approvedOdontograms)) {
+        patient.metadata.approvedOdontograms.forEach(phase => {
+            if (Array.isArray(phase.treatments)) {
+                phase.treatments.forEach(t => {
+                    const matchSess = sessions.find(s => doesSessionMatchTreatment(s, t));
+                    if (matchSess) {
+                        t.status = 'Completado';
+                        t.completedDate = matchSess.datetime;
+                        t.completedSessionNum = matchSess.sessionNum;
+                    } else {
+                        t.status = 'Planificado';
+                        delete t.completedDate;
+                        delete t.completedSessionNum;
+                    }
+                });
+            }
+        });
+    }
+
+    // 3. Sync invoices table in Supabase
+    try {
+        const invoices = optionalInvoices || (await SupabaseDataService.getInvoices());
+        const patientInvoices = invoices.filter(inv => String(inv.patientId) === String(patient.id));
+        for (const inv of patientInvoices) {
+            let invChanged = false;
+            if (Array.isArray(inv.items)) {
+                inv.items.forEach(it => {
+                    const matchSess = sessions.find(s => doesSessionMatchTreatment(s, it));
+                    const newStatus = matchSess ? 'Completado' : 'Planificado';
+                    if (it.status !== newStatus) {
+                        it.status = newStatus;
+                        invChanged = true;
+                    }
+                    if (matchSess && it.completedDate !== matchSess.datetime) {
+                        it.completedDate = matchSess.datetime;
+                        invChanged = true;
+                    }
+                });
+            }
+            if (invChanged) {
+                await SupabaseDataService.saveInvoice(inv);
+            }
+        }
+    } catch (e) {
+        console.warn('Could not sync invoices in syncPatientTreatmentsAndSessions:', e);
+    }
+
+    // 4. Sync currentBudgetItems if loaded in editor for this patient
+    const activePatId = (typeof getActivePatientId === 'function') ? getActivePatientId() : null;
+    if (String(activePatId) === String(patient.id) && Array.isArray(currentBudgetItems)) {
+        currentBudgetItems.forEach(item => {
+            const matchSess = sessions.find(s => doesSessionMatchTreatment(s, item));
+            item.status = matchSess ? 'Completado' : 'Planificado';
+        });
+    }
+
+    // 5. Sync odontogramData restorations
+    if (!patient.odontogramData) patient.odontogramData = {};
+    sessions.forEach(s => {
+        const sTooth = extractToothNumber(s);
+        if (sTooth && sTooth !== 'General' && !isNaN(parseInt(sTooth))) {
+            const faceKey = `${sTooth}-center`;
+            patient.odontogramData[faceKey] = 'restoration';
+        }
+    });
+}
+window.syncPatientTreatmentsAndSessions = syncPatientTreatmentsAndSessions;
+
 function reconcileOdontogramAndBudget(rawItems = [], rawOdData = {}, baremoList = []) {
     let items = Array.isArray(rawItems) ? deduplicateBudgetItems(rawItems) : [];
     let odData = { ...(rawOdData || {}) };
@@ -2731,7 +2895,8 @@ window.loadBudgetIntoEditor = async function(budgetId) {
         serviceCode: item.code || item.serviceCode || '',
         name: item.name,
         price: parseFloat(item.price) || 0,
-        specialist: item.specialist || (pat ? pat.assignedDoctor : null) || 'Dr. Rodrigo Navas'
+        specialist: item.specialist || (pat ? pat.assignedDoctor : null) || 'Dr. Rodrigo Navas',
+        status: item.status || (isItemCompleted(item, pat) ? 'Completado' : 'Planificado')
     }));
 
     // Reconciliar de forma estricta y bidireccional Odontograma (Sección 3) <-> Presupuesto (Sección 4)
@@ -3700,46 +3865,21 @@ let pendingRenderBudgetTable = false;
 
 
 // Helper: Determinar si un tratamiento en el presupuesto o ficha clínica ya fue realizado/completado
-function isItemCompleted(item) {
+function isItemCompleted(item, patientObj = null) {
     if (!item) return false;
-    const st = String(item.status || '').toLowerCase().trim();
-    if (st === 'completado' || st === 'atendido' || st === 'realizado' || st === 'finalizado') {
+    const directStatus = String(item.status || '').toLowerCase().trim();
+    if (directStatus === 'completado' || directStatus === 'atendido' || directStatus === 'realizado' || directStatus === 'finalizado') {
         return true;
     }
-    const activeId = (typeof getActivePatientId === 'function') ? getActivePatientId() : null;
-    if (activeId) {
-        let p = null;
-        if (window.allPatientsCache && Array.isArray(window.allPatientsCache)) {
-            p = window.allPatientsCache.find(x => String(x.id) === String(activeId));
-        }
-        if (!p) {
-            try {
-                const localPts = JSON.parse(localStorage.getItem('dental_patients') || '[]');
-                p = localPts.find(x => String(x.id) === String(activeId));
-            } catch(e) {}
-        }
-        if (p) {
-            const trts = (p.metadata && Array.isArray(p.metadata.treatments)) ? p.metadata.treatments : [];
-            const foundTrt = trts.find(t => {
-                const sameTooth = item.tooth && t.tooth && String(item.tooth) === String(t.tooth);
-                const sameName = item.name && t.name && (item.name === t.name || item.name.includes(t.name) || t.name.includes(item.name));
-                return (sameTooth && sameName) || (sameTooth && !t.name) || (sameName && !t.tooth);
-            });
-            if (foundTrt) {
-                const tSt = String(foundTrt.status || '').toLowerCase().trim();
-                if (tSt === 'completado' || tSt === 'atendido' || tSt === 'realizado') return true;
-            }
-            const sessions = Array.isArray(p.sessions) ? p.sessions : ((p.metadata && Array.isArray(p.metadata.sessions)) ? p.metadata.sessions : []);
-            const foundSess = sessions.find(s => {
-                if (!s.procedure) return false;
-                return (item.name && (s.procedure.includes(item.name) || item.name.includes(s.procedure))) ||
-                       (item.tooth && item.tooth !== 'Gnl' && s.procedure.includes(String(item.tooth)));
-            });
-            if (foundSess) return true;
-        }
-    }
-    return false;
+    const p = patientObj || window.activeEHRPatient || ((typeof getActivePatientId === 'function') ? ((window.allPatientsCache || []).find(x => String(x.id) === String(getActivePatientId()))) : null);
+    if (!p) return false;
+
+    const sessions = Array.isArray(p.sessions) ? p.sessions : ((p.metadata && Array.isArray(p.metadata.sessions)) ? p.metadata.sessions : []);
+    if (!sessions || sessions.length === 0) return false;
+
+    return sessions.some(s => doesSessionMatchTreatment(s, item));
 }
+window.isItemCompleted = isItemCompleted;
 
 async function renderBudgetTable() {
     if (isRenderingBudgetTable) {
@@ -3841,8 +3981,8 @@ async function renderBudgetTable() {
 
             const isDone = isItemCompleted(item);
             const statusBadge = isDone 
-                ? '<span class="badge-tag green" style="font-size:0.68rem; margin-left:4px; padding:2px 6px;">✓ Realizado</span>' 
-                : '';
+                ? '<span class="badge-tag green" style="font-size:0.7rem; margin-left:6px; padding:2px 8px; font-weight:600;"><i class="fa-solid fa-check"></i> Atendido</span>' 
+                : '<span class="badge-tag amber" style="font-size:0.7rem; margin-left:6px; padding:2px 8px; font-weight:600;"><i class="fa-solid fa-hourglass-half"></i> Pendiente</span>';
 
             const tr = document.createElement('tr');
             if (!item.isSelected) {
@@ -4516,7 +4656,11 @@ window.openBulkSessionsAttendanceModal = async function(patientId, selectedSessi
                     }
 
                     patient.metadata.sessions = patient.sessions;
+                    await syncPatientTreatmentsAndSessions(patient);
                     await SupabaseDataService.savePatient(patient);
+                    if (typeof renderBudgetTable === 'function') {
+                        renderBudgetTable();
+                    }
 
                     modal.classList.add('hidden');
                     await renderEHRView();
@@ -4628,6 +4772,7 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
     if (activeId) {
         const activePatient = allPatients.find(p => String(p.id) === String(activeId)) || window.activeEHRPatient;
         if (activePatient) {
+            await syncPatientTreatmentsAndSessions(activePatient);
             let regEhrDisplay = '-';
             if (activePatient.createdAt) {
                 try {
@@ -5117,14 +5262,14 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                     trtSection.style.borderRadius = '8px';
 
                     let trtRowsHtml = treatmentsList.map((t, idx) => {
-                        const isDone = (idx < completedSessions) || t.status === 'Completado';
+                        const isDone = isItemCompleted(t, activePatient);
                         const toothNum = extractToothNumber(t);
                         const toothLabel = toothNum === 'General' ? 'Pieza General' : `Pieza ${toothNum}`;
                         return `
                             <tr style="border-bottom: 1px solid var(--border-color); font-size: 0.85rem;">
                                 <td style="padding: 6px 8px;"><strong>${toothLabel}</strong></td>
                                 <td style="padding: 6px 8px;">${t.name}</td>
-                                <td style="padding: 6px 8px; color: #15803d; font-weight: 600;">$${parseFloat(t.price || 0).toFixed(2)}</td>
+                                <td style="padding: 6px 8px; color: #15803d; font-weight: 600;">${parseFloat(t.price || 0).toFixed(2)}</td>
                                 <td style="padding: 6px 8px;">${t.specialist || 'Dr. Asignado'}</td>
                                 <td style="padding: 6px 8px;">
                                     <span class="badge-tag ${isDone ? 'green' : 'amber'}">${isDone ? '✓ Atendido' : '⏳ Planificado'}</span>
@@ -5158,15 +5303,21 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
 
                 // Caso A: Hay presupuestos aprobados -> Renderizar sesiones 1 a totalSessions y pendientes
                 if (approvedBudgets.length > 0) {
+                    const pendingTreatments = treatmentsList.filter(t => !isItemCompleted(t, activePatient));
+                    let pendingTrtIdx = 0;
+
                     for (let sNum = 1; sNum <= totalSessions; sNum++) {
                         const s = patientSessions.find(sess => sess.sessionNum === sNum);
-                        const trtItem = treatmentsList[sNum - 1];
+                        const trtItem = (pendingTrtIdx < pendingTreatments.length) ? pendingTreatments[pendingTrtIdx] : null;
 
                         if (s) {
                             timeline.appendChild(createCompletedSessionCard(s));
                         } else {
                             // Sesión pendiente planificada
-                            const procHint = trtItem ? `Procedimiento asignado: <strong>${trtItem.name}</strong> (Pieza ${trtItem.tooth || 'Gnl'})` : 'Continuación del plan de tratamiento';
+                            pendingTrtIdx++;
+                            const trtTooth = trtItem ? (trtItem.tooth || extractToothNumber(trtItem)) : 'Gnl';
+                            const trtPrice = trtItem ? (trtItem.price || 0) : 0;
+                            const procHint = trtItem ? `Procedimiento asignado: <strong>${trtItem.name}</strong> (Pieza ${trtTooth})` : 'Continuación del plan de tratamiento';
                             const defaultProcName = trtItem ? trtItem.name : `Sesión #${sNum}`;
                             const safeProcNameEscaped = defaultProcName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
@@ -5757,8 +5908,12 @@ window.deleteSessionFromPatient = async function(patientId, sessionNum) {
                 if (p.metadata) {
                     p.metadata.sessions = p.sessions;
                 }
+                await syncPatientTreatmentsAndSessions(p);
                 await SupabaseDataService.savePatient(p);
                 window.activeEHRPatient = p;
+                if (typeof renderBudgetTable === 'function') {
+                    renderBudgetTable();
+                }
                 await renderEHRView();
                 Swal.fire({ icon: 'success', title: 'Sesión eliminada', timer: 1500, showConfirmButton: false });
             }
@@ -6910,9 +7065,13 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
                 opt.dataset.tooth = toothNum;
                 opt.dataset.price = t.price || 0;
                 const toothText = toothNum === 'General' ? 'Pieza General' : `Pieza ${toothNum}`;
-                const statusTag = t.status === 'Completado' ? '✓ Atendido' : '⏳ Planificado';
-                const priceText = t.price ? ` ($${parseFloat(t.price).toFixed(2)})` : '';
+                const isTrtDone = isItemCompleted(t, patient);
+                const statusTag = isTrtDone ? '✓ Atendido' : '⏳ Planificado';
+                const priceText = t.price ? ` (${parseFloat(t.price).toFixed(2)})` : '';
                 opt.innerText = `Sesión ${tNum}: ${t.name} (${toothText})${priceText} — ${statusTag}`;
+                opt.dataset.treatmentId = t.id || t.key || ('trt-' + tNum);
+                opt.dataset.treatmentTooth = toothNum;
+                opt.dataset.treatmentName = t.name;
                 if (parseInt(tNum) === parseInt(sessionNum)) {
                     opt.selected = true;
                 }
@@ -6950,6 +7109,13 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
                         } else {
                             procInput.value = newProcText;
                         }
+                    }
+
+                    const mSess = document.getElementById('modal-session');
+                    if (mSess) {
+                        mSess.dataset.selectedTreatmentId = selectedOption ? (selectedOption.dataset.treatmentId || '') : '';
+                        mSess.dataset.selectedTreatmentTooth = toothName || '';
+                        mSess.dataset.selectedTreatmentName = procName || '';
                     }
 
                     // Auto-fill price of newly selected treatment
@@ -7776,11 +7942,20 @@ function initGlobalEvents() {
             if (!patient.sessions) patient.sessions = [];
             if (!patient.metadata) patient.metadata = {};
             
+            // Read modal selection datasets if available
+            const modalSessionEl = document.getElementById('modal-session');
+            const selectedTrtId = modalSessionEl ? modalSessionEl.dataset.selectedTreatmentId : '';
+            const selectedTooth = modalSessionEl ? modalSessionEl.dataset.selectedTreatmentTooth : '';
+            const selectedTrtName = modalSessionEl ? modalSessionEl.dataset.selectedTreatmentName : '';
+
             // Construct new session
             const sessionObj = {
                 sessionNum,
                 datetime,
                 procedure,
+                tooth: selectedTooth || extractToothNumber({ procedure, tooth: selectedTooth }),
+                treatmentId: selectedTrtId || '',
+                treatmentName: selectedTrtName || '',
                 indications,
                 signatureData,
                 materials: [],
@@ -7846,24 +8021,9 @@ function initGlobalEvents() {
                 patient.clinicalNotes.unshift(noteObj);
             }
 
-            // Sync metadata
+            // Sync metadata & bidirectionally reconcile treatments across all phases and budgets
             patient.metadata.sessions = patient.sessions;
-
-            // Update treatments plan in metadata & Odontogram
-            if (patient.metadata && patient.metadata.treatments && patient.metadata.treatments.length > 0) {
-                const trt = patient.metadata.treatments.find(t => t.sessionNum === sessionNum) || patient.metadata.treatments[sessionNum - 1];
-                if (trt) {
-                    trt.status = 'Completado';
-                    trt.completedDate = datetime;
-                    
-                    if (trt.tooth && trt.tooth !== 'Gnl' && !isNaN(parseInt(trt.tooth))) {
-                        if (!patient.odontogramData) patient.odontogramData = {};
-                        const toothNum = parseInt(trt.tooth);
-                        const faceKey = trt.face ? `${toothNum}-${trt.face}` : `${toothNum}-center`;
-                        patient.odontogramData[faceKey] = 'restoration';
-                    }
-                }
-            }
+            await syncPatientTreatmentsAndSessions(patient);
 
             // Registrar fecha de actualización del odontodiagrama
             patient.metadata.odontogramLastUpdated = datetime || new Date().toISOString().replace('T', ' ').substring(0, 16);
