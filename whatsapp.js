@@ -206,11 +206,33 @@ class WhatsAppService {
     }
 
     static sendToPatient(phone, message) {
-        if (!phone) return;
+        if (!phone) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'warning', title: 'Sin teléfono', text: 'El paciente no tiene un número de teléfono o WhatsApp registrado.' });
+            } else {
+                alert('El paciente no tiene un número de teléfono registrado.');
+            }
+            return;
+        }
         const cleanPhone = this.normalizePhoneNumber(phone);
-        if (!cleanPhone) return;
+        if (!cleanPhone) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'warning', title: 'Número no válido', text: `El teléfono "${phone}" no tiene formato válido para WhatsApp.` });
+            } else {
+                alert(`El teléfono "${phone}" no es válido.`);
+            }
+            return;
+        }
         const url = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`;
-        window.open(url, '_blank');
+        
+        // Disparar apertura segura mediante enlace para evitar bloqueo de popups del navegador
+        const a = document.createElement('a');
+        a.href = url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => a.remove(), 500);
     }
 }
 

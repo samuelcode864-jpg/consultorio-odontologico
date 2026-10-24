@@ -9630,61 +9630,55 @@ function initGlobalEvents() {
     const sendWpBtn = document.getElementById('btn-send-whatsapp');
     if (sendWpBtn) {
         sendWpBtn.onclick = async () => {
-            const activeId = getActivePatientId();
-            if (!activeId) {
-                Swal.fire({ icon: 'info', title: 'Seleccione un paciente', text: 'Por favor active un paciente antes de enviar el presupuesto.' });
-                return;
-            }
-            const patients = await SupabaseDataService.getPatients();
-            const patient = patients.find(p => p.id === activeId);
-            if (!patient) return;
+            try {
+                const activeId = getActivePatientId();
+                if (!activeId) {
+                    Swal.fire({ icon: 'info', title: 'Seleccione un paciente', text: 'Por favor active un paciente antes de enviar el presupuesto.' });
+                    return;
+                }
+                const patients = await SupabaseDataService.getPatients();
+                const patient = patients.find(p => String(p.id) === String(activeId));
+                if (!patient) {
+                    Swal.fire({ icon: 'error', title: 'Paciente no encontrado', text: 'No se encontró el paciente activo en la base de datos.' });
+                    return;
+                }
 
-            if (currentBudgetItems.length === 0) {
-                Swal.fire({ icon: 'warning', title: 'Presupuesto vacío', text: 'Agregue al menos un tratamiento al presupuesto.' });
-                return;
-            }
+                if (!currentBudgetItems || currentBudgetItems.length === 0) {
+                    Swal.fire({ icon: 'warning', title: 'Presupuesto vacío', text: 'Agregue al menos un tratamiento al presupuesto antes de enviarlo.' });
+                    return;
+                }
 
-            // Filter selected items for this message
-            const selectedItems = currentBudgetItems.filter(item => item.isSelected !== false);
-            const itemsToSend = selectedItems.length > 0 ? selectedItems : currentBudgetItems;
+                // Filter selected items for this message
+                const selectedItems = currentBudgetItems.filter(item => item && item.isSelected !== false);
+                const itemsToSend = selectedItems.length > 0 ? selectedItems : currentBudgetItems;
 
-            // Calculate totals
-            let subtotalUSD = 0;
-            itemsToSend.forEach(item => {
-                subtotalUSD += item.price || 0;
-            });
-            const discountPct = parseFloat(document.getElementById('budget-discount-input').value) || 0;
-            const discountAmountUSD = subtotalUSD * (discountPct / 100);
-            const totalUSD = subtotalUSD - discountAmountUSD;
-
-            const paymentModeSelect = document.getElementById('payment-mode-select');
-            const paymentModeText = paymentModeSelect.options[paymentModeSelect.selectedIndex].text;
-            const paymentMethodSelect = document.getElementById('budget-payment-method');
-            const paymentMethodLabel = paymentMethodSelect.options[paymentMethodSelect.selectedIndex].text;
-            
-            const notes = document.getElementById('budget-notes').value;
-            const consentText = document.getElementById('consent-text').value;
-
-            // VALIDAR QUE EL PRESUPUESTO ESTÉ APROBADO ANTES DE ENVIARLO
-            let isApproved = false;
-            if (activeEditingBudgetId) {
-                const invoices = await SupabaseDataService.getInvoices();
-                const inv = invoices.find(i => String(i.id) === String(activeEditingBudgetId));
-                const st = String(inv?.status || '').toLowerCase();
-                isApproved = st === 'aprobado' || st === 'approved' || st === 'facturado' || st === 'completada' || st === 'finalizado';
-            }
-
-            if (!isApproved) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Presupuesto no Aprobado',
-                    text: 'No se puede enviar el presupuesto al paciente por WhatsApp porque aún no ha sido Aprobado. Debe hacer clic en "Aprobar Presupuesto" antes de enviarlo.'
+                // Calculate totals
+                let subtotalUSD = 0;
+                itemsToSend.forEach(item => {
+                    subtotalUSD += parseFloat(item.price || item.priceUSD || 0) || 0;
                 });
-                return;
-            }
+                const discEl = document.getElementById('budget-discount-input');
+                const discountPct = discEl ? (parseFloat(discEl.value) || 0) : 0;
+                const discountAmountUSD = subtotalUSD * (discountPct / 100);
+                const totalUSD = subtotalUSD - discountAmountUSD;
 
-            const msg = WhatsAppService.generateBudgetMessage(patient, itemsToSend, totalUSD, paymentModeText, notes, subtotalUSD, discountPct, paymentMethodLabel, activeEditingBudgetId);
-            WhatsAppService.sendToPatient(patient.phone, msg);
+                const paymentModeSelect = document.getElementById('payment-mode-select');
+                const paymentModeText = (paymentModeSelect && paymentModeSelect.selectedIndex >= 0) 
+                    ? paymentModeSelect.options[paymentModeSelect.selectedIndex]?.text 
+                    : 'Contado';
+                const paymentMethodSelect = document.getElementById('budget-payment-method');
+                const paymentMethodLabel = (paymentMethodSelect && paymentMethodSelect.selectedIndex >= 0) 
+                    ? paymentMethodSelect.options[paymentMethodSelect.selectedIndex]?.text 
+                    : 'Pago Móvil';
+                
+                const notes = document.getElementById('budget-notes')?.value || '';
+
+                const msg = WhatsAppService.generateBudgetMessage(patient, itemsToSend, totalUSD, paymentModeText, notes, subtotalUSD, discountPct, paymentMethodLabel, activeEditingBudgetId || '');
+                WhatsAppService.sendToPatient(patient.phone, msg);
+            } catch(err) {
+                console.error("Error al enviar presupuesto por WhatsApp:", err);
+                Swal.fire({ icon: 'error', title: 'Error al enviar por WhatsApp', text: err.message || 'Ocurrió un error al procesar el mensaje.' });
+            }
         };
     }
 
@@ -13290,20 +13284,39 @@ async function generateBudgetHTMLContainer() {
 }
 
 async function downloadBudgetPDF() {
-    const activeId = getActivePatientId();
-    if (!activeId) {
-        Swal.fire({ icon: 'info', title: 'Seleccione un paciente', text: 'Por favor active un paciente para exportar su Presupuesto en PDF.' });
-        return;
+    try {
+        const activeId = getActivePatientId();
+        if (!activeId) {
+            Swal.fire({ icon: 'info', title: 'Seleccione un paciente', text: 'Por favor active un paciente para exportar su Presupuesto en PDF.' });
+            return;
+        }
+        const patients = await SupabaseDataService.getPatients();
+        const patient = patients.find(p => String(p.id) === String(activeId));
+        if (!patient) {
+            Swal.fire({ icon: 'error', title: 'Paciente no encontrado', text: 'No se encontró el paciente activo en la base de datos.' });
+            return;
+        }
+
+        Swal.fire({
+            title: 'Generando PDF...',
+            text: 'Preparando el documento con membrete y firmas...',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
+
+        const container = await generateBudgetHTMLContainer();
+        if (!container) {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo generar la plantilla del presupuesto.' });
+            return;
+        }
+
+        const filename = `Presupuesto_${patient.id}_${(patient.fullname || 'Paciente').replace(/\s+/g, '_')}.pdf`;
+        await generatePDFFromElement(container, filename);
+        Swal.close();
+    } catch(err) {
+        console.error("Error al exportar PDF:", err);
+        Swal.fire({ icon: 'error', title: 'Error al exportar PDF', text: err.message || 'Ocurrió un error inesperado al generar el PDF.' });
     }
-    const patients = await SupabaseDataService.getPatients();
-    const patient = patients.find(p => p.id === activeId);
-    if (!patient) return;
-
-    const container = await generateBudgetHTMLContainer();
-    if (!container) return;
-
-    const filename = `Presupuesto_${patient.id}_${patient.fullname.replace(/\s+/g, '_')}.pdf`;
-    generatePDFFromElement(container, filename);
 }
 
 // --- FACTURACIÓN ---
@@ -14943,17 +14956,39 @@ function getPaymentMethodLabel(method) {
 async function generatePDFFromElement(element, filename) {
     if (!element) return;
 
-    // Clean up any existing print sections
+    // Si la librería html2pdf está disponible, generar descarga directa de PDF de alta resolución
+    if (typeof html2pdf !== 'undefined') {
+        const clone = element.cloneNode(true);
+        clone.style.width = '794px';
+        clone.style.maxWidth = '794px';
+        clone.style.margin = '0 auto';
+        clone.style.padding = '10px';
+        clone.style.background = '#ffffff';
+        clone.style.color = '#000000';
+
+        const opt = {
+            margin: [8, 8, 8, 8],
+            filename: filename || 'documento.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, logging: false },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        try {
+            await html2pdf().set(opt).from(clone).save();
+            return;
+        } catch(pdfErr) {
+            console.warn("html2pdf directo falló, usando ventana de impresión:", pdfErr);
+        }
+    }
+
+    // Fallback: Modo de impresión del navegador
     document.querySelectorAll('.print-section').forEach(el => el.remove());
-
     const htmlContent = element.innerHTML || element.outerHTML || '';
-
-    // Create pristine print-section container attached directly to body
     const printSection = document.createElement('div');
     printSection.className = 'print-section';
     printSection.innerHTML = htmlContent;
 
-    // Ensure all internal elements inside printSection are fully expanded without scrollbars
     printSection.querySelectorAll('*').forEach(el => {
         if (el.style.maxHeight && el.style.maxHeight !== 'none') el.style.maxHeight = 'none';
         if (el.style.overflow === 'auto' || el.style.overflow === 'scroll' || el.style.overflowY === 'auto' || el.style.overflowY === 'scroll') {
@@ -14976,22 +15011,16 @@ async function generatePDFFromElement(element, filename) {
     }
 
     document.body.appendChild(printSection);
-
-    // Save previous document title and replace with target filename (used as default PDF name)
     const originalTitle = document.title;
-    if (filename) {
-        document.title = filename.replace(/\.pdf$/i, '');
-    }
+    if (filename) document.title = filename.replace(/\.pdf$/i, '');
 
     try {
-        await new Promise(resolve => setTimeout(resolve, 150));
+        await new Promise(resolve => setTimeout(resolve, 200));
         window.print();
     } finally {
         setTimeout(() => {
             document.title = originalTitle;
-            if (printSection && printSection.parentNode) {
-                printSection.remove();
-            }
+            if (printSection && printSection.parentNode) printSection.remove();
         }, 1000);
     }
 }
