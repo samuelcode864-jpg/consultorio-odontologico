@@ -9331,7 +9331,9 @@ function initGlobalEvents() {
                 const discountVES = (discountAmountUSD * rate).toFixed(2);
 
                 const paymentModeSelect = document.getElementById('payment-mode-select');
-                const paymentModeText = paymentModeSelect ? paymentModeSelect.options[paymentModeSelect.selectedIndex].text : 'Contado';
+                const paymentModeText = (paymentModeSelect && paymentModeSelect.selectedIndex >= 0 && paymentModeSelect.options[paymentModeSelect.selectedIndex]) 
+                    ? paymentModeSelect.options[paymentModeSelect.selectedIndex].text 
+                    : 'Contado';
                 const paymentMethodSelect = document.getElementById('budget-payment-method');
                 const rawPaymentMethod = paymentMethodSelect ? paymentMethodSelect.value : '';
                 
@@ -13208,9 +13210,13 @@ async function generateBudgetHTMLContainer() {
     const totalUSD = subtotalUSD - discountAmountUSD;
 
     const paymentModeSelect = document.getElementById('payment-mode-select');
-    const paymentModeText = paymentModeSelect ? paymentModeSelect.options[paymentModeSelect.selectedIndex].text : 'Contado';
+    const paymentModeText = (paymentModeSelect && paymentModeSelect.selectedIndex >= 0 && paymentModeSelect.options[paymentModeSelect.selectedIndex]) 
+        ? paymentModeSelect.options[paymentModeSelect.selectedIndex].text 
+        : 'Contado';
     const budgetPaymentMethod = document.getElementById('budget-payment-method');
-    const budgetPaymentMethodText = budgetPaymentMethod ? budgetPaymentMethod.options[budgetPaymentMethod.selectedIndex].text : 'Transferencia / Pago Móvil';
+    const budgetPaymentMethodText = (budgetPaymentMethod && budgetPaymentMethod.selectedIndex >= 0 && budgetPaymentMethod.options[budgetPaymentMethod.selectedIndex]) 
+        ? budgetPaymentMethod.options[budgetPaymentMethod.selectedIndex].text 
+        : 'Transferencia / Pago Móvil';
     const notes = document.getElementById('budget-notes') ? document.getElementById('budget-notes').value : '';
     const consentText = document.getElementById('consent-text') ? document.getElementById('consent-text').value : '';
 
@@ -14965,7 +14971,11 @@ async function generatePDFFromElement(element, filename) {
         clone.style.padding = '10px';
         clone.style.background = '#ffffff';
         clone.style.color = '#000000';
-
+        clone.style.position = 'fixed';
+        clone.style.left = '-9999px';
+        clone.style.top = '0';
+        clone.style.zIndex = '-9999';
+        document.body.appendChild(clone);
         const opt = {
             margin: [8, 8, 8, 8],
             filename: filename || 'documento.pdf',
@@ -14979,6 +14989,10 @@ async function generatePDFFromElement(element, filename) {
             return;
         } catch(pdfErr) {
             console.warn("html2pdf directo falló, usando ventana de impresión:", pdfErr);
+        } finally {
+            if (clone && clone.parentNode) {
+                clone.parentNode.removeChild(clone);
+            }
         }
     }
 
