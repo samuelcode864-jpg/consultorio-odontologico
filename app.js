@@ -3695,6 +3695,49 @@ async function getDoctorsList() {
 let isRenderingBudgetTable = false;
 let pendingRenderBudgetTable = false;
 
+
+// Helper: Determinar si un tratamiento en el presupuesto o ficha clínica ya fue realizado/completado
+function isItemCompleted(item) {
+    if (!item) return false;
+    const st = String(item.status || '').toLowerCase().trim();
+    if (st === 'completado' || st === 'atendido' || st === 'realizado' || st === 'finalizado') {
+        return true;
+    }
+    const activeId = (typeof getActivePatientId === 'function') ? getActivePatientId() : null;
+    if (activeId) {
+        let p = null;
+        if (window.allPatientsCache && Array.isArray(window.allPatientsCache)) {
+            p = window.allPatientsCache.find(x => String(x.id) === String(activeId));
+        }
+        if (!p) {
+            try {
+                const localPts = JSON.parse(localStorage.getItem('dental_patients') || '[]');
+                p = localPts.find(x => String(x.id) === String(activeId));
+            } catch(e) {}
+        }
+        if (p) {
+            const trts = (p.metadata && Array.isArray(p.metadata.treatments)) ? p.metadata.treatments : [];
+            const foundTrt = trts.find(t => {
+                const sameTooth = item.tooth && t.tooth && String(item.tooth) === String(t.tooth);
+                const sameName = item.name && t.name && (item.name === t.name || item.name.includes(t.name) || t.name.includes(item.name));
+                return (sameTooth && sameName) || (sameTooth && !t.name) || (sameName && !t.tooth);
+            });
+            if (foundTrt) {
+                const tSt = String(foundTrt.status || '').toLowerCase().trim();
+                if (tSt === 'completado' || tSt === 'atendido' || tSt === 'realizado') return true;
+            }
+            const sessions = Array.isArray(p.sessions) ? p.sessions : ((p.metadata && Array.isArray(p.metadata.sessions)) ? p.metadata.sessions : []);
+            const foundSess = sessions.find(s => {
+                if (!s.procedure) return false;
+                return (item.name && (s.procedure.includes(item.name) || item.name.includes(s.procedure))) ||
+                       (item.tooth && item.tooth !== 'Gnl' && s.procedure.includes(String(item.tooth)));
+            });
+            if (foundSess) return true;
+        }
+    }
+    return false;
+}
+
 async function renderBudgetTable() {
     if (isRenderingBudgetTable) {
         pendingRenderBudgetTable = true;
@@ -3793,7 +3836,7 @@ async function renderBudgetTable() {
                 subtotalUSD += item.price;
             }
 
-            const isDone = item.status === 'Completado' || item.status === 'Atendido';
+            const isDone = isItemCompleted(item);
             const statusBadge = isDone 
                 ? '<span class="badge-tag green" style="font-size:0.68rem; margin-left:4px; padding:2px 6px;">✓ Realizado</span>' 
                 : '';
@@ -3827,10 +3870,10 @@ async function renderBudgetTable() {
 
             // Handle checkbox toggle
             const chk = tr.querySelector('.budget-item-checkbox');
-            chk.addEventListener('change', async (e) => {
+            chk.addEventListener('change', (e) => {
                 currentBudgetItems[index].isSelected = e.target.checked;
-                await autoSaveActivePatientOdontogram();
                 renderBudgetTable();
+                autoSaveActivePatientOdontogram().catch(err => console.warn("autoSave error:", err));
             });
 
             // Handle specialist select change
@@ -3859,44 +3902,56 @@ async function renderBudgetTable() {
         if (masterChk) {
             masterChk.checked = currentBudgetItems.length > 0 && currentBudgetItems.every(i => i.isSelected !== false);
             masterChk.indeterminate = currentBudgetItems.some(i => i.isSelected !== false) && !masterChk.checked;
-            masterChk.onchange = async () => {
+            masterChk.onchange = () => {
                 const state = masterChk.checked;
                 currentBudgetItems.forEach(i => i.isSelected = state);
-                await autoSaveActivePatientOdontogram();
                 renderBudgetTable();
+                autoSaveActivePatientOdontogram().catch(e => console.warn("autoSave error:", e));
             };
         }
 
         const btnSelectAll = document.getElementById('btn-budget-select-all');
-        if (btnSelectAll && !btnSelectAll.dataset.hasListener) {
-            btnSelectAll.dataset.hasListener = 'true';
-            btnSelectAll.onclick = async () => {
+        if (btnSelectAll) {
+            btnSelectAll.onclick = () => {
+                if (!currentBudgetItems || currentBudgetItems.length === 0) return;
                 currentBudgetItems.forEach(i => i.isSelected = true);
-                await autoSaveActivePatientOdontogram();
                 renderBudgetTable();
+                autoSaveActivePatientOdontogram().catch(e => console.warn("autoSave error:", e));
             };
         }
 
         const btnSelectPending = document.getElementById('btn-budget-select-pending');
-        if (btnSelectPending && !btnSelectPending.dataset.hasListener) {
-            btnSelectPending.dataset.hasListener = 'true';
-            btnSelectPending.onclick = async () => {
+        if (btnSelectPending) {
+            btnSelectPending.onclick = () => {
+                if (!currentBudgetItems || currentBudgetItems.length === 0) return;
+                let pendingCount = 0;
                 currentBudgetItems.forEach(i => {
-                    const isDone = i.status === 'Completado' || i.status === 'Atendido';
+                    const isDone = isItemCompleted(i);
                     i.isSelected = !isDone;
+                    if (!isDone) pendingCount++;
                 });
-                await autoSaveActivePatientOdontogram();
                 renderBudgetTable();
+                autoSaveActivePatientOdontogram().catch(e => console.warn("autoSave error:", e));
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'info',
+                        title: pendingCount > 0 ? `${pendingCount} tratamiento(s) pendiente(s) seleccionado(s)` : 'Todos los tratamientos están realizados o no hay pendientes',
+                        showConfirmButton: false,
+                        timer: 2000
+                    });
+                }
             };
         }
 
         const btnSelectNone = document.getElementById('btn-budget-select-none');
-        if (btnSelectNone && !btnSelectNone.dataset.hasListener) {
-            btnSelectNone.dataset.hasListener = 'true';
-            btnSelectNone.onclick = async () => {
+        if (btnSelectNone) {
+            btnSelectNone.onclick = () => {
+                if (!currentBudgetItems || currentBudgetItems.length === 0) return;
                 currentBudgetItems.forEach(i => i.isSelected = false);
-                await autoSaveActivePatientOdontogram();
                 renderBudgetTable();
+                autoSaveActivePatientOdontogram().catch(e => console.warn("autoSave error:", e));
             };
         }
 
@@ -3996,8 +4051,8 @@ async function renderPatientsTable(filter = 'all', searchQuery = '') {
     const tbody = document.getElementById('patients-table-body');
     if (!tbody) return;
 
-    let patients = await SupabaseDataService.getPatients(false);
     tbody.innerHTML = '';
+    let patients = await SupabaseDataService.getPatients();
     const currentUser = getCurrentUser();
     const isAssistant = currentUser && currentUser.role.toLowerCase().includes('asistente');
 
@@ -4049,26 +4104,13 @@ async function renderPatientsTable(filter = 'all', searchQuery = '') {
         }
 
         let alertsHtml = '';
-        let allergiesList = [];
-        if (Array.isArray(p.allergies)) allergiesList = p.allergies;
-        else if (typeof p.allergies === 'string' && p.allergies.trim()) {
-            try { const parsed = JSON.parse(p.allergies); allergiesList = Array.isArray(parsed) ? parsed : [p.allergies]; }
-            catch(e) { allergiesList = [p.allergies]; }
-        }
-        if (allergiesList.length > 0) {
-            allergiesList.forEach(a => {
+        if (p.allergies && p.allergies.length > 0) {
+            p.allergies.forEach(a => {
                 alertsHtml += `<span class="badge-tag red"><i class="fa-solid fa-triangle-exclamation"></i> Alergia: ${a}</span> `;
             });
         }
-
-        let systemicList = [];
-        if (Array.isArray(p.systemic)) systemicList = p.systemic;
-        else if (typeof p.systemic === 'string' && p.systemic.trim()) {
-            try { const parsed = JSON.parse(p.systemic); systemicList = Array.isArray(parsed) ? parsed : [p.systemic]; }
-            catch(e) { systemicList = [p.systemic]; }
-        }
-        if (systemicList.length > 0) {
-            systemicList.forEach(s => {
+        if (p.systemic && p.systemic.length > 0) {
+            p.systemic.forEach(s => {
                 alertsHtml += `<span class="badge-tag amber"><i class="fa-solid fa-heart-pulse"></i> ${s}</span> `;
             });
         }
@@ -7007,6 +7049,50 @@ window.deleteUser = async function(userId) {
 // GLOBAL EVENTS & MODALS BINDING
 // ==========================================
 function initGlobalEvents() {
+    // Binding estático permanente para barra de selección de tratamientos en presupuesto
+    const staticBtnAll = document.getElementById('btn-budget-select-all');
+    if (staticBtnAll) {
+        staticBtnAll.onclick = () => {
+            if (!currentBudgetItems || currentBudgetItems.length === 0) return;
+            currentBudgetItems.forEach(i => i.isSelected = true);
+            renderBudgetTable();
+            autoSaveActivePatientOdontogram().catch(e => console.warn("autoSave error:", e));
+        };
+    }
+    const staticBtnPending = document.getElementById('btn-budget-select-pending');
+    if (staticBtnPending) {
+        staticBtnPending.onclick = () => {
+            if (!currentBudgetItems || currentBudgetItems.length === 0) return;
+            let pendingCount = 0;
+            currentBudgetItems.forEach(i => {
+                const isDone = isItemCompleted(i);
+                i.isSelected = !isDone;
+                if (!isDone) pendingCount++;
+            });
+            renderBudgetTable();
+            autoSaveActivePatientOdontogram().catch(e => console.warn("autoSave error:", e));
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'info',
+                    title: pendingCount > 0 ? `${pendingCount} tratamiento(s) pendiente(s) seleccionado(s)` : 'Todos los tratamientos están realizados o no hay pendientes',
+                    showConfirmButton: false,
+                    timer: 2000
+                });
+            }
+        };
+    }
+    const staticBtnNone = document.getElementById('btn-budget-select-none');
+    if (staticBtnNone) {
+        staticBtnNone.onclick = () => {
+            if (!currentBudgetItems || currentBudgetItems.length === 0) return;
+            currentBudgetItems.forEach(i => i.isSelected = false);
+            renderBudgetTable();
+            autoSaveActivePatientOdontogram().catch(e => console.warn("autoSave error:", e));
+        };
+    }
+
     initPatientStepperWizard();
     initSettingsEvents();
 
@@ -9331,9 +9417,7 @@ function initGlobalEvents() {
                 const discountVES = (discountAmountUSD * rate).toFixed(2);
 
                 const paymentModeSelect = document.getElementById('payment-mode-select');
-                const paymentModeText = (paymentModeSelect && paymentModeSelect.selectedIndex >= 0 && paymentModeSelect.options[paymentModeSelect.selectedIndex]) 
-                    ? paymentModeSelect.options[paymentModeSelect.selectedIndex].text 
-                    : 'Contado';
+                const paymentModeText = paymentModeSelect ? paymentModeSelect.options[paymentModeSelect.selectedIndex].text : 'Contado';
                 const paymentMethodSelect = document.getElementById('budget-payment-method');
                 const rawPaymentMethod = paymentMethodSelect ? paymentMethodSelect.value : '';
                 
@@ -9632,55 +9716,61 @@ function initGlobalEvents() {
     const sendWpBtn = document.getElementById('btn-send-whatsapp');
     if (sendWpBtn) {
         sendWpBtn.onclick = async () => {
-            try {
-                const activeId = getActivePatientId();
-                if (!activeId) {
-                    Swal.fire({ icon: 'info', title: 'Seleccione un paciente', text: 'Por favor active un paciente antes de enviar el presupuesto.' });
-                    return;
-                }
-                const patients = await SupabaseDataService.getPatients();
-                const patient = patients.find(p => String(p.id) === String(activeId));
-                if (!patient) {
-                    Swal.fire({ icon: 'error', title: 'Paciente no encontrado', text: 'No se encontró el paciente activo en la base de datos.' });
-                    return;
-                }
-
-                if (!currentBudgetItems || currentBudgetItems.length === 0) {
-                    Swal.fire({ icon: 'warning', title: 'Presupuesto vacío', text: 'Agregue al menos un tratamiento al presupuesto antes de enviarlo.' });
-                    return;
-                }
-
-                // Filter selected items for this message
-                const selectedItems = currentBudgetItems.filter(item => item && item.isSelected !== false);
-                const itemsToSend = selectedItems.length > 0 ? selectedItems : currentBudgetItems;
-
-                // Calculate totals
-                let subtotalUSD = 0;
-                itemsToSend.forEach(item => {
-                    subtotalUSD += parseFloat(item.price || item.priceUSD || 0) || 0;
-                });
-                const discEl = document.getElementById('budget-discount-input');
-                const discountPct = discEl ? (parseFloat(discEl.value) || 0) : 0;
-                const discountAmountUSD = subtotalUSD * (discountPct / 100);
-                const totalUSD = subtotalUSD - discountAmountUSD;
-
-                const paymentModeSelect = document.getElementById('payment-mode-select');
-                const paymentModeText = (paymentModeSelect && paymentModeSelect.selectedIndex >= 0) 
-                    ? paymentModeSelect.options[paymentModeSelect.selectedIndex]?.text 
-                    : 'Contado';
-                const paymentMethodSelect = document.getElementById('budget-payment-method');
-                const paymentMethodLabel = (paymentMethodSelect && paymentMethodSelect.selectedIndex >= 0) 
-                    ? paymentMethodSelect.options[paymentMethodSelect.selectedIndex]?.text 
-                    : 'Pago Móvil';
-                
-                const notes = document.getElementById('budget-notes')?.value || '';
-
-                const msg = WhatsAppService.generateBudgetMessage(patient, itemsToSend, totalUSD, paymentModeText, notes, subtotalUSD, discountPct, paymentMethodLabel, activeEditingBudgetId || '');
-                WhatsAppService.sendToPatient(patient.phone, msg);
-            } catch(err) {
-                console.error("Error al enviar presupuesto por WhatsApp:", err);
-                Swal.fire({ icon: 'error', title: 'Error al enviar por WhatsApp', text: err.message || 'Ocurrió un error al procesar el mensaje.' });
+            const activeId = getActivePatientId();
+            if (!activeId) {
+                Swal.fire({ icon: 'info', title: 'Seleccione un paciente', text: 'Por favor active un paciente antes de enviar el presupuesto.' });
+                return;
             }
+            const patients = await SupabaseDataService.getPatients();
+            const patient = patients.find(p => p.id === activeId);
+            if (!patient) return;
+
+            if (currentBudgetItems.length === 0) {
+                Swal.fire({ icon: 'warning', title: 'Presupuesto vacío', text: 'Agregue al menos un tratamiento al presupuesto.' });
+                return;
+            }
+
+            // Filter selected items for this message
+            const selectedItems = currentBudgetItems.filter(item => item.isSelected !== false);
+            const itemsToSend = selectedItems.length > 0 ? selectedItems : currentBudgetItems;
+
+            // Calculate totals
+            let subtotalUSD = 0;
+            itemsToSend.forEach(item => {
+                subtotalUSD += item.price || 0;
+            });
+            const discountPct = parseFloat(document.getElementById('budget-discount-input').value) || 0;
+            const discountAmountUSD = subtotalUSD * (discountPct / 100);
+            const totalUSD = subtotalUSD - discountAmountUSD;
+
+            const paymentModeSelect = document.getElementById('payment-mode-select');
+            const paymentModeText = paymentModeSelect.options[paymentModeSelect.selectedIndex].text;
+            const paymentMethodSelect = document.getElementById('budget-payment-method');
+            const paymentMethodLabel = paymentMethodSelect.options[paymentMethodSelect.selectedIndex].text;
+            
+            const notes = document.getElementById('budget-notes').value;
+            const consentText = document.getElementById('consent-text').value;
+
+            // VALIDAR QUE EL PRESUPUESTO ESTÉ APROBADO ANTES DE ENVIARLO
+            let isApproved = false;
+            if (activeEditingBudgetId) {
+                const invoices = await SupabaseDataService.getInvoices();
+                const inv = invoices.find(i => String(i.id) === String(activeEditingBudgetId));
+                const st = String(inv?.status || '').toLowerCase();
+                isApproved = st === 'aprobado' || st === 'approved' || st === 'facturado' || st === 'completada' || st === 'finalizado';
+            }
+
+            if (!isApproved) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Presupuesto no Aprobado',
+                    text: 'No se puede enviar el presupuesto al paciente por WhatsApp porque aún no ha sido Aprobado. Debe hacer clic en "Aprobar Presupuesto" antes de enviarlo.'
+                });
+                return;
+            }
+
+            const msg = WhatsAppService.generateBudgetMessage(patient, itemsToSend, totalUSD, paymentModeText, notes, subtotalUSD, discountPct, paymentMethodLabel, activeEditingBudgetId);
+            WhatsAppService.sendToPatient(patient.phone, msg);
         };
     }
 
@@ -13210,13 +13300,9 @@ async function generateBudgetHTMLContainer() {
     const totalUSD = subtotalUSD - discountAmountUSD;
 
     const paymentModeSelect = document.getElementById('payment-mode-select');
-    const paymentModeText = (paymentModeSelect && paymentModeSelect.selectedIndex >= 0 && paymentModeSelect.options[paymentModeSelect.selectedIndex]) 
-        ? paymentModeSelect.options[paymentModeSelect.selectedIndex].text 
-        : 'Contado';
+    const paymentModeText = paymentModeSelect ? paymentModeSelect.options[paymentModeSelect.selectedIndex].text : 'Contado';
     const budgetPaymentMethod = document.getElementById('budget-payment-method');
-    const budgetPaymentMethodText = (budgetPaymentMethod && budgetPaymentMethod.selectedIndex >= 0 && budgetPaymentMethod.options[budgetPaymentMethod.selectedIndex]) 
-        ? budgetPaymentMethod.options[budgetPaymentMethod.selectedIndex].text 
-        : 'Transferencia / Pago Móvil';
+    const budgetPaymentMethodText = budgetPaymentMethod ? budgetPaymentMethod.options[budgetPaymentMethod.selectedIndex].text : 'Transferencia / Pago Móvil';
     const notes = document.getElementById('budget-notes') ? document.getElementById('budget-notes').value : '';
     const consentText = document.getElementById('consent-text') ? document.getElementById('consent-text').value : '';
 
@@ -13290,33 +13376,20 @@ async function generateBudgetHTMLContainer() {
 }
 
 async function downloadBudgetPDF() {
-    try {
-        const activeId = getActivePatientId();
-        if (!activeId) {
-            Swal.fire({ icon: 'info', title: 'Seleccione un paciente', text: 'Por favor active un paciente para exportar su Presupuesto en PDF.' });
-            return;
-        }
-        const patients = await SupabaseDataService.getPatients();
-        const patient = patients.find(p => String(p.id) === String(activeId));
-        if (!patient) {
-            Swal.fire({ icon: 'error', title: 'Paciente no encontrado', text: 'No se encontró el paciente activo en la base de datos.' });
-            return;
-        }
-
-        // Preparar documento para vista nativa de impresion/PDF
-
-        const container = await generateBudgetHTMLContainer();
-        if (!container) {
-            Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo generar la plantilla del presupuesto.' });
-            return;
-        }
-
-        const filename = `Presupuesto_${patient.id}_${(patient.fullname || 'Paciente').replace(/\s+/g, '_')}.pdf`;
-        await generatePDFFromElement(container, filename);
-    } catch(err) {
-        console.error("Error al exportar PDF:", err);
-        Swal.fire({ icon: 'error', title: 'Error al exportar PDF', text: err.message || 'Ocurrió un error inesperado al generar el PDF.' });
+    const activeId = getActivePatientId();
+    if (!activeId) {
+        Swal.fire({ icon: 'info', title: 'Seleccione un paciente', text: 'Por favor active un paciente para exportar su Presupuesto en PDF.' });
+        return;
     }
+    const patients = await SupabaseDataService.getPatients();
+    const patient = patients.find(p => p.id === activeId);
+    if (!patient) return;
+
+    const container = await generateBudgetHTMLContainer();
+    if (!container) return;
+
+    const filename = `Presupuesto_${patient.id}_${patient.fullname.replace(/\s+/g, '_')}.pdf`;
+    generatePDFFromElement(container, filename);
 }
 
 // --- FACTURACIÓN ---
@@ -14956,19 +15029,17 @@ function getPaymentMethodLabel(method) {
 async function generatePDFFromElement(element, filename) {
     if (!element) return;
 
-    if (typeof Swal !== 'undefined' && Swal.isVisible()) {
-        Swal.close();
-    }
-
     // Clean up any existing print sections
     document.querySelectorAll('.print-section').forEach(el => el.remove());
 
     const htmlContent = element.innerHTML || element.outerHTML || '';
+
+    // Create pristine print-section container attached directly to body
     const printSection = document.createElement('div');
     printSection.className = 'print-section';
-    printSection.id = 'print-section';
     printSection.innerHTML = htmlContent;
 
+    // Ensure all internal elements inside printSection are fully expanded without scrollbars
     printSection.querySelectorAll('*').forEach(el => {
         if (el.style.maxHeight && el.style.maxHeight !== 'none') el.style.maxHeight = 'none';
         if (el.style.overflow === 'auto' || el.style.overflow === 'scroll' || el.style.overflowY === 'auto' || el.style.overflowY === 'scroll') {
@@ -14991,17 +15062,23 @@ async function generatePDFFromElement(element, filename) {
     }
 
     document.body.appendChild(printSection);
+
+    // Save previous document title and replace with target filename (used as default PDF name)
     const originalTitle = document.title;
-    if (filename) document.title = filename.replace(/\.pdf$/i, '');
+    if (filename) {
+        document.title = filename.replace(/\.pdf$/i, '');
+    }
 
     try {
-        await new Promise(resolve => setTimeout(resolve, 250));
+        await new Promise(resolve => setTimeout(resolve, 150));
         window.print();
     } finally {
         setTimeout(() => {
             document.title = originalTitle;
-            if (printSection && printSection.parentNode) printSection.remove();
-        }, 1500);
+            if (printSection && printSection.parentNode) {
+                printSection.remove();
+            }
+        }, 1000);
     }
 }
 
