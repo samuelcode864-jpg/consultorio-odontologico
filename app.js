@@ -3071,18 +3071,22 @@ window.populateClinicalEpisodesSelect = async function(patient, selectedBudgetId
     };
 
     const btnNewEp = document.getElementById('btn-new-clinical-episode');
-    if (btnNewEp && !btnNewEp.dataset.hasListener) {
-        btnNewEp.dataset.hasListener = 'true';
+    if (btnNewEp) {
         btnNewEp.onclick = async () => {
-            await window.startNewEpisodeForPatient(patient.id, true);
+            const currentActiveId = getActivePatientId() || (window.activeEHRPatient && window.activeEHRPatient.id);
+            await window.startNewEpisodeForPatient(currentActiveId, true);
         };
     }
 };
 
 window.startNewEpisodeForPatient = async function(patientId, confirmPrompt = true) {
+    const targetId = patientId || getActivePatientId() || (window.activeEHRPatient && window.activeEHRPatient.id);
     const patients = await SupabaseDataService.getPatients();
-    const patient = patients.find(p => String(p.id) === String(patientId));
-    if (!patient) return;
+    const patient = patients.find(p => String(p.id) === String(targetId)) || window.activeEHRPatient;
+    if (!patient) {
+        Swal.fire({ icon: 'warning', title: 'Paciente no seleccionado', text: 'Por favor seleccione o abra la ficha de un paciente antes de iniciar una nueva fase.' });
+        return;
+    }
 
     if (confirmPrompt) {
         const res = await Swal.fire({
@@ -5606,18 +5610,53 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                 submitPhotoBtn.onclick = async (e) => {
                     e.preventDefault();
                     const fileInput = document.getElementById('ehr-modal-photo-file');
-                    const category = document.getElementById('ehr-modal-photo-category').value;
-                    const title = document.getElementById('ehr-modal-photo-title').value.trim();
-                    const notes = document.getElementById('ehr-modal-photo-notes').value.trim();
+                    const category = document.getElementById('ehr-modal-photo-category') ? document.getElementById('ehr-modal-photo-category').value : 'Radiografía';
+                    const title = document.getElementById('ehr-modal-photo-title') ? document.getElementById('ehr-modal-photo-title').value.trim() : '';
+                    const notes = document.getElementById('ehr-modal-photo-notes') ? document.getElementById('ehr-modal-photo-notes').value.trim() : '';
 
-                    if (!fileInput.files[0] || !title) {
+                    if (!fileInput || !fileInput.files || !fileInput.files[0] || !title) {
                         Swal.fire({ icon: 'warning', text: 'Por favor seleccione una imagen y escriba un título para el estudio.' });
                         return;
                     }
 
-                    const reader = new FileReader();
-                    reader.onload = async (event) => {
-                        const photoBase64 = event.target.result;
+                    const file = fileInput.files[0];
+                    const origBtnHtml = submitPhotoBtn.innerHTML;
+                    submitPhotoBtn.disabled = true;
+                    submitPhotoBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Procesando y guardando estudio...';
+
+                    try {
+                        // Comprimir imagen usando canvas para carga ultra-rápida y almacenamiento óptimo
+                        const photoBase64 = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                                const img = new Image();
+                                img.onload = () => {
+                                    let width = img.width;
+                                    let height = img.height;
+                                    const maxDim = 1400;
+                                    if (width > maxDim || height > maxDim) {
+                                        if (width > height) {
+                                            height = Math.round((height * maxDim) / width);
+                                            width = maxDim;
+                                        } else {
+                                            width = Math.round((width * maxDim) / height);
+                                            height = maxDim;
+                                        }
+                                    }
+                                    const canvas = document.createElement('canvas');
+                                    canvas.width = width;
+                                    canvas.height = height;
+                                    const ctx = canvas.getContext('2d');
+                                    ctx.drawImage(img, 0, 0, width, height);
+                                    resolve(canvas.toDataURL('image/jpeg', 0.82));
+                                };
+                                img.onerror = () => resolve(event.target.result); // Fallback si no es imagen parseable en canvas
+                                img.src = event.target.result;
+                            };
+                            reader.onerror = reject;
+                            reader.readAsDataURL(file);
+                        });
+
                         const newPhoto = {
                             id: 'photo_' + Date.now(),
                             url: photoBase64,
@@ -5627,24 +5666,34 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                             date: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
                         };
 
-                        activePatient.metadata = activePatient.metadata || {};
-                        activePatient.metadata.photos = activePatient.metadata.photos || [];
+                        if (!activePatient.metadata) activePatient.metadata = {};
+                        if (!activePatient.metadata.photos) activePatient.metadata.photos = [];
                         activePatient.metadata.photos.unshift(newPhoto);
 
-                        await SupabaseDataService.updatePatient(activePatient.id, activePatient);
+                        await SupabaseDataService.savePatient(activePatient);
+                        window.activeEHRPatient = activePatient;
                         closeModal('modal-ehr-photo-upload');
 
                         Swal.fire({
                             icon: 'success',
                             title: '¡Foto / Rayos X Guardado!',
-                            text: 'El estudio se añadió al álbum clínico del paciente.',
+                            text: 'El estudio se añadió con éxito al álbum clínico del paciente.',
                             timer: 1800,
                             showConfirmButton: false
                         });
 
                         renderEHRGallery(activePatient, window.currentEHRGalleryFilter || 'all');
-                    };
-                    reader.readAsDataURL(fileInput.files[0]);
+                    } catch (err) {
+                        console.error('Error al guardar foto/rayos x:', err);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error al guardar estudio',
+                            text: 'Ocurrió un error al procesar o guardar el estudio: ' + (err.message || err)
+                        });
+                    } finally {
+                        submitPhotoBtn.disabled = false;
+                        submitPhotoBtn.innerHTML = origBtnHtml;
+                    }
                 };
             }
         }
@@ -6500,11 +6549,24 @@ async function renderDashboard() {
         const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local format
         const monthStr = todayStr.substring(0, 7); // YYYY-MM
 
+        // Configuración de Rango de Fechas Activo en Dashboard
+        const inputFrom = document.getElementById('dash-filter-from');
+        const inputTo = document.getElementById('dash-filter-to');
+        
+        let filterFrom = window.dashboardFilterFrom || (inputFrom ? inputFrom.value : '') || '';
+        let filterTo = window.dashboardFilterTo || (inputTo ? inputTo.value : '') || '';
+        const isRangeFilterActive = !!(filterFrom && filterTo);
+
+        if (inputFrom && filterFrom && !inputFrom.value) inputFrom.value = filterFrom;
+        if (inputTo && filterTo && !inputTo.value) inputTo.value = filterTo;
+
         let todayIncome = 0;
         let monthIncome = 0;
+        let rangeIncome = 0;
         let totalReceivables = 0;
         const debtorPatientsSet = new Set();
         let attendedCount = 0;
+        let attendedRangeCount = 0;
         const procedureCounts = {};
 
         allPatients.forEach(p => {
@@ -6520,6 +6582,9 @@ async function renderDashboard() {
                 if (payDate.startsWith(monthStr)) {
                     monthIncome += paid;
                 }
+                if (isRangeFilterActive && payDate >= filterFrom && payDate <= filterTo) {
+                    rangeIncome += paid;
+                }
                 if (debt > 0) {
                     totalReceivables += debt;
                     debtorPatientsSet.add(p.id);
@@ -6528,7 +6593,9 @@ async function renderDashboard() {
 
             // 2. Sesiones clínicas
             (p.sessions || []).forEach(s => {
-                if (s.procedure) {
+                const sDate = s.datetime ? s.datetime.split(' ')[0].split('T')[0] : '';
+                const inRange = !isRangeFilterActive || (sDate >= filterFrom && sDate <= filterTo);
+                if (inRange && s.procedure) {
                     const procName = s.procedure.split('(')[0].trim();
                     if (procName) {
                         procedureCounts[procName] = (procedureCounts[procName] || 0) + 1;
@@ -6536,17 +6603,34 @@ async function renderDashboard() {
                 }
             });
 
-            // 3. Pacientes atendidos hoy
+            // 3. Pacientes atendidos
             let hasSessionToday = false;
+            let hasSessionInRange = false;
             if (p.sessions && p.sessions.length > 0) {
                 hasSessionToday = p.sessions.some(s => s.datetime && s.datetime.startsWith(todayStr));
+                if (isRangeFilterActive) {
+                    hasSessionInRange = p.sessions.some(s => {
+                        const sDate = s.datetime ? s.datetime.split(' ')[0].split('T')[0] : '';
+                        return sDate >= filterFrom && sDate <= filterTo;
+                    });
+                }
             }
             let hasNoteToday = false;
+            let hasNoteInRange = false;
             if (p.clinicalNotes && p.clinicalNotes.length > 0) {
                 hasNoteToday = p.clinicalNotes.some(n => n.datetime && n.datetime.replace('T', ' ').startsWith(todayStr));
+                if (isRangeFilterActive) {
+                    hasNoteInRange = p.clinicalNotes.some(n => {
+                        const nDate = n.datetime ? n.datetime.replace('T', ' ').split(' ')[0] : '';
+                        return nDate >= filterFrom && nDate <= filterTo;
+                    });
+                }
             }
             if (hasSessionToday || hasNoteToday) {
                 attendedCount++;
+            }
+            if (hasSessionInRange || hasNoteInRange) {
+                attendedRangeCount++;
             }
         });
 
@@ -6566,11 +6650,26 @@ async function renderDashboard() {
         const conversionPct = totalBudgets > 0 ? Math.round((approvedBudgets / totalBudgets) * 100) : 0;
 
         // Render Cards
+        const card1Label = document.getElementById('label-stat-card-1');
         const metricToday = document.getElementById('metric-today-income');
-        if (metricToday) metricToday.innerText = `${curSymbol}${todayIncome.toFixed(2)}`;
-
         const trendToday = document.getElementById('metric-today-trend');
-        if (trendToday) trendToday.innerHTML = `<i class="fa-solid fa-circle-dollar-to-slot"></i> ${curSymbol}${todayIncome.toFixed(2)} hoy`;
+        const rate = (typeof getExchangeRate === 'function') ? getExchangeRate() : 1;
+
+        if (isRangeFilterActive) {
+            if (card1Label) card1Label.innerHTML = '<i class="fa-solid fa-filter text-cyan"></i> Ingresos del Rango';
+            if (metricToday) metricToday.innerText = `${curSymbol}${rangeIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            if (trendToday) {
+                trendToday.className = 'trend up';
+                trendToday.innerHTML = `<i class="fa-solid fa-calendar-check"></i> Bs. ${(rangeIncome * rate).toFixed(2)} • ${filterFrom} al ${filterTo}`;
+            }
+        } else {
+            if (card1Label) card1Label.innerText = 'Ingresos del Día';
+            if (metricToday) metricToday.innerText = `${curSymbol}${todayIncome.toFixed(2)}`;
+            if (trendToday) {
+                trendToday.className = 'trend up';
+                trendToday.innerHTML = `<i class="fa-solid fa-circle-dollar-to-slot"></i> ${curSymbol}${todayIncome.toFixed(2)} hoy (Bs. ${(todayIncome * rate).toFixed(2)})`;
+            }
+        }
 
         const metricMonth = document.getElementById('metric-month-income');
         if (metricMonth) metricMonth.innerText = `${curSymbol}${monthIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -6591,7 +6690,9 @@ async function renderDashboard() {
         if (subReceivables) subReceivables.innerText = `${debtorPatientsSet.size} ${debtorPatientsSet.size === 1 ? 'paciente' : 'pacientes'} con saldo pendiente`;
 
         const metricAttendedToday = document.getElementById('metric-attended-today');
-        if (metricAttendedToday) metricAttendedToday.innerText = attendedCount.toString();
+        if (metricAttendedToday) {
+            metricAttendedToday.innerText = (isRangeFilterActive ? attendedRangeCount : attendedCount).toString();
+        }
 
         // Render Popular Treatments
         const popularList = document.getElementById('popular-treatments-list');
@@ -6617,6 +6718,88 @@ async function renderDashboard() {
     } catch (e) {
         console.warn("Error calculating real metrics for dashboard:", e);
     }
+
+    // Wire Dashboard Date Range Filter Event Listeners (Once)
+    const btnApplyFilter = document.getElementById('btn-dash-apply-filter');
+    if (btnApplyFilter && !btnApplyFilter.dataset.hasListener) {
+        btnApplyFilter.dataset.hasListener = 'true';
+        btnApplyFilter.onclick = async (e) => {
+            if (e) e.preventDefault();
+            const fFrom = document.getElementById('dash-filter-from') ? document.getElementById('dash-filter-from').value : '';
+            const fTo = document.getElementById('dash-filter-to') ? document.getElementById('dash-filter-to').value : '';
+            if (!fFrom || !fTo) {
+                Swal.fire({ icon: 'warning', title: 'Rango Incompleto', text: 'Por favor indique la fecha "Desde" y "Hasta" para filtrar los ingresos.' });
+                return;
+            }
+            if (fFrom > fTo) {
+                Swal.fire({ icon: 'warning', title: 'Fechas Inválidas', text: 'La fecha "Desde" no puede ser mayor que la fecha "Hasta".' });
+                return;
+            }
+            window.dashboardFilterFrom = fFrom;
+            window.dashboardFilterTo = fTo;
+            document.querySelectorAll('.dash-preset-btn').forEach(b => b.classList.remove('active'));
+            await renderDashboard();
+        };
+    }
+
+    const btnResetFilter = document.getElementById('btn-dash-reset-filter');
+    if (btnResetFilter && !btnResetFilter.dataset.hasListener) {
+        btnResetFilter.dataset.hasListener = 'true';
+        btnResetFilter.onclick = async (e) => {
+            if (e) e.preventDefault();
+            window.dashboardFilterFrom = '';
+            window.dashboardFilterTo = '';
+            const inpF = document.getElementById('dash-filter-from');
+            const inpT = document.getElementById('dash-filter-to');
+            if (inpF) inpF.value = '';
+            if (inpT) inpT.value = '';
+            document.querySelectorAll('.dash-preset-btn').forEach(b => b.classList.remove('active'));
+            await renderDashboard();
+        };
+    }
+
+    // Presets: Hoy, Esta Semana, Este Mes, Este Año
+    document.querySelectorAll('.dash-preset-btn').forEach(btn => {
+        if (!btn.dataset.hasListener) {
+            btn.dataset.hasListener = 'true';
+            btn.onclick = async (e) => {
+                if (e) e.preventDefault();
+                document.querySelectorAll('.dash-preset-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                const preset = btn.dataset.preset;
+                const now = new Date();
+                const nowISO = now.toISOString().split('T')[0];
+                let pFrom = '';
+                let pTo = nowISO;
+
+                if (preset === 'today') {
+                    pFrom = nowISO;
+                    pTo = nowISO;
+                } else if (preset === 'week') {
+                    const day = now.getDay() || 7;
+                    const monday = new Date(now);
+                    monday.setDate(now.getDate() - day + 1);
+                    pFrom = monday.toISOString().split('T')[0];
+                    pTo = nowISO;
+                } else if (preset === 'month') {
+                    pFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+                    pTo = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+                } else if (preset === 'year') {
+                    pFrom = `${now.getFullYear()}-01-01`;
+                    pTo = `${now.getFullYear()}-12-31`;
+                }
+
+                window.dashboardFilterFrom = pFrom;
+                window.dashboardFilterTo = pTo;
+                const inpF = document.getElementById('dash-filter-from');
+                const inpT = document.getElementById('dash-filter-to');
+                if (inpF) inpF.value = pFrom;
+                if (inpT) inpT.value = pTo;
+                await renderDashboard();
+            };
+        }
+    });
 
     window.checkGlobalStockAlerts();
 }

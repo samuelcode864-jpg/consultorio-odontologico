@@ -450,6 +450,10 @@ class SupabaseDataService {
         return await this._patientsPromise;
     }
 
+    static async updatePatient(patientId, patientObj) {
+        return await this.savePatient(patientObj);
+    }
+
     static async savePatient(patientObj) {
         if (!patientObj.createdAt) {
             patientObj.createdAt = new Date().toISOString();
