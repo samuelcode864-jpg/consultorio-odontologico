@@ -919,19 +919,34 @@ async function syncPatientTreatmentsAndSessions(patient, optionalInvoices = null
     const sessions = Array.isArray(patient.sessions) ? patient.sessions : ((patient.metadata && Array.isArray(patient.metadata.sessions)) ? patient.metadata.sessions : []);
     patient.sessions = sessions;
 
+    // Helper to calculate payment and balance for a treatment
+    const reconcileTreatmentBalance = (t, matchSess) => {
+        if (!matchSess) {
+            t.status = 'Planificado';
+            t.balanceUSD = parseFloat(t.price || 0);
+            t.paidUSD = 0;
+            delete t.completedDate;
+            delete t.completedSessionNum;
+            return;
+        }
+
+        const trtPrice = parseFloat(t.price || 0);
+        const sessPaid = parseFloat(matchSess.paymentUSD || 0);
+        const sessCost = parseFloat(matchSess.treatmentCost !== undefined ? matchSess.treatmentCost : trtPrice) || 0;
+        const sessBal = (matchSess.balanceUSD !== undefined) ? parseFloat(matchSess.balanceUSD) : Math.max(0, sessCost - sessPaid);
+
+        t.status = (sessBal > 0.009) ? 'Atendido con Saldo' : 'Completado';
+        t.balanceUSD = sessBal;
+        t.paidUSD = sessPaid;
+        t.completedDate = matchSess.datetime;
+        t.completedSessionNum = matchSess.sessionNum;
+    };
+
     // 1. Sync patient.metadata.treatments
     if (patient.metadata && Array.isArray(patient.metadata.treatments)) {
         patient.metadata.treatments.forEach(t => {
             const matchSess = sessions.find(s => doesSessionMatchTreatment(s, t));
-            if (matchSess) {
-                t.status = 'Completado';
-                t.completedDate = matchSess.datetime;
-                t.completedSessionNum = matchSess.sessionNum;
-            } else {
-                t.status = 'Planificado';
-                delete t.completedDate;
-                delete t.completedSessionNum;
-            }
+            reconcileTreatmentBalance(t, matchSess);
         });
     }
 
@@ -944,15 +959,7 @@ async function syncPatientTreatmentsAndSessions(patient, optionalInvoices = null
             if (Array.isArray(phase.treatments)) {
                 phase.treatments.forEach(t => {
                     const matchSess = sessions.find(s => doesSessionMatchTreatment(s, t));
-                    if (matchSess) {
-                        t.status = 'Completado';
-                        t.completedDate = matchSess.datetime;
-                        t.completedSessionNum = matchSess.sessionNum;
-                    } else {
-                        t.status = 'Planificado';
-                        delete t.completedDate;
-                        delete t.completedSessionNum;
-                    }
+                    reconcileTreatmentBalance(t, matchSess);
                 });
             }
         });
@@ -972,9 +979,19 @@ async function syncPatientTreatmentsAndSessions(patient, optionalInvoices = null
             if (Array.isArray(inv.items)) {
                 inv.items.forEach(it => {
                     const matchSess = sessions.find(s => doesSessionMatchTreatment(s, it));
-                    const newStatus = matchSess ? 'Completado' : 'Planificado';
+                    const trtPrice = parseFloat(it.price || 0);
+                    const sessPaid = matchSess ? parseFloat(matchSess.paymentUSD || 0) : 0;
+                    const sessCost = matchSess ? (parseFloat(matchSess.treatmentCost !== undefined ? matchSess.treatmentCost : trtPrice) || 0) : 0;
+                    const sessBal = matchSess ? ((matchSess.balanceUSD !== undefined) ? parseFloat(matchSess.balanceUSD) : Math.max(0, sessCost - sessPaid)) : trtPrice;
+
+                    const newStatus = matchSess ? ((sessBal > 0.009) ? 'Atendido con Saldo' : 'Completado') : 'Planificado';
                     if (it.status !== newStatus) {
                         it.status = newStatus;
+                        invChanged = true;
+                    }
+                    if (it.balanceUSD !== sessBal) {
+                        it.balanceUSD = sessBal;
+                        it.paidUSD = sessPaid;
                         invChanged = true;
                     }
                     if (matchSess && it.completedDate !== matchSess.datetime) {
@@ -2572,10 +2589,41 @@ async function renderBudgetListView(forceRefresh = false) {
                 const patientName = patient ? patient.fullname : (b.patientId ? `Paciente (${b.patientId})` : 'Desconocido');
                 const spec = b.items && b.items[0] && b.items[0].specialist ? b.items[0].specialist : 'Varios';
                 
+                const totalRefNum = parseFloat(b.totalRef !== undefined && b.totalRef !== null ? b.totalRef : (b.totalUSD || b.total || 0)) || 0;
+                
+                // Calcular pagos y abonos realizados para este presupuesto
+                let totalPaidForBudget = 0;
+                if (patient && Array.isArray(patient.payments)) {
+                    patient.payments.forEach(pay => {
+                        if (pay.budgetId && String(pay.budgetId) === String(b.id)) {
+                            totalPaidForBudget += parseFloat(pay.paidUSD || 0);
+                        } else if (pay.concept && pay.concept.includes(String(b.id))) {
+                            totalPaidForBudget += parseFloat(pay.paidUSD || 0);
+                        }
+                    });
+                }
+                if (totalPaidForBudget === 0 && patient && Array.isArray(patient.sessions)) {
+                    patient.sessions.forEach(s => {
+                        if (s.budgetId && String(s.budgetId) === String(b.id)) {
+                            totalPaidForBudget += parseFloat(s.paymentUSD || 0);
+                        }
+                    });
+                }
+                const budgetBalanceUSD = Math.max(0, totalRefNum - totalPaidForBudget);
+
                 const isApproved = String(b.status).toLowerCase() === 'aprobado';
                 const isFacturado = String(b.status).toLowerCase() === 'facturado';
-                const badgeClass = isFacturado ? 'badge-tag blue' : (isApproved ? 'badge-tag green' : 'badge-tag orange');
-                const statusLabel = isFacturado ? 'Finalizado' : (isApproved ? 'Aprobado' : 'Borrador');
+                
+                let badgeClass = isFacturado ? 'badge-tag blue' : (isApproved ? 'badge-tag green' : 'badge-tag orange');
+                let statusLabel = isFacturado ? 'Finalizado' : (isApproved ? 'Aprobado' : 'Borrador');
+
+                if (isApproved && totalPaidForBudget > 0 && budgetBalanceUSD > 0.009) {
+                    badgeClass = 'badge-tag amber';
+                    statusLabel = `Aprobado (Saldo: $${budgetBalanceUSD.toFixed(2)})`;
+                } else if (isApproved && totalPaidForBudget > 0 && budgetBalanceUSD <= 0.009) {
+                    badgeClass = 'badge-tag green';
+                    statusLabel = 'Aprobado y Pagado';
+                }
 
                 let budgetDateDisplay = b.invoiceDate || '-';
                 let budgetTimeDisplay = '';
@@ -2589,8 +2637,6 @@ async function renderBudgetListView(forceRefresh = false) {
                     } catch(e){}
                 }
 
-                const totalRefNum = parseFloat(b.totalRef !== undefined && b.totalRef !== null ? b.totalRef : (b.totalUSD || b.total || 0)) || 0;
-
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td><strong>${b.id}</strong></td>
@@ -2599,7 +2645,15 @@ async function renderBudgetListView(forceRefresh = false) {
                         <div style="font-size:0.82rem; font-weight:600; color:var(--text-main); white-space:nowrap;"><i class="fa-regular fa-calendar text-cyan" style="font-size:0.75rem; margin-right:3px;"></i>${budgetDateDisplay}</div>
                         ${budgetTimeDisplay ? `<small class="text-muted" style="display:block; font-size:0.72rem; margin-top:1px;"><i class="fa-regular fa-clock" style="font-size:0.68rem; margin-right:2px;"></i>${budgetTimeDisplay}</small>` : ''}
                     </td>
-                    <td>$${totalRefNum.toFixed(2)}</td>
+                    <td>
+                        <strong>$${totalRefNum.toFixed(2)}</strong>
+                        ${totalPaidForBudget > 0 ? `
+                            <div style="font-size:0.75rem; margin-top:2px;">
+                                <span style="color:#15803d; font-weight:600;"><i class="fa-solid fa-check"></i> Abono: $${totalPaidForBudget.toFixed(2)}</span>
+                                ${budgetBalanceUSD > 0.009 ? `<span style="display:block; color:#dc2626; font-weight:700;"><i class="fa-solid fa-clock-rotate-left"></i> Resta: $${budgetBalanceUSD.toFixed(2)}</span>` : ''}
+                            </div>
+                        ` : ''}
+                    </td>
                     <td>${spec}</td>
                     <td><span class="${badgeClass}" style="font-size:0.75rem; text-transform:none; padding: 2px 6px;">${statusLabel}</span></td>
                     <td style="text-align: center;">
@@ -4049,7 +4103,7 @@ function isItemCompleted(item, patientObj = null) {
 
     // 2. Validación de estado directo (evita falsos positivos si el paciente ya tiene historial pero este item no fue atendido)
     const directStatus = String(item.status || '').toLowerCase().trim();
-    if (directStatus === 'completado' || directStatus === 'atendido' || directStatus === 'realizado' || directStatus === 'finalizado') {
+    if (directStatus === 'completado' || directStatus === 'atendido' || directStatus === 'atendido con saldo' || directStatus === 'realizado' || directStatus === 'finalizado') {
         if (p) {
             const sessions = Array.isArray(p.sessions) ? p.sessions : ((p.metadata && Array.isArray(p.metadata.sessions)) ? p.metadata.sessions : []);
             if (sessions.length > 0 && !item.completedDate) {
@@ -4162,9 +4216,31 @@ async function renderBudgetTable() {
             }
 
             const isDone = isItemCompleted(item);
-            const statusBadge = isDone 
-                ? '<span class="badge-tag green" style="font-size:0.7rem; margin-left:6px; padding:2px 8px; font-weight:600;"><i class="fa-solid fa-check"></i> Atendido</span>' 
-                : '<span class="badge-tag amber" style="font-size:0.7rem; margin-left:6px; padding:2px 8px; font-weight:600;"><i class="fa-solid fa-hourglass-half"></i> Pendiente</span>';
+            let itemPrice = parseFloat(item.price || 0);
+            let itemBal = (item.balanceUSD !== undefined) ? parseFloat(item.balanceUSD) : 0;
+            let itemPaid = (item.paidUSD !== undefined) ? parseFloat(item.paidUSD) : 0;
+
+            const curActivePat = (typeof activePatient !== 'undefined' && activePatient) ? activePatient : ((typeof getActivePatientId === 'function') ? (patients.find(p => p.id === getActivePatientId())) : null);
+            if (isDone && itemBal === 0 && itemPaid === 0 && curActivePat) {
+                const sessions = Array.isArray(curActivePat.sessions) ? curActivePat.sessions : ((curActivePat.metadata && Array.isArray(curActivePat.metadata.sessions)) ? curActivePat.metadata.sessions : []);
+                const matchSess = sessions.find(s => doesSessionMatchTreatment(s, item));
+                if (matchSess) {
+                    const cost = parseFloat(matchSess.treatmentCost !== undefined ? matchSess.treatmentCost : itemPrice) || 0;
+                    itemPaid = parseFloat(matchSess.paymentUSD || 0);
+                    itemBal = (matchSess.balanceUSD !== undefined) ? parseFloat(matchSess.balanceUSD) : Math.max(0, cost - itemPaid);
+                }
+            }
+
+            let statusBadge = '';
+            if (isDone) {
+                if (itemBal > 0.009) {
+                    statusBadge = `<span class="badge-tag amber" style="font-size:0.7rem; margin-left:6px; padding:2px 8px; font-weight:700; background:#fef3c7; color:#b45309; border:1px solid #fde68a;" title="Tratamiento atendido pero con saldo pendiente"><i class="fa-solid fa-hand-holding-dollar"></i> Atendido (Resta: $${itemBal.toFixed(2)})</span>`;
+                } else {
+                    statusBadge = '<span class="badge-tag green" style="font-size:0.7rem; margin-left:6px; padding:2px 8px; font-weight:600;"><i class="fa-solid fa-check"></i> Atendido y Pagado</span>';
+                }
+            } else {
+                statusBadge = '<span class="badge-tag blue" style="font-size:0.7rem; margin-left:6px; padding:2px 8px; font-weight:600;"><i class="fa-solid fa-hourglass-half"></i> Pendiente</span>';
+            }
 
             const tr = document.createElement('tr');
             if (!item.isSelected) {
@@ -4186,6 +4262,7 @@ async function renderBudgetTable() {
                     <div style="display: flex; align-items: center; gap: 4px; font-weight: 600;">
                         ${curSymbol} <input type="number" class="form-control btn-xs srv-price-input" style="width: 70px; padding: 4px 6px; height: auto; text-align: center; border-radius: 4px;" value="${item.price}" step="0.01" data-idx="${index}"> ${curLabel}
                     </div>
+                    ${isDone && itemBal > 0.009 ? `<div style="font-size:0.72rem; margin-top:2px;"><span style="color:#dc2626; font-weight:700;">Resta: $${itemBal.toFixed(2)}</span> • <span style="color:#15803d; font-weight:600;">Abonado: $${itemPaid.toFixed(2)}</span></div>` : ''}
                 </td>
                 <td style="font-weight: 700; color: #1e3a8a;">${(item.price * rate).toFixed(2)} Bs</td>
                 <td>
@@ -5412,8 +5489,18 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                 const deleteSessionBtn = isAssistant ? '' : `<button class="btn btn-xs btn-outline text-red" style="margin-left:4px;" onclick="deleteSessionFromPatient('${activePatient.id}', ${s.sessionNum})" title="Eliminar Sesión"><i class="fa-solid fa-trash"></i></button>`;
 
                 let payInfoHtml = '';
-                if (s.paymentUSD > 0) {
-                    payInfoHtml = `<div style="margin-top: 6px; font-size: 0.8rem; color: #15803d; font-weight: 600;"><i class="fa-solid fa-money-bill-wave"></i> Cobrado en sesión: $${s.paymentUSD.toFixed(2)} USD (${s.paymentMethodLabel || 'Efectivo'})</div>`;
+                const sessCost = parseFloat(s.treatmentCost !== undefined ? s.treatmentCost : (s.paymentUSD || 0)) || 0;
+                const sessPaid = parseFloat(s.paymentUSD || 0);
+                const sessBal = (s.balanceUSD !== undefined) ? parseFloat(s.balanceUSD) : Math.max(0, sessCost - sessPaid);
+
+                if (sessPaid > 0 || sessBal > 0.009) {
+                    payInfoHtml = `
+                        <div style="margin-top: 6px; font-size: 0.82rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            ${sessCost > 0 ? `<span style="color: #1e40af; font-weight: 600;"><i class="fa-solid fa-file-invoice-dollar"></i> Costo: $${sessCost.toFixed(2)} USD</span>` : ''}
+                            <span style="color: #15803d; font-weight: 700;"><i class="fa-solid fa-money-bill-wave"></i> Abonado: $${sessPaid.toFixed(2)} USD (${s.paymentMethodLabel || 'Efectivo'})</span>
+                            ${sessBal > 0.009 ? `<span style="background: #fee2e2; color: #dc2626; font-weight: 700; padding: 2px 8px; border-radius: 4px; border: 1px solid #fca5a5;"><i class="fa-solid fa-hand-holding-dollar"></i> Saldo Pendiente: $${sessBal.toFixed(2)} USD (Cuenta por Cobrar)</span>` : (sessCost > 0 ? '<span style="color: #16a34a; font-size: 0.75rem; font-weight: 600;"><i class="fa-solid fa-check-double"></i> Totalmente Solventado</span>' : '')}
+                        </div>
+                    `;
                 }
 
                 const safeProcedureEscaped = (s.procedure || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
@@ -5468,27 +5555,70 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                     trtSection.style.border = '1px solid var(--border-color)';
                     trtSection.style.borderRadius = '8px';
 
+                    let totalPhaseCost = treatmentsList.reduce((sum, t) => sum + (parseFloat(t.price) || 0), 0);
+                    let totalPhasePaid = 0;
+                    let totalPhaseBalance = 0;
+
                     let trtRowsHtml = treatmentsList.map((t, idx) => {
                         const isDone = isItemCompleted(t, activePatient);
                         const toothNum = extractToothNumber(t);
                         const toothLabel = toothNum === 'General' ? 'Pieza General' : `Pieza ${toothNum}`;
+                        const tPrice = parseFloat(t.price || 0);
+
+                        let tBal = (t.balanceUSD !== undefined) ? parseFloat(t.balanceUSD) : 0;
+                        let tPaid = (t.paidUSD !== undefined) ? parseFloat(t.paidUSD) : 0;
+
+                        if (isDone && tBal === 0 && tPaid === 0) {
+                            const matchSess = patientSessions.find(s => doesSessionMatchTreatment(s, t));
+                            if (matchSess) {
+                                const cost = parseFloat(matchSess.treatmentCost !== undefined ? matchSess.treatmentCost : tPrice) || 0;
+                                tPaid = parseFloat(matchSess.paymentUSD || 0);
+                                tBal = (matchSess.balanceUSD !== undefined) ? parseFloat(matchSess.balanceUSD) : Math.max(0, cost - tPaid);
+                            }
+                        }
+
+                        if (isDone) {
+                            totalPhasePaid += tPaid;
+                            totalPhaseBalance += tBal;
+                        } else {
+                            totalPhaseBalance += tPrice;
+                        }
+
+                        let statusBadgeHtml = '';
+                        if (isDone) {
+                            if (tBal > 0.009) {
+                                statusBadgeHtml = `<span class="badge-tag amber" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; font-weight:700;"><i class="fa-solid fa-hand-holding-dollar"></i> Atendido (Resta: $${tBal.toFixed(2)})</span>`;
+                            } else {
+                                statusBadgeHtml = `<span class="badge-tag green" style="font-weight:600;"><i class="fa-solid fa-circle-check"></i> Atendido y Pagado</span>`;
+                            }
+                        } else {
+                            statusBadgeHtml = `<span class="badge-tag blue" style="font-weight:600;"><i class="fa-solid fa-hourglass-half"></i> Planificado</span>`;
+                        }
+
                         return `
                             <tr style="border-bottom: 1px solid var(--border-color); font-size: 0.85rem;">
                                 <td style="padding: 6px 8px;"><strong>${toothLabel}</strong></td>
                                 <td style="padding: 6px 8px;">${t.name}</td>
-                                <td style="padding: 6px 8px; color: #15803d; font-weight: 600;">${parseFloat(t.price || 0).toFixed(2)}</td>
-                                <td style="padding: 6px 8px;">${t.specialist || 'Dr. Asignado'}</td>
-                                <td style="padding: 6px 8px;">
-                                    <span class="badge-tag ${isDone ? 'green' : 'amber'}">${isDone ? '✓ Atendido' : '⏳ Planificado'}</span>
+                                <td style="padding: 6px 8px; color: #1e40af; font-weight: 600;">$${tPrice.toFixed(2)}</td>
+                                <td style="padding: 6px 8px; color: #15803d; font-weight: 600;">${isDone ? `$${tPaid.toFixed(2)}` : '$0.00'}</td>
+                                <td style="padding: 6px 8px; color: ${tBal > 0.009 ? '#dc2626' : (isDone ? '#64748b' : '#1e3a8a')}; font-weight: 700;">
+                                    ${isDone ? (tBal > 0.009 ? `$${tBal.toFixed(2)}` : '$0.00') : `$${tPrice.toFixed(2)}`}
                                 </td>
+                                <td style="padding: 6px 8px;">${t.specialist || 'Dr. Asignado'}</td>
+                                <td style="padding: 6px 8px;">${statusBadgeHtml}</td>
                             </tr>
                         `;
                     }).join('');
 
                     trtSection.innerHTML = `
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
                             <h4 style="margin:0; font-size:0.92rem; color:var(--primary-cyan);"><i class="fa-solid fa-teeth"></i> Tratamientos Planificados en Presupuesto</h4>
-                            ${activeApprovedBudget ? `<small class="text-muted"><i class="fa-solid fa-receipt"></i> ${activeApprovedBudget.id} • $${parseFloat(activeApprovedBudget.totalRef || 0).toFixed(2)} USD</small>` : ''}
+                            <div style="display:flex; gap:12px; font-size:0.82rem; align-items:center; background:#f8fafc; padding:4px 10px; border-radius:6px; border:1px solid #e2e8f0;">
+                                ${activeApprovedBudget ? `<span><i class="fa-solid fa-receipt"></i> <strong>${activeApprovedBudget.id}</strong></span> • ` : ''}
+                                <span>Total: <strong>$${totalPhaseCost.toFixed(2)}</strong></span>
+                                <span style="color:#15803d;">Abonado: <strong>$${totalPhasePaid.toFixed(2)}</strong></span>
+                                <span style="color:${totalPhaseBalance > 0.009 ? '#dc2626' : '#64748b'};">Saldo: <strong>$${totalPhaseBalance.toFixed(2)}</strong></span>
+                            </div>
                         </div>
                         <div style="overflow-x:auto;">
                             <table style="width:100%; border-collapse:collapse; text-align:left;">
@@ -5496,7 +5626,9 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                                     <tr style="border-bottom:2px solid var(--border-color); font-size:0.75rem; color:#64748b; text-transform:uppercase;">
                                         <th style="padding:4px 8px;">Diente</th>
                                         <th style="padding:4px 8px;">Procedimiento</th>
-                                        <th style="padding:4px 8px;">Monto</th>
+                                        <th style="padding:4px 8px;">Costo Total</th>
+                                        <th style="padding:4px 8px;">Abonado</th>
+                                        <th style="padding:4px 8px;">Saldo Restante</th>
                                         <th style="padding:4px 8px;">Especialista</th>
                                         <th style="padding:4px 8px;">Estado</th>
                                     </tr>
@@ -5683,28 +5815,13 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
             }
             updateBulkSessionsUI();
 
-            // 5. Pagos Tab (Balance Financiero 360° del Paciente - SOLO APROBADOS)
+            // 5. Pagos Tab (Balance Financiero 360° del Paciente)
             const payTbody = document.getElementById('ehr-payments-table-body');
             payTbody.innerHTML = '';
             
             const allPaymentsList = [];
 
-            // Presupuestos Aprobados (descarta borradores o no aprobados)
-            approvedBudgets.forEach(b => {
-                allPaymentsList.push({
-                    date: b.invoiceDate || '2026-01-01',
-                    concept: `Presupuesto ${b.id} (${b.paymentTerms || 'Contado'})`,
-                    method: b.paymentMethod || 'transferencia',
-                    bank: b.bank || 'Caja Principal',
-                    reference: b.reference || b.id,
-                    totalUSD: parseFloat(b.totalRef || 0),
-                    paidUSD: b.status === 'Aprobado' ? parseFloat(b.totalRef || 0) : 0,
-                    balanceUSD: b.status === 'Aprobado' ? 0 : parseFloat(b.totalRef || 0),
-                    status: b.status === 'Aprobado' ? 'Pagado' : 'Pendiente'
-                });
-            });
-
-            // Pagos manuales o de sesiones
+            // Pagos y abonos registrados del paciente
             if (activePatient.payments && activePatient.payments.length > 0) {
                 activePatient.payments.forEach(p => {
                     allPaymentsList.push({
@@ -5716,10 +5833,29 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                         totalUSD: parseFloat(p.totalUSD || 0),
                         paidUSD: parseFloat(p.paidUSD || 0),
                         balanceUSD: parseFloat(p.balanceUSD || 0),
-                        status: p.status || 'Pagado'
+                        status: p.status || (parseFloat(p.balanceUSD || 0) > 0 ? 'Abono Parcial' : 'Pagado')
                     });
                 });
             }
+
+            // Presupuestos Aprobados que aún no tengan abonos registrados
+            approvedBudgets.forEach(b => {
+                const alreadyHasPay = allPaymentsList.some(p => (p.concept && p.concept.includes(b.id)) || (p.budgetId && String(p.budgetId) === String(b.id)));
+                if (!alreadyHasPay) {
+                    const totalVal = parseFloat(b.totalRef || 0);
+                    allPaymentsList.push({
+                        date: b.invoiceDate || '2026-01-01',
+                        concept: `Presupuesto ${b.id} (${b.paymentTerms || 'Contado'})`,
+                        method: b.paymentMethod || 'transferencia',
+                        bank: b.bank || 'Caja Principal',
+                        reference: b.reference || b.id,
+                        totalUSD: totalVal,
+                        paidUSD: 0,
+                        balanceUSD: totalVal,
+                        status: 'Pendiente'
+                    });
+                }
+            });
 
             if (allPaymentsList.length > 0) {
                 let totalQuoted = 0;
@@ -7553,9 +7689,36 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
                 const matchT = treatments.find(t => parseInt(t.sessionNum) === parseInt(sessionNum)) || treatments[0];
                 if (matchT && matchT.price) currentPrice = parseFloat(matchT.price) || 0;
             }
-            if (payAmtInput && currentPrice > 0) {
-                payAmtInput.value = currentPrice.toFixed(2);
+
+            const trtCostInput = document.getElementById('s-treatment-cost');
+            const trtBalInput = document.getElementById('s-treatment-balance');
+            const balNotice = document.getElementById('s-balance-notice');
+
+            function updateSessionBalanceCalculation() {
+                const cost = parseFloat(trtCostInput ? trtCostInput.value : 0) || 0;
+                const paid = parseFloat(payAmtInput ? payAmtInput.value : 0) || 0;
+                const rem = Math.max(0, cost - paid);
+                if (trtBalInput) trtBalInput.value = rem.toFixed(2);
+                if (balNotice) {
+                    if (rem > 0.009) {
+                        balNotice.innerHTML = `<span class="badge-tag amber" style="display:inline-flex; align-items:center; gap:5px; font-size:0.75rem; background:#fef3c7; color:#b45309; border:1px solid #fde68a; padding:4px 9px; border-radius:5px;"><i class="fa-solid fa-clock-rotate-left"></i> <strong>Saldo Restante: $${rem.toFixed(2)} USD</strong> (Se activará Cuenta por Cobrar para este paciente)</span>`;
+                    } else if (cost > 0 && paid >= cost) {
+                        balNotice.innerHTML = `<span class="badge-tag green" style="display:inline-flex; align-items:center; gap:5px; font-size:0.75rem; padding:4px 9px; border-radius:5px;"><i class="fa-solid fa-check-double"></i> <strong>Totalmente Pagado</strong> (Tratamiento sin deuda pendiente)</span>`;
+                    } else {
+                        balNotice.innerHTML = '';
+                    }
+                }
             }
+
+            if (trtCostInput) {
+                trtCostInput.value = currentPrice.toFixed(2);
+                trtCostInput.oninput = updateSessionBalanceCalculation;
+            }
+            if (payAmtInput) {
+                payAmtInput.value = currentPrice.toFixed(2);
+                payAmtInput.oninput = updateSessionBalanceCalculation;
+            }
+            updateSessionBalanceCalculation();
 
             trtSelect.onchange = () => {
                 const chosenNum = trtSelect.value;
@@ -7586,9 +7749,13 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
                     }
 
                     // Auto-fill price of newly selected treatment
+                    if (trtCostInput && optPrice > 0) {
+                        trtCostInput.value = optPrice.toFixed(2);
+                    }
                     if (payAmtInput && optPrice > 0) {
                         payAmtInput.value = optPrice.toFixed(2);
                     }
+                    updateSessionBalanceCalculation();
                 }
             };
         }
@@ -8383,6 +8550,11 @@ function initGlobalEvents() {
 
         // Extract payment info
         const paymentUSD = parseFloat(document.getElementById('s-payment-amount').value) || 0;
+        const treatmentCostInput = document.getElementById('s-treatment-cost');
+        const treatmentCost = treatmentCostInput ? (parseFloat(treatmentCostInput.value) || 0) : 0;
+        const effectiveTotalCost = (treatmentCost > 0) ? treatmentCost : paymentUSD;
+        const remainingSessionDebt = Math.max(0, effectiveTotalCost - paymentUSD);
+
         const paymentMethod = document.getElementById('s-payment-method').value || 'cash';
         const paymentBank = document.getElementById('s-payment-bank') ? document.getElementById('s-payment-bank').value.trim() : '';
         const paymentReference = document.getElementById('s-payment-reference') ? document.getElementById('s-payment-reference').value.trim() : '';
@@ -8436,11 +8608,13 @@ function initGlobalEvents() {
                 tooth: selectedTooth || extractToothNumber({ procedure, tooth: selectedTooth }),
                 treatmentId: selectedTrtId || '',
                 treatmentName: selectedTrtName || '',
+                treatmentCost: effectiveTotalCost,
                 budgetId: selectedBudgetId || (window.currentActiveEHRPhaseId !== 'all' ? window.currentActiveEHRPhaseId : '') || '',
                 indications,
                 signatureData,
                 materials: [],
                 paymentUSD,
+                balanceUSD: remainingSessionDebt,
                 paymentMethod,
                 paymentMethodLabel,
                 paymentBank: paymentBank || (paymentMethod === 'cash' ? 'Efectivo en Mano' : 'No especificado'),
@@ -8509,20 +8683,28 @@ function initGlobalEvents() {
             // Registrar fecha de actualización del odontodiagrama
             patient.metadata.odontogramLastUpdated = datetime || new Date().toISOString().replace('T', ' ').substring(0, 16);
 
-            // Record payment in patient payments history if any
-            if (paymentUSD > 0) {
+            // Record payment in patient payments history if any payment made OR if there is an active charge with remaining balance
+            if (paymentUSD > 0 || remainingSessionDebt > 0.009) {
                 if (!patient.payments) patient.payments = [];
+                const payStatus = (remainingSessionDebt <= 0.009) ? 'Pagado' : (paymentUSD > 0 ? 'Abono Parcial' : 'Pendiente');
+                const conceptDesc = (remainingSessionDebt > 0.009)
+                    ? `Abono Sesión #${sessionNum}: ${procedure.substring(0, 30)} (Saldo: $${remainingSessionDebt.toFixed(2)})`
+                    : `Cobro Total Sesión #${sessionNum}: ${procedure.substring(0, 35)}`;
+
                 patient.payments.unshift({
                     id: 'pay-' + Date.now(),
                     date: datetime.split(' ')[0] || new Date().toISOString().split('T')[0],
-                    concept: `Abono en Sesión #${sessionNum} (${procedure.substring(0, 35)}...)`,
-                    totalUSD: paymentUSD,
+                    concept: conceptDesc,
+                    totalUSD: effectiveTotalCost,
                     paidUSD: paymentUSD,
-                    balanceUSD: 0.00,
-                    status: 'Pagado',
+                    balanceUSD: remainingSessionDebt,
+                    status: payStatus,
                     method: paymentMethod,
                     bank: paymentBank || (paymentMethod === 'cash' ? 'Efectivo en Mano' : 'No especificado'),
                     reference: paymentReference || 'N/A',
+                    budgetId: sessionObj.budgetId || '',
+                    treatmentId: sessionObj.treatmentId || '',
+                    sessionNum: sessionNum,
                     splitPayments
                 });
             }
@@ -15870,7 +16052,7 @@ async function renderReceivables() {
     let count = 0;
 
     patients.forEach(p => {
-        let pendingPayments = (p.payments || []).filter(pay => pay.status === 'Pendiente' || pay.balanceUSD > 0);
+        let pendingPayments = (p.payments || []).filter(pay => pay.status === 'Pendiente' || pay.status === 'Abono Parcial' || parseFloat(pay.balanceUSD || 0) > 0.009);
         if (pendingPayments.length > 0) {
             pendingPayments.forEach(pay => {
                 count++;
@@ -15884,12 +16066,13 @@ async function renderReceivables() {
                         </a>
                     </td>
                     <td>${pay.concept}</td>
-                    <td>$${pay.totalUSD.toFixed(2)}</td>
-                    <td class="text-green">$${pay.paidUSD.toFixed(2)}</td>
-                    <td class="text-red"><strong>$${pay.balanceUSD.toFixed(2)}</strong></td>
+                    <td>$${parseFloat(pay.totalUSD || 0).toFixed(2)}</td>
+                    <td class="text-green">$${parseFloat(pay.paidUSD || 0).toFixed(2)}</td>
+                    <td class="text-red"><strong>$${parseFloat(pay.balanceUSD || 0).toFixed(2)}</strong></td>
                     <td>
-                        <div class="actions-cell-group">
-                            <button class="btn btn-xs btn-success" onclick="openEHRForPatient('${p.id}')" title="Abonar en EHR"><i class="fa-solid fa-hand-holding-dollar"></i> Cobrar / EHR</button>
+                        <div class="actions-cell-group" style="display:flex; gap:4px; align-items:center;">
+                            <button class="btn btn-xs btn-success" onclick="window.settleReceivablePaymentPrompt('${p.id}', '${pay.id}')" title="Cobrar Saldo de esta Cuenta"><i class="fa-solid fa-hand-holding-dollar"></i> Cobrar Saldo</button>
+                            <button class="btn btn-xs btn-outline" onclick="openEHRForPatient('${p.id}')" title="Ver Historia y Abonos en EHR"><i class="fa-solid fa-folder-open"></i> EHR</button>
                         </div>
                     </td>
                 `;
@@ -15902,6 +16085,117 @@ async function renderReceivables() {
         tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding: 15px;">No hay pacientes con saldos pendientes.</td></tr>';
     }
 }
+
+window.settleReceivablePaymentPrompt = async function(patientId, paymentId) {
+    try {
+        const patients = await SupabaseDataService.getPatients();
+        const p = patients.find(pat => String(pat.id) === String(patientId));
+        if (!p) {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Paciente no encontrado.' });
+            return;
+        }
+
+        const pay = (p.payments || []).find(item => String(item.id) === String(paymentId));
+        if (!pay) {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Registro de deuda no encontrado.' });
+            return;
+        }
+
+        const currentDebt = parseFloat(pay.balanceUSD || 0);
+        const todayStr = new Date().toISOString().split('T')[0];
+
+        const { value: formValues } = await Swal.fire({
+            title: 'Cobrar Saldo Pendiente',
+            html: `
+                <div style="text-align: left; font-size: 0.88rem; line-height: 1.5;">
+                    <p style="margin: 0 0 4px 0;"><strong>Paciente:</strong> ${p.fullname} (${p.id})</p>
+                    <p style="margin: 0 0 4px 0;"><strong>Concepto:</strong> ${pay.concept}</p>
+                    <p style="margin: 0 0 10px 0;"><strong>Deuda Pendiente:</strong> <span style="font-size: 1.15rem; font-weight: 700; color: #dc2626;">$${currentDebt.toFixed(2)} USD</span></p>
+                    <div style="margin-bottom: 8px;">
+                        <label style="font-weight: 600; font-size: 0.8rem;">Monto a Cobrar / Abonar ($ USD):</label>
+                        <input type="number" id="swal-rec-amount" class="swal2-input" step="0.01" min="0.01" max="${currentDebt}" value="${currentDebt.toFixed(2)}" style="margin: 0; width: 100%; height: 38px;">
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        <label style="font-weight: 600; font-size: 0.8rem;">Método de Pago:</label>
+                        <select id="swal-rec-method" class="swal2-select" style="margin: 0; width: 100%; height: 38px;">
+                            <option value="cash">Efectivo ($ USD / Bs.)</option>
+                            <option value="pagomovil">Pago Móvil</option>
+                            <option value="zelle">Zelle</option>
+                            <option value="punto">Punto de Venta</option>
+                            <option value="binance">Binance (USDT)</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        <label style="font-weight: 600; font-size: 0.8rem;">Banco / Destino:</label>
+                        <input type="text" id="swal-rec-bank" class="swal2-input" placeholder="ej: Banesco, Zelle..." style="margin: 0; width: 100%; height: 38px;">
+                    </div>
+                    <div>
+                        <label style="font-weight: 600; font-size: 0.8rem;">Nº Referencia:</label>
+                        <input type="text" id="swal-rec-ref" class="swal2-input" placeholder="ej: REF-123456" style="margin: 0; width: 100%; height: 38px;">
+                    </div>
+                </div>
+            `,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: '<i class="fa-solid fa-check"></i> Registrar Cobro',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#10b981',
+            preConfirm: () => {
+                const amt = parseFloat(document.getElementById('swal-rec-amount').value) || 0;
+                const method = document.getElementById('swal-rec-method').value;
+                const bank = document.getElementById('swal-rec-bank').value.trim();
+                const ref = document.getElementById('swal-rec-ref').value.trim();
+                if (amt <= 0) {
+                    Swal.showValidationMessage('El monto a cobrar debe ser mayor a 0');
+                    return false;
+                }
+                return { amt, method, bank, ref };
+            }
+        });
+
+        if (formValues) {
+            const payAmt = formValues.amt;
+            const newPaid = parseFloat(pay.paidUSD || 0) + payAmt;
+            const newBal = Math.max(0, currentDebt - payAmt);
+            pay.paidUSD = newPaid;
+            pay.balanceUSD = newBal;
+            pay.status = newBal <= 0.009 ? 'Pagado' : 'Abono Parcial';
+
+            // Record transaction in patient payments history
+            p.payments.unshift({
+                id: 'pay-settle-' + Date.now(),
+                date: todayStr,
+                concept: `Abono a Saldo: ${pay.concept} (Resta: $${newBal.toFixed(2)})`,
+                totalUSD: payAmt,
+                paidUSD: payAmt,
+                balanceUSD: 0,
+                status: 'Pagado',
+                method: formValues.method,
+                bank: formValues.bank || (formValues.method === 'cash' ? 'Efectivo en Mano' : 'No especificado'),
+                reference: formValues.ref || 'N/A'
+            });
+
+            // Reconcile patient treatments & sessions
+            await syncPatientTreatmentsAndSessions(p);
+            await SupabaseDataService.savePatient(p);
+
+            await renderReceivables();
+            await renderCashFlow();
+            await renderDashboard();
+            if (typeof renderBudgetListView === 'function') await renderBudgetListView();
+
+            Swal.fire({
+                icon: 'success',
+                title: '¡Cobro Registrado!',
+                html: `Se registró el abono de <strong>$${payAmt.toFixed(2)} USD</strong>.<br>${newBal > 0.009 ? `Saldo restante: <strong>$${newBal.toFixed(2)} USD</strong>.` : '<strong>¡Cuenta saldada en su totalidad!</strong>'}`,
+                timer: 3000
+            });
+        }
+    } catch(err) {
+        console.error('Error settling receivable:', err);
+        Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo registrar el cobro: ' + (err.message || err) });
+    }
+};
 
 async function renderCashFlow() {
     const tbody = document.getElementById('finance-cashflow-tbody');

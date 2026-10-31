@@ -3503,11 +3503,22 @@
                         <label style="font-weight: 700; color: #1e40af; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
                             <i class="fa-solid fa-money-bill-wave text-green"></i> Cobro / Abono de la Sesión (Opcional)
                         </label>
-                        <div class="grid-form" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
+                        <div class="grid-form" style="grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 8px;">
                             <div>
-                                <label style="font-size: 0.8rem; font-weight: 600;">Monto Cobrado ($ USD)</label>
+                                <label style="font-size: 0.8rem; font-weight: 600;">Costo Tratamiento ($)</label>
+                                <input type="number" id="s-treatment-cost" class="form-input" min="0" step="0.01" value="0.00" placeholder="0.00" style="font-weight: 700; color: #1e40af;">
+                            </div>
+                            <div>
+                                <label style="font-size: 0.8rem; font-weight: 600;">Abonado / Cobrado ($)</label>
                                 <input type="number" id="s-payment-amount" class="form-input" min="0" step="0.01" value="0.00" placeholder="0.00" style="font-weight: 700; color: #15803d;">
                             </div>
+                            <div>
+                                <label style="font-size: 0.8rem; font-weight: 600;">Saldo Restante ($)</label>
+                                <input type="number" id="s-treatment-balance" class="form-input" readonly value="0.00" style="font-weight: 700; color: #dc2626; background: #fff1f2;">
+                            </div>
+                        </div>
+                        <div id="s-balance-notice" style="margin-bottom: 10px; font-size: 0.78rem;"></div>
+                        <div class="grid-form" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
                             <div>
                                 <label style="font-size: 0.8rem; font-weight: 600;">Método de Pago</label>
                                 <select id="s-payment-method" class="form-input">
@@ -3519,12 +3530,12 @@
                                     <option value="split">⚡ Pago Mixto (Varios Métodos)</option>
                                 </select>
                             </div>
-                        </div>
-                        <div class="grid-form" style="grid-template-columns: 1fr 1fr; gap: 10px;">
                             <div>
                                 <label style="font-size: 0.8rem; font-weight: 600;">Banco / Entidad Destino</label>
                                 <input type="text" id="s-payment-bank" class="form-input" list="bank-datalist" placeholder="ej: Banesco, Venezuela, Zelle...">
                             </div>
+                        </div>
+                        <div class="grid-form" style="grid-template-columns: 1fr; gap: 10px;">
                             <div>
                                 <label style="font-size: 0.8rem; font-weight: 600;">Nº Referencia del Pago</label>
                                 <input type="text" id="s-payment-reference" class="form-input" placeholder="ej: REF-123456">
@@ -4045,12 +4056,12 @@
 
     <!-- Application JavaScript Bundles -->
     <script src="seededData.js?v=295"></script>
-    <script src="supabaseClient.js?v=317"></script>
+    <script src="supabaseClient.js?v=318"></script>
     <script src="odontogram.js?v=295"></script>
     <script src="signature.js?v=295"></script>
-    <script src="whatsapp.js?v=317"></script>
-    <script src="kardex.js?v=317"></script>
-    <script src="app.js?v=317"></script>
+    <script src="whatsapp.js?v=318"></script>
+    <script src="kardex.js?v=318"></script>
+    <script src="app.js?v=318"></script>
     <script src="tutorial.js?v=295"></script>
 </body>
 </html>
