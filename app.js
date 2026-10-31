@@ -17160,6 +17160,197 @@ async function renderAttendedPatientsModal(dateStr) {
     }
 }
 
+window.renderIncomeDetailsModal = async function(mode = 'day', targetDateOrFrom = '', targetTo = '') {
+    const tbody = document.getElementById('income-details-tbody');
+    const totalEl = document.getElementById('income-total-counter');
+    const countEl = document.getElementById('income-count-counter');
+    const titleEl = document.getElementById('income-modal-title');
+    const summaryContainer = document.getElementById('income-methods-summary');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center" style="padding: 25px;"><i class="fa-solid fa-spinner fa-spin text-cyan"></i> Cargando transacciones de ingresos...</td></tr>';
+
+    try {
+        const patients = await SupabaseDataService.getPatients();
+        const todayStr = new Date().toLocaleDateString('en-CA');
+        const monthStr = todayStr.substring(0, 7);
+        const rate = (typeof getExchangeRate === 'function') ? getExchangeRate() : 1;
+
+        let dateFrom = '';
+        let dateTo = '';
+        let headerLabel = 'Ingresos del Día';
+
+        if (mode === 'month') {
+            const m = targetDateOrFrom || monthStr;
+            dateFrom = `${m}-01`;
+            dateTo = `${m}-31`;
+            headerLabel = `Ingresos del Mes (${m})`;
+        } else if (mode === 'range') {
+            dateFrom = targetDateOrFrom;
+            dateTo = targetTo;
+            headerLabel = `Ingresos del Período (${dateFrom} al ${dateTo})`;
+        } else {
+            const d = targetDateOrFrom || todayStr;
+            dateFrom = d;
+            dateTo = d;
+            headerLabel = (d === todayStr) ? `Ingresos del Día de Hoy (${d})` : `Ingresos del Día (${d})`;
+        }
+
+        if (titleEl) {
+            titleEl.innerHTML = `<i class="fa-solid fa-file-invoice-dollar text-cyan"></i> Desglose Detallado de Ingresos: <strong>${headerLabel}</strong>`;
+        }
+
+        const transactions = [];
+        const methodTotals = {
+            'cash': 0,
+            'pagomovil': 0,
+            'zelle': 0,
+            'punto': 0,
+            'binance': 0,
+            'otro': 0
+        };
+
+        patients.forEach(p => {
+            (p.payments || []).forEach(pay => {
+                const payDate = pay.date ? pay.date.split('T')[0] : '';
+                const paid = parseFloat(pay.paidUSD || 0);
+
+                if (paid > 0 && payDate >= dateFrom && payDate <= dateTo) {
+                    const m = pay.method ? pay.method.toLowerCase() : 'cash';
+                    if (m === 'split' && pay.splitPayments) {
+                        for (const sm in pay.splitPayments) {
+                            const subAmt = parseFloat(pay.splitPayments[sm]) || 0;
+                            const cleanSm = sm.toLowerCase();
+                            if (methodTotals[cleanSm] !== undefined) {
+                                methodTotals[cleanSm] += subAmt;
+                            } else {
+                                methodTotals['cash'] += subAmt;
+                            }
+                        }
+                    } else if (methodTotals[m] !== undefined) {
+                        methodTotals[m] += paid;
+                    } else if (m.includes('efectivo') || m.includes('cash') || m.includes('usd') || m.includes('dólar')) {
+                        methodTotals['cash'] += paid;
+                    } else if (m.includes('pago') || m.includes('móvil') || m.includes('transferencia') || m.includes('bs')) {
+                        methodTotals['pagomovil'] += paid;
+                    } else if (m.includes('zelle')) {
+                        methodTotals['zelle'] += paid;
+                    } else if (m.includes('binance')) {
+                        methodTotals['binance'] += paid;
+                    } else if (m.includes('punto') || m.includes('tarjeta')) {
+                        methodTotals['punto'] += paid;
+                    } else {
+                        methodTotals['otro'] += paid;
+                    }
+
+                    transactions.push({
+                        patientId: p.id,
+                        patientName: p.fullname,
+                        patientPhone: p.phone,
+                        date: pay.date || payDate,
+                        concept: pay.concept || 'Abono / Pago de Tratamiento',
+                        amount: paid,
+                        method: pay.method || 'cash',
+                        methodLabel: getPaymentMethodLabel(pay.method || 'cash'),
+                        bank: pay.bank || (pay.method === 'cash' ? 'Efectivo en Mano' : 'No especificado'),
+                        reference: pay.reference || 'N/A',
+                        splitPayments: pay.splitPayments || null
+                    });
+                }
+            });
+        });
+
+        // Sort: newest first
+        transactions.sort((a, b) => {
+            const timeA = new Date(a.date).getTime() || 0;
+            const timeB = new Date(b.date).getTime() || 0;
+            return timeB - timeA;
+        });
+
+        const totalSum = transactions.reduce((sum, t) => sum + t.amount, 0);
+
+        if (totalEl) totalEl.innerText = `Total: $${totalSum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+        if (countEl) countEl.innerText = `${transactions.length} Pago(s)`;
+
+        // Render method summary mini badges
+        if (summaryContainer) {
+            summaryContainer.innerHTML = `
+                <div style="display:flex; gap:8px; flex-wrap:wrap; width:100%; font-size:0.8rem;">
+                    <div style="background:#f1f5f9; padding:6px 12px; border-radius:6px; border:1px solid #cbd5e1;">
+                        <span style="color:#64748b;"><i class="fa-solid fa-money-bill-wave text-green"></i> Efectivo:</span>
+                        <strong style="color:#15803d;">$${methodTotals.cash.toFixed(2)}</strong>
+                    </div>
+                    <div style="background:#f1f5f9; padding:6px 12px; border-radius:6px; border:1px solid #cbd5e1;">
+                        <span style="color:#64748b;"><i class="fa-solid fa-mobile-screen text-blue"></i> Pago Móvil / Transf:</span>
+                        <strong style="color:#0284c7;">$${methodTotals.pagomovil.toFixed(2)}</strong> <small class="text-muted">(Bs. ${(methodTotals.pagomovil * rate).toFixed(2)})</small>
+                    </div>
+                    <div style="background:#f1f5f9; padding:6px 12px; border-radius:6px; border:1px solid #cbd5e1;">
+                        <span style="color:#64748b;"><i class="fa-solid fa-bolt text-purple"></i> Zelle:</span>
+                        <strong style="color:#7c3aed;">$${methodTotals.zelle.toFixed(2)}</strong>
+                    </div>
+                    <div style="background:#f1f5f9; padding:6px 12px; border-radius:6px; border:1px solid #cbd5e1;">
+                        <span style="color:#64748b;"><i class="fa-solid fa-coins text-amber"></i> Binance:</span>
+                        <strong style="color:#d97706;">$${methodTotals.binance.toFixed(2)}</strong>
+                    </div>
+                    <div style="background:#f1f5f9; padding:6px 12px; border-radius:6px; border:1px solid #cbd5e1;">
+                        <span style="color:#64748b;"><i class="fa-solid fa-credit-card text-cyan"></i> Punto:</span>
+                        <strong style="color:#0891b2;">$${methodTotals.punto.toFixed(2)}</strong>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (transactions.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-muted" style="padding: 30px 15px;">
+                        <i class="fa-solid fa-receipt" style="font-size: 2rem; color: #cbd5e1; margin-bottom: 8px; display: block;"></i>
+                        No se registraron cobros ni abonos en esta fecha o período seleccionado.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = '';
+        transactions.forEach(t => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--border-color)';
+            tr.innerHTML = `
+                <td style="padding: 10px 14px; font-size: 0.82rem; white-space: nowrap;">
+                    <strong>${t.date}</strong>
+                </td>
+                <td style="padding: 10px 14px;">
+                    <div style="font-weight: 700; color: var(--text-main);">${t.patientName}</div>
+                    <small class="text-muted">C.I: ${t.patientId}</small>
+                </td>
+                <td style="padding: 10px 14px; font-size: 0.85rem;">
+                    ${t.concept}
+                </td>
+                <td style="padding: 10px 14px; font-size: 0.82rem;">
+                    <span style="font-weight: 600; color: #1e40af;"><i class="fa-solid fa-building-columns"></i> ${t.bank}</span>
+                    <small style="display: block; color: #64748b;">${t.methodLabel}</small>
+                </td>
+                <td style="padding: 10px 14px;">
+                    <span class="badge-tag" style="background:#e0f2fe; color:#0369a1; font-family: monospace; font-size:0.75rem; padding: 2px 6px;">${t.reference}</span>
+                </td>
+                <td style="padding: 10px 14px; text-align: right; font-weight: 800; color: #15803d; font-size: 0.95rem;">
+                    $${t.amount.toFixed(2)}
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // Store active transactions for export
+        window._currentIncomeModalTransactions = transactions;
+        window._currentIncomeModalHeader = headerLabel;
+
+    } catch (err) {
+        console.error('Error rendering income details modal:', err);
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted" style="padding: 20px;">Error al cargar las transacciones: ${err.message || err}</td></tr>`;
+    }
+};
+
 async function renderPublicBudgetView() {
     const urlParams = new URLSearchParams(window.location.search);
     const patientId = urlParams.get('patientId');
