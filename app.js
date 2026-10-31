@@ -561,16 +561,33 @@ function getActivePatientId() {
 
 function setActivePatientId(id) {
     const prevId = localStorage.getItem('dental_active_patient_id');
+    const isDifferent = String(prevId || '') !== String(id || '');
     if (id) {
         localStorage.setItem('dental_active_patient_id', id);
-        if (prevId && String(prevId) !== String(id)) {
+        if (isDifferent) {
             // Patient switched! Reset active editing budget unless explicitly recorded for this patient
             const savedBudgetForNewPat = localStorage.getItem('dental_active_editing_budget_id_' + id);
             activeEditingBudgetId = savedBudgetForNewPat || null;
+            // Clear patient signature pad immediately so previous patient's signature never bleeds into new patient
+            if (window.patientSigPad) {
+                window.patientSigPad.clear();
+            }
+            if (typeof window.refreshSignatureBoxBadges === 'function') {
+                window.refreshSignatureBoxBadges();
+            }
+            if (typeof window.refreshSignatureBoxBadges === 'function') {
+                window.refreshSignatureBoxBadges();
+            }
         }
     } else {
         localStorage.removeItem('dental_active_patient_id');
         activeEditingBudgetId = null;
+        if (window.patientSigPad) {
+            window.patientSigPad.clear();
+        }
+        if (typeof window.refreshSignatureBoxBadges === 'function') {
+            window.refreshSignatureBoxBadges();
+        }
     }
     updateActivePatientUI();
 }
@@ -1187,8 +1204,11 @@ function restoreDraftBudgetUI(draft) {
     if (window.doctorSigPad && draft.doctorSignature) {
         try { window.doctorSigPad.loadFromDataURL(draft.doctorSignature); } catch(e){}
     }
-    if (window.patientSigPad && draft.patientSignature) {
-        try { window.patientSigPad.loadFromDataURL(draft.patientSignature); } catch(e){}
+    if (window.patientSigPad) {
+        window.patientSigPad.clear();
+        if (draft.patientSignature) {
+            try { window.patientSigPad.loadFromDataURL(draft.patientSignature); } catch(e){}
+        }
     }
     if (typeof window.refreshSignatureBoxBadges === 'function') {
         window.refreshSignatureBoxBadges();
@@ -2246,6 +2266,14 @@ window.selectPatientAndLoadApprovedBudget = async function(patientId) {
 
     setActivePatientId(patientId);
 
+    // Clear patient signature pad initially so no strokes from previous patient bleed through
+    if (window.patientSigPad) {
+        window.patientSigPad.clear();
+    }
+    if (typeof window.refreshSignatureBoxBadges === 'function') {
+        window.refreshSignatureBoxBadges();
+    }
+
     // 1. Consultar si este paciente tiene un presupuesto en invoices (Aprobado o Borrador)
     const invoices = await SupabaseDataService.getInvoices();
     let patientInvoices = invoices.filter(inv => String(inv.patientId) === String(patientId));
@@ -3126,6 +3154,7 @@ window.startNewEpisodeForPatient = async function(patientId, confirmPrompt = tru
     const discInput = document.getElementById('budget-discount-input');
     if (discInput) discInput.value = '0';
     if (window.patientSigPad) window.patientSigPad.clear();
+    if (typeof window.refreshSignatureBoxBadges === 'function') window.refreshSignatureBoxBadges();
 
     const infoBudgetDateEl = document.getElementById('info-budget-date');
     if (infoBudgetDateEl) infoBudgetDateEl.innerText = 'Hoy (Nueva Fase en edición)';
@@ -3169,6 +3198,14 @@ async function renderOdontogramView() {
     const alertBanner = document.getElementById('od-medical-header-banner');
     const alertsText = document.getElementById('od-patient-alerts-text');
 
+    // Always clear signature canvas initially to prevent cross-patient signature bleed
+    if (window.patientSigPad) {
+        window.patientSigPad.clear();
+    }
+    if (typeof window.refreshSignatureBoxBadges === 'function') {
+        window.refreshSignatureBoxBadges();
+    }
+
     if (activeId) {
         const patients = await SupabaseDataService.getPatients();
         const patient = patients.find(p => String(p.id) === String(activeId)) || window.activeEHRPatient;
@@ -3211,9 +3248,12 @@ async function renderOdontogramView() {
                     renderBudgetTable();
                 }
 
-                const sigToLoad = patient.metadata?.patientSignature || localDraftBudget?.patientSignature;
-                if (sigToLoad && window.patientSigPad && window.patientSigPad.isEmpty()) {
-                    window.patientSigPad.loadFromDataURL(sigToLoad);
+                const sigToLoad = (hasLocalBudget && localDraftBudget?.patientSignature) || (hasPatBudget && patDraftBudget?.patientSignature) || patient.metadata?.patientSignature || '';
+                if (sigToLoad && window.patientSigPad) {
+                    try { window.patientSigPad.loadFromDataURL(sigToLoad); } catch(e){}
+                }
+                if (typeof window.refreshSignatureBoxBadges === 'function') {
+                    window.refreshSignatureBoxBadges();
                 }
             } else if (activeEditingBudgetId) {
                 // Modo edición de presupuesto archivado / histórico
@@ -3226,8 +3266,11 @@ async function renderOdontogramView() {
                         window.odontogram.setData(odData);
                     }
                 }
-                if (patient.metadata && patient.metadata.patientSignature && window.patientSigPad && window.patientSigPad.isEmpty()) {
-                    window.patientSigPad.loadFromDataURL(patient.metadata.patientSignature);
+                if (patient.metadata && patient.metadata.patientSignature && window.patientSigPad) {
+                    try { window.patientSigPad.loadFromDataURL(patient.metadata.patientSignature); } catch(e){}
+                }
+                if (typeof window.refreshSignatureBoxBadges === 'function') {
+                    window.refreshSignatureBoxBadges();
                 }
             } else {
                 // Si no hay borrador en curso, consultar si este paciente tiene un presupuesto Aprobado oficial
@@ -4366,6 +4409,14 @@ window.selectPatientForOdontogram = async function(patientId) {
 
 window.openEHRForPatient = function(patientId) {
     setActivePatientId(patientId);
+
+    // Clear patient signature pad initially so no strokes from previous patient bleed through
+    if (window.patientSigPad) {
+        window.patientSigPad.clear();
+    }
+    if (typeof window.refreshSignatureBoxBadges === 'function') {
+        window.refreshSignatureBoxBadges();
+    }
     document.querySelector('.nav-item[data-tab="ehr"]').click();
 };
 
@@ -7343,6 +7394,14 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
 window.openPaymentModalForAppointment = async function(patientId, patientName, treatment) {
     try {
         setActivePatientId(patientId);
+
+    // Clear patient signature pad initially so no strokes from previous patient bleed through
+    if (window.patientSigPad) {
+        window.patientSigPad.clear();
+    }
+    if (typeof window.refreshSignatureBoxBadges === 'function') {
+        window.refreshSignatureBoxBadges();
+    }
         const modal = document.getElementById('modal-payment');
         if (modal) {
             const conceptInput = document.getElementById('pay-concept');
@@ -9754,6 +9813,14 @@ function initGlobalEvents() {
         try {
             setActivePatientId(patientId);
 
+    // Clear patient signature pad initially so no strokes from previous patient bleed through
+    if (window.patientSigPad) {
+        window.patientSigPad.clear();
+    }
+    if (typeof window.refreshSignatureBoxBadges === 'function') {
+        window.refreshSignatureBoxBadges();
+    }
+
             // Clean active memory immediately
             currentBudgetItems = [];
             window.currentPlannerBudgetItems = null;
@@ -9762,6 +9829,9 @@ function initGlobalEvents() {
             }
             if (window.patientSigPad) {
                 window.patientSigPad.clear();
+            }
+            if (typeof window.refreshSignatureBoxBadges === 'function') {
+                window.refreshSignatureBoxBadges();
             }
 
             // Direct view switch without triggering autoSave on previous patient
@@ -9832,6 +9902,9 @@ function initGlobalEvents() {
 
             if (window.patientSigPad) {
                 window.patientSigPad.clear();
+            }
+            if (typeof window.refreshSignatureBoxBadges === 'function') {
+                window.refreshSignatureBoxBadges();
             }
 
             if (window.doctorSigPad) {
@@ -10272,17 +10345,32 @@ function initGlobalEvents() {
             const activeId = getActivePatientId();
             if (activeId) {
                 try {
+                    // Limpiar también borrador local de presupuesto en localStorage
+                    try {
+                        const localDraftStr = localStorage.getItem('dental_draft_budget_' + activeId);
+                        if (localDraftStr) {
+                            const localDraft = JSON.parse(localDraftStr);
+                            localDraft.patientSignature = null;
+                            localStorage.setItem('dental_draft_budget_' + activeId, JSON.stringify(localDraft));
+                        }
+                    } catch(e) {}
+
                     const patients = await SupabaseDataService.getPatients();
                     const patient = patients.find(p => String(p.id) === String(activeId));
                     if (patient && patient.metadata) {
                         patient.metadata.patientSignature = '';
+                        if (patient.metadata.draftBudget) {
+                            patient.metadata.draftBudget.patientSignature = null;
+                        }
                         await SupabaseDataService.savePatient(patient);
                     }
                 } catch(err) {
                     console.error("Error clearing patient signature metadata:", err);
                 }
             }
-            window.refreshSignatureBoxBadges();
+            if (typeof window.refreshSignatureBoxBadges === 'function') {
+                window.refreshSignatureBoxBadges();
+            }
             await autoSaveActivePatientOdontogram();
         };
     }
@@ -10803,6 +10891,9 @@ function initGlobalEvents() {
             }
             if (window.patientSigPad) {
                 window.patientSigPad.clear();
+            }
+            if (typeof window.refreshSignatureBoxBadges === 'function') {
+                window.refreshSignatureBoxBadges();
             }
 
             // 4. Cambiar a subvista de editor y navegar al odontograma
