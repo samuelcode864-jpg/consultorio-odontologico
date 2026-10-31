@@ -1604,6 +1604,19 @@
                                                 <option value="Pagado">Pagado</option>
                                             </select>
                                         </div>
+                                        <div class="form-group span-2">
+                                            <label class="form-label" for="pay-recurrence"><i class="fa-solid fa-arrows-rotate text-cyan"></i> Frecuencia / Recurrencia del Gasto</label>
+                                            <select id="pay-recurrence" class="form-control">
+                                                <option value="none">Gasto Único (Puntual - No se repite)</option>
+                                                <option value="15days">Recurrente: Cada 15 Días (Quincenal, ej: Ambientador)</option>
+                                                <option value="monthly">Recurrente: Mensual (Cada mes, ej: Limpieza, Internet, Alquiler)</option>
+                                                <option value="bimonthly">Recurrente: Bimestral (Cada 2 meses)</option>
+                                                <option value="yearly">Recurrente: Anual (Una vez al año)</option>
+                                            </select>
+                                            <small class="text-muted" style="font-size:0.75rem; margin-top:3px; display:block;">
+                                                <i class="fa-solid fa-circle-info text-cyan"></i> Si es recurrente, al presionar "Pagado" se registrará el pago de este mes y la fecha avanzará automáticamente al siguiente ciclo manteniendo el recordatorio activo.
+                                            </small>
+                                        </div>
                                         <div class="span-2 flex-row gap-10 mt-10">
                                             <button type="submit" class="btn btn-primary flex-1" id="btn-save-payable">Guardar Registro</button>
                                             <button type="button" class="btn btn-outline" id="btn-cancel-payable" style="display: none;">Cancelar</button>
@@ -1629,7 +1642,8 @@
                                                     <th>Proveedor</th>
                                                     <th>Servicio</th>
                                                     <th>Monto</th>
-                                                    <th>Vence</th>
+                                                    <th>Vence / Próx. Pago</th>
+                                                    <th>Frecuencia</th>
                                                     <th>Estado</th>
                                                     <th>Acciones</th>
                                                 </tr>
@@ -4031,12 +4045,12 @@
 
     <!-- Application JavaScript Bundles -->
     <script src="seededData.js?v=295"></script>
-    <script src="supabaseClient.js?v=312"></script>
+    <script src="supabaseClient.js?v=313"></script>
     <script src="odontogram.js?v=295"></script>
     <script src="signature.js?v=295"></script>
-    <script src="whatsapp.js?v=312"></script>
+    <script src="whatsapp.js?v=313"></script>
     <script src="kardex.js?v=295"></script>
-    <script src="app.js?v=312"></script>
+    <script src="app.js?v=313"></script>
     <script src="tutorial.js?v=295"></script>
 </body>
 </html>

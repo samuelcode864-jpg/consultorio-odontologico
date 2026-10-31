@@ -645,7 +645,11 @@ async function autoSaveActivePatientOdontogram() {
             localPatients[pIdx].metadata.draftOdontogramData = odData;
             localPatients[pIdx].metadata.draftBudget = draft;
             if (patSig) localPatients[pIdx].metadata.patientSignature = patSig;
-            localStorage.setItem('dental_patients', JSON.stringify(localPatients));
+            if (typeof safeSetLocalStorage === 'function') {
+                safeSetLocalStorage('dental_patients', JSON.stringify(localPatients));
+            } else {
+                localStorage.setItem('dental_patients', JSON.stringify(localPatients));
+            }
         }
     } catch(e) {
         console.warn("Error updating local patient cache:", e);
@@ -15027,6 +15031,7 @@ async function renderFinanceView() {
         const amount = parseFloat(document.getElementById('pay-amount').value) || 0;
         const dueDate = document.getElementById('pay-due-date').value;
         const status = document.getElementById('pay-status').value;
+        const recurrence = document.getElementById('pay-recurrence') ? document.getElementById('pay-recurrence').value : 'none';
 
         if (!providerName || !serviceName || amount <= 0 || !dueDate) {
             Swal.fire({ icon: 'warning', text: 'Por favor, complete todos los campos obligatorios.' });
@@ -15041,7 +15046,8 @@ async function renderFinanceView() {
             serviceName,
             amount,
             dueDate,
-            status
+            status,
+            recurrence
         });
 
         formPayable.reset();
@@ -15326,28 +15332,50 @@ async function renderProviderBills() {
         const timeDiff = dueDateObj.getTime() - today.getTime();
         const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
 
+        const isRecurrent = bill.recurrence && bill.recurrence !== 'none';
+        let recurrenceLabel = '';
+        if (bill.recurrence === '15days') {
+            recurrenceLabel = '<span class="badge-tag cyan" style="font-size:0.72rem; font-weight:600;"><i class="fa-solid fa-arrows-rotate"></i> Quincenal (15d)</span>';
+        } else if (bill.recurrence === 'monthly') {
+            recurrenceLabel = '<span class="badge-tag blue" style="font-size:0.72rem; font-weight:600;"><i class="fa-solid fa-arrows-rotate"></i> Mensual</span>';
+        } else if (bill.recurrence === 'bimonthly') {
+            recurrenceLabel = '<span class="badge-tag purple" style="font-size:0.72rem; font-weight:600;"><i class="fa-solid fa-arrows-rotate"></i> Bimestral</span>';
+        } else if (bill.recurrence === 'yearly') {
+            recurrenceLabel = '<span class="badge-tag green" style="font-size:0.72rem; font-weight:600;"><i class="fa-solid fa-arrows-rotate"></i> Anual</span>';
+        } else {
+            recurrenceLabel = '<span class="badge-tag" style="font-size:0.72rem; color:var(--text-muted); background:rgba(148, 163, 184, 0.15);">Puntual</span>';
+        }
+
         let statusClass = 'green';
         if (bill.status === 'Pendiente') {
             if (daysDiff < 0) {
                 statusClass = 'red';
-                alertMessages.push(`<div style="color: #ef4444; font-weight: 600; margin-bottom: 4px;"><i class="fa-solid fa-triangle-exclamation"></i> GASTO VENCIDO: ${bill.providerName} (${bill.serviceName}) venció hace ${Math.abs(daysDiff)} días ($${bill.amount.toFixed(2)})</div>`);
+                alertMessages.push(`<div style="color: #ef4444; font-weight: 600; margin-bottom: 4px;"><i class="fa-solid fa-triangle-exclamation"></i> GASTO VENCIDO: ${bill.providerName} (${bill.serviceName}) venció hace ${Math.abs(daysDiff)} días (${bill.amount.toFixed(2)})</div>`);
             } else if (daysDiff <= 3) {
                 statusClass = 'amber';
-                alertMessages.push(`<div style="color: #d97706; font-weight: 600; margin-bottom: 4px;"><i class="fa-solid fa-clock"></i> POR VENCER: ${bill.providerName} (${bill.serviceName}) vence en ${daysDiff} días ($${bill.amount.toFixed(2)})</div>`);
+                alertMessages.push(`<div style="color: #d97706; font-weight: 600; margin-bottom: 4px;"><i class="fa-solid fa-clock"></i> POR VENCER: ${bill.providerName} (${bill.serviceName}) vence en ${daysDiff} días (${bill.amount.toFixed(2)})</div>`);
             } else {
                 statusClass = 'blue';
             }
+        }
+
+        // Quick button to mark as paid this period
+        let payActionBtn = '';
+        if (bill.status !== 'Pagado' || isRecurrent) {
+            payActionBtn = `<button class="btn btn-xs btn-success" style="background-color:#10b981 !important; color:#fff !important; font-weight:700; border:none; padding:3px 9px; display:inline-flex; align-items:center; gap:4px; border-radius:5px;" onclick="window.markProviderBillPaid('${bill.id}')" title="Registrar pago de este período y mantener el recordatorio"><i class="fa-solid fa-circle-check"></i> Pagado</button>`;
         }
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td><strong>${bill.providerName}</strong></td>
             <td>${bill.serviceName}</td>
-            <td>$${bill.amount.toFixed(2)}</td>
+            <td style="font-weight:700; color:#1e293b;">${bill.amount.toFixed(2)}</td>
             <td>${bill.dueDate}</td>
+            <td>${recurrenceLabel}</td>
             <td><span class="badge-tag ${statusClass}">${bill.status}</span></td>
             <td>
-                <div class="actions-cell-group">
+                <div class="actions-cell-group" style="display:flex; align-items:center; gap:5px;">
+                    ${payActionBtn}
                     <button class="btn btn-xs btn-outline" onclick="editProviderBill('${bill.id}')" title="Editar"><i class="fa-solid fa-edit"></i></button>
                     <button class="btn btn-xs btn-outline text-red" onclick="deleteProviderBill('${bill.id}')" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
                 </div>
@@ -15375,9 +15403,120 @@ window.editProviderBill = async function(id) {
     document.getElementById('pay-amount').value = bill.amount;
     document.getElementById('pay-due-date').value = bill.dueDate;
     document.getElementById('pay-status').value = bill.status;
+    const recSelect = document.getElementById('pay-recurrence');
+    if (recSelect) recSelect.value = bill.recurrence || 'none';
 
     document.getElementById('payable-form-title').innerHTML = `<i class="fa-solid fa-edit text-cyan"></i> Editar Gasto / Proveedor`;
     document.getElementById('btn-cancel-payable').style.display = 'inline-block';
+};
+
+window.markProviderBillPaid = async function(id) {
+    const bills = await SupabaseDataService.getProviderBills();
+    const bill = bills.find(b => b.id === id);
+    if (!bill) return;
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const currentRec = bill.recurrence || 'none';
+
+    const result = await Swal.fire({
+        title: 'Registrar Pago de Gasto',
+        html: `
+            <div style="text-align: left; font-size: 0.9rem; line-height: 1.6;">
+                <p style="margin: 0 0 6px 0;"><strong>Proveedor / Concepto:</strong> ${bill.providerName}</p>
+                <p style="margin: 0 0 6px 0;"><strong>Servicio:</strong> ${bill.serviceName}</p>
+                <p style="margin: 0 0 10px 0;"><strong>Monto:</strong> <span style="font-size: 1.15rem; font-weight: 700; color: #059669;">${parseFloat(bill.amount || 0).toFixed(2)} USD</span></p>
+                <div style="margin-bottom: 10px;">
+                    <label style="font-weight: 600; font-size: 0.82rem; display: block; margin-bottom: 4px;">Fecha en que se pagó / compró:</label>
+                    <input type="date" id="swal-pay-date" class="swal2-input" value="${todayStr}" style="margin: 0; width: 100%; font-size: 0.88rem; height: 38px;">
+                </div>
+                <div style="margin-bottom: 8px;">
+                    <label style="font-weight: 600; font-size: 0.82rem; display: block; margin-bottom: 4px;"><i class="fa-solid fa-arrows-rotate text-cyan"></i> Frecuencia / Recurrencia:</label>
+                    <select id="swal-pay-recurrence" class="swal2-select" style="margin: 0; width: 100%; font-size: 0.88rem; height: 38px;">
+                        <option value="none" ${currentRec === 'none' ? 'selected' : ''}>Gasto Único (Puntual - No se repite)</option>
+                        <option value="15days" ${currentRec === '15days' ? 'selected' : ''}>Recurrente: Cada 15 Días (Quincenal, ej: Ambientador)</option>
+                        <option value="monthly" ${currentRec === 'monthly' ? 'selected' : ''}>Recurrente: Mensual (Cada mes, ej: Limpieza, Internet, Alquiler)</option>
+                        <option value="bimonthly" ${currentRec === 'bimonthly' ? 'selected' : ''}>Recurrente: Bimestral (Cada 2 meses)</option>
+                        <option value="yearly" ${currentRec === 'yearly' ? 'selected' : ''}>Recurrente: Anual</option>
+                    </select>
+                </div>
+                <small style="color: #64748b; font-size: 0.78rem; display: block; margin-top: 6px;">
+                    <i class="fa-solid fa-circle-check text-green"></i> Si es recurrente, el gasto se registra como pagado de este ciclo y la fecha avanzará automáticamente al siguiente período manteniendo el recordatorio activo.
+                </small>
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: '<i class="fa-solid fa-check"></i> Sí, confirmar pago',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#10b981',
+        cancelButtonColor: '#64748b',
+        preConfirm: () => {
+            const paidDate = document.getElementById('swal-pay-date').value;
+            const recurrence = document.getElementById('swal-pay-recurrence').value;
+            if (!paidDate) {
+                Swal.showValidationMessage('Por favor indique la fecha de pago.');
+                return false;
+            }
+            return { paidDate, recurrence };
+        }
+    });
+
+    if (!result.isConfirmed) return;
+
+    const { paidDate, recurrence } = result.value;
+
+    // Registrar egreso histórico para flujo de caja
+    let paidOutflows = JSON.parse(localStorage.getItem('dental_paid_bills_history') || '[]');
+    paidOutflows.push({
+        id: 'outflow-' + Date.now(),
+        billId: bill.id,
+        providerName: bill.providerName,
+        serviceName: bill.serviceName,
+        amount: bill.amount,
+        paidDate: paidDate,
+        dueDate: bill.dueDate,
+        recurrence: recurrence
+    });
+    try {
+        localStorage.setItem('dental_paid_bills_history', JSON.stringify(paidOutflows));
+    } catch(e) {}
+
+    let nextDueStr = '';
+    bill.recurrence = recurrence;
+
+    if (recurrence && recurrence !== 'none') {
+        // Calcular la siguiente fecha de vencimiento manteniendo el recordatorio vivo
+        const baseDate = new Date(bill.dueDate && bill.dueDate >= paidDate ? bill.dueDate : paidDate);
+        if (recurrence === '15days') {
+            baseDate.setDate(baseDate.getDate() + 15);
+        } else if (recurrence === 'monthly') {
+            baseDate.setMonth(baseDate.getMonth() + 1);
+        } else if (recurrence === 'bimonthly') {
+            baseDate.setMonth(baseDate.getMonth() + 2);
+        } else if (recurrence === 'yearly') {
+            baseDate.setFullYear(baseDate.getFullYear() + 1);
+        }
+        nextDueStr = baseDate.toISOString().split('T')[0];
+        bill.dueDate = nextDueStr;
+        bill.status = 'Pendiente'; // Próximo período pendiente
+    } else {
+        bill.status = 'Pagado';
+        bill.paidDate = paidDate;
+    }
+
+    await SupabaseDataService.saveProviderBill(bill);
+    await renderProviderBills();
+    await renderCashFlow();
+
+    Swal.fire({
+        icon: 'success',
+        title: '¡Pago Registrado con Éxito!',
+        html: (recurrence && recurrence !== 'none')
+            ? `Se registró el pago de <strong>${bill.amount.toFixed(2)}</strong>.<br><br><span style="color:#059669; font-weight:600;"><i class="fa-solid fa-arrows-rotate"></i> Recordatorio activo para el siguiente ciclo: ${nextDueStr}</span>`
+            : `El gasto de <strong>${bill.amount.toFixed(2)}</strong> fue marcado como <strong>Pagado</strong>.`,
+        timer: 3500,
+        showConfirmButton: true
+    });
 };
 
 window.deleteProviderBill = async function(id) {
