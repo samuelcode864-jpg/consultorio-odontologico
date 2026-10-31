@@ -1385,6 +1385,36 @@ function checkAuthSession() {
     if (currentSession) {
         try {
             const user = JSON.parse(currentSession);
+            const loginTime = parseInt(localStorage.getItem('dental_session_login_time') || sessionStorage.getItem('dental_session_login_time') || '0');
+            const now = Date.now();
+            const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+
+            if (loginTime > 0 && (now - loginTime >= TWO_HOURS_MS)) {
+                sessionStorage.removeItem('dental_current_user');
+                localStorage.removeItem('dental_current_user');
+                sessionStorage.removeItem('dental_session_login_time');
+                localStorage.removeItem('dental_session_login_time');
+                localStorage.removeItem('dental_last_activity');
+                localStorage.removeItem('dental_active_tab');
+                document.documentElement.classList.remove('has-auth-session');
+                document.documentElement.classList.add('no-auth-session');
+                if (loginOverlay) loginOverlay.classList.remove('hidden');
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Sesión Expirada (Límite de 2 Horas)',
+                    text: 'Tu sesión ha expirado tras cumplirse 2 horas por seguridad clínica. Por favor, inicia sesión nuevamente.',
+                    confirmButtonText: 'Iniciar Sesión',
+                    confirmButtonColor: '#059669'
+                });
+                return;
+            }
+
+            if (!loginTime) {
+                localStorage.setItem('dental_session_login_time', String(now));
+                sessionStorage.setItem('dental_session_login_time', String(now));
+                localStorage.setItem('dental_last_activity', String(now));
+            }
+
             sessionStorage.setItem('dental_current_user', currentSession);
             localStorage.setItem('dental_current_user', currentSession);
 
@@ -1639,8 +1669,12 @@ async function login(email, password) {
 
     if (match) {
         if (errorMsg) errorMsg.classList.add('hidden');
+        const loginNow = String(Date.now());
         sessionStorage.setItem('dental_current_user', JSON.stringify(match));
         localStorage.setItem('dental_current_user', JSON.stringify(match));
+        sessionStorage.setItem('dental_session_login_time', loginNow);
+        localStorage.setItem('dental_session_login_time', loginNow);
+        localStorage.setItem('dental_last_activity', loginNow);
         checkAuthSession();
         
         // Render initial views for the newly authenticated session
@@ -1670,7 +1704,12 @@ async function login(email, password) {
 function logout() {
     sessionStorage.removeItem('dental_current_user');
     localStorage.removeItem('dental_current_user');
+    sessionStorage.removeItem('dental_session_login_time');
+    localStorage.removeItem('dental_session_login_time');
+    localStorage.removeItem('dental_last_activity');
     localStorage.removeItem('dental_active_tab');
+    if (inactivityTimer) clearTimeout(inactivityTimer);
+    if (sessionLifetimeInterval) clearInterval(sessionLifetimeInterval);
     document.documentElement.classList.remove('has-auth-session');
     document.documentElement.classList.add('no-auth-session');
     const loginOverlay = document.getElementById('login-screen');
@@ -1679,10 +1718,11 @@ function logout() {
 }
 
 // ==========================================
-// INACTIVITY TIMEOUT DETECTOR (1 HOUR)
+// SESSION EXPIRATION & INACTIVITY TRACKER (2 HOURS)
 // ==========================================
 let inactivityTimer = null;
-const INACTIVITY_LIMIT = 60 * 60 * 1000; // 60 minutos (1 hora) de inactividad
+let sessionLifetimeInterval = null;
+const SESSION_MAX_DURATION = 2 * 60 * 60 * 1000; // 2 horas (120 minutos)
 
 function resetInactivityTimer() {
     if (inactivityTimer) {
@@ -1691,15 +1731,28 @@ function resetInactivityTimer() {
     
     // Solo activar si hay un usuario logueado en la pestaña actual
     if (getCurrentUser()) {
-        inactivityTimer = setTimeout(handleInactivityTimeout, INACTIVITY_LIMIT);
+        localStorage.setItem('dental_last_activity', String(Date.now()));
+        inactivityTimer = setTimeout(() => {
+            handleSessionExpiration('inactivity');
+        }, SESSION_MAX_DURATION);
     }
 }
 
-function handleInactivityTimeout() {
-    // Limpiar sesión por inactividad
+function handleSessionExpiration(reason = 'max_time') {
+    // Si estaba en el odontograma, intentar autoguardar cambios pendientes
+    const currentActiveTab = document.documentElement.getAttribute('data-active-tab');
+    if (currentActiveTab === 'odontogram' && typeof autoSaveActivePatientOdontogram === 'function') {
+        try { autoSaveActivePatientOdontogram(); } catch(e){}
+    }
+
     sessionStorage.removeItem('dental_current_user');
     localStorage.removeItem('dental_current_user');
+    sessionStorage.removeItem('dental_session_login_time');
+    localStorage.removeItem('dental_session_login_time');
+    localStorage.removeItem('dental_last_activity');
     localStorage.removeItem('dental_active_tab');
+    if (inactivityTimer) clearTimeout(inactivityTimer);
+    if (sessionLifetimeInterval) clearInterval(sessionLifetimeInterval);
     checkAuthSession();
     
     // Ocultar modales activos
@@ -1708,20 +1761,47 @@ function handleInactivityTimeout() {
         m.classList.add('hidden');
     });
 
+    const isInactive = reason === 'inactivity';
     Swal.fire({
         icon: 'warning',
-        title: 'Sesión Expirada por Inactividad',
-        text: 'Tu sesión ha sido cerrada automáticamente tras 1 hora (60 min) de inactividad por seguridad.',
-        confirmButtonText: 'Iniciar Sesión'
+        title: isInactive ? 'Sesión Expirada por Inactividad (2 Horas)' : 'Sesión Finalizada (Límite de 2 Horas)',
+        text: isInactive 
+            ? 'Tu sesión ha sido cerrada automáticamente tras 2 horas sin actividad por seguridad clínica y protección de datos.' 
+            : 'Tu sesión ha alcanzado el límite máximo de 2 horas por seguridad clínica. Por favor, inicia sesión nuevamente.',
+        confirmButtonText: 'Iniciar Sesión',
+        confirmButtonColor: '#059669'
     });
 }
 
 function initInactivityTracker() {
-    const events = ['mousemove', 'mousedown', 'keypress', 'touchstart', 'scroll', 'click'];
+    const events = ['mousemove', 'mousedown', 'keypress', 'keydown', 'touchstart', 'scroll', 'click'];
     events.forEach(name => {
-        document.addEventListener(name, resetInactivityTimer, true);
+        document.addEventListener(name, () => {
+            const now = Date.now();
+            const lastRecorded = parseInt(localStorage.getItem('dental_last_activity') || '0');
+            // Optimización: actualizar timestamp solo cada 10 segundos para no sobrecargar el almacenamiento en eventos continuos como mousemove
+            if (now - lastRecorded > 10000) {
+                resetInactivityTimer();
+            }
+        }, true);
     });
+    
     resetInactivityTimer();
+
+    // Verificador periódico en segundo plano cada 30 segundos (detecta si pasaron 2 horas desde el login o de inactividad)
+    if (sessionLifetimeInterval) clearInterval(sessionLifetimeInterval);
+    sessionLifetimeInterval = setInterval(() => {
+        if (!getCurrentUser()) return;
+        const now = Date.now();
+        const loginTime = parseInt(localStorage.getItem('dental_session_login_time') || sessionStorage.getItem('dental_session_login_time') || '0');
+        const lastActivity = parseInt(localStorage.getItem('dental_last_activity') || '0');
+
+        if (loginTime > 0 && (now - loginTime >= SESSION_MAX_DURATION)) {
+            handleSessionExpiration('max_time');
+        } else if (lastActivity > 0 && (now - lastActivity >= SESSION_MAX_DURATION)) {
+            handleSessionExpiration('inactivity');
+        }
+    }, 30000);
 }
 
 let currentBudgetItems = [];
