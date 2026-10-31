@@ -568,12 +568,10 @@ function setActivePatientId(id) {
             // Patient switched! Reset active editing budget unless explicitly recorded for this patient
             const savedBudgetForNewPat = localStorage.getItem('dental_active_editing_budget_id_' + id);
             activeEditingBudgetId = savedBudgetForNewPat || null;
+            window.currentActiveEHRPhaseId = 'all';
             // Clear patient signature pad immediately so previous patient's signature never bleeds into new patient
             if (window.patientSigPad) {
                 window.patientSigPad.clear();
-            }
-            if (typeof window.refreshSignatureBoxBadges === 'function') {
-                window.refreshSignatureBoxBadges();
             }
             if (typeof window.refreshSignatureBoxBadges === 'function') {
                 window.refreshSignatureBoxBadges();
@@ -582,6 +580,7 @@ function setActivePatientId(id) {
     } else {
         localStorage.removeItem('dental_active_patient_id');
         activeEditingBudgetId = null;
+        window.currentActiveEHRPhaseId = 'all';
         if (window.patientSigPad) {
             window.patientSigPad.clear();
         }
@@ -812,6 +811,29 @@ function itemMatchesToothAndExtraction(item, toothNum) {
     return code.includes('cx-') || code.includes('ex-') || name.includes('extrac') || name.includes('exodoncia') || name.includes('cirug');
 }
 
+function extractAllToothNumbers(item) {
+    if (!item) return [];
+    const teethFound = new Set();
+    const rawTooth = String(item.tooth || '').trim();
+    if (rawTooth && rawTooth !== 'Gnl' && rawTooth !== 'General' && rawTooth !== 'gnl' && rawTooth !== 'undefined' && rawTooth !== 'null') {
+        const matches = rawTooth.match(/\b([1-4][1-8]|[5-8][1-5])\b/g);
+        if (matches) {
+            matches.forEach(m => teethFound.add(m));
+        } else {
+            const digits = rawTooth.replace(/[^\d]/g, '');
+            if (digits) teethFound.add(digits);
+        }
+    }
+    const text = `${item.procedure || ''} ${item.name || ''} ${item.description || ''} ${item.treatmentName || ''}`;
+    const regex = /\b([1-4][1-8]|[5-8][1-5])\b/g;
+    let m;
+    while ((m = regex.exec(text)) !== null) {
+        teethFound.add(m[1]);
+    }
+    return Array.from(teethFound);
+}
+window.extractAllToothNumbers = extractAllToothNumbers;
+
 function doesSessionMatchTreatment(session, treatment) {
     if (!session || !treatment) return false;
 
@@ -823,63 +845,69 @@ function doesSessionMatchTreatment(session, treatment) {
         return true;
     }
 
-    // 2. Tooth Comparison
-    const sessTooth = extractToothNumber(session);
-    const trtTooth = extractToothNumber(treatment);
-
-    // If both specify a distinct tooth (neither is General) and they differ: CANNOT match
-    if (sessTooth !== 'General' && trtTooth !== 'General' && String(sessTooth) !== String(trtTooth)) {
+    // 2. Budget / Phase Isolation: If both declare budgetId, and they differ, they CANNOT match
+    if (session.budgetId && treatment.budgetId && String(session.budgetId) !== String(treatment.budgetId)) {
         return false;
     }
 
-    // 3. Normalized Procedure Names
+    // 3. Teeth extraction
+    const sessTeeth = extractAllToothNumbers(session);
+    const trtTeeth = extractAllToothNumbers(treatment);
+    const hasSessTooth = sessTeeth.length > 0;
+    const hasTrtTooth = trtTeeth.length > 0;
+
+    // If both have specific teeth and there is NO overlap between them: CANNOT match!
+    if (hasSessTooth && hasTrtTooth) {
+        const overlap = sessTeeth.some(t => trtTeeth.includes(t));
+        if (!overlap) return false;
+    }
+
+    // 4. Normalized Procedure Names
     const sessProc = (session.procedure || session.treatmentName || '').toLowerCase();
     const trtName = (treatment.name || treatment.procedure || '').toLowerCase();
     const sessNorm = normalizeProcedureName(sessProc);
     const trtNorm = normalizeProcedureName(trtName);
 
-    // If both have the same tooth (e.g. 17 === 17)
-    if (sessTooth !== 'General' && trtTooth !== 'General' && String(sessTooth) === String(trtTooth)) {
-        // If procedure keywords or sub-strings match
+    // If there is tooth overlap (e.g. tooth 18 in [18, 28] and tooth 18 in treatment)
+    if (hasSessTooth && hasTrtTooth) {
         if (sessNorm && trtNorm && (sessNorm.includes(trtNorm) || trtNorm.includes(sessNorm))) {
             return true;
         }
 
-        // Shared dental keyword categories
-        const keywords = ['resina', 'obturacion', 'restauracion', 'conducto', 'endo', 'extrac', 'exodoncia', 'cirug', 'corona', 'protesis', 'incrustaci', 'limpieza', 'tartrec', 'profilaxis', 'blanqueamiento'];
+        const keywords = [
+            'resina', 'obturacion', 'restauracion', 'conducto', 'endo', 
+            'extrac', 'exodoncia', 'cirug', 'cordal', 'corona', 'protesis', 
+            'incrustaci', 'limpieza', 'tartrec', 'profilaxis', 'blanqueamiento', 
+            'carilla', 'borde', 'estetico'
+        ];
         for (const kw of keywords) {
             if (sessProc.includes(kw) && trtName.includes(kw)) {
                 return true;
             }
         }
-
-        // If sessionNum matches and tooth matches
-        if (session.sessionNum && treatment.sessionNum && Number(session.sessionNum) === Number(treatment.sessionNum)) {
-            return true;
-        }
-
-        // If session procedure explicitly mentions this tooth number
-        if (sessProc.includes(String(trtTooth))) {
-            return true;
-        }
-
-        return false;
+        return true;
     }
 
-    // 4. If either or both are 'General' (e.g. Limpieza General, Consulta, etc.)
+    // 5. If treatment has a specific tooth but session is general:
+    if (hasTrtTooth && !hasSessTooth) {
+        const mentionsTooth = trtTeeth.some(t => sessProc.includes(t));
+        if (!mentionsTooth) return false;
+    }
+
+    // 6. General procedure comparison
     if (sessNorm && trtNorm && (sessNorm.includes(trtNorm) || trtNorm.includes(sessNorm))) {
         return true;
     }
 
-    const generalKeywords = ['limpieza', 'profilaxis', 'tartrectomia', 'blanqueamiento', 'fluor', 'diagnostico', 'consulta', 'panoramica'];
+    const generalKeywords = [
+        'limpieza', 'profilaxis', 'tartrectomia', 'blanqueamiento', 'fluor', 
+        'diagnostico', 'consulta', 'panoramica', 'alineador', 'ortodoncia', 
+        'braket', 'bracket', 'scaneo', 'escaneo', 'frenillo'
+    ];
     for (const kw of generalKeywords) {
         if (sessProc.includes(kw) && trtName.includes(kw)) {
             return true;
         }
-    }
-
-    if (session.sessionNum && treatment.sessionNum && Number(session.sessionNum) === Number(treatment.sessionNum)) {
-        return true;
     }
 
     return false;
@@ -908,8 +936,11 @@ async function syncPatientTreatmentsAndSessions(patient, optionalInvoices = null
     }
 
     // 2. Sync approvedOdontograms phases
-    if (patient.metadata && Array.isArray(patient.metadata.approvedOdontograms)) {
-        patient.metadata.approvedOdontograms.forEach(phase => {
+    const pApprovedPhases = (patient.metadata && Array.isArray(patient.metadata.approvedOdontograms))
+        ? patient.metadata.approvedOdontograms
+        : (patient.odontogram_data?._app_extended?.metadata?.approvedOdontograms || []);
+    if (Array.isArray(pApprovedPhases) && pApprovedPhases.length > 0) {
+        pApprovedPhases.forEach(phase => {
             if (Array.isArray(phase.treatments)) {
                 phase.treatments.forEach(t => {
                     const matchSess = sessions.find(s => doesSessionMatchTreatment(s, t));
@@ -925,6 +956,11 @@ async function syncPatientTreatmentsAndSessions(patient, optionalInvoices = null
                 });
             }
         });
+        if (!patient.metadata) patient.metadata = {};
+        patient.metadata.approvedOdontograms = pApprovedPhases;
+        if (patient.odontogram_data?._app_extended?.metadata) {
+            patient.odontogram_data._app_extended.metadata.approvedOdontograms = pApprovedPhases;
+        }
     }
 
     // 3. Sync invoices table in Supabase
@@ -967,11 +1003,13 @@ async function syncPatientTreatmentsAndSessions(patient, optionalInvoices = null
     // 5. Sync odontogramData restorations
     if (!patient.odontogramData) patient.odontogramData = {};
     sessions.forEach(s => {
-        const sTooth = extractToothNumber(s);
-        if (sTooth && sTooth !== 'General' && !isNaN(parseInt(sTooth))) {
-            const faceKey = `${sTooth}-center`;
-            patient.odontogramData[faceKey] = 'restoration';
-        }
+        const teeth = extractAllToothNumbers(s);
+        teeth.forEach(t => {
+            if (t && t !== 'General' && !isNaN(parseInt(t))) {
+                const faceKey = `${t}-center`;
+                patient.odontogramData[faceKey] = 'restoration';
+            }
+        });
     });
 }
 window.syncPatientTreatmentsAndSessions = syncPatientTreatmentsAndSessions;
@@ -3918,17 +3956,30 @@ let pendingRenderBudgetTable = false;
 // Helper: Determinar si un tratamiento en el presupuesto o ficha clínica ya fue realizado/completado
 function isItemCompleted(item, patientObj = null) {
     if (!item) return false;
+    const p = patientObj || window.activeEHRPatient || ((typeof getActivePatientId === 'function') ? ((window.allPatientsCache || []).find(x => String(x.id) === String(getActivePatientId()))) : null);
+    
+    // 1. Verificar si existe una sesión clínica real registrada que coincida con este tratamiento
+    if (p) {
+        const sessions = Array.isArray(p.sessions) ? p.sessions : ((p.metadata && Array.isArray(p.metadata.sessions)) ? p.metadata.sessions : []);
+        if (sessions && sessions.length > 0) {
+            const hasMatch = sessions.some(s => doesSessionMatchTreatment(s, item));
+            if (hasMatch) return true;
+        }
+    }
+
+    // 2. Validación de estado directo (evita falsos positivos si el paciente ya tiene historial pero este item no fue atendido)
     const directStatus = String(item.status || '').toLowerCase().trim();
     if (directStatus === 'completado' || directStatus === 'atendido' || directStatus === 'realizado' || directStatus === 'finalizado') {
+        if (p) {
+            const sessions = Array.isArray(p.sessions) ? p.sessions : ((p.metadata && Array.isArray(p.metadata.sessions)) ? p.metadata.sessions : []);
+            if (sessions.length > 0 && !item.completedDate) {
+                return false;
+            }
+        }
         return true;
     }
-    const p = patientObj || window.activeEHRPatient || ((typeof getActivePatientId === 'function') ? ((window.allPatientsCache || []).find(x => String(x.id) === String(getActivePatientId()))) : null);
-    if (!p) return false;
 
-    const sessions = Array.isArray(p.sessions) ? p.sessions : ((p.metadata && Array.isArray(p.metadata.sessions)) ? p.metadata.sessions : []);
-    if (!sessions || sessions.length === 0) return false;
-
-    return sessions.some(s => doesSessionMatchTreatment(s, item));
+    return false;
 }
 window.isItemCompleted = isItemCompleted;
 
@@ -4409,6 +4460,7 @@ window.selectPatientForOdontogram = async function(patientId) {
 
 window.openEHRForPatient = function(patientId) {
     setActivePatientId(patientId);
+    window.currentActiveEHRPhaseId = 'all';
 
     // Clear patient signature pad initially so no strokes from previous patient bleed through
     if (window.patientSigPad) {
@@ -5193,25 +5245,41 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                 : ((activePatient.metadata && activePatient.metadata.sessions) || []);
             activePatient.sessions = patientSessions;
 
-            const completedSessions = patientSessions.length;
+            // Filtrar sesiones completadas que corresponden a la fase seleccionada
+            let phaseCompletedSessions = patientSessions;
+            if (selectedPhaseId !== 'all' && activeApprovedBudget) {
+                phaseCompletedSessions = patientSessions.filter(s => {
+                    if (s.budgetId && String(s.budgetId) === String(activeApprovedBudget.id)) return true;
+                    if (s.phaseId && String(s.phaseId) === String(activeApprovedBudget.id)) return true;
+                    return treatmentsList.some(t => doesSessionMatchTreatment(s, t));
+                });
+            }
+
+            const completedSessions = (selectedPhaseId !== 'all') ? phaseCompletedSessions.length : patientSessions.length;
             let totalSessions = 0;
             let pct = 0;
             let treatmentTitle = 'Sin tratamiento activo';
 
             if (approvedBudgets.length > 0) {
-                totalSessions = (meta.initialTreatmentPlan && meta.initialTreatmentPlan.totalSessions) || (treatmentsList.length > 0 ? treatmentsList.length : 1);
+                totalSessions = (selectedPhaseId !== 'all')
+                    ? (treatmentsList.length > 0 ? treatmentsList.length : 1)
+                    : ((meta.initialTreatmentPlan && meta.initialTreatmentPlan.totalSessions) || (treatmentsList.length > 0 ? treatmentsList.length : 1));
                 if (totalSessions < 1) totalSessions = 1;
                 if (completedSessions > totalSessions) totalSessions = completedSessions;
                 pct = Math.min(100, Math.round((completedSessions / totalSessions) * 100));
 
-                treatmentTitle = (meta.initialTreatmentPlan && meta.initialTreatmentPlan.treatmentName);
-                if (!treatmentTitle || treatmentTitle === 'Tratamiento General') {
-                    if (treatmentsList.length > 0) {
-                        treatmentTitle = treatmentsList.map(t => t.name).slice(0, 3).join(' + ') + (treatmentsList.length > 3 ? '...' : '');
-                    } else if (activeApprovedBudget) {
-                        treatmentTitle = `Presupuesto ${activeApprovedBudget.id} (${activeApprovedBudget.paymentTerms || 'Contado'})`;
-                    } else {
-                        treatmentTitle = 'Tratamiento Odontológico Integral';
+                if (selectedPhaseId !== 'all' && activeApprovedBudget) {
+                    treatmentTitle = `Fase #${activeApprovedBudget.phaseIndex || 1}: ${treatmentsList.map(t => t.name).slice(0, 3).join(' + ')}${treatmentsList.length > 3 ? '...' : ''} (${activeApprovedBudget.id})`;
+                } else {
+                    treatmentTitle = (meta.initialTreatmentPlan && meta.initialTreatmentPlan.treatmentName);
+                    if (!treatmentTitle || treatmentTitle === 'Tratamiento General') {
+                        if (treatmentsList.length > 0) {
+                            treatmentTitle = treatmentsList.map(t => t.name).slice(0, 3).join(' + ') + (treatmentsList.length > 3 ? '...' : '');
+                        } else if (activeApprovedBudget) {
+                            treatmentTitle = `Presupuesto ${activeApprovedBudget.id} (${activeApprovedBudget.paymentTerms || 'Contado'})`;
+                        } else {
+                            treatmentTitle = 'Tratamiento Odontológico Integral';
+                        }
                     }
                 }
             } else if (completedSessions > 0) {
@@ -5360,24 +5428,24 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                     timeline.appendChild(trtSection);
                 }
 
-                // Caso A: Hay presupuestos aprobados -> Renderizar sesiones 1 a totalSessions y pendientes
+                // Caso A: Hay presupuestos aprobados -> Renderizar sesiones realizadas y pendientes
                 if (approvedBudgets.length > 0) {
                     const pendingTreatments = treatmentsList.filter(t => !isItemCompleted(t, activePatient));
-                    let pendingTrtIdx = 0;
 
-                    for (let sNum = 1; sNum <= totalSessions; sNum++) {
-                        const s = patientSessions.find(sess => sess.sessionNum === sNum);
-                        const trtItem = (pendingTrtIdx < pendingTreatments.length) ? pendingTreatments[pendingTrtIdx] : null;
-
-                        if (s) {
+                    if (selectedPhaseId !== 'all') {
+                        // Modo estricto por Fase seleccionada:
+                        // 1. Renderizar todas las sesiones completadas que pertenecen a esta fase específica
+                        phaseCompletedSessions.forEach(s => {
                             timeline.appendChild(createCompletedSessionCard(s));
-                        } else {
-                            // Sesión pendiente planificada
-                            pendingTrtIdx++;
+                        });
+
+                        // 2. Renderizar tarjetas pendientes para cada tratamiento restante de esta fase
+                        pendingTreatments.forEach((trtItem, pIdx) => {
+                            const nextSNum = phaseCompletedSessions.length + pIdx + 1;
                             const trtTooth = trtItem ? (trtItem.tooth || extractToothNumber(trtItem)) : 'Gnl';
-                            const trtPrice = trtItem ? (trtItem.price || 0) : 0;
+                            const trtPrice = trtItem ? (parseFloat(trtItem.price) || 0) : 0;
                             const procHint = trtItem ? `Procedimiento asignado: <strong>${trtItem.name}</strong> (Pieza ${trtTooth})` : 'Continuación del plan de tratamiento';
-                            const defaultProcName = trtItem ? trtItem.name : `Sesión #${sNum}`;
+                            const defaultProcName = trtItem ? trtItem.name : `Sesión #${nextSNum}`;
                             const safeProcNameEscaped = defaultProcName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
                             const pendingDiv = document.createElement('div');
@@ -5386,31 +5454,66 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                                 <div class="timeline-meta" style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 6px;">
                                     <span>
                                         <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; margin:0;">
-                                            <input type="checkbox" class="ehr-session-checkbox" data-session-num="${sNum}" data-is-completed="false" data-procedure="${safeProcNameEscaped}" data-tooth="${trtItem ? trtItem.tooth : 'Gnl'}" data-price="${trtItem ? trtItem.price : 0}" style="cursor:pointer; transform:scale(1.2);">
-                                            <strong style="color:#f59e0b;"><i class="fa-solid fa-hourglass-half"></i> Sesión Nº ${sNum}</strong>
+                                            <input type="checkbox" class="ehr-session-checkbox" data-session-num="${nextSNum}" data-is-completed="false" data-procedure="${safeProcNameEscaped}" data-tooth="${trtTooth}" data-price="${trtPrice}" style="cursor:pointer; transform:scale(1.2);">
+                                            <strong style="color:#f59e0b;"><i class="fa-solid fa-hourglass-half"></i> Sesión Nº ${nextSNum}</strong>
                                         </label> — <span class="badge-tag amber">⏳ Pendiente</span>
                                     </span>
                                     <div style="display: flex; gap: 6px; align-items: center;">
-                                        <button class="btn btn-xs btn-outline" style="border-color:#10b981; color:#10b981; font-weight:600;" onclick="window.openRecipesModalForSession('${activePatient.id}', ${sNum}, '${safeProcNameEscaped}')" title="Ver / Crear Récipe e Indicaciones"><i class="fa-solid fa-pills"></i> Récipes</button>
-                                        <button class="btn btn-xs btn-outline" style="border-color:var(--primary-cyan); color:var(--primary-cyan);" onclick="window.openAppointmentModalForPatient('${activePatient.id}', ${sNum}, '${safeProcNameEscaped}')" title="Agendar esta sesión en la Agenda">
+                                        <button class="btn btn-xs btn-outline" style="border-color:#10b981; color:#10b981; font-weight:600;" onclick="window.openRecipesModalForSession('${activePatient.id}', ${nextSNum}, '${safeProcNameEscaped}')" title="Ver / Crear Récipe e Indicaciones"><i class="fa-solid fa-pills"></i> Récipes</button>
+                                        <button class="btn btn-xs btn-outline" style="border-color:var(--primary-cyan); color:var(--primary-cyan);" onclick="window.openAppointmentModalForPatient('${activePatient.id}', ${nextSNum}, '${safeProcNameEscaped}')" title="Agendar esta sesión en la Agenda">
                                             <i class="fa-solid fa-calendar-plus"></i> Agendar
                                         </button>
-                                        <button class="btn btn-xs btn-primary" style="background-color:var(--primary-cyan) !important; color:white !important;" onclick="window.openSessionModalForPatient('${activePatient.id}', ${sNum}, '${safeProcNameEscaped}')" title="Atender esta sesión ahora">
-                                            <i class="fa-solid fa-stethoscope"></i> Atender Sesión N° ${sNum}
+                                        <button class="btn btn-xs btn-primary" style="background-color:var(--primary-cyan) !important; color:white !important;" onclick="window.openSessionModalForPatient('${activePatient.id}', ${nextSNum}, '${safeProcNameEscaped}')" title="Atender esta sesión ahora">
+                                            <i class="fa-solid fa-stethoscope"></i> Atender Sesión N° ${nextSNum}
                                         </button>
                                     </div>
                                 </div>
                                 <p style="margin:6px 0 0 0; font-size:0.84rem; color:var(--text-muted);">${procHint}</p>
                             `;
                             timeline.appendChild(pendingDiv);
-                        }
-                    }
+                        });
+                    } else {
+                        // Modo 'all' (Todas las Fases):
+                        // 1. Renderizar todas las sesiones completadas ordenadas
+                        const sortedSessions = [...patientSessions].sort((a, b) => (a.sessionNum || 0) - (b.sessionNum || 0));
+                        sortedSessions.forEach(s => {
+                            timeline.appendChild(createCompletedSessionCard(s));
+                        });
 
-                    // Sesiones extras realizadas más allá del plan presupuestado
-                    const extraSessions = patientSessions.filter(sess => sess.sessionNum > totalSessions);
-                    extraSessions.forEach(s => {
-                        timeline.appendChild(createCompletedSessionCard(s));
-                    });
+                        // 2. Renderizar tratamientos pendientes globales
+                        pendingTreatments.forEach((trtItem, pIdx) => {
+                            const nextSNum = sortedSessions.length + pIdx + 1;
+                            const trtTooth = trtItem ? (trtItem.tooth || extractToothNumber(trtItem)) : 'Gnl';
+                            const trtPrice = trtItem ? (parseFloat(trtItem.price) || 0) : 0;
+                            const procHint = trtItem ? `Procedimiento asignado: <strong>${trtItem.name}</strong> (Pieza ${trtTooth})` : 'Continuación del plan de tratamiento';
+                            const defaultProcName = trtItem ? trtItem.name : `Sesión #${nextSNum}`;
+                            const safeProcNameEscaped = defaultProcName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+                            const pendingDiv = document.createElement('div');
+                            pendingDiv.className = 'timeline-item timeline-item-pending';
+                            pendingDiv.innerHTML = `
+                                <div class="timeline-meta" style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 6px;">
+                                    <span>
+                                        <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; margin:0;">
+                                            <input type="checkbox" class="ehr-session-checkbox" data-session-num="${nextSNum}" data-is-completed="false" data-procedure="${safeProcNameEscaped}" data-tooth="${trtTooth}" data-price="${trtPrice}" style="cursor:pointer; transform:scale(1.2);">
+                                            <strong style="color:#f59e0b;"><i class="fa-solid fa-hourglass-half"></i> Sesión Nº ${nextSNum}</strong>
+                                        </label> — <span class="badge-tag amber">⏳ Pendiente</span>
+                                    </span>
+                                    <div style="display: flex; gap: 6px; align-items: center;">
+                                        <button class="btn btn-xs btn-outline" style="border-color:#10b981; color:#10b981; font-weight:600;" onclick="window.openRecipesModalForSession('${activePatient.id}', ${nextSNum}, '${safeProcNameEscaped}')" title="Ver / Crear Récipe e Indicaciones"><i class="fa-solid fa-pills"></i> Récipes</button>
+                                        <button class="btn btn-xs btn-outline" style="border-color:var(--primary-cyan); color:var(--primary-cyan);" onclick="window.openAppointmentModalForPatient('${activePatient.id}', ${nextSNum}, '${safeProcNameEscaped}')" title="Agendar esta sesión en la Agenda">
+                                            <i class="fa-solid fa-calendar-plus"></i> Agendar
+                                        </button>
+                                        <button class="btn btn-xs btn-primary" style="background-color:var(--primary-cyan) !important; color:white !important;" onclick="window.openSessionModalForPatient('${activePatient.id}', ${nextSNum}, '${safeProcNameEscaped}')" title="Atender esta sesión ahora">
+                                            <i class="fa-solid fa-stethoscope"></i> Atender Sesión N° ${nextSNum}
+                                        </button>
+                                    </div>
+                                </div>
+                                <p style="margin:6px 0 0 0; font-size:0.84rem; color:var(--text-muted);">${procHint}</p>
+                            `;
+                            timeline.appendChild(pendingDiv);
+                        });
+                    }
                 } else {
                     // Caso B: No hay presupuesto aprobado, pero sí hay sesiones registradas -> Renderizarlas todas ordenadas
                     const sortedSessions = [...patientSessions].sort((a, b) => (a.sessionNum || 0) - (b.sessionNum || 0));
@@ -7238,10 +7341,28 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
             return;
         }
 
-        // Gather treatments from metadata or active approved budget
-        let treatments = (patient.metadata && Array.isArray(patient.metadata.treatments) && patient.metadata.treatments.length > 0) 
-            ? patient.metadata.treatments 
-            : (window.currentEhrTreatmentsList || []);
+        // Gather treatments from metadata or active approved budget of the current phase
+        let treatments = [];
+        if (window.currentActiveEHRPhaseId && window.currentActiveEHRPhaseId !== 'all') {
+            const approvedPhases = (patient.odontogram_data?._app_extended?.metadata?.approvedOdontograms) || (patient.metadata?.approvedOdontograms) || [];
+            const bMatch = approvedPhases.find(b => String(b.id) === String(window.currentActiveEHRPhaseId));
+            if (bMatch && Array.isArray(bMatch.treatments) && bMatch.treatments.length > 0) {
+                treatments = bMatch.treatments.map((it, idx) => ({
+                    ...it,
+                    sessionNum: idx + 1,
+                    budgetId: bMatch.id,
+                    phaseTitle: bMatch.phaseTitle || `Fase #${idx+1}`
+                }));
+            }
+        }
+        if (treatments.length === 0 && window.currentEhrTreatmentsList && window.currentEhrTreatmentsList.length > 0) {
+            treatments = window.currentEhrTreatmentsList;
+        }
+        if (treatments.length === 0) {
+            treatments = (patient.metadata && Array.isArray(patient.metadata.treatments) && patient.metadata.treatments.length > 0) 
+                ? patient.metadata.treatments 
+                : [];
+        }
 
         if (treatments.length === 0) {
             try {
@@ -7256,7 +7377,8 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
                                 tooth: it.tooth || 'Gnl',
                                 price: it.price || 0,
                                 specialist: it.specialist || '',
-                                status: 'Planificado'
+                                status: 'Planificado',
+                                budgetId: b.id
                             });
                         });
                     }
@@ -7310,17 +7432,43 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
                 opt.dataset.treatmentId = t.id || t.key || ('trt-' + tNum);
                 opt.dataset.treatmentTooth = toothNum;
                 opt.dataset.treatmentName = t.name;
-                if (parseInt(tNum) === parseInt(sessionNum)) {
-                    opt.selected = true;
-                }
+                opt.dataset.budgetId = t.budgetId || (window.currentActiveEHRPhaseId !== 'all' ? window.currentActiveEHRPhaseId : '') || '';
                 trtSelect.appendChild(opt);
             });
+
+            // Match procedureName if provided
+            let matchedIdx = -1;
+            if (procedureName) {
+                const pNorm = procedureName.toLowerCase();
+                matchedIdx = treatments.findIndex(t => {
+                    const tNorm = (t.name || '').toLowerCase();
+                    return pNorm.includes(tNorm) || tNorm.includes(pNorm);
+                });
+            }
+
+            if (matchedIdx >= 0) {
+                trtSelect.selectedIndex = matchedIdx + 1;
+            } else if (sessionNum) {
+                for (let i = 1; i < trtSelect.options.length; i++) {
+                    if (parseInt(trtSelect.options[i].value) === parseInt(sessionNum)) {
+                        trtSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
 
             // Set price directly from the matching treatment of this patient
             let currentPrice = 0;
             if (trtSelect.selectedIndex > 0) {
                 const initOpt = trtSelect.options[trtSelect.selectedIndex];
                 currentPrice = parseFloat(initOpt.dataset.price) || 0;
+                const mSess = document.getElementById('modal-session');
+                if (mSess) {
+                    mSess.dataset.selectedTreatmentId = initOpt.dataset.treatmentId || '';
+                    mSess.dataset.selectedTreatmentTooth = initOpt.dataset.tooth || '';
+                    mSess.dataset.selectedTreatmentName = initOpt.dataset.name || '';
+                    mSess.dataset.selectedBudgetId = initOpt.dataset.budgetId || (window.currentActiveEHRPhaseId !== 'all' ? window.currentActiveEHRPhaseId : '') || '';
+                }
             } else if (treatments && treatments.length > 0) {
                 const matchT = treatments.find(t => parseInt(t.sessionNum) === parseInt(sessionNum)) || treatments[0];
                 if (matchT && matchT.price) currentPrice = parseFloat(matchT.price) || 0;
@@ -7354,6 +7502,7 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
                         mSess.dataset.selectedTreatmentId = selectedOption ? (selectedOption.dataset.treatmentId || '') : '';
                         mSess.dataset.selectedTreatmentTooth = toothName || '';
                         mSess.dataset.selectedTreatmentName = procName || '';
+                        mSess.dataset.selectedBudgetId = selectedOption ? (selectedOption.dataset.budgetId || '') : (window.currentActiveEHRPhaseId !== 'all' ? window.currentActiveEHRPhaseId : '') || '';
                     }
 
                     // Auto-fill price of newly selected treatment
@@ -8197,6 +8346,7 @@ function initGlobalEvents() {
             const selectedTrtId = modalSessionEl ? modalSessionEl.dataset.selectedTreatmentId : '';
             const selectedTooth = modalSessionEl ? modalSessionEl.dataset.selectedTreatmentTooth : '';
             const selectedTrtName = modalSessionEl ? modalSessionEl.dataset.selectedTreatmentName : '';
+            const selectedBudgetId = modalSessionEl ? modalSessionEl.dataset.selectedBudgetId : '';
 
             // Construct new session
             const sessionObj = {
@@ -8206,6 +8356,7 @@ function initGlobalEvents() {
                 tooth: selectedTooth || extractToothNumber({ procedure, tooth: selectedTooth }),
                 treatmentId: selectedTrtId || '',
                 treatmentName: selectedTrtName || '',
+                budgetId: selectedBudgetId || (window.currentActiveEHRPhaseId !== 'all' ? window.currentActiveEHRPhaseId : '') || '',
                 indications,
                 signatureData,
                 materials: [],
