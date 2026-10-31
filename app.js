@@ -12026,6 +12026,93 @@ function initGlobalEvents() {
         };
     }
 
+    // Income breakdown modal event setup
+    const cardTodayIncome = document.getElementById('card-today-income');
+    if (cardTodayIncome) {
+        cardTodayIncome.onclick = () => {
+            const todayStr = new Date().toLocaleDateString('en-CA');
+            const dateInput = document.getElementById('income-filter-date');
+            if (dateInput) {
+                dateInput.value = todayStr;
+            }
+            if (window.dashboardFilterFrom && window.dashboardFilterTo) {
+                window.renderIncomeDetailsModal('range', window.dashboardFilterFrom, window.dashboardFilterTo);
+            } else {
+                window.renderIncomeDetailsModal('day', todayStr);
+            }
+            openModal('modal-income-details');
+        };
+    }
+
+    const cardMonthIncome = document.getElementById('card-month-income');
+    if (cardMonthIncome) {
+        cardMonthIncome.onclick = () => {
+            const todayStr = new Date().toLocaleDateString('en-CA');
+            const monthStr = todayStr.substring(0, 7);
+            const dateInput = document.getElementById('income-filter-date');
+            if (dateInput) {
+                dateInput.value = todayStr;
+            }
+            window.renderIncomeDetailsModal('month', monthStr);
+            openModal('modal-income-details');
+        };
+    }
+
+    const incomeDateFilter = document.getElementById('income-filter-date');
+    if (incomeDateFilter) {
+        incomeDateFilter.onchange = (e) => {
+            window.renderIncomeDetailsModal('day', e.target.value);
+        };
+    }
+
+    const btnIncomeToday = document.getElementById('btn-income-today');
+    if (btnIncomeToday) {
+        btnIncomeToday.onclick = () => {
+            const todayStr = new Date().toLocaleDateString('en-CA');
+            const dateInput = document.getElementById('income-filter-date');
+            if (dateInput) dateInput.value = todayStr;
+            window.renderIncomeDetailsModal('day', todayStr);
+        };
+    }
+
+    const btnIncomeMonth = document.getElementById('btn-income-month');
+    if (btnIncomeMonth) {
+        btnIncomeMonth.onclick = () => {
+            const todayStr = new Date().toLocaleDateString('en-CA');
+            const monthStr = todayStr.substring(0, 7);
+            window.renderIncomeDetailsModal('month', monthStr);
+        };
+    }
+
+    const btnExportIncome = document.getElementById('btn-export-income-modal');
+    if (btnExportIncome) {
+        btnExportIncome.onclick = () => {
+            const transactions = window._currentIncomeModalTransactions || [];
+            if (transactions.length === 0) {
+                Swal.fire({ icon: 'info', title: 'Sin datos', text: 'No hay transacciones para exportar en este período.' });
+                return;
+            }
+            const exportData = transactions.map(t => ({
+                "Fecha": t.date,
+                "Cédula / ID": t.patientId,
+                "Paciente": t.patientName,
+                "Concepto / Tratamiento": t.concept,
+                "Método de Pago": t.methodLabel,
+                "Banco / Entidad": t.bank,
+                "Referencia": t.reference,
+                "Monto Cobrado (USD)": t.amount
+            }));
+
+            if (typeof XLSX !== 'undefined') {
+                const ws = XLSX.utils.json_to_sheet(exportData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Ingresos");
+                const fname = `Desglose_Ingresos_${(window._currentIncomeModalHeader || 'Reporte').replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`;
+                XLSX.writeFile(wb, fname);
+            }
+        };
+    }
+
     // Fractional inventory checkbox toggle
     const hasPortionsChk = document.getElementById('mat-has-portions');
     const portionsCont = document.getElementById('mat-portions-container');

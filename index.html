@@ -357,22 +357,24 @@
 
                     <!-- Metrics Grid -->
                     <div class="stats-grid">
-                        <div class="stat-card border-cyan">
+                        <div class="stat-card border-cyan" id="card-today-income" style="cursor: pointer;" title="Haga clic para ver el desglose detallado de los ingresos">
                             <div class="stat-header">
                                 <span id="label-stat-card-1">Ingresos del Día</span>
                                 <div class="stat-icon cyan"><i class="fa-solid fa-dollar-sign"></i></div>
                             </div>
                             <h2 id="metric-today-income">$0.00</h2>
                             <small class="trend up" id="metric-today-trend"><i class="fa-solid fa-arrow-trend-up"></i> $0.00 hoy</small>
+                            <small class="text-muted" style="display: block; margin-top: 4px; font-size: 0.75rem;"><i class="fa-solid fa-hand-pointer text-cyan"></i> Haga clic para ver detalles</small>
                         </div>
 
-                        <div class="stat-card border-green">
+                        <div class="stat-card border-green" id="card-month-income" style="cursor: pointer;" title="Haga clic para ver el desglose mensual de ingresos">
                             <div class="stat-header">
                                 <span>Ingresos del Mes</span>
                                 <div class="stat-icon green"><i class="fa-solid fa-vault"></i></div>
                             </div>
                             <h2 id="metric-month-income">$0.00</h2>
                             <small class="text-muted" id="metric-month-sub">Total cobrado este mes</small>
+                            <small class="text-muted" style="display: block; margin-top: 4px; font-size: 0.75rem;"><i class="fa-solid fa-hand-pointer text-green"></i> Haga clic para ver detalles</small>
                         </div>
 
                         <div class="stat-card border-purple">
@@ -3711,6 +3713,65 @@
                 <button class="btn btn-primary" id="btn-confirm-bulk-sessions" style="background: #0d9488 !important; border: none; font-weight: 700; padding: 8px 18px;">
                     <i class="fa-solid fa-check-double"></i> Registrar Atención y Cobro Agrupado
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: DESGLOSE DETALLADO DE INGRESOS -->
+    <div class="modal-overlay hidden" id="modal-income-details">
+        <div class="modal-dialog modal-xl" style="max-width: 1180px; width: 95vw;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-file-invoice-dollar text-cyan"></i> <span id="income-modal-title">Desglose Detallado de Ingresos</span></h3>
+                <button class="modal-close" data-close="modal-income-details">&times;</button>
+            </div>
+            <div class="modal-body" style="max-height: 75vh; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 22px;">
+                <!-- Filter Bar and Total Badges -->
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 15px; flex-wrap: wrap; background: rgba(8, 145, 178, 0.04); padding: 14px 18px; border-radius: 10px; border: 1px solid var(--border-color);">
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <label style="font-weight: 700; font-size: 0.88rem; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-calendar-day text-cyan"></i> Fecha / Período:
+                        </label>
+                        <input type="date" id="income-filter-date" class="form-input" style="width: auto; min-width: 150px; max-width: 180px; padding: 6px 12px; height: 36px; border-radius: 8px; font-weight: 600;">
+                        <button class="btn btn-xs btn-outline" id="btn-income-today" style="height: 36px; padding: 0 12px; font-weight: 600;"><i class="fa-solid fa-calendar-check"></i> Hoy</button>
+                        <button class="btn btn-xs btn-outline" id="btn-income-month" style="height: 36px; padding: 0 12px; font-weight: 600;"><i class="fa-solid fa-calendar-days"></i> Todo el Mes</button>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <span class="badge-tag green" id="income-total-counter" style="font-size: 0.95rem; font-weight: 800; padding: 6px 14px; border-radius: 20px;">
+                            Total: $0.00 USD
+                        </span>
+                        <span class="badge-tag blue" id="income-count-counter" style="font-size: 0.85rem; font-weight: 700; padding: 6px 12px; border-radius: 20px;">
+                            0 Pagos / Abonos
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Methods breakdown mini cards -->
+                <div id="income-methods-summary" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <!-- Populated dynamically -->
+                </div>
+
+                <!-- Detailed Table -->
+                <div class="table-container" style="border: 1px solid var(--border-color); border-radius: 8px; overflow-x: auto; background: var(--bg-card);">
+                    <table class="table" style="width: 100%; min-width: 780px; border-collapse: collapse; margin: 0;">
+                        <thead>
+                            <tr style="background: rgba(0,0,0,0.02); text-align: left; font-size: 0.82rem; color: var(--text-muted); border-bottom: 2px solid var(--border-color);">
+                                <th style="width: 12%; padding: 12px 14px; font-weight: 700;">Fecha</th>
+                                <th style="width: 22%; padding: 12px 14px; font-weight: 700;">Paciente</th>
+                                <th style="width: 28%; padding: 12px 14px; font-weight: 700;">Concepto / Procedimiento</th>
+                                <th style="width: 18%; padding: 12px 14px; font-weight: 700;">Método / Banco</th>
+                                <th style="width: 10%; padding: 12px 14px; font-weight: 700;">Referencia</th>
+                                <th style="width: 10%; padding: 12px 14px; font-weight: 700; text-align: right;">Monto ($ USD)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="income-details-tbody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <button class="btn btn-sm btn-outline" id="btn-export-income-modal" style="display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-file-excel text-green"></i> Exportar a Excel</button>
+                <button class="btn btn-outline" data-close="modal-income-details">Cerrar</button>
             </div>
         </div>
     </div>
