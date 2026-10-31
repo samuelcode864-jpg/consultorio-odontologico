@@ -7644,8 +7644,12 @@ window.adjustStockPrompt = async function(code) {
             const qty = parseInt(result.value);
             if (!isNaN(qty)) {
                 window.kardex.updateStock(code, qty);
+                const updatedItem = window.kardex.getItem(code);
+                if (updatedItem && typeof SupabaseDataService !== 'undefined' && SupabaseDataService.saveInventoryItem) {
+                    await SupabaseDataService.saveInventoryItem(updatedItem);
+                }
                 await renderInventoryTable();
-                await renderDashboard();
+                if (typeof renderDashboard === 'function') await renderDashboard();
                 Swal.fire({ icon: 'success', title: 'Stock actualizado', timer: 1500, showConfirmButton: false });
             }
         }
@@ -8563,40 +8567,116 @@ function initGlobalEvents() {
         });
     }
 
-    // Modal Insumo Handler
+    // Modal Insumo Handler - Soporte completo para Mouse y Teclado (Enter)
     const btnAddMat = document.getElementById('btn-add-material');
-    if (btnAddMat) btnAddMat.onclick = () => openModal('modal-material');
+    if (btnAddMat) {
+        btnAddMat.onclick = async () => {
+            const form = document.getElementById('form-material');
+            if (form) form.reset();
+            const portionsCont = document.getElementById('mat-portions-container');
+            if (portionsCont) portionsCont.classList.add('hidden');
+            
+            // Sugerir código secuencial si el campo está vacío
+            const codeInput = document.getElementById('mat-code');
+            if (codeInput && !codeInput.value) {
+                try {
+                    const currentItems = await SupabaseDataService.getInventory();
+                    const nextNum = (currentItems.length + 1).toString().padStart(3, '0');
+                    codeInput.value = `INS-${nextNum}`;
+                } catch(e) {
+                    codeInput.value = 'INS-001';
+                }
+            }
+            openModal('modal-material');
+            setTimeout(() => {
+                const nameInp = document.getElementById('mat-name');
+                if (nameInp) nameInp.focus();
+            }, 100);
+        };
+    }
+
+    async function handleSaveMaterial(e) {
+        if (e) e.preventDefault();
+        const codeInput = document.getElementById('mat-code');
+        const nameInput = document.getElementById('mat-name');
+        const code = codeInput ? codeInput.value.trim() : '';
+        const name = nameInput ? nameInput.value.trim() : '';
+        const category = document.getElementById('mat-category') ? document.getElementById('mat-category').value : 'Restauración';
+        let unit = (document.getElementById('mat-unit') && document.getElementById('mat-unit').value.trim()) || 'Unidades';
+        const stock = parseInt(document.getElementById('mat-stock') ? document.getElementById('mat-stock').value : 0) || 0;
+        const minStock = parseInt(document.getElementById('mat-min-stock') ? document.getElementById('mat-min-stock').value : 5) || 5;
+        const expiryDate = document.getElementById('mat-expiry') ? document.getElementById('mat-expiry').value : '';
+
+        // Handle portions unit encoding
+        const hasPortionsChk = document.getElementById('mat-has-portions');
+        if (hasPortionsChk && hasPortionsChk.checked) {
+            const portionsPerUnit = parseInt(document.getElementById('mat-portions-per-unit').value) || 30;
+            unit = `${unit} (${portionsPerUnit} porciones)`;
+        }
+
+        if (!code || !name) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Campos requeridos',
+                text: 'Por favor complete el Código y el Nombre del insumo (*).'
+            });
+            if (!code && codeInput) codeInput.focus();
+            else if (!name && nameInput) nameInput.focus();
+            return;
+        }
+
+        const saveMatBtn = document.getElementById('btn-save-material');
+        const origText = saveMatBtn ? saveMatBtn.innerHTML : 'Guardar Insumo';
+        if (saveMatBtn) {
+            saveMatBtn.disabled = true;
+            saveMatBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+        }
+
+        try {
+            await SupabaseDataService.saveInventoryItem({
+                code,
+                name,
+                category,
+                unit,
+                currentStock: stock,
+                minStock,
+                expiryDate
+            });
+
+            closeModal('modal-material');
+            await renderInventoryTable();
+            if (typeof renderDashboard === 'function') await renderDashboard();
+
+            Swal.fire({
+                icon: 'success',
+                title: '¡Insumo Guardado!',
+                text: `El insumo "${name}" (${code}) se registró exitosamente en el inventario Kardex.`,
+                timer: 2000,
+                showConfirmButton: false
+            });
+        } catch (err) {
+            console.error('Error al guardar insumo:', err);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error al Guardar Insumo',
+                text: err.message || 'Ocurrió un problema al guardar el insumo en el inventario.'
+            });
+        } finally {
+            if (saveMatBtn) {
+                saveMatBtn.disabled = false;
+                saveMatBtn.innerHTML = origText;
+            }
+        }
+    }
 
     const saveMatBtn = document.getElementById('btn-save-material');
     if (saveMatBtn) {
-        saveMatBtn.onclick = async (e) => {
-            e.preventDefault();
-            const code = document.getElementById('mat-code').value.trim();
-            const name = document.getElementById('mat-name').value.trim();
-            const category = document.getElementById('mat-category').value;
-            let unit = document.getElementById('mat-unit').value.trim() || 'Unidades';
-            const stock = parseInt(document.getElementById('mat-stock').value) || 0;
-            const minStock = parseInt(document.getElementById('mat-min-stock').value) || 5;
-            const expiryDate = document.getElementById('mat-expiry').value;
+        saveMatBtn.onclick = handleSaveMaterial;
+    }
 
-            // Handle portions unit encoding
-            const hasPortionsChk = document.getElementById('mat-has-portions');
-            if (hasPortionsChk && hasPortionsChk.checked) {
-                const portionsPerUnit = parseInt(document.getElementById('mat-portions-per-unit').value) || 30;
-                unit = `${unit} (${portionsPerUnit} porciones)`;
-            }
-
-            if (!code || !name) {
-                Swal.fire({ icon: 'warning', title: 'Campos requeridos', text: 'Por favor complete los campos obligatorios (*)' });
-                return;
-            }
-
-            await SupabaseDataService.saveInventoryItem({ code, name, category, unit, currentStock: stock, minStock, expiryDate });
-            closeModal('modal-material');
-            await renderInventoryTable();
-            await renderDashboard();
-            Swal.fire({ icon: 'success', title: '¡Insumo Guardado!', text: 'El material se registró en el inventario Kardex.', timer: 2000, showConfirmButton: false });
-        };
+    const matForm = document.getElementById('form-material');
+    if (matForm) {
+        matForm.onsubmit = handleSaveMaterial;
     }
 
     // Modal Servicio Baremo Handler
@@ -13542,13 +13622,13 @@ function initSettingsEvents() {
                 const now = new Date();
                 const dateStr = now.toISOString().split('T')[0];
 
-                const [patients, baremo, invoices, users, stationery, auditLogs] = await Promise.all([
+                const [patients, baremo, invoices, users, stationery, appointments] = await Promise.all([
                     SupabaseDataService.getPatients(true),
                     SupabaseDataService.getBaremo(true),
                     SupabaseDataService.getInvoices(true),
                     SupabaseDataService.getUsers(true),
                     SupabaseDataService.getStationeryConfig(),
-                    SupabaseDataService.getAuditLogs()
+                    SupabaseDataService.getAppointments()
                 ]);
 
                 const backupData = {
@@ -13568,7 +13648,7 @@ function initSettingsEvents() {
                         invoices: invoices,
                         users: users,
                         stationery_config: stationery,
-                        audit_logs: auditLogs
+                        appointments: appointments || []
                     }
                 };
 
