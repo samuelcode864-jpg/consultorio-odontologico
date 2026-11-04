@@ -1082,13 +1082,13 @@ function reconcileOdontogramAndBudget(rawItems = [], rawOdData = {}, baremoList 
             const faceId = faceMatch[2];
             const faceSpan = faceNameMap[faceId] || faceId;
 
-            // Check if this tooth already has this face procedure in the budget table
-            const toothHasFaceItem = items.some(i => 
-                String(extractToothNumber(i)) === String(toothNum) && 
-                String(i.face || '').toLowerCase() === String(faceId).toLowerCase()
-            );
+            // If user is currently choosing a procedure in modal for this tooth, do not auto-generate
+            if (window.pendingToothFaceKey && String(window.pendingToothFaceKey.toothNumber) === String(toothNum)) return;
 
-            if (!toothHasFaceItem) {
+            // Check if this tooth already has ANY procedure in the budget table
+            const toothHasAnyItem = items.some(i => String(extractToothNumber(i)) === String(toothNum));
+
+            if (!toothHasAnyItem) {
                 if (val === 'patology' || val === 'proposed' || val === 'crown') {
                     const proc = (val === 'crown') ? defaultCrown : defaultResina;
                     items.push({
@@ -3886,17 +3886,6 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
         return;
     }
 
-    if (mode === 'face_cleared') {
-        currentBudgetItems = currentBudgetItems.filter(item => {
-            const isThisTooth = String(extractToothNumber(item)) === String(toothNumber);
-            const isThisFace = String(item.face || '').toLowerCase() === String(faceId).toLowerCase();
-            return !(isThisTooth && isThisFace);
-        });
-        await autoSaveActivePatientOdontogram();
-        renderBudgetTable();
-        return;
-    }
-
     if (mode === 'absence') {
         currentBudgetItems = currentBudgetItems.filter(item => {
             const isThisTooth = String(extractToothNumber(item)) === String(toothNumber);
@@ -3920,107 +3909,6 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
     }
 
     if (mode === 'treated') {
-        await autoSaveActivePatientOdontogram();
-        renderBudgetTable();
-        return;
-    }
-
-    if (mode === 'patology') {
-        const faceNameMap = {
-            'top': 'Vestibular',
-            'bottom': 'Lingual / Palatino',
-            'left': 'Mesial',
-            'right': 'Distal',
-            'center': 'Oclusal'
-        };
-        const faceSpan = faceNameMap[faceId] || (faceId && faceId !== 'Gnl' && faceId !== 'all' ? faceId : '');
-        const baremo = await SupabaseDataService.getBaremo();
-
-        let resinaProc = baremo.find(b => 
-            (b.code && b.code.toLowerCase() === 'op-01') ||
-            (b.name && b.name.toLowerCase().includes('resina')) ||
-            (b.name && b.name.toLowerCase().includes('restauraci'))
-        );
-        if (!resinaProc) {
-            resinaProc = {
-                name: 'Restauración Resina Fotocurado',
-                priceUSD: 35.00,
-                code: 'OP-01'
-            };
-        }
-
-        const doctors = await getDoctorsList();
-        const defaultDoc = doctors[0] ? doctors[0].fullname : 'Dr. Alejandro Silva';
-
-        const uniqueKey = `${toothNumber}-${faceId}-proc-${Date.now()}`;
-        const itemObj = {
-            key: uniqueKey,
-            tooth: toothNumber,
-            face: faceId,
-            surface: faceSpan,
-            serviceCode: resinaProc.code || 'OP-01',
-            name: `${resinaProc.name} (Pieza ${toothNumber}${faceSpan ? ' - ' + faceSpan : ''})`,
-            price: parseFloat(resinaProc.priceUSD !== undefined ? resinaProc.priceUSD : (resinaProc.price || 35.00)),
-            discount: 0,
-            specialist: defaultDoc
-        };
-
-        const existingIdx = currentBudgetItems.findIndex(i => 
-            String(extractToothNumber(i)) === String(toothNumber) &&
-            String(i.face || '').toLowerCase() === String(faceId).toLowerCase()
-        );
-
-        if (existingIdx >= 0) {
-            currentBudgetItems[existingIdx] = itemObj;
-        } else {
-            currentBudgetItems.push(itemObj);
-        }
-
-        await autoSaveActivePatientOdontogram();
-        renderBudgetTable();
-        return;
-    }
-
-    if (mode === 'extraction') {
-        const baremo = await SupabaseDataService.getBaremo();
-        let extProc = baremo.find(b => 
-            (b.code && b.code.toLowerCase() === 'cx-01') ||
-            (b.name && (b.name.toLowerCase().includes('exodoncia') || b.name.toLowerCase().includes('extrac')))
-        );
-        if (!extProc) {
-            extProc = {
-                name: 'Exodoncia / Extracción Simple',
-                priceUSD: 30.00,
-                code: 'CX-01'
-            };
-        }
-        const doctors = await getDoctorsList();
-        const defaultDoc = doctors[0] ? doctors[0].fullname : 'Dr. Alejandro Silva';
-
-        const existingIdx = currentBudgetItems.findIndex(i => 
-            String(extractToothNumber(i)) === String(toothNumber) &&
-            (i.key === `${toothNumber}-extraction` || (i.name && (i.name.toLowerCase().includes('extrac') || i.name.toLowerCase().includes('exodoncia'))))
-        );
-
-        const uniqueKey = `${toothNumber}-extraction`;
-        const itemObj = {
-            key: uniqueKey,
-            tooth: toothNumber,
-            face: 'Gnl',
-            surface: 'General',
-            serviceCode: extProc.code || 'CX-01',
-            name: `${extProc.name} (Pieza ${toothNumber})`,
-            price: parseFloat(extProc.priceUSD !== undefined ? extProc.priceUSD : (extProc.price || 30.00)),
-            discount: 0,
-            specialist: defaultDoc
-        };
-
-        if (existingIdx >= 0) {
-            currentBudgetItems[existingIdx] = itemObj;
-        } else {
-            currentBudgetItems.push(itemObj);
-        }
-
         await autoSaveActivePatientOdontogram();
         renderBudgetTable();
         return;
