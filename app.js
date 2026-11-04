@@ -3972,10 +3972,12 @@ async function handleOdontogramFaceClick(toothNumber, faceId, mode, key) {
                 <span class="badge-tag ${badgeColor}">$${proc.priceUSD.toFixed(2)}</span>
             `;
             btn.onclick = async () => {
-                addProcedureToBudget(pendingToothFaceKey, proc);
+                const targetKey = pendingToothFaceKey;
                 pendingToothFaceKey = null;
-                await autoSaveActivePatientOdontogram();
+                addProcedureToBudget(targetKey, proc);
                 closeModal('modal-tooth-treatment');
+                await autoSaveActivePatientOdontogram();
+                await renderBudgetTable();
             };
             listContainer.appendChild(btn);
         });
@@ -4018,7 +4020,8 @@ function addProcedureToBudget(toothKeyObj, procedure) {
         serviceCode: procedure.code || '',
         name: itemName,
         price: procedure.priceUSD !== undefined ? procedure.priceUSD : (procedure.price || 0),
-        discount: 0
+        discount: 0,
+        isSelected: true
     };
 
     // Replace existing procedure only if it's the exact same procedure on the exact same face/tooth
@@ -4131,6 +4134,14 @@ async function renderBudgetTable() {
 
         const rate = getExchangeRate();
         const doctors = await getDoctorsList();
+        let patients = [];
+        try {
+            if (typeof SupabaseDataService !== 'undefined' && SupabaseDataService.getPatients) {
+                patients = await SupabaseDataService.getPatients();
+            }
+        } catch(e) {
+            console.warn("Could not fetch patients in renderBudgetTable:", e);
+        }
 
         // Clear tbody AFTER all asynchronous calls finish to prevent race-condition duplications
         tbody.innerHTML = '';
@@ -4220,7 +4231,11 @@ async function renderBudgetTable() {
             let itemBal = (item.balanceUSD !== undefined) ? parseFloat(item.balanceUSD) : 0;
             let itemPaid = (item.paidUSD !== undefined) ? parseFloat(item.paidUSD) : 0;
 
-            const curActivePat = (typeof activePatient !== 'undefined' && activePatient) ? activePatient : ((typeof getActivePatientId === 'function') ? (patients.find(p => p.id === getActivePatientId())) : null);
+            let curActivePat = (typeof activePatient !== 'undefined' && activePatient) ? activePatient : null;
+            if (!curActivePat && typeof getActivePatientId === 'function' && Array.isArray(patients)) {
+                const actId = getActivePatientId();
+                if (actId) curActivePat = patients.find(p => String(p.id) === String(actId)) || null;
+            }
             if (isDone && itemBal === 0 && itemPaid === 0 && curActivePat) {
                 const sessions = Array.isArray(curActivePat.sessions) ? curActivePat.sessions : ((curActivePat.metadata && Array.isArray(curActivePat.metadata.sessions)) ? curActivePat.metadata.sessions : []);
                 const matchSess = sessions.find(s => doesSessionMatchTreatment(s, item));
