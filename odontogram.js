@@ -384,6 +384,14 @@ class OdontogramEngine {
             }
             return;
         } else {
+            if (this.toothData[key] === this.currentMode) {
+                delete this.toothData[key];
+                this.render();
+                if (this.onFaceClickCallback) {
+                    this.onFaceClickCallback(toothNumber, faceId, 'face_cleared', key);
+                }
+                return;
+            }
             this.toothData[key] = this.currentMode;
             this.render();
         }
