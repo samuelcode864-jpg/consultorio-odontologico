@@ -5185,10 +5185,16 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                 `;
             }
 
-            // 3. Obtener Presupuestos y Tratamientos para Sincronización Total (Solo Aprobados)
+            // 3. Obtener Presupuestos y Tratamientos para Sincronización Total (Aprobados y Activos)
             const allInvoices = await SupabaseDataService.getInvoices();
-            const patientBudgets = allInvoices.filter(i => String(i.patientId) === String(activePatient.id));
-            const approvedBudgets = patientBudgets.filter(b => 
+            const patientBudgets = allInvoices.filter(i => {
+                if (String(i.patientId) !== String(activePatient.id)) return false;
+                const st = String(i.status || '').toLowerCase();
+                return !st.includes('anulad') && !st.includes('cancel');
+            });
+
+            // 1. Filtrar presupuestos estrictamente aprobados
+            let approvedBudgets = patientBudgets.filter(b => 
                 String(b.status).toLowerCase() === 'aprobado' || 
                 String(b.status).toLowerCase() === 'approved' || 
                 String(b.status).toLowerCase() === 'pagada' || 
@@ -5214,6 +5220,31 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                 }
             });
 
+            // 2. Si no hay presupuestos estrictamente aprobados, incorporar los presupuestos activos/borradores del paciente que contengan tratamientos
+            patientBudgets.forEach(b => {
+                if (Array.isArray(b.items) && b.items.length > 0 && !approvedBudgets.some(ab => String(ab.id) === String(b.id))) {
+                    approvedBudgets.push(b);
+                }
+            });
+
+            // 3. Si aún no hay presupuestos en la lista, incorporar el presupuesto borrador activo desde los metadatos del paciente (draftBudget)
+            if (approvedBudgets.length === 0) {
+                const pDraftBudget = (activePatient.odontogram_data?._app_extended?.metadata?.draftBudget) || (activePatient.metadata?.draftBudget);
+                if (pDraftBudget && Array.isArray(pDraftBudget.items) && pDraftBudget.items.length > 0) {
+                    const draftOdData = (activePatient.odontogram_data?._app_extended?.metadata?.draftOdontogramData) || (activePatient.metadata?.draftOdontogramData) || activePatient.odontogramData || {};
+                    approvedBudgets.push({
+                        id: pDraftBudget.id || ('PRE-' + (activePatient.id ? String(activePatient.id).slice(-4) : 'BORRADOR')),
+                        patientId: activePatient.id,
+                        invoiceDate: pDraftBudget.date || new Date().toISOString().split('T')[0],
+                        date: pDraftBudget.date || new Date().toISOString().split('T')[0],
+                        totalRef: parseFloat(pDraftBudget.totalUSD || pDraftBudget.total || 0),
+                        status: pDraftBudget.status || 'Presupuesto',
+                        items: pDraftBudget.items,
+                        odontogramData: pDraftBudget.odontogramData || draftOdData
+                    });
+                }
+            }
+
             // Ordenar cronológicamente (Fase 1, Fase 2, Fase 3...)
             approvedBudgets.sort((a, b) => new Date(a.invoiceDate || a.date || a.createdAt || 0) - new Date(b.invoiceDate || b.date || b.createdAt || 0));
 
@@ -5221,12 +5252,21 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
             approvedBudgets.forEach((b, idx) => {
                 b.phaseIndex = idx + 1;
                 b.phaseTitle = `Fase #${idx + 1}`;
-                // If items are empty in invoice, hydrate from approvedOdontograms
+                // If items are empty in invoice, hydrate from approvedOdontograms or draftBudget
                 if (!b.items || b.items.length === 0) {
                     const matchApp = pApprovedList.find(a => String(a.id) === String(b.id));
                     if (matchApp && matchApp.treatments && matchApp.treatments.length > 0) {
                         b.items = matchApp.treatments;
                     }
+                }
+                if (!b.items || b.items.length === 0) {
+                    const pDraft = (activePatient.odontogram_data?._app_extended?.metadata?.draftBudget) || (activePatient.metadata?.draftBudget);
+                    if (pDraft && String(pDraft.id) === String(b.id) && Array.isArray(pDraft.items)) {
+                        b.items = pDraft.items;
+                    }
+                }
+                if (!b.odontogramData || Object.keys(b.odontogramData).length === 0) {
+                    b.odontogramData = (activePatient.odontogram_data?._app_extended?.metadata?.draftOdontogramData) || (activePatient.metadata?.draftOdontogramData) || activePatient.odontogramData || {};
                 }
             });
 
@@ -5332,6 +5372,23 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                 if (treatmentsList.length === 0 && activePatient.metadata && Array.isArray(activePatient.metadata.treatments)) {
                     treatmentsList = activePatient.metadata.treatments;
                 }
+                if (treatmentsList.length === 0 && activePatient.odontogram_data?._app_extended?.metadata?.treatments) {
+                    treatmentsList = activePatient.odontogram_data._app_extended.metadata.treatments;
+                }
+                if (treatmentsList.length === 0 && activePatient.odontogram_data?._app_extended?.metadata?.draftBudget?.items) {
+                    treatmentsList = activePatient.odontogram_data._app_extended.metadata.draftBudget.items.map((it, idx) => ({
+                        id: it.id || ('trt-draft-' + (idx + 1)),
+                        serviceCode: it.code || it.serviceCode || '',
+                        name: it.name || 'Procedimiento',
+                        tooth: it.tooth || extractToothNumber(it) || 'Gnl',
+                        face: it.face || '',
+                        price: it.price || it.priceUSD || 0,
+                        specialist: it.specialist || '',
+                        status: it.status || 'Planificado',
+                        sessionNum: idx + 1,
+                        budgetId: 'Borrador'
+                    }));
+                }
             }
 
             window.activeEHRPatient = activePatient;
@@ -5362,17 +5419,18 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                         evoSelector.innerHTML = '';
                     }
                 } else {
-                    // 1. Diagnóstico Inicial: Primer presupuesto Aprobado
-                    const firstApproved = approvedBudgets[0];
-                    const initOdData = firstApproved.odontogramData || (activePatient.metadata && activePatient.metadata.initialOdontogramData) || {};
-                    const initDateStr = firstApproved.invoiceDate || firstApproved.date || (activePatient.metadata && activePatient.metadata.initialDiagnosisDate) || 'Inicial';
+                    // 1. Diagnóstico Inicial: Primer presupuesto o diagnóstico registrado
+                    const firstApproved = approvedBudgets[0] || {};
+                    const patientOdFallback = (activePatient.odontogram_data?._app_extended?.metadata?.draftOdontogramData) || (activePatient.metadata && activePatient.metadata.draftOdontogramData) || activePatient.odontogramData || {};
+                    const initOdData = firstApproved.odontogramData || (activePatient.metadata && activePatient.metadata.initialOdontogramData) || patientOdFallback;
+                    const initDateStr = firstApproved.invoiceDate || firstApproved.date || (activePatient.metadata && activePatient.metadata.initialDiagnosisDate) || regEhrDisplay || 'Inicial';
 
                     window.ehrInitialOdontogram = new OdontogramEngine('od-snap-initial', { initialData: initOdData, isPediatric: isPedi, readOnly: true });
                     if (initDateEl) initDateEl.innerHTML = `<i class="fa-regular fa-calendar"></i> Diagnóstico Inicial: ${initDateStr}`;
 
-                    // 2. Evolución Actualizada: Último presupuesto Aprobado por defecto
-                    const latestApproved = approvedBudgets[approvedBudgets.length - 1];
-                    let latestOdData = latestApproved.odontogramData || activePatient.odontogramData || {};
+                    // 2. Evolución Actualizada
+                    const latestApproved = approvedBudgets[approvedBudgets.length - 1] || {};
+                    let latestOdData = latestApproved.odontogramData || patientOdFallback;
                     let latestDateStr = latestApproved.invoiceDate || latestApproved.date || (activePatient.metadata && activePatient.metadata.odontogramLastUpdated) || 'Actualizado';
 
                     window.ehrCurrentOdontogram = new OdontogramEngine('od-snap-current', { initialData: latestOdData, isPediatric: isPedi, readOnly: true });
@@ -5551,18 +5609,18 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                 return div;
             }
 
-            // Si no hay presupuestos aprobados NI sesiones registradas, mostrar estado vacío
-            if (approvedBudgets.length === 0 && completedSessions === 0) {
+            // Si no hay presupuestos NI sesiones registradas NI tratamientos, mostrar estado vacío
+            if (approvedBudgets.length === 0 && completedSessions === 0 && treatmentsList.length === 0) {
                 timeline.innerHTML = `
                     <div style="padding: 35px 20px; text-align: center; color: var(--text-muted); background: var(--bg-card); border: 1px dashed var(--border-color); border-radius: 8px;">
                         <i class="fa-solid fa-clipboard-list" style="font-size: 2.2rem; display: block; margin-bottom: 12px; color: #94a3b8;"></i>
                         <strong style="font-size: 1rem; color: var(--text-main); display: block;">Sin tratamientos ni sesiones asignadas</strong>
-                        <p style="margin: 8px auto 0 auto; max-width: 450px; font-size: 0.85rem; line-height: 1.4;">Puede registrar una sesión clínica directamente con el botón <strong>"+ Registrar Nueva Sesión"</strong> o aprobar formalmente un presupuesto para activar el cronograma completo de tratamientos.</p>
+                        <p style="margin: 8px auto 0 auto; max-width: 450px; font-size: 0.85rem; line-height: 1.4;">Puede registrar una sesión clínica directamente con el botón <strong>"+ Registrar Nueva Sesión"</strong> o crear un presupuesto para activar el cronograma completo de tratamientos.</p>
                     </div>
                 `;
             } else {
-                // 1. Mostrar tabla de Tratamientos Planificados si hay presupuesto aprobado y tratamientos
-                if (approvedBudgets.length > 0 && treatmentsList.length > 0) {
+                // 1. Mostrar tabla de Tratamientos Planificados si hay tratamientos cargados
+                if (treatmentsList.length > 0) {
                     const trtSection = document.createElement('div');
                     trtSection.style.marginBottom = '20px';
                     trtSection.style.padding = '12px 16px';
