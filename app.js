@@ -2595,6 +2595,9 @@ async function renderBudgetListView(forceRefresh = false) {
                 let totalPaidForBudget = 0;
                 if (patient && Array.isArray(patient.payments)) {
                     patient.payments.forEach(pay => {
+                        if (pay.concept && (pay.concept.startsWith('Presupuesto Aprobado') || pay.concept.includes('Presupuesto Aprobado'))) {
+                            return;
+                        }
                         if (pay.budgetId && String(pay.budgetId) === String(b.id)) {
                             totalPaidForBudget += parseFloat(pay.paidUSD || 0);
                         } else if (pay.concept && pay.concept.includes(String(b.id))) {
@@ -5897,6 +5900,9 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
             // Pagos y abonos registrados del paciente
             if (activePatient.payments && activePatient.payments.length > 0) {
                 activePatient.payments.forEach(p => {
+                    if (p.concept && (p.concept.startsWith('Presupuesto Aprobado') || p.concept.includes('Presupuesto Aprobado'))) {
+                        return;
+                    }
                     allPaymentsList.push({
                         date: p.date || new Date().toISOString().split('T')[0],
                         concept: p.concept || 'Abono Registrado',
@@ -6475,9 +6481,9 @@ async function exportEHRToPDF() {
                 bank: b.bank || 'Caja Principal',
                 reference: b.reference || b.id,
                 totalUSD: parseFloat(b.totalRef || 0),
-                paidUSD: b.status === 'Aprobado' ? parseFloat(b.totalRef || 0) : 0,
-                balanceUSD: b.status === 'Aprobado' ? 0 : parseFloat(b.totalRef || 0),
-                status: b.status === 'Aprobado' ? 'Pagado' : 'Pendiente'
+                paidUSD: 0,
+                balanceUSD: parseFloat(b.totalRef || 0),
+                status: b.status === 'Aprobado' ? 'Aprobado' : 'Pendiente'
             });
         });
     } catch(e) {}
@@ -6485,6 +6491,9 @@ async function exportEHRToPDF() {
     // Direct and Session Payments
     if (patient.payments && patient.payments.length > 0) {
         patient.payments.forEach(pay => {
+            if (pay.concept && (pay.concept.startsWith('Presupuesto Aprobado') || pay.concept.includes('Presupuesto Aprobado'))) {
+                return;
+            }
             allPayments.push({
                 date: pay.date || new Date().toISOString().split('T')[0],
                 concept: pay.concept || 'Abono Registrado',
@@ -11135,23 +11144,9 @@ function initGlobalEvents() {
                     patient.clinicalNotes.unshift(noteObj);
                 }
 
-                // Save or update in patient payments history (prevent duplicates for same invoice)
-                if (!patient.payments) patient.payments = [];
-                const existingPayIdx = patient.payments.findIndex(p => p.concept && p.concept.includes(invoiceObj.id));
-                const payObj = {
-                    id: existingPayIdx >= 0 ? (patient.payments[existingPayIdx].id || 'pay-' + Date.now()) : 'pay-' + Date.now(),
-                    date: invoiceObj.invoiceDate,
-                    concept: `Presupuesto Aprobado ${invoiceObj.id}`,
-                    totalUSD: totalUSD,
-                    paidUSD: totalUSD,
-                    balanceUSD: 0,
-                    status: 'Pagado',
-                    method: paymentMethod
-                };
-                if (existingPayIdx >= 0) {
-                    patient.payments[existingPayIdx] = payObj;
-                } else {
-                    patient.payments.unshift(payObj);
+                // Limpiar cualquier registro previo de pago ficticio por aprobación
+                if (patient.payments && Array.isArray(patient.payments)) {
+                    patient.payments = patient.payments.filter(p => !p.concept || (!p.concept.includes(`Presupuesto Aprobado ${invoiceObj.id}`) && !p.concept.startsWith('Presupuesto Aprobado')));
                 }
 
                 if (patient.metadata) {
@@ -15764,6 +15759,9 @@ async function exportFinanceCashFlowExcel() {
         const flowRows = [];
         patients.forEach(p => {
             (p.payments || []).forEach(pay => {
+                if (pay.concept && (pay.concept.startsWith('Presupuesto Aprobado') || pay.concept.includes('Presupuesto Aprobado'))) {
+                    return;
+                }
                 if (pay.paidUSD > 0) {
                     flowRows.push({
                         "Fecha": pay.date,
@@ -15866,6 +15864,9 @@ async function exportFinanceCashFlowPDF() {
 
         patients.forEach(p => {
             (p.payments || []).forEach(pay => {
+                if (pay.concept && (pay.concept.startsWith('Presupuesto Aprobado') || pay.concept.includes('Presupuesto Aprobado'))) {
+                    return;
+                }
                 if (pay.paidUSD > 0) {
                     inflows += pay.paidUSD;
                     transactions.push({

@@ -487,7 +487,7 @@ class SupabaseDataService {
                                 clinicalNotes: p.clinical_notes || ext.clinicalNotes || (p.metadata && p.metadata._fallback_clinical_notes) || [],
                                 sessions: ext.sessions || ext.clinicalNotes || p.clinical_notes || [],
                                 photos: p.photos || ext.photos || (p.metadata && p.metadata._fallback_photos) || [],
-                                payments: p.payments || ext.payments || (p.metadata && p.metadata._fallback_payments) || [],
+                                payments: (p.payments || ext.payments || (p.metadata && p.metadata._fallback_payments) || []).filter(pay => !pay.concept || (!pay.concept.startsWith('Presupuesto Aprobado') && !pay.concept.includes('Presupuesto Aprobado'))),
                                 metadata: (p.metadata && Object.keys(p.metadata).length > 0)
                                     ? { ...(ext.metadata || {}), ...p.metadata, createdAt: p.created_at || (p.metadata && p.metadata.createdAt) || ext.createdAt || '2026-01-15T08:00:00.000Z' }
                                     : (ext.metadata || p.metadata || { createdAt: p.created_at || ext.createdAt || '2026-01-15T08:00:00.000Z' })
@@ -553,7 +553,7 @@ class SupabaseDataService {
                         clinicalNotes: patientObj.clinicalNotes || [],
                         sessions: patientObj.sessions || patientObj.clinicalNotes || [],
                         photos: patientObj.photos || [],
-                        payments: patientObj.payments || [],
+                        payments: (patientObj.payments || []).filter(pay => !pay.concept || (!pay.concept.startsWith('Presupuesto Aprobado') && !pay.concept.includes('Presupuesto Aprobado'))),
                         metadata: patientObj.metadata || {}
                     }
                 };
