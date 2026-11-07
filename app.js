@@ -5735,6 +5735,8 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                             const procHint = trtItem ? `Procedimiento asignado: <strong>${trtItem.name}</strong> (Pieza ${trtTooth})` : 'Continuación del plan de tratamiento';
                             const defaultProcName = trtItem ? trtItem.name : `Sesión #${nextSNum}`;
                             const safeProcNameEscaped = defaultProcName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                            const safeTrtToothEscaped = String(trtTooth || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                            const safeTrtIdEscaped = (trtItem && (trtItem.id || trtItem.key) ? String(trtItem.id || trtItem.key) : '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
                             const pendingDiv = document.createElement('div');
                             pendingDiv.className = 'timeline-item timeline-item-pending';
@@ -5751,7 +5753,7 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                                         <button class="btn btn-xs btn-outline" style="border-color:var(--primary-cyan); color:var(--primary-cyan);" onclick="window.openAppointmentModalForPatient('${activePatient.id}', ${nextSNum}, '${safeProcNameEscaped}')" title="Agendar esta sesión en la Agenda">
                                             <i class="fa-solid fa-calendar-plus"></i> Agendar
                                         </button>
-                                        <button class="btn btn-xs btn-primary" style="background-color:var(--primary-cyan) !important; color:white !important;" onclick="window.openSessionModalForPatient('${activePatient.id}', ${nextSNum}, '${safeProcNameEscaped}')" title="Atender esta sesión ahora">
+                                        <button class="btn btn-xs btn-primary" style="background-color:var(--primary-cyan) !important; color:white !important;" onclick="window.openSessionModalForPatient('${activePatient.id}', ${nextSNum}, '${safeProcNameEscaped}', '${safeTrtToothEscaped}', '${safeTrtIdEscaped}')" title="Atender esta sesión ahora">
                                             <i class="fa-solid fa-stethoscope"></i> Atender Sesión N° ${nextSNum}
                                         </button>
                                     </div>
@@ -5776,6 +5778,8 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                             const procHint = trtItem ? `Procedimiento asignado: <strong>${trtItem.name}</strong> (Pieza ${trtTooth})` : 'Continuación del plan de tratamiento';
                             const defaultProcName = trtItem ? trtItem.name : `Sesión #${nextSNum}`;
                             const safeProcNameEscaped = defaultProcName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                            const safeTrtToothEscaped = String(trtTooth || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                            const safeTrtIdEscaped = (trtItem && (trtItem.id || trtItem.key) ? String(trtItem.id || trtItem.key) : '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
                             const pendingDiv = document.createElement('div');
                             pendingDiv.className = 'timeline-item timeline-item-pending';
@@ -5792,7 +5796,7 @@ async function renderEHRView(filter = 'all', searchQuery = '') {
                                         <button class="btn btn-xs btn-outline" style="border-color:var(--primary-cyan); color:var(--primary-cyan);" onclick="window.openAppointmentModalForPatient('${activePatient.id}', ${nextSNum}, '${safeProcNameEscaped}')" title="Agendar esta sesión en la Agenda">
                                             <i class="fa-solid fa-calendar-plus"></i> Agendar
                                         </button>
-                                        <button class="btn btn-xs btn-primary" style="background-color:var(--primary-cyan) !important; color:white !important;" onclick="window.openSessionModalForPatient('${activePatient.id}', ${nextSNum}, '${safeProcNameEscaped}')" title="Atender esta sesión ahora">
+                                        <button class="btn btn-xs btn-primary" style="background-color:var(--primary-cyan) !important; color:white !important;" onclick="window.openSessionModalForPatient('${activePatient.id}', ${nextSNum}, '${safeProcNameEscaped}', '${safeTrtToothEscaped}', '${safeTrtIdEscaped}')" title="Atender esta sesión ahora">
                                             <i class="fa-solid fa-stethoscope"></i> Atender Sesión N° ${nextSNum}
                                         </button>
                                     </div>
@@ -7622,8 +7626,16 @@ window.registerNewSessionForCurrentPatient = async function() {
     await window.openSessionModalForPatient(patientId, nextSuggestedNum, '');
 };
 
-window.openSessionModalForPatient = async function(patientId, sessionNum, procedureName) {
+window.openSessionModalForPatient = async function(patientId, sessionNum, procedureName, targetTooth = null, targetTreatmentId = null) {
     try {
+        const mSessEl = document.getElementById('modal-session');
+        if (mSessEl) {
+            delete mSessEl.dataset.selectedTreatmentId;
+            delete mSessEl.dataset.selectedTreatmentTooth;
+            delete mSessEl.dataset.selectedTreatmentName;
+            delete mSessEl.dataset.selectedBudgetId;
+        }
+
         const targetId = patientId || getActivePatientId() || (window.activeEHRPatient ? window.activeEHRPatient.id : null);
         if (targetId) setActivePatientId(targetId);
 
@@ -7734,9 +7746,49 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
                 trtSelect.appendChild(opt);
             });
 
-            // Match procedureName if provided
+            // Match treatment intelligently
             let matchedIdx = -1;
-            if (procedureName) {
+
+            // Priority 1: Match by explicit targetTreatmentId
+            if (targetTreatmentId) {
+                matchedIdx = treatments.findIndex(t => t && (String(t.id) === String(targetTreatmentId) || String(t.key) === String(targetTreatmentId)));
+            }
+
+            // Priority 2: Match by targetTooth + procedureName
+            if (matchedIdx < 0 && targetTooth && targetTooth !== 'Gnl' && targetTooth !== 'General') {
+                const cleanTargetTooth = String(targetTooth).trim();
+                matchedIdx = treatments.findIndex(t => {
+                    const tTooth = String(t.tooth || extractToothNumber(t) || '').trim();
+                    if (tTooth !== cleanTargetTooth) return false;
+                    if (!procedureName) return true;
+                    const pNorm = procedureName.toLowerCase();
+                    const tNorm = (t.name || '').toLowerCase();
+                    return pNorm.includes(tNorm) || tNorm.includes(pNorm);
+                });
+            }
+
+            // Priority 3: Match by tooth number found inside procedureName
+            if (matchedIdx < 0 && procedureName) {
+                const teethInProc = extractAllToothNumbers({ procedure: procedureName });
+                if (teethInProc.length > 0) {
+                    const pTooth = String(teethInProc[0]).trim();
+                    matchedIdx = treatments.findIndex(t => {
+                        const tTooth = String(t.tooth || extractToothNumber(t) || '').trim();
+                        if (tTooth !== pTooth) return false;
+                        const pNorm = procedureName.toLowerCase();
+                        const tNorm = (t.name || '').toLowerCase();
+                        return pNorm.includes(tNorm) || tNorm.includes(pNorm);
+                    });
+                }
+            }
+
+            // Priority 4: Match by sessionNum
+            if (matchedIdx < 0 && sessionNum) {
+                matchedIdx = treatments.findIndex(t => parseInt(t.sessionNum) === parseInt(sessionNum));
+            }
+
+            // Priority 5: Fallback match by procedureName only
+            if (matchedIdx < 0 && procedureName) {
                 const pNorm = procedureName.toLowerCase();
                 matchedIdx = treatments.findIndex(t => {
                     const tNorm = (t.name || '').toLowerCase();
@@ -7757,19 +7809,43 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
 
             // Set price directly from the matching treatment of this patient
             let currentPrice = 0;
+            let currentTooth = targetTooth || '';
+            let currentProcName = procedureName || '';
+
             if (trtSelect.selectedIndex > 0) {
                 const initOpt = trtSelect.options[trtSelect.selectedIndex];
                 currentPrice = parseFloat(initOpt.dataset.price) || 0;
+                currentTooth = initOpt.dataset.tooth || currentTooth;
+                currentProcName = initOpt.dataset.name || currentProcName;
                 const mSess = document.getElementById('modal-session');
                 if (mSess) {
                     mSess.dataset.selectedTreatmentId = initOpt.dataset.treatmentId || '';
-                    mSess.dataset.selectedTreatmentTooth = initOpt.dataset.tooth || '';
-                    mSess.dataset.selectedTreatmentName = initOpt.dataset.name || '';
+                    mSess.dataset.selectedTreatmentTooth = currentTooth || '';
+                    mSess.dataset.selectedTreatmentName = currentProcName || '';
                     mSess.dataset.selectedBudgetId = initOpt.dataset.budgetId || (window.currentActiveEHRPhaseId !== 'all' ? window.currentActiveEHRPhaseId : '') || '';
                 }
             } else if (treatments && treatments.length > 0) {
-                const matchT = treatments.find(t => parseInt(t.sessionNum) === parseInt(sessionNum)) || treatments[0];
-                if (matchT && matchT.price) currentPrice = parseFloat(matchT.price) || 0;
+                const matchT = (matchedIdx >= 0 && treatments[matchedIdx]) 
+                    ? treatments[matchedIdx] 
+                    : (treatments.find(t => parseInt(t.sessionNum) === parseInt(sessionNum)) || treatments[0]);
+                if (matchT) {
+                    if (matchT.price) currentPrice = parseFloat(matchT.price) || 0;
+                    currentTooth = extractToothNumber(matchT) || currentTooth;
+                    currentProcName = matchT.name || currentProcName;
+                    const mSess = document.getElementById('modal-session');
+                    if (mSess) {
+                        mSess.dataset.selectedTreatmentId = matchT.id || matchT.key || '';
+                        mSess.dataset.selectedTreatmentTooth = currentTooth || '';
+                        mSess.dataset.selectedTreatmentName = currentProcName || '';
+                        mSess.dataset.selectedBudgetId = matchT.budgetId || (window.currentActiveEHRPhaseId !== 'all' ? window.currentActiveEHRPhaseId : '') || '';
+                    }
+                }
+            }
+
+            const toothLabel = (currentTooth && currentTooth !== 'General' && currentTooth !== 'Gnl') ? ` (Pieza ${currentTooth})` : '';
+            const finalProcValue = (currentProcName && currentProcName.includes(`Pieza ${currentTooth}`)) ? currentProcName : `${currentProcName}${toothLabel}`.trim();
+            if (procInput) {
+                procInput.value = finalProcValue || initialProc;
             }
 
             const trtCostInput = document.getElementById('s-treatment-cost');
@@ -7814,12 +7890,7 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
                     const newProcText = (procName && procName.includes(`Pieza ${toothName}`)) ? procName : `${procName}${toothLabel}`.trim();
 
                     if (procInput) {
-                        const currentVal = procInput.value.trim();
-                        if (currentVal && !currentVal.includes(newProcText)) {
-                            procInput.value = `${currentVal}\n• ${newProcText}`;
-                        } else {
-                            procInput.value = newProcText;
-                        }
+                        procInput.value = newProcText;
                     }
 
                     const mSess = document.getElementById('modal-session');
@@ -7838,8 +7909,37 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
                         payAmtInput.value = optPrice.toFixed(2);
                     }
                     updateSessionBalanceCalculation();
+                } else {
+                    const mSess = document.getElementById('modal-session');
+                    if (mSess) {
+                        delete mSess.dataset.selectedTreatmentId;
+                        delete mSess.dataset.selectedTreatmentTooth;
+                        delete mSess.dataset.selectedTreatmentName;
+                        delete mSess.dataset.selectedBudgetId;
+                    }
                 }
             };
+
+            if (sNumEl) {
+                sNumEl.onchange = () => {
+                    const val = parseInt(sNumEl.value);
+                    if (!isNaN(val) && trtSelect) {
+                        let found = false;
+                        for (let i = 1; i < trtSelect.options.length; i++) {
+                            if (parseInt(trtSelect.options[i].value) === val) {
+                                trtSelect.selectedIndex = i;
+                                trtSelect.dispatchEvent(new Event('change'));
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found) {
+                            trtSelect.selectedIndex = 0;
+                            trtSelect.dispatchEvent(new Event('change'));
+                        }
+                    }
+                };
+            }
         }
 
         try {
@@ -8682,12 +8782,23 @@ function initGlobalEvents() {
             const selectedTrtName = modalSessionEl ? modalSessionEl.dataset.selectedTreatmentName : '';
             const selectedBudgetId = modalSessionEl ? modalSessionEl.dataset.selectedBudgetId : '';
 
+            // Resolve definitive tooth for this session
+            let sessionTooth = selectedTooth;
+            if (!sessionTooth || sessionTooth === 'Gnl' || sessionTooth === 'General') {
+                const teethInProc = extractAllToothNumbers({ procedure });
+                if (teethInProc.length > 0) {
+                    sessionTooth = teethInProc[0];
+                } else {
+                    sessionTooth = extractToothNumber({ procedure, tooth: selectedTooth });
+                }
+            }
+
             // Construct new session
             const sessionObj = {
                 sessionNum,
                 datetime,
                 procedure,
-                tooth: selectedTooth || extractToothNumber({ procedure, tooth: selectedTooth }),
+                tooth: sessionTooth,
                 treatmentId: selectedTrtId || '',
                 treatmentName: selectedTrtName || '',
                 treatmentCost: effectiveTotalCost,
@@ -12490,6 +12601,12 @@ async function closeModal(id, force = false) {
     }
 
     el.classList.add('hidden');
+    if (id === 'modal-session') {
+        delete el.dataset.selectedTreatmentId;
+        delete el.dataset.selectedTreatmentTooth;
+        delete el.dataset.selectedTreatmentName;
+        delete el.dataset.selectedBudgetId;
+    }
     if (id === 'modal-patient') {
         window.patientModalOpenedFromBudget = false;
     }
