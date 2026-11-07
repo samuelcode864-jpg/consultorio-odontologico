@@ -817,18 +817,28 @@ function extractAllToothNumbers(item) {
     const rawTooth = String(item.tooth || '').trim();
     if (rawTooth && rawTooth !== 'Gnl' && rawTooth !== 'General' && rawTooth !== 'gnl' && rawTooth !== 'undefined' && rawTooth !== 'null') {
         const matches = rawTooth.match(/\b([1-4][1-8]|[5-8][1-5])\b/g);
-        if (matches) {
+        if (matches && matches.length > 0) {
             matches.forEach(m => teethFound.add(m));
+            return Array.from(teethFound);
         } else {
             const digits = rawTooth.replace(/[^\d]/g, '');
-            if (digits) teethFound.add(digits);
+            if (digits) {
+                teethFound.add(digits);
+                return Array.from(teethFound);
+            }
         }
     }
     const text = `${item.procedure || ''} ${item.name || ''} ${item.description || ''} ${item.treatmentName || ''}`;
-    const regex = /\b([1-4][1-8]|[5-8][1-5])\b/g;
+    const explicitRegex = /\b(?:pieza|diente|pz|d)\.?\s*([1-4][1-8]|[5-8][1-5])\b/gi;
     let m;
-    while ((m = regex.exec(text)) !== null) {
+    while ((m = explicitRegex.exec(text)) !== null) {
         teethFound.add(m[1]);
+    }
+    if (teethFound.size === 0) {
+        const regex = /\b([1-4][1-8]|[5-8][1-5])\b/g;
+        while ((m = regex.exec(text)) !== null) {
+            teethFound.add(m[1]);
+        }
     }
     return Array.from(teethFound);
 }
@@ -944,8 +954,10 @@ async function syncPatientTreatmentsAndSessions(patient, optionalInvoices = null
 
     // 1. Sync patient.metadata.treatments
     if (patient.metadata && Array.isArray(patient.metadata.treatments)) {
+        const usedSessionNums = new Set();
         patient.metadata.treatments.forEach(t => {
-            const matchSess = sessions.find(s => doesSessionMatchTreatment(s, t));
+            const matchSess = sessions.find(s => !usedSessionNums.has(s.sessionNum) && doesSessionMatchTreatment(s, t));
+            if (matchSess && matchSess.sessionNum) usedSessionNums.add(matchSess.sessionNum);
             reconcileTreatmentBalance(t, matchSess);
         });
     }
@@ -957,8 +969,10 @@ async function syncPatientTreatmentsAndSessions(patient, optionalInvoices = null
     if (Array.isArray(pApprovedPhases) && pApprovedPhases.length > 0) {
         pApprovedPhases.forEach(phase => {
             if (Array.isArray(phase.treatments)) {
+                const usedPhaseSessionNums = new Set();
                 phase.treatments.forEach(t => {
-                    const matchSess = sessions.find(s => doesSessionMatchTreatment(s, t));
+                    const matchSess = sessions.find(s => !usedPhaseSessionNums.has(s.sessionNum) && doesSessionMatchTreatment(s, t));
+                    if (matchSess && matchSess.sessionNum) usedPhaseSessionNums.add(matchSess.sessionNum);
                     reconcileTreatmentBalance(t, matchSess);
                 });
             }
@@ -7730,7 +7744,8 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
                 const opt = document.createElement('option');
                 const tNum = t.sessionNum || (idx + 1);
                 const toothNum = extractToothNumber(t);
-                opt.value = tNum;
+                const trtId = t.id || t.key || ('trt-' + tNum);
+                opt.value = trtId;
                 opt.dataset.name = t.name;
                 opt.dataset.tooth = toothNum;
                 opt.dataset.price = t.price || 0;
@@ -7739,7 +7754,7 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
                 const statusTag = isTrtDone ? '✓ Atendido' : '⏳ Planificado';
                 const priceText = t.price ? ` (${parseFloat(t.price).toFixed(2)})` : '';
                 opt.innerText = `Sesión ${tNum}: ${t.name} (${toothText})${priceText} — ${statusTag}`;
-                opt.dataset.treatmentId = t.id || t.key || ('trt-' + tNum);
+                opt.dataset.treatmentId = trtId;
                 opt.dataset.treatmentTooth = toothNum;
                 opt.dataset.treatmentName = t.name;
                 opt.dataset.budgetId = t.budgetId || (window.currentActiveEHRPhaseId !== 'all' ? window.currentActiveEHRPhaseId : '') || '';
@@ -7879,9 +7894,7 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
             updateSessionBalanceCalculation();
 
             trtSelect.onchange = () => {
-                const chosenNum = trtSelect.value;
-                if (chosenNum) {
-                    if (sNumEl) sNumEl.value = chosenNum;
+                if (trtSelect.selectedIndex > 0) {
                     const selectedOption = trtSelect.options[trtSelect.selectedIndex];
                     const procName = selectedOption ? selectedOption.dataset.name : '';
                     const toothName = selectedOption ? selectedOption.dataset.tooth : '';
@@ -7923,19 +7936,24 @@ window.openSessionModalForPatient = async function(patientId, sessionNum, proced
             if (sNumEl) {
                 sNumEl.onchange = () => {
                     const val = parseInt(sNumEl.value);
-                    if (!isNaN(val) && trtSelect) {
-                        let found = false;
-                        for (let i = 1; i < trtSelect.options.length; i++) {
-                            if (parseInt(trtSelect.options[i].value) === val) {
-                                trtSelect.selectedIndex = i;
-                                trtSelect.dispatchEvent(new Event('change'));
-                                found = true;
-                                break;
+                    if (!isNaN(val)) {
+                        const existingSess = (patient.sessions || []).find(s => parseInt(s.sessionNum) === val);
+                        if (existingSess) {
+                            if (procInput) procInput.value = existingSess.procedure || '';
+                            const mSess = document.getElementById('modal-session');
+                            if (mSess) {
+                                mSess.dataset.selectedTreatmentId = existingSess.treatmentId || '';
+                                mSess.dataset.selectedTreatmentTooth = existingSess.tooth || '';
+                                mSess.dataset.selectedTreatmentName = existingSess.treatmentName || '';
+                                mSess.dataset.selectedBudgetId = existingSess.budgetId || '';
                             }
-                        }
-                        if (!found) {
-                            trtSelect.selectedIndex = 0;
-                            trtSelect.dispatchEvent(new Event('change'));
+                            if (trtCostInput && existingSess.treatmentCost) {
+                                trtCostInput.value = parseFloat(existingSess.treatmentCost).toFixed(2);
+                            }
+                            if (payAmtInput && existingSess.paymentUSD !== undefined) {
+                                payAmtInput.value = parseFloat(existingSess.paymentUSD).toFixed(2);
+                            }
+                            updateSessionBalanceCalculation();
                         }
                     }
                 };
